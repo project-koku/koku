@@ -452,3 +452,15 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
+
+    def test_aws_out_of_range_under_date(self):
+        wrong_date = DateHelper().today.date() - timedelta(days=91)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAWSCostView)
+
+    def test_aws_out_of_range_over_date(self):
+        wrong_date = DateHelper().today.date() + timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPAWSCostView)

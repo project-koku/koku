@@ -347,13 +347,15 @@ _koku-wait:
      done
 
 docker-up:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) build koku-base
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-min:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) build koku-base
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener

@@ -1,75 +1,212 @@
 {
-    "openapi": "3.0.0",
-    "info": {
-      "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
-      "version": "1.0.0",
-      "title": "Cost Management Admin",
-      "license": {
-        "name": "AGPL-3.0",
-        "url": "https://opensource.org/licenses/AGPL-3.0"
-      }
+  "openapi": "3.0.0",
+  "info": {
+    "description": "The Admin 'Masu' API for Cost Management.  You can find out more about     Cost Management at [https://github.com/project-koku/](https://github.com/project-koku/).",
+    "version": "1.0.0",
+    "title": "Cost Management Admin",
+    "license": {
+      "name": "AGPL-3.0",
+      "url": "https://opensource.org/licenses/AGPL-3.0"
+    }
+  },
+  "tags": [
+    {
+      "name": "Download",
+      "description": "Operations about report downloads"
     },
-    "tags": [
-      {
-        "name": "Download",
-        "description": "Operations about report downloads"
-      },
-      {
-        "name": "Enabled Tags",
-        "description": "Create or delete OCP enabled tags"
-      },
-      {
-        "name": "Expired Data",
-        "description": "Operations about removing expired data"
-      },
-      {
-        "name": "Report Data",
-        "description": "Operations about summarizing report data"
-      },
-      {
-        "name": "Update Cost Model Cost",
-        "description": "Operations about updating cost model costs"
-      },
-      {
-        "name": "Status",
-        "description": "Operations about status"
-      },
-      {
-        "name": "Crawl Account Hierarchy",
-        "description": "Start the crawler for account hierarchy."
-      },
-      {
-        "name": "Running Celery Tasks",
-        "description": "Returns a list of running celery task ids."
-      },
-      {
-        "name": "Celery Queue Lengths",
-        "description": "Returns a list of celery queues with their lengths."
-      }
-    ],
-    "paths": {
-      "/download/": {
-        "get": {
-          "summary": "Download reports",
-          "operationId": "getDownload",
-          "description": "Return download file async task ID.",
-          "parameters": [],
-          "responses": {
-            "200": {
-              "description": "The celery task ID of the download task",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/DownloadGetResponse"
-                  }
+    {
+      "name": "Enabled Tags",
+      "description": "Create or delete OCP enabled tags"
+    },
+    {
+      "name": "Expired Data",
+      "description": "Operations about removing expired data"
+    },
+    {
+      "name": "Report Data",
+      "description": "Operations about summarizing report data"
+    },
+    {
+      "name": "Update Cost Model Cost",
+      "description": "Operations about updating cost model costs"
+    },
+    {
+      "name": "Status",
+      "description": "Operations about status"
+    },
+    {
+      "name": "Crawl Account Hierarchy",
+      "description": "Start the crawler for account hierarchy."
+    },
+    {
+      "name": "Running Celery Tasks",
+      "description": "Returns a list of running celery task ids."
+    },
+    {
+      "name": "Celery Queue Lengths",
+      "description": "Returns a list of celery queues with their lengths."
+    }
+  ],
+  "paths": {
+    "/download/": {
+      "get": {
+        "summary": "Download reports",
+        "operationId": "getDownload",
+        "description": "Return download file async task ID.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The celery task ID of the download task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGetResponse"
                 }
               }
             }
-          },
-          "tags": [
-            "Download"
-          ]
+          }
         },
+        "tags": [
+          "Download"
+        ]
+      },
+      "parameters": [
+        {
+          "name": "provider_uuid",
+          "in": "query",
+          "description": "The provider UUID",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        },
+        {
+          "name": "bill_date",
+          "in": "query",
+          "description": "The month's data to download",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "format": "date",
+            "example": "2019-01-01"
+          }
+        }
+      ]
+    },
+    "/enabled_tags/": {
+      "get": {
+        "summary": "List OCP Enabled Tags",
+        "operationId": "getEnabledTag",
+        "description": "Return tag keys.",
+        "parameters": [
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tag keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnabledTagGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Enabled Tags"
+        ]
+      },
+      "post": {
+        "summary": "Create or delete OCP Enabled Tags",
+        "operationId": "postEnabledTag",
+        "description": "Return tag keys.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnabledTagPostData"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List of tag keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnabledTagPostResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Enabled Tags"
+        ]
+      },
+      "parameters": []
+    },
+    "/expired_data/": {
+      "get": {
+        "operationId": "getExpiredData",
+        "description": "Return simulated expired data.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Simulate the deletion expired data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpiredDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Expired Data"
+        ]
+      },
+      "delete": {
+        "operationId": "deleteExpiredData",
+        "description": "Return expired data.",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Delete expired data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpiredDataDeleteResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Expired Data"
+        ]
+      },
+      "parameters": []
+    },
+    "/report_data/": {
+      "get": {
+        "operationId": "getReportData",
+        "description": "Update report summary tables in the database.",
         "parameters": [
           {
             "name": "provider_uuid",
@@ -83,871 +220,1197 @@
             }
           },
           {
-            "name": "bill_date",
+            "name": "provider_type",
             "in": "query",
-            "description": "The month's data to download",
+            "description": "The provider type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "AWS"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "The date to begin summarizing",
             "required": false,
             "schema": {
               "type": "string",
               "format": "date",
               "example": "2019-01-01"
             }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Report Data"
         ]
       },
-      "/enabled_tags/": {
-        "get": {
-          "summary": "List OCP Enabled Tags",
-          "operationId": "getEnabledTag",
-          "description": "Return tag keys.",
-          "parameters": [
-            {
-              "name": "schema",
-              "in": "query",
-              "description": "The database schema",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "example": "acct12345"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "List of tag keys",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EnabledTagGetResponse"
-                  }
-                }
-              }
+      "delete": {
+        "operationId": "deleteReportData",
+        "description": "Delete report summary tables in the database.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider database ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": 1
             }
           },
-          "tags": [
-            "Enabled Tags"
-          ]
-        },
-        "post": {
-          "summary": "Create or delete OCP Enabled Tags",
-          "operationId": "postEnabledTag",
-          "description": "Return tag keys.",
-          "requestBody": {
+          {
+            "name": "provider",
+            "in": "query",
+            "description": "The provider type",
             "required": true,
+            "schema": {
+              "type": "string",
+              "example": "AWS"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          },
+          {
+            "name": "simulate",
+            "in": "query",
+            "description": "Whether to actually delete",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Data deletion task has been queued",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EnabledTagPostData"
+                  "$ref": "#/components/schemas/ReportDataGetResponse"
                 }
               }
             }
-          },
-          "responses": {
-            "200": {
-              "description": "List of tag keys",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/EnabledTagPostResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Enabled Tags"
-          ]
+          }
         },
-        "parameters": []
+        "tags": [
+          "Report Data"
+        ]
       },
-      "/expired_data/": {
-        "get": {
-          "operationId": "getExpiredData",
-          "description": "Return simulated expired data.",
-          "parameters": [],
-          "responses": {
-            "200": {
-              "description": "Simulate the deletion expired data",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/ExpiredDataGetResponse"
-                  }
-                }
-              }
+      "parameters": []
+    },
+    "/status/": {
+      "get": {
+        "operationId": "status_list",
+        "description": "Packages response for class-based view.",
+        "parameters": [
+          {
+            "name": "celery",
+            "in": "query",
+            "description": "Whether to return celery queue/task data",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "example": true
             }
-          },
-          "tags": [
-            "Expired Data"
-          ]
-        },
-        "delete": {
-          "operationId": "deleteExpiredData",
-          "description": "Return expired data.",
-          "parameters": [],
-          "responses": {
-            "204": {
-              "description": "Delete expired data",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/ExpiredDataDeleteResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Expired Data"
-          ]
-        },
-        "parameters": []
-      },
-      "/report_data/": {
-        "get": {
-          "operationId": "getReportData",
-          "description": "Update report summary tables in the database.",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider UUID",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "format": "uuid",
-                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-              }
-            },
-            {
-              "name": "provider_type",
-              "in": "query",
-              "description": "The provider type",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "example": "AWS"
-              }
-            },
-            {
-              "name": "schema",
-              "in": "query",
-              "description": "The database schema",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "example": "acct12345"
-              }
-            },
-            {
-              "name": "start_date",
-              "in": "query",
-              "description": "The date to begin summarizing",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "format": "date",
-                "example": "2019-01-01"
-              }
-            },
-            {
-              "name": "end_date",
-              "in": "query",
-              "description": "The date to end summarizing",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "format": "date",
-                "example": "2019-12-31"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Data summary task has been queued",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/ReportDataGetResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Report Data"
-          ]
-        },
-        "delete": {
-          "operationId": "deleteReportData",
-          "description": "Delete report summary tables in the database.",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider database ID",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "example": 1
-              }
-            },
-            {
-              "name": "provider",
-              "in": "query",
-              "description": "The provider type",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "example": "AWS"
-              }
-            },
-            {
-              "name": "schema",
-              "in": "query",
-              "description": "The database schema",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "example": "acct12345"
-              }
-            },
-            {
-              "name": "simulate",
-              "in": "query",
-              "description": "Whether to actually delete",
-              "required": false,
-              "schema": {
-                "type": "boolean",
-                "example": true
-              }
-            },
-            {
-              "name": "end_date",
-              "in": "query",
-              "description": "The date to end summarizing",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "format": "date",
-                "example": "2019-12-31"
-              }
-            }
-          ],
-          "responses": {
-            "204": {
-              "description": "Data deletion task has been queued",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/ReportDataGetResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Report Data"
-          ]
-        },
-        "parameters": []
-      },
-      "/status/": {
-        "get": {
-          "operationId": "status_list",
-          "description": "Packages response for class-based view.",
-          "parameters": [
-            {
-              "name": "celery",
-              "in": "query",
-              "description": "Whether to return celery queue/task data",
-              "required": false,
-              "schema": {
-                "type": "boolean",
-                "example": true
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/StatusResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Status"
-          ]
-        },
-        "parameters": []
-      },
-      "/update_cost_model_costs/": {
-        "get": {
-          "operationId": "update_cost_model_costs_list",
-          "description": "Update report summary tables in the database.",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider UUID",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "format": "uuid",
-                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-              }
-            },
-            {
-              "name": "schema",
-              "in": "query",
-              "description": "The database schema",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "example": "acct12345"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "Update derived cost",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/UpdateCostModelCostGetResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Update Cost Model Cost"
-          ]
-        },
-        "parameters": []
-      },
-      "/crawl_account_hierarchy/": {
-        "get": {
-          "summary": "Start the crawler for account hierarchy.",
-          "operationId": "crawlAccountHierarchy",
-          "description": "Returns crawl account hierarchy async task ID.",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider UUID",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid",
-                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-              }
-            }
-          ],
-          "responses": {
-            "200": {
-              "description": "The celery task ID of the crawl account hierarchy task",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/CrawlAccountHierarchy"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Crawl Account Hierarchy"
-          ]
-        },
-        "post": {
-          "summary": "Create aws org unit tree from json",
-          "operationId": "crawlAccountHierarchyPost",
-          "description": "Return tree json.",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider UUID",
-              "required": true,
-              "schema": {
-                "type": "string",
-                "format": "uuid",
-                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-              }
-            }
-          ],
-          "requestBody": {
-            "required": true,
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CrawlAccountHierarchyPost"
+                  "$ref": "#/components/schemas/StatusResponse"
                 }
               }
             }
-          },
-          "responses": {
-            "200": {
-              "description": "Return tree json.",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/CrawlAccountHierarchyPostResponse"
-                  }
-                }
-              }
-            }
-          },
-          "tags": [
-            "Crawl Account Hierarchy"
-          ]
+          }
         },
-        "parameters": []
+        "tags": [
+          "Status"
+        ]
       },
-      "/running_celery_tasks/": {
-        "get": {
-          "summary": "Returns a list of running celery tasks.",
-          "operationId": "runningCeleryTasks",
-          "description": "Returns a list of running celery tasks.",
-          "responses": {
-            "200": {
-              "description": "Returns a list of running celery tasks.",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/runningCeleryTasks"
-                  }
+      "parameters": []
+    },
+    "/update_cost_model_costs/": {
+      "get": {
+        "operationId": "update_cost_model_costs_list",
+        "description": "Update report summary tables in the database.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Update derived cost",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCostModelCostGetResponse"
                 }
               }
             }
-          },
-          "tags": [
-            "Running Celery Tasks"
-          ]
-        }
+          }
+        },
+        "tags": [
+          "Update Cost Model Cost"
+        ]
       },
-      "/celery_queue_lengths/": {
-        "get": {
-          "summary": "Returns a list of celery queues with the number of tasks in them.",
-          "operationId": "celeryQueueLength",
-          "description": "Returns a dictionary of queues with queue length.",
-          "responses": {
-            "200": {
-              "description": "Returns a dictionary of queues with their associated lengths.",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/celeryQueueLength"
-                  }
+      "parameters": []
+    },
+    "/crawl_account_hierarchy/": {
+      "get": {
+        "summary": "Start the crawler for account hierarchy.",
+        "operationId": "crawlAccountHierarchy",
+        "description": "Returns crawl account hierarchy async task ID.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The celery task ID of the crawl account hierarchy task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlAccountHierarchy"
                 }
               }
             }
-          },
-          "tags": [
-            "Celery Queue Lengths"
-          ]
-        }
+          }
+        },
+        "tags": [
+          "Crawl Account Hierarchy"
+        ]
       },
-      "/gcp_invoice_monthly_cost/": {
-        "get": {
-          "summary": "Returns dictionary with cost mappings for continuity checks",
-          "operationId": "gcpInvoiceMonthlyCost",
-          "description": "Returns a dictionary with cost mappings for continuity checks",
-          "parameters": [
-            {
-              "name": "provider_uuid",
-              "in": "query",
-              "description": "The provider UUID",
-              "required": true,
+      "post": {
+        "summary": "Create aws org unit tree from json",
+        "operationId": "crawlAccountHierarchyPost",
+        "description": "Return tree json.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
               "schema": {
-                "type": "string",
-                "format": "uuid",
-                "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+                "$ref": "#/components/schemas/CrawlAccountHierarchyPost"
               }
             }
-          ],
-          "responses": {
-            "200": {
-              "description": "Returns a dictionary with cost mappings for continuity checks",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
-                  }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Return tree json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrawlAccountHierarchyPostResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Crawl Account Hierarchy"
+        ]
+      },
+      "parameters": []
+    },
+    "/running_celery_tasks/": {
+      "get": {
+        "summary": "Returns a list of running celery tasks.",
+        "operationId": "runningCeleryTasks",
+        "description": "Returns a list of running celery tasks.",
+        "responses": {
+          "200": {
+            "description": "Returns a list of running celery tasks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/runningCeleryTasks"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Running Celery Tasks"
+        ]
+      }
+    },
+    "/celery_queue_lengths/": {
+      "get": {
+        "summary": "Returns a list of celery queues with the number of tasks in them.",
+        "operationId": "celeryQueueLength",
+        "description": "Returns a dictionary of queues with queue length.",
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary of queues with their associated lengths.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/celeryQueueLength"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Celery Queue Lengths"
+        ]
+      }
+    },
+    "/gcp_invoice_monthly_cost/": {
+      "get": {
+        "summary": "Returns dictionary with cost mappings for continuity checks",
+        "operationId": "gcpInvoiceMonthlyCost",
+        "description": "Returns a dictionary with cost mappings for continuity checks",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "GCP Invoice Monthly Cost"
+        ]
+      }
+    },
+    "/manifests/": {
+      "get": {
+        "tags": [
+          "Manifests"
+        ],
+        "summary": "Returns all manifest information",
+        "operationId": "getManifest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProviderName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An object describing manifest information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifests"
                 }
               }
             }
           },
-          "tags": [
-            "GCP Invoice Monthly Cost"
-          ]
+          "404": {
+            "description": "Manifests not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
         }
       }
     },
-    "components": {
-      "schemas": {
-        "DownloadGetResponse": {
-          "type": "object",
-          "properties": {
-            "Download Request Task ID": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        },
-        "EnabledTagGetResponse": {
-          "type": "object",
-          "properties": {
-            "tag_keys": {
-              "type": "array",
-              "items": {"type": "string"},
-              "example": ["tag1", "tag2"]
-            }
-          }
-        },
-        "EnabledTagPostResponse": {
-          "type": "object",
-          "properties": {
-            "tag_keys": {
-              "type": "array",
-              "items": {"type": "string"},
-              "example": ["tag1", "tag2"]
-            }
-          }
-        },
-        "EnabledTagPostData": {
-          "type": "object",
-          "properties": {
-            "tag_keys": {
-              "type": "array",
-              "items": {"type": "string"},
-              "example": ["tag1", "tag2"]
-            },
+    "/manifests/{source_uuid}/": {
+      "get": {
+        "tags": [
+          "Manifests"
+        ],
+        "summary": "returns manifests for a provider source uuid",
+        "operationId": "getManifestbyUUID",
+        "parameters": [
+          {
+            "name": "source_uuid",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
             "schema": {
               "type": "string",
-              "example": "acct12345"
-            },
-            "action": {
-              "type": "string",
-              "enum": ["create", "delete"]
+              "format": "string",
+              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
             }
           }
-        },
-        "CrawlAccountHierarchyPost":{
-          "type": "object",
-          "properties": {
+        ],
+        "responses": {
+          "200": {
+            "description": "An object describing manifest information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifests"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Manifests not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manifests/{source_uuid}/{manifest_id}/": {
+      "get": {
+        "tags": [
+          "Manifests"
+        ],
+        "summary": "Returns a specific manifest for the provider source uuid",
+        "operationId": "getManifestbyUUIDandID",
+        "parameters": [
+          {
+            "name": "source_uuid",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
             "schema": {
               "type": "string",
-              "example": "acct12345"
-            },
-            "start_date": {
-              "type": "string",
-              "example": "2020-09-01"
-            },
-            "account_structure": {
-              "type": "object",
-              "properties": {
-                "days": {
-                  "type": "array",
-                  "items": {"type": "object"},
-                  "example": [
-                    {"day":{
-                      "date": "-90",
-                      "nodes": [
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "ROOT_O1",
-                          "org_unit_name": "Root",
-                          "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
-                        },
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "OU_01",
-                          "org_unit_name": "Dept OU_01",
-                          "parent_path": "ROOT_O1",
-                          "accounts": [
-                              {"account_alias_id": "91", "account_alias_name": "acct 01"},
-                              {"account_alias_id": "92", "account_alias_name": "acct 02"}
-                          ]
-                        },
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "OU_02",
-                          "org_unit_name": "Dept OU_02",
-                          "parent_path": "ROOT_O1"
-                        }
-                      ]
-                    }
-                  }
-                ]
-                }
-              }
+              "format": "string",
+              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
             }
-          }
-        },
-        "CrawlAccountHierarchyPostResponse":{
-          "type": "object",
-          "properties": {
-            "account_structure": {
-              "type": "object",
-              "properties": {
-                "days": {
-                  "type": "array",
-                  "items": {"type": "object"},
-                  "example": [
-                    {"day":{
-                      "date": "-90",
-                      "nodes": [
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "ROOT_O1",
-                          "org_unit_name": "Root",
-                          "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
-                        },
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "OU_01",
-                          "org_unit_name": "Dept OU_01",
-                          "parent_path": "ROOT_O1",
-                          "accounts": [
-                              {"account_alias_id": "91", "account_alias_name": "acct 01"},
-                              {"account_alias_id": "92", "account_alias_name": "acct 02"}
-                          ]
-                        },
-                        {
-                          "organizational_unit": "None",
-                          "org_unit_id": "OU_02",
-                          "org_unit_name": "Dept OU_02",
-                          "parent_path": "ROOT_O1"
-                        }
-                      ]
-                    }
-                  }
-                ]
-                }
-              }
-            }
-          }
-        },
-        "runningCeleryTasks": {
-          "type": "object",
-          "properties": {
-            "active_tasks": {
-              "type": "string",
-              "format": "list",
-              "example": ["a8d39868-dbd3-47ac-9220-82370e35b59c"]
-            }
-          }
-        },
-        "celeryQueueLength": {
-          "type": "object",
-          "properties": {
-            "download": {
-              "type": "integer",
-              "example": 14
-            },
-            "summary": {
-              "type": "integer",
-              "example": 5
-            },
-            "priority": {
-              "type": "integer",
-              "example": 0
-            },
-            "refresh": {
-              "type": "integer",
-              "example": 0
-            },
-            "cost_model": {
-              "type": "integer",
-              "example": 4
-            },
-            "celery": {
-              "type": "integer",
-              "example": 2
-            }
-          }
-        },
-        "gcpInvoiceMonthlyCost": {
-          "type": "object",
-          "properties": {
-            "monthly_invoice_cost_mapping": {
-              "type": "object",
-              "properties": {
-                "previous": {
-                  "type": "number",
-                  "example": 204.51
-                },
-                "current": {
-                  "type": "number",
-                  "example": 204.51
-                }
-              }
-            }
-          }
-        },
-        "ExpiredDataDeleteResponse": {
-          "type": "object",
-          "properties": {
-            "Download Request Task ID": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        },
-        "ExpiredDataGetResponse": {
-          "type": "object",
-          "properties": {
-            "Async jobs for expired data removal (simulated)": {
-              "type": "string",
-              "format": "list",
-              "example": []
-            }
-          }
-        },
-        "ReportDataGetResponse": {
-          "type": "object",
-          "properties": {
-            "Report Data Task ID": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        },
-        "UpdateCostModelCostGetResponse": {
-          "type": "object",
-          "properties": {
-            "Update Cost Model Cost Task ID": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        },
-        "UploadNormalizedDataPostResponse": {
-          "type": "object",
-          "properties": {
-            "AsyncResult ID": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          }
-        },
-        "StatusResponse": {
-          "type": "object",
-          "properties": {
-            "api_version": {
+          },
+          {
+            "name": "manifest_id",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
               "type": "integer",
               "format": "int64",
-              "example": 1
-            },
-            "celery_status": {
-              "type": "object",
-              "example": {
-                "Error": "Unable to establish connection with broker."
-              }
-            },
-            "commit": {
-              "type": "string",
-              "example": "178d2ea"
-            },
-            "current_datetime": {
-              "type": "string",
-              "format": "date",
-              "example": "2019-08-14T20:18:20.822184Z"
-            },
-            "database_status": {
-              "type": "array",
-              "items": {
-                "$ref": "#/components/schemas/DatabaseConnection"
-              },
-              "example": [
-                {
-                  "database": "postgres",
-                  "database_connections": 0
-                },
-                {
-                  "database": "koku",
-                  "database_connections": 11
-                },
-                {
-                  "database": "template1",
-                  "database_connections": 0
-                },
-                {
-                  "database": "template0",
-                  "database_connections": 0
+              "example": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An object describing manifest information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Manifest"
                 }
-              ]
-            },
-            "debug": {
-              "type": "boolean",
-              "example": true
-            },
-            "platform_info": {
-              "type": "object",
-              "example": {
-                "system": "Darwin",
-                "node": "node-1.example.com",
-                "release": "17.5.0",
-                "version": "Darwin Kernel Version 17.5.0",
-                "machine": "x86_64",
-                "processor": "i386"
               }
-            },
-            "python_version": {
-              "type": "string",
-              "example": "3.6.1"
-            },
-            "modules": {
-              "type": "object",
-              "example": {
-                "coverage": "4.5.1",
-                "coverage.version": "4.5.1",
-                "coverage.xmlreport": "4.5.1",
-                "cryptography": "2.0.3",
-                "ctypes": "1.1.0",
-                "ctypes.macholib": "1.0",
-                "decimal": "1.70",
-                "django": "1.11.5",
-                "django.utils.six": "1.10.0",
-                "django_filters": "1.0.4",
-                "http.server": "0.6"
+            }
+          },
+          "404": {
+            "description": "Manifest not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }
-        },
-        "DatabaseConnection": {
-          "type": "object",
-          "properties": {
-            "database": {
-              "type": "string"
-            },
-            "database_connections": {
-              "type": "string"
+        }
+      }
+    },
+    "/manifests/{source_uuid}/{manifest_id}/files/": {
+      "get": {
+        "tags": [
+          "Manifests"
+        ],
+        "summary": "Returns file report information for a manifest",
+        "operationId": "getManifestfiles",
+        "parameters": [
+          {
+            "name": "source_uuid",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
+            }
+          },
+          {
+            "name": "manifest_id",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "example": 3
             }
           }
-        },
-        "CrawlAccountHierarchy": {
-          "type": "object",
-          "properties": {
-            "Crawl Account Hierarchy Task ID": {
+        ],
+        "responses": {
+          "200": {
+            "description": "An object describing manifest report information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStatuses"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Manifest reports not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/manifests/{source_uuid}/{manifest_id}/files/{id}": {
+      "get": {
+        "tags": [
+          "Manifests"
+        ],
+        "summary": "Returns a specific file report status for a manifest",
+        "operationId": "getManifestfile",
+        "parameters": [
+          {
+            "name": "source_uuid",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
               "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+              "format": "string",
+              "example": "4199b508-39d5-43f0-838a-6d86af0ef6e0"
+            }
+          },
+          {
+            "name": "manifest_id",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "example": 3
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "description": "provider source uuid",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "example": 3
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "An object describing manifest report information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Manifest report not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
             }
           }
         }
       }
     }
+  },
+  "components": {
+    "parameters": {
+      "ProviderName": {
+        "name": "provider_name",
+        "in": "query",
+        "description": "String to indicate the provider name.",
+        "schema": {
+          "type": "string",
+          "example": "aws_org_tree"
+        }
+      }
+    },
+    "schemas": {
+      "DownloadGetResponse": {
+        "type": "object",
+        "properties": {
+          "Download Request Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "EnabledTagGetResponse": {
+        "type": "object",
+        "properties": {
+          "tag_keys": {
+            "type": "array",
+            "items": {"type": "string"},
+            "example": ["tag1", "tag2"]
+          }
+        }
+      },
+      "EnabledTagPostResponse": {
+        "type": "object",
+        "properties": {
+          "tag_keys": {
+            "type": "array",
+            "items": {"type": "string"},
+            "example": ["tag1", "tag2"]
+          }
+        }
+      },
+      "EnabledTagPostData": {
+        "type": "object",
+        "properties": {
+          "tag_keys": {
+            "type": "array",
+            "items": {"type": "string"},
+            "example": ["tag1", "tag2"]
+          },
+          "schema": {
+            "type": "string",
+            "example": "acct12345"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["create", "delete"]
+          }
+        }
+      },
+      "CrawlAccountHierarchyPost":{
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "string",
+            "example": "acct12345"
+          },
+          "start_date": {
+            "type": "string",
+            "example": "2020-09-01"
+          },
+          "account_structure": {
+            "type": "object",
+            "properties": {
+              "days": {
+                "type": "array",
+                "items": {"type": "object"},
+                "example": [
+                  {"day":{
+                    "date": "-90",
+                    "nodes": [
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "ROOT_O1",
+                        "org_unit_name": "Root",
+                        "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
+                      },
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "OU_01",
+                        "org_unit_name": "Dept OU_01",
+                        "parent_path": "ROOT_O1",
+                        "accounts": [
+                            {"account_alias_id": "91", "account_alias_name": "acct 01"},
+                            {"account_alias_id": "92", "account_alias_name": "acct 02"}
+                        ]
+                      },
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "OU_02",
+                        "org_unit_name": "Dept OU_02",
+                        "parent_path": "ROOT_O1"
+                      }
+                    ]
+                  }
+                }
+              ]
+              }
+            }
+          }
+        }
+      },
+      "CrawlAccountHierarchyPostResponse":{
+        "type": "object",
+        "properties": {
+          "account_structure": {
+            "type": "object",
+            "properties": {
+              "days": {
+                "type": "array",
+                "items": {"type": "object"},
+                "example": [
+                  {"day":{
+                    "date": "-90",
+                    "nodes": [
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "ROOT_O1",
+                        "org_unit_name": "Root",
+                        "accounts": [{"account_alias_id": "90", "account_alias_name": "ROOT TEST"}]
+                      },
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "OU_01",
+                        "org_unit_name": "Dept OU_01",
+                        "parent_path": "ROOT_O1",
+                        "accounts": [
+                            {"account_alias_id": "91", "account_alias_name": "acct 01"},
+                            {"account_alias_id": "92", "account_alias_name": "acct 02"}
+                        ]
+                      },
+                      {
+                        "organizational_unit": "None",
+                        "org_unit_id": "OU_02",
+                        "org_unit_name": "Dept OU_02",
+                        "parent_path": "ROOT_O1"
+                      }
+                    ]
+                  }
+                }
+              ]
+              }
+            }
+          }
+        }
+      },
+      "runningCeleryTasks": {
+        "type": "object",
+        "properties": {
+          "active_tasks": {
+            "type": "string",
+            "format": "list",
+            "example": ["a8d39868-dbd3-47ac-9220-82370e35b59c"]
+          }
+        }
+      },
+      "celeryQueueLength": {
+        "type": "object",
+        "properties": {
+          "download": {
+            "type": "integer",
+            "example": 14
+          },
+          "summary": {
+            "type": "integer",
+            "example": 5
+          },
+          "priority": {
+            "type": "integer",
+            "example": 0
+          },
+          "refresh": {
+            "type": "integer",
+            "example": 0
+          },
+          "cost_model": {
+            "type": "integer",
+            "example": 4
+          },
+          "celery": {
+            "type": "integer",
+            "example": 2
+          }
+        }
+      },
+      "gcpInvoiceMonthlyCost": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "previous": {
+                "type": "number",
+                "example": 204.51
+              },
+              "current": {
+                "type": "number",
+                "example": 204.51
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "required": [
+            "errors"
+        ],
+        "properties": {
+            "errors": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "example": {
+                        "detail": "Not Found.",
+                        "status": 404
+                    }
+                }
+            }
+          }
+      },
+      "ExpiredDataDeleteResponse": {
+        "type": "object",
+        "properties": {
+          "Download Request Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "ExpiredDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Async jobs for expired data removal (simulated)": {
+            "type": "string",
+            "format": "list",
+            "example": []
+          }
+        }
+      },
+      "Manifest": {
+        "required": [
+          "id",
+          "assembly_id",
+          "manifest_creation_datetime",
+          "manifest_updated_datetime",
+          "manifest_completed_datetime",
+          "manifest_modified_datetime",
+          "billing_period_start_datetime",
+          "provider_id",
+          "s3_csv_cleared",
+          "s3_parquet_cleared"
+        ],
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "assembly_id": {
+            "type": "string"
+          },
+          "manifest_creation_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "manifest_updated_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "manifest_completed_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "manifest_modified_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "billing_period_start_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "provider_id": {
+            "type": "string"
+          },
+          "s3_csv_cleared": {
+            "type": "boolean"
+          },
+          "s3_parquet_cleared": {
+            "type": "boolean"
+          },
+          "operator_version": {
+            "type": "string"
+          }
+        }
+      },
+      "Manifests": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ListPagination"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Manifest"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ReportStatus": {
+        "required": [
+          "id",
+          "report_name",
+          "last_completed_datetime",
+          "last_started_datetime"
+        ],
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "report_name": {
+            "type": "string"
+          },
+          "assembly_id": {
+            "type": "string"
+          },
+          "last_completed_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "last_started_datetime": {
+            "enum": [
+              "year-month-day:time"
+            ]
+          },
+          "etag": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "number"
+          }
+        }
+      },
+      "PaginationMeta": {
+        "properties": {
+            "count": {
+                "type": "integer",
+                "format": "int64",
+                "example": 30
+            }
+        }
+      },
+      "PaginationLinks": {
+          "properties": {
+              "first": {
+                  "type": "string",
+                  "format": "uri",
+                  "example": "/cost-management/v1/(resources)/?offset=0"
+              },
+              "previous": {
+                  "type": "string",
+                  "format": "uri",
+                  "example": "/cost-management/v1/(resources)/?offset=20"
+              },
+              "next": {
+                  "type": "string",
+                  "format": "uri",
+                  "example": "/cost-management/v1/(resources)/?offset=40"
+              },
+              "last": {
+                  "type": "string",
+                  "format": "uri",
+                  "example": "/cost-management/v1/(resources)/?offset=100"
+              }
+          }
+      },
+      "ListPagination": {
+          "properties": {
+              "meta": {
+                  "$ref": "#/components/schemas/PaginationMeta"
+              },
+              "links": {
+                  "$ref": "#/components/schemas/PaginationLinks"
+              }
+          }
+      },
+      "ReportStatuses": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ListPagination"
+          },
+          {
+            "type": "object",
+            "required": [
+              "data"
+            ],
+            "properties": {
+              "data": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ReportStatus"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ReportDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "UpdateCostModelCostGetResponse": {
+        "type": "object",
+        "properties": {
+          "Update Cost Model Cost Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "UploadNormalizedDataPostResponse": {
+        "type": "object",
+        "properties": {
+          "AsyncResult ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "api_version": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "celery_status": {
+            "type": "object",
+            "example": {
+              "Error": "Unable to establish connection with broker."
+            }
+          },
+          "commit": {
+            "type": "string",
+            "example": "178d2ea"
+          },
+          "current_datetime": {
+            "type": "string",
+            "format": "date",
+            "example": "2019-08-14T20:18:20.822184Z"
+          },
+          "database_status": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DatabaseConnection"
+            },
+            "example": [
+              {
+                "database": "postgres",
+                "database_connections": 0
+              },
+              {
+                "database": "koku",
+                "database_connections": 11
+              },
+              {
+                "database": "template1",
+                "database_connections": 0
+              },
+              {
+                "database": "template0",
+                "database_connections": 0
+              }
+            ]
+          },
+          "debug": {
+            "type": "boolean",
+            "example": true
+          },
+          "platform_info": {
+            "type": "object",
+            "example": {
+              "system": "Darwin",
+              "node": "node-1.example.com",
+              "release": "17.5.0",
+              "version": "Darwin Kernel Version 17.5.0",
+              "machine": "x86_64",
+              "processor": "i386"
+            }
+          },
+          "python_version": {
+            "type": "string",
+            "example": "3.6.1"
+          },
+          "modules": {
+            "type": "object",
+            "example": {
+              "coverage": "4.5.1",
+              "coverage.version": "4.5.1",
+              "coverage.xmlreport": "4.5.1",
+              "cryptography": "2.0.3",
+              "ctypes": "1.1.0",
+              "ctypes.macholib": "1.0",
+              "decimal": "1.70",
+              "django": "1.11.5",
+              "django.utils.six": "1.10.0",
+              "django_filters": "1.0.4",
+              "http.server": "0.6"
+            }
+          }
+        }
+      },
+      "DatabaseConnection": {
+        "type": "object",
+        "properties": {
+          "database": {
+            "type": "string"
+          },
+          "database_connections": {
+            "type": "string"
+          }
+        }
+      },
+      "CrawlAccountHierarchy": {
+        "type": "object",
+        "properties": {
+          "Crawl Account Hierarchy Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      }
+    }
   }
+}

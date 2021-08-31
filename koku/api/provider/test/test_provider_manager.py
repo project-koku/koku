@@ -107,6 +107,20 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertTrue(manager.get_active_status())
 
+    def test_get_paused_status(self):
+        """Can the provider paused status be returned."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertFalse(manager.get_paused_status())
+
     def test_data_flags(self):
         """Test the data status flag."""
         # Get Provider UUID

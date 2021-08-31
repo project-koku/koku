@@ -146,6 +146,7 @@ class ProviderBuilder:
             "type": provider_type.lower(),
             "authentication": self._build_credentials_auth(source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
+            "paused": source.paused,
         }
         connection.set_tenant(tenant)
         instance = Provider.objects.get(uuid=source.koku_uuid)

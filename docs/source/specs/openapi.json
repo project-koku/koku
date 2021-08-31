@@ -5329,6 +5329,11 @@
                                 "description": "Flag to indicate if provider is successfully configured.",
                                 "default": false
                             },
+                            "paused": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider is paused.",
+                                "default": false
+                            },
                             "current_month_data": {
                                 "type": "boolean",
                                 "description": "Flag to indicate if provider has report data for the current month.",
