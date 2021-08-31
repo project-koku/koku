@@ -7,7 +7,6 @@ import copy
 from datetime import datetime
 from datetime import timedelta
 
-from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -18,6 +17,7 @@ from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.queries import check_view_filter_and_group_by_criteria
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import AWSCostEntryBill
 from reporting.models import OCPAWSComputeSummary
 from reporting.models import OCPAWSCostLineItemDailySummary
@@ -455,7 +455,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, OCPAWSCostView)
 
     def test_ocp_aws_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)

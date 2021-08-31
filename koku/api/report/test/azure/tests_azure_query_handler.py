@@ -28,6 +28,7 @@ from api.report.azure.view import AzureStorageView
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import AzureComputeSummary
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -1267,7 +1268,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, AzureCostView)
 
     def test_azure_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)

@@ -34,6 +34,7 @@ from api.report.test.aws.test_views import _calculate_accounts_and_subous
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import AWSComputeSummary
 from reporting.models import AWSComputeSummaryByAccount
 from reporting.models import AWSComputeSummaryByRegion
@@ -1893,7 +1894,7 @@ class AWSReportQueryTest(IamTestCase):
             self.mocked_query_params(url, AWSCostView)
 
     def test_aws_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)

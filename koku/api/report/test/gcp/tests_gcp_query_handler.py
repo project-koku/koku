@@ -25,6 +25,7 @@ from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
 from reporting.models import GCPCostSummary
@@ -1123,7 +1124,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.mocked_query_params(url, GCPCostView)
 
     def test_gcp_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - relativedelta(months=3, days=1)
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
