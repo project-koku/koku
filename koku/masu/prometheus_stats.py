@@ -54,37 +54,37 @@ DOWNLOAD_BACKLOG = Gauge(
     "download_backlog",
     "Number of celery tasks in the download queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 SUMMARY_BACKLOG = Gauge(
     "summary_backlog",
     "Number of celery tasks in the summary queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 PRIORITY_BACKLOG = Gauge(
     "priority_backlog",
     "Number of celery tasks in the priority queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 REFRESH_BACKLOG = Gauge(
     "refresh_backlog",
     "Number of celery tasks in the refresh queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 COST_MODEL_BACKLOG = Gauge(
     "cost_model_backlog",
     "Number of celery tasks in the cost model queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 DEFAULT_BACKLOG = Gauge(
     "default_backlog",
     "Number of celery tasks in the default queue",
     registry=WORKER_REGISTRY,
-    multiprocess_mode="livesum",
+    multiprocess_mode="liveall",
 )
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,

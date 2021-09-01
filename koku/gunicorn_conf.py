@@ -2,6 +2,7 @@
 import multiprocessing
 
 import environ
+from prometheus_client import multiprocess
 
 from koku.probe_server import BasicProbeServer
 from koku.probe_server import start_probe_server
@@ -30,3 +31,9 @@ def on_starting(server):
     """gunicorn server hook to start probe server before main process"""
     httpd = start_probe_server(BasicProbeServer, server.log)
     httpd.RequestHandlerClass.ready = True
+
+
+# see https://github.com/prometheus/client_python#multiprocess-mode-eg-gunicorn
+def child_exit(server, worker):
+    """mark prometheus multiprocess process as `dead` when gunicorn worker exits"""
+    multiprocess.mark_process_dead(worker.pid)
