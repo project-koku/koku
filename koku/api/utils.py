@@ -276,8 +276,11 @@ class DateHelper:
         Returns:
             List of invoice months.
         """
+        # Add a little buffer to end date for beginning of the month
+        # searches for invoice_month for dates < end_date
+        end_range = end + timedelta(1)
         invoice_months = []
-        for day in range((end - start).days):
+        for day in range((end_range - start).days):
             invoice_month = (start + timedelta(day)).strftime("%Y%m")
             if invoice_month not in invoice_months:
                 invoice_months.append(invoice_month)
