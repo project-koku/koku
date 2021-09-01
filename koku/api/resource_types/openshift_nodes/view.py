@@ -38,6 +38,7 @@ class OCPNodesView(generics.ListAPIView):
         supported_query_params = ["search", "limit"]
         user_access = []
         error_message = {}
+        query_holder = False
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -56,5 +57,6 @@ class OCPNodesView(generics.ListAPIView):
                 query_holder = self.queryset.filter(node__in=user_access)
         if user_access and user_access[0] == "*":
             return super().list(request)
-        self.queryset = query_holder
+        # if query_holder does not exist we return an empty queryset
+        self.queryset = query_holder or self.queryset.filter(node__in="")
         return super().list(request)
