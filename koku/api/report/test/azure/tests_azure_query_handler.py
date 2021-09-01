@@ -1233,11 +1233,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_azure_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         # execute query
-        yesterday = datetime.utcnow() - timedelta(days=1)
-        # removes time from date
-        yesterday = datetime.date(yesterday)
+        yesterday = self.dh.yesterday.date()
         lst = []
-        matchinglists = False
         correctlst = []
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -1251,15 +1248,10 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     correctlst.append(service.get("service_name"))
         for element in data:
             # Check if there is any data in services
-            if element.get("service_names") > []:
-                for service in element.get("service_names"):
-                    lst.append(service.get("service_name"))
-                if correctlst == lst:
-                    matchinglists = True
-                else:
-                    matchinglists = False
-                lst = []
-        self.assertTrue(matchinglists)
+            for service in element.get("service_names"):
+                lst.append(service.get("service_name"))
+            self.assertEqual(correctlst, lst)
+            lst = []
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
