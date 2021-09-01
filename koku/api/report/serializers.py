@@ -402,8 +402,8 @@ class ParamSerializer(BaseSerializer):
                         and value.get("date") <= dh.today.date()
                     ):
                         continue
-                    error = "Order by date must be from {} to {}".format(
-                        materialized_view_month_start(dh).date(), dh.today.date()
+                    error[key] = _(
+                        f"Order-by date must be from {materialized_view_month_start(dh).date()} to {dh.today.date()}"
                     )
                     raise serializers.ValidationError(error)
 
