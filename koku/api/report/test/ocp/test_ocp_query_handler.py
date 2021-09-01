@@ -25,6 +25,7 @@ from api.report.ocp.view import OCPVolumeView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -642,13 +643,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_aws_out_of_range_under_date(self):
-        wrong_date = DateHelper().today.date() - timedelta(days=91)
+    def test_ocp_out_of_range_under_date(self):
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_aws_out_of_range_over_date(self):
+    def test_ocp_out_of_range_over_date(self):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
