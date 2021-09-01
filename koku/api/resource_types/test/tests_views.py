@@ -145,7 +145,7 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsInstance(json_result.get("data"), list)
 
     @RbacPermissions({"openshift.cluster": {"read": []}, "openshift.project": {"read": ["*"]}})
-    def test_ocp_project_with_node_rbac_access_view(self):
+    def test_ocp_project_with_project_rbac_access_view(self):
         """Test endpoint runs with a customer owner."""
         url = reverse("openshift-projects")
         response = self.client.get(url, **self.headers)
@@ -155,7 +155,7 @@ class ResourceTypesViewTest(IamTestCase):
         self.assertIsInstance(json_result.get("data"), list)
 
     @RbacPermissions({"openshift.cluster": {"read": []}, "openshift.node": {"read": ["*"]}})
-    def test_ocp_project_with_project_rbac_access_view(self):
+    def test_ocp_project_with_node_rbac_access_view(self):
         """Test endpoint runs with a customer owner."""
         url = reverse("openshift-nodes")
         response = self.client.get(url, **self.headers)
