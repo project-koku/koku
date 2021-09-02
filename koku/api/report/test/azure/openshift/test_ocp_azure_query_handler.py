@@ -1054,7 +1054,6 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             # Check if there is any data in services
             for service in element.get("service_names"):
                 lst.append(service.get("service_name"))
-            # This should be reviewed!!
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []

@@ -438,7 +438,6 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         for element in data:
             for service in element.get("services"):
                 lst.append(service.get("service"))
-            # This should be reviewed!!
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
