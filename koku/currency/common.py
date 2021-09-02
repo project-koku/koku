@@ -11,8 +11,8 @@ CURRENCY_FILE_NAME = f"{os.path.dirname(os.path.realpath(__file__))}/specs/curre
 __CURRENCY_CHOICES = None
 
 
-def load_currencies_from_file():
-    with open(CURRENCY_FILE_NAME) as api_file:
+def load_currencies_from_file(file_path=CURRENCY_FILE_NAME):
+    with open(file_path) as api_file:
         data = json.load(api_file)
     return data
 

@@ -16,18 +16,10 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
+from currency.common import load_currencies_from_file
 
-
-CURRENCY_FILE_NAME = "koku/api/currency/specs/currencies.json"
 
 LOG = logging.getLogger(__name__)
-
-
-def load_currencies(path):
-    """Obtain currency JSON data from file path."""
-    with open(path) as api_file:
-        data = json.load(api_file)
-        return data
 
 
 @api_view(("GET",))
@@ -46,7 +38,7 @@ def get_currency(request):
 
     """
     try:
-        data = load_currencies(CURRENCY_FILE_NAME)
+        data = load_currencies_from_file()
         paginator = ListPaginator(data, request)
         return paginator.paginated_response
     except (FileNotFoundError, json.JSONDecodeError):
