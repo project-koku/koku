@@ -32,7 +32,7 @@ class CurrencyViewTest(IamTestCase):
             expected = json.load(api_file)
         self.assertEqual(data.get("data"), expected)
 
-    @patch("currency.common.load_currencies_from_file")
+    @patch("api.currency.view.load_currencies_from_file")
     def test_supported_currencies_fnf_error(self, currency):
         """Test that a list GET call with a FNF error returns 404."""
         url = reverse("currency")
