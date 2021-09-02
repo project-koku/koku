@@ -78,7 +78,7 @@ WITH cte_ocp_on_aws_joined AS (
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
             AND (
-                aws.lineitem_resourceid = ocp.resource_id
+                (aws.lineitem_resourceid = ocp.resource_id AND ocp.data_source = 'Pod')
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_node') = lower(ocp.node)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
