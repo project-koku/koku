@@ -6,10 +6,6 @@
 import json
 import os
 
-from api.iam.models import Customer
-from currency.models import CurrencyOptions
-from currency.models import CurrencySettings as Currency
-from koku.settings import KOKU_DEFAULT_CURRENCY
 
 CURRENCY_FILE_NAME = f"{os.path.dirname(os.path.realpath(__file__))}/specs/currencies.json"
 __CURRENCY_CHOICES = None
