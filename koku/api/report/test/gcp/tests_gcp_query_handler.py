@@ -8,7 +8,6 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -1087,9 +1086,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     service_checked = True
         self.assertTrue(service_checked)
 
-    @skip("This test needs to be re-engineered")
     def test_gcp_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
@@ -1099,14 +1097,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
+                correctlst = [service.get("service") for service in element.get("services", [])]
         for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            if element.get("date") != str(yesterday):
+                lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []

@@ -9,7 +9,6 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -1857,9 +1856,8 @@ class AWSReportQueryTest(IamTestCase):
         for acc in actual:
             self.assertTrue(acc in expected)
 
-    @skip("This test needs to be re-engineered")
     def test_aws_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
@@ -1871,8 +1869,11 @@ class AWSReportQueryTest(IamTestCase):
         data = query_output.get("data")
         # test query output
         for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            if element.get("date") == str(yesterday):
+                correctlst = [service.get("service") for service in element.get("services", [])]
+        for element in data:
+            if element.get("date") != str(yesterday):
+                lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []

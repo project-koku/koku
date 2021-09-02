@@ -8,7 +8,6 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
@@ -1231,9 +1230,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    @skip("This test needs to be re-engineered")
     def test_azure_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
@@ -1243,15 +1241,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("service_names"):
-                    correctlst.append(service.get("service_name"))
+                correctlst = [service.get("service_name") for service in element.get("service_names", [])]
         for element in data:
-            # Check if there is any data in services
-            for service in element.get("service_names"):
-                lst.append(service.get("service_name"))
+            if element.get("date") != str(yesterday):
+                lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []

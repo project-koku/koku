@@ -6,7 +6,6 @@
 import copy
 import logging
 from datetime import timedelta
-from unittest import skip
 
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -420,10 +419,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    @skip("This test needs to be re-engineered")
     def test_ocp_aws_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
         lst = []
         correctlst = []
@@ -432,14 +429,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
+                correctlst = [service.get("service") for service in element.get("services", [])]
         for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            if element.get("date") != str(yesterday):
+                lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
