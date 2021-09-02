@@ -624,7 +624,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
             # Check if there is any data in services
             for service in element.get("projects"):
                 lst.append(service.get("project"))
-            # This should be reviewed!!
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
