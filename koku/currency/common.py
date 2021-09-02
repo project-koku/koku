@@ -14,7 +14,7 @@ __CURRENCY_CHOICES = None
 def load_currencies_from_file(file_path=CURRENCY_FILE_NAME):
     with open(file_path) as api_file:
         data = json.load(api_file)
-    return data
+        return data
 
 
 def load_currency_choices():
