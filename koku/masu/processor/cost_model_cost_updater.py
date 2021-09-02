@@ -76,10 +76,6 @@ class CostModelCostUpdater:
             start_date = start_date.strftime("%Y-%m-%d")
         if isinstance(end_date, datetime.date):
             end_date = end_date.strftime("%Y-%m-%d")
-        elif end_date is None:
-            # Run up to the current date
-            end_date = self._date_accessor.today_with_timezone("UTC")
-            end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
     def update_cost_model_costs(self, start_date=None, end_date=None):
