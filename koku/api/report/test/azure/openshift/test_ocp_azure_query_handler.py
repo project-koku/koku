@@ -1055,7 +1055,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             for service in element.get("service_names"):
                 lst.append(service.get("service_name"))
             # This should be reviewed!!
-            if lst:
+            if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
 

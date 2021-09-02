@@ -1106,7 +1106,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             for service in element.get("services"):
                 lst.append(service.get("service"))
             # This should be reviewed!!
-            if lst:
+            if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
 
