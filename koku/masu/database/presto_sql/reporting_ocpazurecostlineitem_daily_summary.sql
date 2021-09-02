@@ -88,8 +88,8 @@ WITH cte_ocp_on_azure_joined AS (
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
             AND (
-                split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node
-                    OR split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume
+                (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
+                    OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
                     OR json_extract_scalar(azure.tags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(azure.tags, '$.openshift_node') = lower(ocp.node)
                     OR json_extract_scalar(azure.tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
