@@ -167,7 +167,8 @@ class SourcesViewSet(*MIXIN_LIST):
         pk = self.kwargs.get("pk")
         try:
             uuid = UUIDField().to_internal_value(data=pk)
-            obj = Sources.objects.get(source_uuid=uuid)
+            account_id = self.request.user.customer.account_id
+            obj = Sources.objects.get(account_id=account_id, source_uuid=uuid)
             if obj:
                 return obj
         except (ValidationError, Sources.DoesNotExist):
@@ -215,6 +216,7 @@ class SourcesViewSet(*MIXIN_LIST):
             except ProviderManagerError:
                 source["provider_linked"] = False
                 source["active"] = False
+                source["paused"] = False
                 source["current_month_data"] = False
                 source["previous_month_data"] = False
                 source["has_data"] = False
@@ -223,6 +225,7 @@ class SourcesViewSet(*MIXIN_LIST):
             else:
                 source["provider_linked"] = True
                 source["active"] = manager.get_active_status()
+                source["paused"] = manager.get_paused_status()
                 source["current_month_data"] = manager.get_current_month_data_exists()
                 source["previous_month_data"] = manager.get_previous_month_data_exists()
                 source["has_data"] = manager.get_any_data_exists()
@@ -237,6 +240,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get a source."""
         response = super().retrieve(request=request, args=args, kwargs=kwargs)
         _, tenant = self._get_account_and_tenant(request)
+
         if response.data.get("authentication", {}).get("credentials", {}).get("client_secret"):
             del response.data["authentication"]["credentials"]["client_secret"]
         try:
@@ -244,6 +248,7 @@ class SourcesViewSet(*MIXIN_LIST):
         except ProviderManagerError:
             response.data["provider_linked"] = False
             response.data["active"] = False
+            response.data["paused"] = False
             response.data["current_month_data"] = False
             response.data["previous_month_data"] = False
             response.data["has_data"] = False
@@ -252,6 +257,7 @@ class SourcesViewSet(*MIXIN_LIST):
         else:
             response.data["provider_linked"] = True
             response.data["active"] = manager.get_active_status()
+            response.data["paused"] = manager.get_paused_status()
             response.data["current_month_data"] = manager.get_current_month_data_exists()
             response.data["previous_month_data"] = manager.get_previous_month_data_exists()
             response.data["has_data"] = manager.get_any_data_exists()

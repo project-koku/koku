@@ -146,7 +146,7 @@ def process_cr(report_meta):
                 errors[case + "_error"] = case_info.get("error")
         manifest_info["operator_errors"] = errors or None
         manifest_info["cluster_channel"] = cr_status.get("clusterVersion")
-        manifest_info["operator_airgapped"] = cr_status.get("upload", {}).get("upload")
+        manifest_info["operator_airgapped"] = not cr_status.get("upload", {}).get("upload")
 
     return manifest_info
 

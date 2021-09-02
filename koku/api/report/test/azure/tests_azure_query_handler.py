@@ -5,6 +5,7 @@
 """Test the Azure Provider query handler."""
 import logging
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
@@ -15,6 +16,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -26,6 +28,7 @@ from api.report.azure.view import AzureStorageView
 from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import AzureComputeSummary
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
@@ -1226,3 +1229,44 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
+
+    def test_azure_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = self.dh.yesterday.date()
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("service_names"):
+                    correctlst.append(service.get("service_name"))
+        for element in data:
+            # Check if there is any data in services
+            for service in element.get("service_names"):
+                lst.append(service.get("service_name"))
+            self.assertEqual(correctlst, lst)
+            lst = []
+
+    def test_azure_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, AzureCostView)
+
+    def test_azure_out_of_range_under_date(self):
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, AzureCostView)
+
+    def test_azure_out_of_range_over_date(self):
+        wrong_date = DateHelper().today.date() + timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, AzureCostView)

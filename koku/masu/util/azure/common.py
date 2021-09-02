@@ -188,7 +188,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
         resource_id_df = data_frame["instanceid"]
 
     LOG.info("Matching OpenShift on Azure by resource ID.")
-    resource_id_matched = resource_id_df.isin(matchable_resources)
+    resource_id_matched = resource_id_df.str.contains("|".join(matchable_resources))
     data_frame["resource_id_matched"] = resource_id_matched
 
     tags = data_frame["tags"]

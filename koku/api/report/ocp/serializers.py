@@ -30,11 +30,12 @@ class GroupBySerializer(GroupSerializer):
 class OrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("project", "cluster", "node")
+    _opfields = ("project", "cluster", "node", "date")
 
     cluster = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     node = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    date = serializers.DateField(required=False)
 
 
 class InventoryOrderBySerializer(OrderBySerializer):

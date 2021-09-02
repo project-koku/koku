@@ -92,7 +92,7 @@ class SourcesStorageTest(TestCase):
         """Tests that a source can be created."""
         test_source_id = 2
         test_offset = 3
-        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        storage.create_source_event(test_source_id, self.account_id, Config.SOURCES_FAKE_HEADER, test_offset)
         db_obj = Sources.objects.get(source_id=test_source_id)
         self.assertEqual(db_obj.source_id, test_source_id)
         self.assertEqual(db_obj.auth_header, Config.SOURCES_FAKE_HEADER)
@@ -106,7 +106,7 @@ class SourcesStorageTest(TestCase):
         test_obj = Sources(source_id=test_source_id, offset=3, out_of_order_delete=True)
         test_obj.save()
 
-        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        storage.create_source_event(test_source_id, self.account_id, Config.SOURCES_FAKE_HEADER, test_offset)
         self.assertFalse(Sources.objects.filter(source_id=test_source_id).exists())
 
     def test_create_source_event_out_of_order_unexpected_entry(self):
@@ -116,16 +116,8 @@ class SourcesStorageTest(TestCase):
         test_obj = Sources(source_id=test_source_id, offset=3)
         test_obj.save()
 
-        storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+        storage.create_source_event(test_source_id, self.account_id, Config.SOURCES_FAKE_HEADER, test_offset)
         self.assertTrue(Sources.objects.filter(source_id=test_source_id).exists())
-
-    def test_create_source_event_invalid_auth_header(self):
-        """Tests creating a source db record with invalid auth_header."""
-        test_source_id = 2
-        test_offset = 3
-        storage.create_source_event(test_source_id, "bad", test_offset)
-        with self.assertRaises(Sources.DoesNotExist):
-            Sources.objects.get(source_id=test_source_id)
 
     def test_create_source_event_db_down(self):
         """Tests creating a source db record with invalid auth_header."""
@@ -136,7 +128,7 @@ class SourcesStorageTest(TestCase):
             mock_object.side_effect = InterfaceError("Error")
             with self.assertRaises(InterfaceError):
                 test_offset = 3
-                storage.create_source_event(test_source_id, Config.SOURCES_FAKE_HEADER, test_offset)
+                storage.create_source_event(test_source_id, self.account_id, Config.SOURCES_FAKE_HEADER, test_offset)
 
     def test_destroy_source_event(self):
         """Tests that a source can be destroyed."""
@@ -201,6 +193,24 @@ class SourcesStorageTest(TestCase):
             storage.add_provider_koku_uuid(self.test_source_id + 1, test_uuid)
         except Exception as error:
             self.fail(str(error))
+
+    def test_add_source_pause(self):
+        """Tests add a pause to a source."""
+        for test in {True, False}:
+            with self.subTest(test=test):
+                test_source = Sources.objects.get(source_id=self.test_source_id)
+                self.assertFalse(test_source.paused)
+                storage.add_source_pause(self.test_source_id, test)
+                self.assertEqual(Sources.objects.get(source_id=self.test_source_id).paused, test)
+
+    def test_add_source_pause_does_not_exist(self):
+        """Tests add a pause to a source that does not exist."""
+        for test in {True, False}:
+            with self.subTest(test=test):
+                try:
+                    storage.add_source_pause(self.test_source_id + 1, test)
+                except Exception as error:
+                    self.fail(str(error))
 
     def test_screen_and_build_provider_sync_create_event(self):
         """Tests that provider create events are generated."""

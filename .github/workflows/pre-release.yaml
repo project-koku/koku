@@ -1,0 +1,43 @@
+name: pre release
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Release commit'
+        required: true
+
+jobs:
+  pre-release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: determine minor version
+      id: tag-setter
+      run: |
+          DATE=$(date +"%Y.%m.%d")
+          PREV_RELEASE=$(git tag --list | tail -1)
+          MINOR_VERSION=0
+          case $PREV_RELEASE in
+            *"$DATE"*)
+              MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
+              MINOR_VERSION=$((MINOR_VERSION+1))
+              ;;
+            *)
+              MINOR_VERSION=0
+              ;;
+          esac
+          echo "::set-output name=TAG_VERSION::r.$DATE.$MINOR_VERSION"
+    - name: set the release commit
+      run: echo "RELEASE_COMMIT=${{ github.event.inputs.commit }}" >> $GITHUB_ENV
+    - name: Create release body file
+      run: bash .github/scripts/get_description.sh
+    - uses: ncipollo/release-action@v1
+      with:
+        bodyFile: release_body.md
+        commit: ${{ github.event.inputs.commit }}
+        prerelease: true
+        tag: ${{ steps.tag-setter.outputs.TAG_VERSION }}
+        token: ${{ secrets.GITHUB_TOKEN }}

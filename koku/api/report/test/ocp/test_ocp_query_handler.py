@@ -5,11 +5,13 @@
 """Test the Report Queries."""
 import logging
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Max
 from django.db.models.expressions import OrderBy
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -22,6 +24,7 @@ from api.report.ocp.view import OCPVolumeView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -600,3 +603,44 @@ class OCPReportQueryHandlerTest(IamTestCase):
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
+
+    def test_ocp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = self.dh.yesterday.date()
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("projects"):
+                    correctlst.append(service.get("project"))
+        for element in data:
+            # Check if there is any data in services
+            for service in element.get("projects"):
+                lst.append(service.get("project"))
+            self.assertEqual(correctlst, lst)
+            lst = []
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPCostView)
+
+    def test_ocp_out_of_range_under_date(self):
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPCostView)
+
+    def test_ocp_out_of_range_over_date(self):
+        wrong_date = DateHelper().today.date() + timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, OCPCostView)

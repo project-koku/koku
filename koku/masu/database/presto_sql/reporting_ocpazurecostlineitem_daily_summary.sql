@@ -155,11 +155,11 @@ SELECT uuid(),
     ocp_azure.currency,
     ocp_azure.unit_of_measure,
     CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost / dsc.data_source_count
+        THEN (ocp_azure.{{node_column | sqlsafe}} / ocp_azure.{{cluster_column | sqlsafe}}) * ocp_azure.pretax_cost / dsc.data_source_count
         ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.pod_usage_cpu_core_hours / ocp_azure.cluster_capacity_cpu_core_hours) * ocp_azure.pretax_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
+        THEN (ocp_azure.{{node_column | sqlsafe}} / ocp_azure.{{cluster_column | sqlsafe}}) * ocp_azure.pretax_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     json_parse(ocp_azure.tags) as tags,
