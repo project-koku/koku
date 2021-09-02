@@ -16,10 +16,10 @@ __CURRENCY_CHOICES = None
 
 
 def load_currencies_from_file():
-	with open(CURRENCY_FILE_NAME) as api_file:
-		data = json.load(api_file)
-	return data
+    with open(CURRENCY_FILE_NAME) as api_file:
+        data = json.load(api_file)
+    return data
 
 
 def load_currency_choices():
-	return tuple([(currency.get("code"), currency.get("code")) for currency in load_currencies_from_file()])
+    return tuple([(currency.get("code"), currency.get("code")) for currency in load_currencies_from_file()])
