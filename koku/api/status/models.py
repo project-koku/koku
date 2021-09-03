@@ -11,12 +11,15 @@ import sys
 
 from api import API_VERSION
 from koku.rbac import RbacService
+from masu.config import Config
 
 LOG = logging.getLogger(__name__)
 
 
 class Status:
     """A server's status."""
+
+    config = Config
 
     @property
     def commit(self):
