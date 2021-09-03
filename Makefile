@@ -196,7 +196,7 @@ collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
 make-migrations:
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models currency
+	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
 
 remove-db:
 	$(PREFIX) rm -rf $(TOPDIR)/pg_data

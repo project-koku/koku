@@ -77,7 +77,6 @@ INSTALLED_APPS = [
     "cost_models",
     "sources",
     "tenant_schemas",
-    "currency",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["tenant_schemas.W001"]
@@ -93,7 +92,6 @@ SHARED_APPS = (
     "django.contrib.messages",
     "rest_framework",
     "sources",
-    "currency",
 )
 
 TENANT_APPS = ("reporting", "cost_models")
