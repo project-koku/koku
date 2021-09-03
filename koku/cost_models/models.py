@@ -19,8 +19,6 @@ LOG = logging.getLogger(__name__)
 DISTRIBUTION_CHOICES = (("memory", "memory"), ("cpu", "cpu"))
 DEFAULT_DISTRIBUTION = "cpu"
 
-DEFAULT_CURRENCY = KOKU_DEFAULT_CURRENCY
-
 
 class CostModel(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -54,7 +52,7 @@ class CostModel(models.Model):
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
-    currency = models.TextField(default=DEFAULT_CURRENCY)
+    currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
 
 
 class CostModelAudit(models.Model):
@@ -89,7 +87,7 @@ class CostModelAudit(models.Model):
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
-    currency = models.TextField(default=DEFAULT_CURRENCY)
+    currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
 
 
 class CostModelMap(models.Model):
