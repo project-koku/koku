@@ -1860,27 +1860,27 @@ class AWSReportQueryTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
+
+        svc_annotations = handler.annotations.get("service")
+        cost_annotations = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 AWSCostSummaryByService.objects.filter(usage_start=str(yesterday))
-                .annotate(service=F("product_code"))
+                .annotate(service=svc_annotations)
                 .values("service")
-                .annotate(cost=Sum("unblended_cost"))
+                .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
-            correctlst = [service.get("service") for service in expected]
+        correctlst = [service.get("service") for service in expected]
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"

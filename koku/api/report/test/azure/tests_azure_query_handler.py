@@ -1234,8 +1234,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
@@ -1244,12 +1242,20 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for element in data:
             if element.get("date") == str(yesterday):
                 correctlst = [service.get("service_name") for service in element.get("service_names", [])]
+
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                AzureCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                .values("service_name")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            if element.get("date") != str(yesterday):
-                lst = [service.get("service_name") for service in element.get("service_names", [])]
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"

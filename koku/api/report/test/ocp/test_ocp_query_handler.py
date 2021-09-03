@@ -608,8 +608,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
@@ -628,11 +626,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             )
         correctlst = [project.get("project") for project in expected]
         for element in data:
-            if element.get("date") != str(yesterday):
-                lst = [project.get("project") for project in element.get("projects")]
+            lst = [project.get("project") for project in element.get("projects")]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"
