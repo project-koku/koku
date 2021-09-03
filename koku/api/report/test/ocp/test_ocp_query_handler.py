@@ -25,6 +25,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from reporting.models import OCPCostSummaryByProject
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -614,12 +615,21 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        for element in data:
-            if element.get("date") == str(yesterday):
-                correctlst = [service.get("project") for service in element.get("projects")]
+
+        proj_annotations = handler.annotations.get("project")
+        cost_annotations = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPCostSummaryByProject.objects.filter(usage_start=str(yesterday))
+                .annotate(project=proj_annotations)
+                .values("project")
+                .annotate(cost=cost_annotations)
+                .order_by("-cost")
+            )
+        correctlst = [project.get("project") for project in expected]
         for element in data:
             if element.get("date") != str(yesterday):
-                lst = [service.get("project") for service in element.get("projects")]
+                lst = [project.get("project") for project in element.get("projects")]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
