@@ -149,6 +149,6 @@ def mini_transaction_delete(base_select_query):
     LOG.debug(f"Removed {del_total} records")
 
     if (iterations >= Config.MAX_ITERATIONS) and (remainder > 0):
-        LOG.error(f"Due to possible lock contention, there are {remainder} records remaining.")
+        LOG.warning(f"Due to possible lock contention, there are {remainder} records remaining.")
 
     return (del_total, remainder)
