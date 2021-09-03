@@ -422,7 +422,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
     def test_ocp_aws_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -446,7 +446,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
     def test_ocp_aws_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
 

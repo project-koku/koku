@@ -608,7 +608,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -632,7 +632,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 

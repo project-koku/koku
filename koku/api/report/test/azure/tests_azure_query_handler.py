@@ -1234,7 +1234,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1259,7 +1259,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
 
