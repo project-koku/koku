@@ -1867,13 +1867,17 @@ class AWSReportQueryTest(IamTestCase):
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+        with tenant_context(self.tenant):
+            expected = list(
+                AWSCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                .annotate(service=F("product_code"))
+                .values("service")
+                .annotate(cost=Sum("unblended_cost"))
+                .order_by("-cost")
+            )
+            correctlst = [service.get("service") for service in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                correctlst = [service.get("service") for service in element.get("services", [])]
-        for element in data:
-            if element.get("date") != str(yesterday):
-                lst = [service.get("service") for service in element.get("services", [])]
+            lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
             lst = []
