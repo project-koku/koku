@@ -14,17 +14,14 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByRegion
+from reporting.provider.gcp.models import GCPTopology
 
 
 class GCPRegionView(generics.ListAPIView):
     """API GET list view for GCP Regions."""
 
     queryset = (
-        GCPCostSummaryByRegion.objects.annotate(**{"value": F("region")})
-        .values("value")
-        .distinct()
-        .filter(region__isnull=False)
+        GCPTopology.objects.annotate(**{"value": F("region")}).values("value").distinct().filter(region__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [GcpAccessPermission]

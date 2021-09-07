@@ -14,13 +14,13 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByAccount
+from reporting.provider.gcp.models import GCPTopology
 
 
 class GCPAccountView(generics.ListAPIView):
     """API GET list view for GCP accounts."""
 
-    queryset = GCPCostSummaryByAccount.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
+    queryset = GCPTopology.objects.annotate(**{"value": F("account_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [GcpAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]

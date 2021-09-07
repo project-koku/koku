@@ -14,13 +14,13 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByProject
+from reporting.provider.gcp.models import GCPTopology
 
 
 class GCPProjectsView(generics.ListAPIView):
     """API GET list view for GCP projects."""
 
-    queryset = GCPCostSummaryByProject.objects.annotate(**{"value": F("project_id")}).values("value").distinct()
+    queryset = GCPTopology.objects.annotate(**{"value": F("project_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [GcpProjectPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]

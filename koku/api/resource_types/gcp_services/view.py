@@ -14,14 +14,14 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByService
+from reporting.provider.gcp.models import GCPTopology
 
 
 class GCPServiceView(generics.ListAPIView):
     """API GET list view for GCP Services by ID."""
 
     queryset = (
-        GCPCostSummaryByService.objects.annotate(**{"value": F("service_alias")})
+        GCPTopology.objects.annotate(**{"value": F("service_alias")})
         .values("value")
         .distinct()
         .filter(service_id__isnull=False)
