@@ -194,8 +194,18 @@ class FilterSerializer(BaseSerializer):
     _tagkey_support = True
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
+    VALID_FOR_UNIT = {
+        TIME_UNIT_CHOICES[0][0]: {
+            "time_val": tuple(t[0] for t in TIME_CHOICES[:3]),
+            "resolution": (RESOLUTION_CHOICES[0][0],),
+        },
+        TIME_UNIT_CHOICES[1][0]: {
+            "time_val": tuple(t[0] for t in TIME_CHOICES[3:]),
+            "resolution": tuple(r[0] for r in RESOLUTION_CHOICES),
+        },
+    }
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
@@ -223,20 +233,19 @@ class FilterSerializer(BaseSerializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
-                valid_values = ["-10", "-30"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "day")}
+            if time_scope_value not in self.VALID_FOR_UNIT[time_scope_units]["time_val"]:
+                error = {
+                    "time_scope_value": msg.format(
+                        ", ".join(self.VALID_FOR_UNIT[time_scope_units]["time_val"]), time_scope_units
+                    )
+                }
                 raise serializers.ValidationError(error)
-            if time_scope_units == "day" and resolution == "monthly":
-                valid_values = ["daily"]
-                valid_vals = ", ".join(valid_values)
-                error = {"resolution": msg.format(valid_vals, "day")}
-                raise serializers.ValidationError(error)
-            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
-                valid_values = ["-1", "-2"]
-                valid_vals = ", ".join(valid_values)
-                error = {"time_scope_value": msg.format(valid_vals, "month")}
+            if resolution not in self.VALID_FOR_UNIT[time_scope_units]["resolution"]:
+                error = {
+                    "resolution": msg.format(
+                        ", ".join(self.VALID_FOR_UNIT[time_scope_units]["resolution"]), time_scope_units
+                    )
+                }
                 raise serializers.ValidationError(error)
         return data
 
