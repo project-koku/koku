@@ -44,7 +44,7 @@ def add_gcp_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0190_ocp_on_all_partitioned_models")]
+    dependencies = [("reporting", "0191_currencysettings")]
 
     operations = [
         migrations.AddField(
