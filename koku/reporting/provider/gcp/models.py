@@ -252,6 +252,29 @@ class GCPTagsValues(models.Model):
     project_names = ArrayField(models.TextField(), null=True)
 
 
+class GCPTopology(models.Model):
+    """GCPAccountTopology ORM model."""
+
+    class Meta:
+        """Meta for GCPAccountTopology."""
+
+        db_table = "reporting_gcp_topology"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid4)
+
+    source_uuid = models.UUIDField(unique=False, null=True)
+
+    account_id = models.TextField()
+
+    project_id = models.TextField()
+    project_name = models.TextField()
+
+    service_id = models.TextField()
+    service_alias = models.TextField()
+
+    region = models.TextField()
+
+
 # Materialized Views for UI Reporting
 class GCPCostSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
