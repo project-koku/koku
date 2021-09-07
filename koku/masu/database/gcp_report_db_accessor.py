@@ -22,6 +22,7 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 from reporting_common.models import CostUsageReportStatus
 
@@ -336,3 +337,51 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_gcp_topology_information_tables(self, provider, start_date, end_date):
+        """Populate the GCP topology table."""
+        msg = f"Populating GCP topology for {provider.uuid} from {start_date} to {end_date}"
+        LOG.info(msg)
+        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date)
+
+        with schema_context(self.schema):
+            for record in topology:
+                _, created = GCPTopology.objects.get_or_create(
+                    source_uuid=record[0],
+                    account_id=record[1],
+                    project_id=record[2],
+                    project_name=record[3],
+                    service_id=record[4],
+                    service_alias=record[5],
+                    region=record[6],
+                )
+        LOG.info("Finished populating GCP topology")
+
+    def get_gcp_topology_trino(self, source_uuid, start_date, end_date):
+        """Get the account topology for a GCP source."""
+        sql = f"""
+            SELECT source,
+                billing_account_id,
+                project_id,
+                project_name,
+                service_id,
+                service_description,
+                location_region
+            FROM hive.{self.schema}.gcp_line_items as gcp
+            WHERE gcp.source = '{source_uuid}'
+                AND gcp.year = '{start_date.strftime("%Y")}'
+                AND gcp.month = '{start_date.strftime("%m")}'
+                AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
+                AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
+            GROUP BY source,
+                billing_account_id,
+                project_id,
+                project_name,
+                service_id,
+                service_description,
+                location_region
+        """
+
+        topology = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return topology
