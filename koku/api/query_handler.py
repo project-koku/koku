@@ -225,23 +225,27 @@ class QueryHandler:
         start = None
         end = None
         if time_scope_units == "month":
-            if time_scope_value == -1:
-                # get current month
-                start = self.dh.this_month_start
-                end = self.dh.today
-            else:
-                # get previous month
-                start = self.dh.last_month_start
-                end = self.dh.last_month_end
+            start = self.dh.relative_month_start(1 - time_scope_value)
+            end = self.dh.month_end(start)
+            # if time_scope_value == -1:
+            #     # get current month
+            #     start = self.dh.this_month_start
+            #     end = self.dh.today
+            # else:
+            #     # get previous month
+            #     start = self.dh.last_month_start
+            #     end = self.dh.last_month_end
         else:
-            if time_scope_value == -10:
-                # get last 10 days
-                start = self.dh.n_days_ago(self.dh.this_hour, 9)
-                end = self.dh.this_hour
-            else:
-                # get last 30 days
-                start = self.dh.n_days_ago(self.dh.this_hour, 29)
-                end = self.dh.this_hour
+            start = self.dh.n_days_ago(self.dh.this_hour, time_scope_value - 1)
+            end = self.dh.this_hour
+            # if time_scope_value == -10:
+            #     # get last 10 days
+            #     start = self.dh.n_days_ago(self.dh.this_hour, 9)
+            #     end = self.dh.this_hour
+            # else:
+            #     # get last 30 days
+            #     start = self.dh.n_days_ago(self.dh.this_hour, 29)
+            #     end = self.dh.this_hour
 
         self.start_datetime = start
         self.end_datetime = end
@@ -259,10 +263,10 @@ class QueryHandler:
 
     def _get_date_delta(self):
         """Return a time delta."""
-        if self.time_scope_value in [-1, -2]:
+        if self.time_scope_value in [-1, -2, -3]:
             date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
+        elif self.time_scope_value in (-90, -30, -10):
+            date_delta = datetime.timedelta(days=abs(self.time_scope_value))
         else:
             date_delta = datetime.timedelta(days=10)
         return date_delta

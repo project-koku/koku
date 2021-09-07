@@ -240,7 +240,7 @@ class FilterSerializer(BaseSerializer):
                     )
                 }
                 raise serializers.ValidationError(error)
-            if resolution not in self.VALID_FOR_UNIT[time_scope_units]["resolution"]:
+            if resolution is not None and resolution not in self.VALID_FOR_UNIT[time_scope_units]["resolution"]:
                 error = {
                     "resolution": msg.format(
                         ", ".join(self.VALID_FOR_UNIT[time_scope_units]["resolution"]), time_scope_units
