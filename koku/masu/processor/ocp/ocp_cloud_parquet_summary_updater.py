@@ -19,6 +19,8 @@ from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_p
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -71,6 +73,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     cluster_id,
                     current_aws_bill_id,
+                )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                    self._provider.uuid, start, end, table=OCPAWSCostLineItemProjectDailySummary
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary_presto(
                     start,
@@ -133,6 +138,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     end,
                     cluster_id,
                     current_azure_bill_id,
+                )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                    self._provider.uuid, start, end, table=OCPAzureCostLineItemProjectDailySummary
                 )
                 accessor.populate_ocp_on_azure_cost_daily_summary_presto(
                     start,
