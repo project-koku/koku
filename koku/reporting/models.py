@@ -4,6 +4,7 @@
 #
 """Models for cost entry tables."""
 # flake8: noqa
+from reporting.currency.models import CurrencySettings
 from reporting.partition.models import PartitionedTable
 from reporting.provider.all.openshift.models import OCPAllComputeSummary
 from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
