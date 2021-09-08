@@ -132,6 +132,22 @@ class DateHelperTest(TestCase):
         expected = datetime.datetime(1969, 12, 31, 0, 0, 0, 0)
         self.assertEqual(self.date_helper.last_month_end, expected)
 
+    def test_relative_month_start_neg(self):
+        expected = datetime.datetime(1969, 10, 1)
+        self.assertEqual(self.date_helper.relative_month_start(-3), expected)
+
+    def test_relative_month_start_pos(self):
+        expected = datetime.datetime(1970, 6, 1)
+        self.assertEqual(self.date_helper.relative_month_start(5), expected)
+
+    def test_relative_month_end_neg(self):
+        expected = datetime.datetime(1969, 9, 30)
+        self.assertEqual(self.date_helper.relative_month_end(-4), expected)
+
+    def test_relative_month_end_pos(self):
+        expected = datetime.datetime(1970, 8, 31)
+        self.assertEqual(self.date_helper.relative_month_end(7), expected)
+
     def test_next_month(self):
         """Test the next_month method."""
         current_month = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
