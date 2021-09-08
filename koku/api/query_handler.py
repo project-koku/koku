@@ -321,11 +321,12 @@ class QueryHandler:
         invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
         invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
         filters.add(invoice_filter)
-        if self.time_scope_value not in [-1, -2]:
-            start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-            end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end.date())
-            filters.add(start_filter)
-            filters.add(end_filter)
+        if self.parameters.get_filter("time_scope_value"):
+            if self.time_scope_value not in [-1, -2]:
+                start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
+                end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end.date())
+                filters.add(start_filter)
+                filters.add(end_filter)
         return filters
 
     def filter_to_order_by(self, parameters):  # noqa: C901
