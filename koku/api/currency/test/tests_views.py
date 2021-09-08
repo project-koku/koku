@@ -19,10 +19,16 @@ from koku import settings
 test_filename = os.path.join(settings.BASE_DIR, "..", "koku/api/currency/specs/currencies.json")
 
 
+def read_api_json():
+    """Read the openapi.json file out of the docs dir."""
+    return load_currencies(test_filename)
+
+
 class CurrencyViewTest(IamTestCase):
     """Tests for the metrics view."""
 
-    def test_supported_currencies(self):
+    @patch("api.currency.view.load_currencies", return_value=read_api_json())
+    def test_supported_currencies(self, _):
         """Test that a list GET call returns the supported currencies."""
         qs = "?limit=20"
         url = reverse("currency") + qs
