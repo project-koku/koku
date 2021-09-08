@@ -65,6 +65,7 @@ def gcp_invoice_monthly_cost(request):
             rows = client.query(query).result()
             for row in rows:
                 results[key] = row[0]
+                break
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
