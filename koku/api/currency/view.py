@@ -5,6 +5,7 @@
 """View for Currency."""
 import json
 import logging
+import os
 
 from rest_framework import permissions
 from rest_framework import status
@@ -16,18 +17,17 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
+from koku.settings import STATIC_ROOT
 
 
-CURRENCY_FILE_NAME = "koku/api/currency/specs/currencies.json"
-
+CURRENCY_FILE_NAME = os.path.join(STATIC_ROOT, "currencies.json")
 LOG = logging.getLogger(__name__)
 
 
 def load_currencies(path):
     """Obtain currency JSON data from file path."""
     with open(path) as api_file:
-        data = json.load(api_file)
-        return data
+        return json.load(api_file)
 
 
 @api_view(("GET",))

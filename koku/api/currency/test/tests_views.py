@@ -4,21 +4,31 @@
 #
 """Test the Metrics views."""
 import json
+import os
 from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from api.currency.view import CURRENCY_FILE_NAME
 from api.currency.view import load_currencies
 from api.iam.test.iam_test_case import IamTestCase
+from koku import settings
+
+
+test_filename = os.path.join(settings.BASE_DIR, "..", "koku/api/currency/specs/currencies.json")
+
+
+def read_api_json():
+    """Read the openapi.json file out of the docs dir."""
+    return load_currencies(test_filename)
 
 
 class CurrencyViewTest(IamTestCase):
     """Tests for the metrics view."""
 
-    def test_supported_currencies(self):
+    @patch("api.currency.view.load_currencies", return_value=read_api_json())
+    def test_supported_currencies(self, _):
         """Test that a list GET call returns the supported currencies."""
         qs = "?limit=20"
         url = reverse("currency") + qs
@@ -28,7 +38,7 @@ class CurrencyViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         data = response.data
-        with open(CURRENCY_FILE_NAME) as api_file:
+        with open(test_filename) as api_file:
             expected = json.load(api_file)
         self.assertEqual(data.get("data"), expected)
 
@@ -43,8 +53,8 @@ class CurrencyViewTest(IamTestCase):
 
     def test_load_currencies(self):
         """Test load currency function happy path."""
-        data = load_currencies(CURRENCY_FILE_NAME)
-        with open(CURRENCY_FILE_NAME) as api_file:
+        data = load_currencies(test_filename)
+        with open(test_filename) as api_file:
             expected = json.load(api_file)
         self.assertEqual(data, expected)
 
