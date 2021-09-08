@@ -1860,27 +1860,37 @@ class AWSReportQueryTest(IamTestCase):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
+        group_bys = {
+            "account": AWSCostSummaryByAccount,
+            "service": AWSCostSummaryByService,
+            "region": AWSCostSummaryByRegion,
+            "product_family": AWSCostSummaryByService,
+        }
+        for group_by, table in group_bys.items():
+            with self.subTest(test=group_by):
+                url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"
+                query_params = self.mocked_query_params(url, AWSCostView)
+                handler = AWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
 
-        svc_annotations = handler.annotations.get("service")
-        cost_annotations = handler.report_annotations.get("cost_total")
-        with tenant_context(self.tenant):
-            expected = list(
-                AWSCostSummaryByService.objects.filter(usage_start=str(yesterday))
-                .annotate(service=svc_annotations)
-                .values("service")
-                .annotate(cost=cost_annotations)
-                .order_by("-cost")
-            )
-        correctlst = [service.get("service") for service in expected]
-        for element in data:
-            lst = [service.get("service") for service in element.get("services", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                gb = group_by
+                group_by_annotations = handler.annotations.get(group_by)
+                cost_annotations = handler.report_annotations.get("cost_total")
+                with tenant_context(self.tenant):
+                    query = table.objects.filter(usage_start=str(yesterday))
+                    if group_by_annotations:
+                        gb = "gb"
+                        query = query.annotate(gb=group_by_annotations)
+                    expected = list(query.values(gb).annotate(cost=cost_annotations).order_by("-cost", gb))
+                correctlst = [field.get(gb) for field in expected]
+                if correctlst and None in correctlst:
+                    ind = correctlst.index(None)
+                    correctlst[ind] = "no-" + group_by
+                for element in data:
+                    lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
+                    if lst and correctlst:
+                        self.assertEqual(correctlst, lst)
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"
