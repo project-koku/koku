@@ -395,7 +395,17 @@ class ParamSerializer(BaseSerializer):
                     continue
                 # sepcial case: we order by date, but we group by an allowed param.
                 if key == "date" and group_keys:
-                    continue
+                    # Checks to make sure the orderby date is allowed
+                    dh = DateHelper()
+                    if (
+                        value.get("date") >= materialized_view_month_start(dh).date()
+                        and value.get("date") <= dh.today.date()
+                    ):
+                        continue
+                    error[key] = _(
+                        f"Order-by date must be from {materialized_view_month_start(dh).date()} to {dh.today.date()}"
+                    )
+                    raise serializers.ValidationError(error)
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
             raise serializers.ValidationError(error)

@@ -69,7 +69,7 @@ class GCPCostModelCostUpdater:
 
         with GCPReportDBAccessor(self._schema) as accessor:
             LOG.debug(
-                "Updating AWS derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
+                "Updating GCP derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
             )
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
