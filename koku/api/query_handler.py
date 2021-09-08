@@ -225,27 +225,29 @@ class QueryHandler:
         start = None
         end = None
         if time_scope_units == "month":
-            start = self.dh.relative_month_start(1 - time_scope_value)
-            end = self.dh.month_end(start)
-            # if time_scope_value == -1:
-            #     # get current month
-            #     start = self.dh.this_month_start
-            #     end = self.dh.today
-            # else:
-            #     # get previous month
-            #     start = self.dh.last_month_start
-            #     end = self.dh.last_month_end
+            if time_scope_value == -1:
+                # get current month
+                start = self.dh.this_month_start
+                end = self.dh.today
+            elif time_scope_value == -3:
+                start = self.dh.relative_month_start(-2)
+                end = self.dh.month_end(start)
+            else:
+                # get previous month
+                start = self.dh.last_month_start
+                end = self.dh.last_month_end
         else:
-            start = self.dh.n_days_ago(self.dh.this_hour, time_scope_value - 1)
-            end = self.dh.this_hour
-            # if time_scope_value == -10:
-            #     # get last 10 days
-            #     start = self.dh.n_days_ago(self.dh.this_hour, 9)
-            #     end = self.dh.this_hour
-            # else:
-            #     # get last 30 days
-            #     start = self.dh.n_days_ago(self.dh.this_hour, 29)
-            #     end = self.dh.this_hour
+            if time_scope_value == -10:
+                # get last 10 days
+                start = self.dh.n_days_ago(self.dh.this_hour, 9)
+                end = self.dh.this_hour
+            elif time_scope_value == -90:
+                start = self.dh.n_days_ago(self.dh.this_hour, 89)
+                end = self.dh.this_hour
+            else:
+                # get last 30 days
+                start = self.dh.n_days_ago(self.dh.this_hour, 29)
+                end = self.dh.this_hour
 
         self.start_datetime = start
         self.end_datetime = end
