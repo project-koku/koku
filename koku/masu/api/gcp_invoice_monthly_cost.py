@@ -68,9 +68,10 @@ def gcp_invoice_monthly_cost(request):
                 WHERE invoice.month = '{invoice_month}'
                 """
                 client = bigquery.Client()
-                row = client.query(query).result().next()
-                value = row[0]
-                results[key] = value
+                q_results = client.query(query).result()
+                for row in q_results:
+                    results[key] = row
+                    break
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
