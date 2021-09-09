@@ -82,14 +82,6 @@ class GCPProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
-                            # We may need to calculate the total using the following to prevent rounding loss
-                            # "cost_total": Sum(
-                            #     ((
-                            #         (Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField())) * 1000000)
-                            #         + (Coalesce(F("credit_amount"), Value(0, output_field=DecimalField())) * 1000000)
-                            #     ) / 1000000)
-                            #     + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                            # ),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
