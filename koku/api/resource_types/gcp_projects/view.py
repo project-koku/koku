@@ -31,8 +31,8 @@ class GCPProjectsView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for GCP project id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
-        user_access = []
         error_message = {}
+        query_holder = None
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -42,8 +42,14 @@ class GCPProjectsView(generics.ListAPIView):
         if request.user.admin:
             return super().list(request)
         if request.user.access:
-            user_access = request.user.access.get("gcp.project", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(project_id__in=user_access)
+            gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
+            gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
+            if gcp_account_access and gcp_account_access == "*" or gcp_project_access or gcp_project_access == "*":
+                return super().list(request)
+            query_holder = self.queryset
+            if gcp_project_access:
+                query_holder = query_holder.filter(project_id__in=gcp_project_access)
+            if gcp_account_access:
+                query_holder = query_holder.filter(account_id__in=gcp_account_access)
+            self.queryset = query_holder
         return super().list(request)
