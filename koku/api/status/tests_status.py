@@ -41,23 +41,13 @@ class StatusModelTest(TestCase):
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
 
-    @patch("os.environ")
-    def test_commit_with_env(self, mock_os):
-        """Test the commit method via environment."""
-        expected = "buildnum"
-        mock_os.get.return_value = expected
-        result = self.status_info.commit
-        self.assertEqual(result, expected)
-
     @patch("subprocess.run")
-    @patch("api.status.models.os.environ")
-    def test_commit_with_subprocess(self, mock_os, mock_subprocess):
+    def test_commit_with_subprocess(self, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = "buildnum"
         run = Mock()
         run.stdout = b"buildnum"
         mock_subprocess.return_value = run
-        mock_os.get.return_value = None
         result = self.status_info.commit
         self.assertEqual(result, expected)
 
