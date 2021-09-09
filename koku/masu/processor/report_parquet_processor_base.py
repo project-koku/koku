@@ -25,10 +25,6 @@ class PostgresSummaryTableError(Exception):
     """Postgres summary table is not defined."""
 
 
-class TrinoExecutionError(Exception):
-    """Postgres summary table is not defined."""
-
-
 class ReportParquetProcessorBase:
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
         self._manifest_id = manifest_id
@@ -57,11 +53,15 @@ class ReportParquetProcessorBase:
                 rows = cur.fetchall()
                 LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
         except PrestoUserError as err:
+            LOG.warning(err)
+        except PrestoExternalError as err:
+            if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
+                LOG.warning(err)
+            else:
+                LOG.error(err)
+        except PrestoQueryError as err:
             LOG.error(err)
-        except (PrestoExternalError, PrestoQueryError) as err:
-            LOG.error(err)
-            msg = "There was an error running Trino SQL"
-            raise TrinoExecutionError(msg)
+
         return rows
 
     def _get_provider(self):
