@@ -267,7 +267,10 @@ API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "..", "docs/source/specs"),
+    os.path.join(BASE_DIR, "..", "koku/api/currency/specs"),
+]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]

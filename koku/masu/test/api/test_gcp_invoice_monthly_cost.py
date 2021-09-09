@@ -28,7 +28,7 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
         query_string = urlencode(params)
         url = reverse("gcp_invoice_monthly_cost") + "?" + query_string
         with patch("masu.api.gcp_invoice_monthly_cost.bigquery") as bigquery:
-            bigquery.Client.return_value.query.return_value.result.return_value.next.return_value = [expected_value]
+            bigquery.Client.return_value.query.return_value.result.return_value = [[expected_value]]
             response = self.client.get(url)
         body = response.json()
         mapping = body.get("monthly_invoice_cost_mapping")
