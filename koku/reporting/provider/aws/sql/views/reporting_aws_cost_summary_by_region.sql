@@ -11,6 +11,7 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_region AS(
         region,
         availability_zone,
         sum(unblended_cost) as unblended_cost,
+        sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,
         max(source_uuid::text)::uuid as source_uuid

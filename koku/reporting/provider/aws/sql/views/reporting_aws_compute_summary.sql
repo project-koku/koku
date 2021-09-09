@@ -11,6 +11,7 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS (
         c.usage_amount,
         c.unit,
         c.unblended_cost,
+        c.savingsplan_effective_cost,
         c.markup_cost,
         c.currency_code,
         c.source_uuid
@@ -22,6 +23,7 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS (
             MAX(unit) AS unit,
             SUM(unblended_cost) AS unblended_cost,
             SUM(markup_cost) AS markup_cost,
+            SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             MAX(currency_code) AS currency_code,
             source_uuid
         FROM reporting_awscostentrylineitem_daily_summary
