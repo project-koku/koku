@@ -4,7 +4,6 @@
 #
 """Test the status endpoint view."""
 import logging
-import os
 import re
 from collections import namedtuple
 from datetime import datetime
@@ -107,37 +106,31 @@ class StatusAPITest(TestCase):
             result = check_sources_connection()
             self.assertIsNone(result)
 
-    @patch.dict(os.environ, {"OPENSHIFT_BUILD_COMMIT": "fake_commit_hash"})
-    def test_commit_with_env(self):
-        """Test the commit method via environment."""
-        result = ApplicationStatus().commit
-        self.assertEqual(result, "fake_commit_hash")
-
     @patch("sources.api.status.subprocess.run")
-    @patch("sources.api.status.os.environ.get", return_value=dict())
-    def test_commit_with_subprocess(self, mock_os, mock_subprocess):
+    def test_commit_with_subprocess(self, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = "buildnum"
 
-        args = {"args": ["git", "describe", "--always"], "returncode": 0, "stdout": bytes(expected, encoding="UTF-8")}
+        args = {
+            "args": ["git", "rev-parse", "--short", "HEAD"],
+            "returncode": 0,
+            "stdout": bytes(expected, encoding="UTF-8"),
+        }
         mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
 
         result = ApplicationStatus().commit
 
-        mock_os.assert_called_with("OPENSHIFT_BUILD_COMMIT", None)
         mock_subprocess.assert_called_with(args["args"], stdout=PIPE)
         self.assertEqual(result, expected)
 
     @patch("sources.api.status.subprocess.run")
-    @patch("sources.api.status.os.environ.get", return_value=dict())
-    def test_commit_with_subprocess_nostdout(self, mock_os, mock_subprocess):
+    def test_commit_with_subprocess_nostdout(self, mock_subprocess):
         """Test the commit method via subprocess when stdout is none."""
-        args = {"args": ["git", "describe", "--always"], "returncode": 0, "stdout": None}
+        args = {"args": ["git", "rev-parse", "--short", "HEAD"], "returncode": 0, "stdout": None}
         mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
 
         result = ApplicationStatus().commit
 
-        mock_os.assert_called_with("OPENSHIFT_BUILD_COMMIT", None)
         mock_subprocess.assert_called_with(args["args"], stdout=PIPE)
         self.assertIsNone(result.stdout)
 
