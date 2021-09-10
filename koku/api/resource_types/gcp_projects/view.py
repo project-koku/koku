@@ -52,4 +52,7 @@ class GCPProjectsView(generics.ListAPIView):
             if gcp_account_access:
                 query_holder = query_holder.filter(account_id__in=gcp_account_access)
             self.queryset = query_holder
+        else:
+            # return a empty queryset if no user rights
+            self.queryset.filter(account_id__in=[])
         return super().list(request)
