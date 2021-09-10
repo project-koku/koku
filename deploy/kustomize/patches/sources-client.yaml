@@ -55,10 +55,10 @@
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -167,3 +167,10 @@
     name: SOURCES_CLIENT_CPU_LIMIT
     required: true
     value: 200m
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Log Level for sources client
+    name: SOURCES_CLIENT_KOKU_LOG_LEVEL
+    required: true
+    value: INFO
