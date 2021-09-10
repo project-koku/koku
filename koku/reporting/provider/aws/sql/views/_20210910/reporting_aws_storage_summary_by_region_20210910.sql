@@ -1,17 +1,20 @@
-DROP INDEX IF EXISTS aws_storage_summary_account;
-DROP MATERIALIZED VIEW IF EXISTS reporting_aws_storage_summary_by_account;
+DROP INDEX IF EXISTS aws_storage_summary_region;
+DROP MATERIALIZED VIEW IF EXISTS reporting_aws_storage_summary_by_region;
 
-CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_account AS(
-    SELECT row_number() OVER(ORDER BY usage_start, usage_account_id, product_family) as id,
+CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_region AS(
+    SELECT row_number() OVER(ORDER BY date(usage_start), usage_account_id, region, availability_zone, product_family) as id,
         usage_start,
         usage_start as usage_end,
         usage_account_id,
         max(account_alias_id) as account_alias_id,
         max(organizational_unit_id) as organizational_unit_id,
+        region,
+        availability_zone,
         product_family,
         sum(usage_amount) as usage_amount,
         max(unit) as unit,
         sum(unblended_cost) as unblended_cost,
+        sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,
         max(source_uuid::text)::uuid as source_uuid
@@ -20,11 +23,11 @@ CREATE MATERIALIZED VIEW reporting_aws_storage_summary_by_account AS(
     WHERE product_family LIKE '%Storage%'
         AND unit = 'GB-Mo'
         AND usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
-    GROUP BY usage_start, usage_account_id, product_family
+    GROUP BY usage_start, usage_account_id, region, availability_zone, product_family
 )
 WITH DATA
 ;
 
-CREATE UNIQUE INDEX aws_storage_summary_account
-ON reporting_aws_storage_summary_by_account (usage_start, usage_account_id, product_family)
+CREATE UNIQUE INDEX aws_storage_summary_region
+ON reporting_aws_storage_summary_by_region (usage_start, usage_account_id, region, availability_zone, product_family)
 ;
