@@ -57,10 +57,8 @@
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -169,3 +167,10 @@
     name: SOURCES_LISTENER_CPU_LIMIT
     required: true
     value: 200m
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Log Level for sources listener
+    name: SOURCES_LISTENER_KOKU_LOG_LEVEL
+    required: true
+    value: INFO
