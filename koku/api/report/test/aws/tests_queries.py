@@ -304,7 +304,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertTrue(len(interval) >= 28)
 
     def test_get_time_frame_filter_2_months_ago(self):
-        """Test _get_time_frame_filter for previous month."""
+        """Test _get_time_frame_filter for 2 months ago."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
@@ -316,6 +316,21 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(end, dh.relative_month_end(-2))
         self.assertIsInstance(interval, list)
         self.assertEqual(len(interval), end.day)
+
+    def test_get_time_frame_filter_90_days_ago(self):
+        """Test _get_time_frame_filter for 90 days ago month."""
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-90&filter[resolution]=daily"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        start = handler.start_datetime.date()
+        end = handler.end_datetime.date()
+        interval = handler.time_interval
+        dh = DateHelper()
+        today = dh.today
+        self.assertEqual(start, dh.n_days_ago(today, 89).date())
+        self.assertEqual(end, dh.today.date())
+        self.assertIsInstance(interval, list)
+        self.assertEqual(len(interval), 90)
 
     def test_get_time_frame_filter_last_ten(self):
         """Test _get_time_frame_filter for last ten days."""
