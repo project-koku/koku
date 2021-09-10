@@ -543,7 +543,7 @@ class AWSComputeSummary(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)

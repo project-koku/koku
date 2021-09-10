@@ -10,24 +10,9 @@ def add_aws_views(apps, schema_editor):
     """Create the AWS Materialized views from files."""
     version = "_20210910"
     views = {
-        f"sql/views/{version}/reporting_aws_compute_summary": [
-            "",
-            "_by_account",
-            "_by_region",
-            "_by_service",
-        ],
-        f"sql/views/{version}/reporting_aws_cost_summary": [
-            "",
-            "_by_account",
-            "_by_region",
-            "_by_service",
-        ],
-        f"sql/views/{version}/reporting_aws_storage_summary": [
-            "",
-            "_by_account",
-            "_by_region",
-            "_by_service",
-        ],
+        f"sql/views/{version}/reporting_aws_compute_summary": ["", "_by_account", "_by_region", "_by_service"],
+        f"sql/views/{version}/reporting_aws_cost_summary": ["", "_by_account", "_by_region", "_by_service"],
+        f"sql/views/{version}/reporting_aws_storage_summary": ["", "_by_account", "_by_region", "_by_service"],
         f"sql/views/{version}/reporting_aws_database_summary": [""],
         f"sql/views/{version}/reporting_aws_network_summary": [""],
     }
@@ -41,14 +26,12 @@ def add_aws_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('reporting', '0191_currencysettings'),
-    ]
+    dependencies = [("reporting", "0191_currencysettings")]
 
     operations = [
         migrations.AddField(
-            model_name='awscostentrylineitemdailysummary',
-            name='savingsplan_effective_cost',
+            model_name="awscostentrylineitemdailysummary",
+            name="savingsplan_effective_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.RunPython(add_aws_views),
