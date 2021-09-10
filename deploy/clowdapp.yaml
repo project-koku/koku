@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: koku
@@ -50,10 +50,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${KOKU_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -194,10 +194,10 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: DJANGO_LOG_LEVEL
+          value: ${DJANGO_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -334,10 +334,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${MASU_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -440,7 +440,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku beat -l $LOG_LEVEL
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku beat -l $CELERY_LOG_LEVEL
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -464,8 +464,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -616,10 +616,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -748,10 +748,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -839,7 +837,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -863,8 +861,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1002,7 +1000,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1026,8 +1024,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1165,7 +1163,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1189,8 +1187,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1328,7 +1326,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1352,8 +1350,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1491,7 +1489,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1515,8 +1513,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1654,7 +1652,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1678,8 +1676,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -1817,7 +1815,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1841,8 +1839,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -2045,8 +2043,11 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- displayName: Celery log level
+  name: CELERY_LOG_LEVEL
+  value: INFO
 - displayName: Gunicorn log level
-  name: LOG_LEVEL
+  name: GUNICORN_LOG_LEVEL
   value: INFO
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
@@ -2249,6 +2250,10 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 300m
+- displayName: Log Level for koku-api
+  name: KOKU_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -2269,6 +2274,10 @@ parameters:
   name: LISTENER_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for listener
+  name: LISTENER_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: MASU_MIN_REPLICAS
   required: true
@@ -2289,6 +2298,10 @@ parameters:
   name: MASU_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for masu
+  name: MASU_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: SCHEDULER_MIN_REPLICAS
   required: true
@@ -2339,6 +2352,10 @@ parameters:
   name: SOURCES_CLIENT_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for sources client
+  name: SOURCES_CLIENT_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_MIN_REPLICAS
   required: true
@@ -2359,6 +2376,10 @@ parameters:
   name: SOURCES_LISTENER_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for sources listener
+  name: SOURCES_LISTENER_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: WORKER_CELERY_MIN_REPLICAS
   required: true
