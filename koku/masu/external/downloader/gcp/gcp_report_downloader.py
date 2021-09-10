@@ -106,10 +106,6 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
-class GCPReportDownloaderEtagError(ReportDownloaderWarning):
-    """GCP Report Downloader error."""
-
-
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
     GCP Cost and Usage Report Downloader.
@@ -210,7 +206,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"\n  Customer: {self.customer_name}"
                 f"\n  Response: {err.message}"
             )
-            raise GCPReportDownloaderEtagError(err_msg)
+            raise ReportDownloaderWarning()(err_msg)
         return modified_hash
 
     def get_manifest_context_for_date(self, date):
