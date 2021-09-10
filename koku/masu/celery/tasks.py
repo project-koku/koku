@@ -341,7 +341,7 @@ def missing_source_delete_async(source_id):
     try:
         Sources.objects.get(source_id=source_id).delete()
     except Sources.DoesNotExist:
-        LOG.info(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
+        LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
