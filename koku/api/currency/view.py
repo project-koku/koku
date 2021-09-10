@@ -3,31 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Currency."""
-import json
-import logging
-import os
-
 from rest_framework import permissions
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
-from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
-from koku.settings import STATIC_ROOT
-
-
-CURRENCY_FILE_NAME = os.path.join(STATIC_ROOT, "currencies.json")
-LOG = logging.getLogger(__name__)
-
-
-def load_currencies(path):
-    """Obtain currency JSON data from file path."""
-    with open(path) as api_file:
-        return json.load(api_file)
+from api.currency.currencies import CURRENCIES
 
 
 @api_view(("GET",))
@@ -45,9 +29,4 @@ def get_currency(request):
         (Response): The report in a Response object
 
     """
-    try:
-        data = load_currencies(CURRENCY_FILE_NAME)
-        paginator = ListPaginator(data, request)
-        return paginator.paginated_response
-    except (FileNotFoundError, json.JSONDecodeError):
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    return ListPaginator(CURRENCIES, request)

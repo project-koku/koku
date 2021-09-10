@@ -1,4 +1,11 @@
-[
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+"""List of currencies."""
+# turn off black formatting
+# fmt: off
+CURRENCIES = [
     {
         "code": "AUD",
         "name": "Australian Dollar",
@@ -88,5 +95,6 @@
         "name": "South African Rand",
         "symbol": "R",
         "description": "ZAR (R) - South African Rand"
-    }
+    },
 ]
+# fmt: on
