@@ -87,7 +87,7 @@ FROM (
         sum(lineitem_unblendedcost) as unblended_cost,
         max(lineitem_blendedrate) as blended_rate,
         sum(lineitem_blendedcost) as blended_cost,
-        sum(savingsplan_savingsplaneffectivecost) as savingsplan_savingsplaneffectivecost,
+        sum(savingsplan_savingsplaneffectivecost) as savingsplan_effective_cost,
         sum(pricing_publicondemandcost) as public_on_demand_cost,
         max(pricing_publicondemandrate) as public_on_demand_rate,
         array_agg(DISTINCT lineitem_resourceid) as resource_ids,
