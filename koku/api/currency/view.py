@@ -29,4 +29,4 @@ def get_currency(request):
         (Response): The report in a Response object
 
     """
-    return ListPaginator(CURRENCIES, request)
+    return ListPaginator(CURRENCIES, request).paginated_response
