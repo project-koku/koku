@@ -206,7 +206,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"\n  Customer: {self.customer_name}"
                 f"\n  Response: {err.message}"
             )
-            raise ReportDownloaderWarning()(err_msg)
+            raise ReportDownloaderWarning(err_msg)
         return modified_hash
 
     def get_manifest_context_for_date(self, date):
