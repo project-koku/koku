@@ -14,7 +14,7 @@ services:
       - 9000:9000
     command: server /data
     volumes:
-      - ./../../testing/parquet_data:/data
+      - ./../../trino/parquet_data:/data
 
   koku-create-parquet-bucket:
     image: minio/mc:latest
@@ -48,15 +48,15 @@ services:
       - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY}
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET}
     volumes:
-      - ./../../testing/metastore/hive-config:/hive-config
-      - ./../../testing/metastore/hive-scripts:/hive-scripts
-      - ./../../testing/metastore/hive-jmx-config:/opt/jmx_exporter/config
-      - ./../../testing/metastore/db-data:/var/lib/hive
-      - ./../../testing/hadoop/hadoop-dfs-name:/hadoop/dfs/name
-      - ./../../testing/hadoop/hadoop-dfs-data:/hadoop/dfs/data
-      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
-      - ./../../testing/hadoop/hadoop-config:/hadoop-config
-      - ./../../testing/hadoop/hadoop-starting-config:/hadoop-starting-config
+      - ./../../trino/metastore/hive-config:/hive-config
+      - ./../../trino/metastore/hive-scripts:/hive-scripts
+      - ./../../trino/metastore/hive-jmx-config:/opt/jmx_exporter/config
+      - ./../../trino/metastore/db-data:/var/lib/hive
+      - ./../../trino/hadoop/hadoop-dfs-name:/hadoop/dfs/name
+      - ./../../trino/hadoop/hadoop-dfs-data:/hadoop/dfs/data
+      - ./../../trino/hadoop/hadoop-logs:/opt/hadoop/logs
+      - ./../../trino/hadoop/hadoop-config:/hadoop-config
+      - ./../../trino/hadoop/hadoop-starting-config:/hadoop-starting-config
 
   presto:
     container_name: presto
@@ -78,15 +78,15 @@ services:
       - AWS_SECRET_ACCESS_KEY=${S3_SECRET}
       - S3_ENDPOINT=${S3_ENDPOINT}
     volumes:
-      - ./../../testing/presto/presto-common-config:/presto-common
-      - ./../../testing/presto/presto-coordinator-config/:/presto-etc
-      - ./../../testing/presto/presto-catalog-config:/presto-etc/catalog
-      - ./../../testing/presto/presto-etc:/opt/presto/presto-server/etc
-      - ./../../testing/presto/presto-jmx-config:/opt/jmx_exporter/config
-      - ./../../testing/presto/presto-data:/var/presto/data
-      - ./../../testing/presto/presto-logs:/var/presto/logs
-      - ./../../testing/hadoop/hadoop-config:/hadoop-config
-      - ./../../testing/hadoop/hadoop-starting-config:/hadoop-starting-config
+      - ./../../trino/presto/presto-common-config:/presto-common
+      - ./../../trino/presto/presto-coordinator-config/:/presto-etc
+      - ./../../trino/presto/presto-catalog-config:/presto-etc/catalog
+      - ./../../trino/presto/presto-etc:/opt/presto/presto-server/etc
+      - ./../../trino/presto/presto-jmx-config:/opt/jmx_exporter/config
+      - ./../../trino/presto/presto-data:/var/presto/data
+      - ./../../trino/presto/presto-logs:/var/presto/logs
+      - ./../../trino/hadoop/hadoop-config:/hadoop-config
+      - ./../../trino/hadoop/hadoop-starting-config:/hadoop-starting-config
     links:
       - hive-metastore
     depends_on:
