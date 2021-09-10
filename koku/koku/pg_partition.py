@@ -5,13 +5,23 @@
 import json
 import logging
 import os
+import random
 import re
+import string
+import time
 import uuid
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
+from tenant_schemas.utils import schema_context
+
+from koku.database import get_model
+
+
+random.seed(time.time())
+PartitionedTable = get_model("PartitionedTable")
 
 
 # If this is detected, the code will try to resolve this to a name
@@ -1668,3 +1678,104 @@ def repartition_default_data(schema_name=None, partitioned_table_name=None):
             default_partition=default_rec["default_partition"],
         )
         default_partitioner.repartition_default_data()
+
+
+def _get_or_create_default_partition(part_rec):
+    default_keys = ("schema_name", "table_name", "partition_of_table_name", "partition_type", "partition_col")
+    default_params = {k: v for k, v in part_rec.items() if k in default_keys}
+    default_params["table_name"] = f"{default_params['partition_of_table_name']}_default"
+    default_params["partition_parameters"] = {"default": True}
+    default_part, created = PartitionedTable.objects.get_or_create(
+        schema_name=default_params["schema_name"],
+        table_name=default_params["table_name"],
+        partition_of_table_name=default_params["partition_of_table_name"],
+        partition_parameters__default=True,
+        defaults=default_params,
+    )
+
+    return default_part, created
+
+
+def _check_default_partition_data(default_partition, part_rec):
+    params = None
+    if default_partition.partition_type == default_partition.RANGE:
+        chk_where = f'"{default_partition.partition_col}" >= %s AND "{default_partition.partition_col}" < %s'
+        params = [part_rec["partition_parameters"]["from"], part_rec["partition_parameters"]["to"]]
+    else:
+        chk_where = f'"{default_partition.partition_col}" IN ( %s )'
+        params = [part_rec["partition_parameters"]["in"]]
+
+    chk_sql = f"""
+SELECT EXISTS (
+    SELECT 1
+      FROM "{default_partition.schema_name}"."{default_partition.table_name}"
+     WHERE {chk_where}
+);
+"""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(chk_sql, params)
+        res = cur.fetchone()
+
+    if res[0]:
+        restore = part_rec["partition_parameters"].copy()
+        if default_partition.partition_type == default_partition.RANGE:
+            pp_from = part_rec["partition_parameters"]["from"]
+            pp_to = part_rec["partition_parameters"]["to"]
+            delta = relativedelta(years=random.randrange(10, 9999))
+            part_rec["partition_parameters"]["from"] = pp_from + delta
+            part_rec["partition_parameters"]["to"] = pp_to + delta
+        else:
+            pp_in = []
+            for _ in range(10):
+                pp_in.append(f"'{random.choice(string.ascii_letters)}'")
+            part_rec["partition_parameters"]["in"] = ",".join(pp_in)
+    else:
+        restore = {}
+
+    return restore, chk_where
+
+
+def _move_partition_data(target_partition, source_partition, conditions):
+    mv_sql = f"""
+INSERT INTO "{target_partition.schema_name}"."{target_partition.table_name}"
+SELECT *
+  FROM "{source_partition.schema_name}"."{source_partition.table_name}"
+ WHERE {conditions} ;
+"""
+    dl_sql = f"""
+DELETE
+  FROM "{source_partition.schema_name}"."{source_partition.table_name}"
+ WHERE {conditions} ;
+"""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(mv_sql)
+        cur.execute(dl_sql)
+
+
+def get_or_create_partition(part_rec):
+    if "id" in part_rec:
+        del part_rec["id"]
+
+    with schema_context(part_rec["schema_name"]):
+        default_partition, created = _get_or_create_default_partition(part_rec)
+        if part_rec.get("partition_parameters", {}).get("default") or "default" in part_rec.get("table_name"):
+            return default_partition, created
+
+        restore_partition_parameters, conditions = _check_default_partition_data(default_partition, part_rec)
+
+        partition, created = PartitionedTable.objects.get_or_create(
+            schema_name=part_rec["schema_name"],
+            table_name=part_rec["table_name"],
+            partition_of_table_name=part_rec["partition_of_table_name"],
+            defaults=part_rec,
+        )
+
+        if created and restore_partition_parameters:
+            partition.active = False
+            partition.save()
+            _move_partition_data(partition, default_partition, conditions)
+            partition.partition_parameters = restore_partition_parameters
+            partition.active = True
+            partition.save()
+
+    return partition, created
