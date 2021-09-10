@@ -14,7 +14,7 @@ from api.iam.test.iam_test_case import IamTestCase
 class CurrencyViewTest(IamTestCase):
     """Tests for the metrics view."""
 
-    def test_supported_currencies(self, _):
+    def test_supported_currencies(self):
         """Test that a list GET call returns the supported currencies."""
         qs = "?limit=20"
         url = reverse("currency") + qs
