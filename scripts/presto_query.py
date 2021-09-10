@@ -39,6 +39,7 @@ for idx, col in enumerate(parquet_columns):
         "lineitem_unblendedcost",
         "lineitem_unblendedrate",
         "lineitem_blendedcost",
+        "savingsplan_savingsplaneffectivecost",
         "lineitem_blendedrate",
         "pricing_publicondemandrate",
         "pricing_publicondemandcost",
