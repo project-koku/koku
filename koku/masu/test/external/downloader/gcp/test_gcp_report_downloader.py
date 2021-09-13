@@ -18,6 +18,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import create_daily_arch
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 
@@ -99,7 +100,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         err_msg = "GCP Error"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegexp(ReportDownloaderWarning, err_msg):
                 GCPReportDownloader(
                     customer_name=FAKE.name(),
                     data_source=billing_source,
