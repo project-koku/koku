@@ -1702,6 +1702,8 @@ def _get_or_create_default_partition(part_rec):
         defaults=default_params,
     )
 
+    LOG.info(f"{'Created' if created else 'Retrieved'} default partition {default_part.table_name}")
+
     return default_part, created
 
 
@@ -1742,6 +1744,7 @@ SELECT EXISTS (
         res = cur.fetchone()
 
     if res[0]:
+        LOG.info(f"Overlapping data found in the default partition for {chk_where}")
         restore = part_rec["partition_parameters"].copy()
         if default_partition.partition_type == default_partition.RANGE:
             pp_from = part_rec["partition_parameters"]["from"]
@@ -1755,6 +1758,7 @@ SELECT EXISTS (
                 pp_in.append(f"'{random.choice(string.ascii_letters)}'")
             part_rec["partition_parameters"]["in"] = ",".join(pp_in)
     else:
+        LOG.info("No overlapping data in the default partition")
         restore = {}
 
     return restore, chk_where
@@ -1786,10 +1790,14 @@ DELETE
 """
     cp_recs = dl_recs = 0
     with transaction.get_connection().cursor() as cur:
+        LOG.info(f"Copy data from {source_partition.table_name} to {target_partition.table_name} where {conditions}")
         cur.execute(mv_sql)
         cp_recs = cur.rowcount
+        LOG.info(f"Copied {cp_recs} records")
+        LOG.info(f"Delete data from {source_partition.table_name} where {conditions}")
         cur.execute(dl_sql)
         dl_recs = cur.rowcount
+        LOG.info(f"Deleted {dl_recs} records")
 
     return (cp_recs, dl_recs)
 
@@ -1832,14 +1840,18 @@ def get_or_create_partition(part_rec):
             partition_of_table_name=part_rec["partition_of_table_name"],
             defaults=part_rec,
         )
+        LOG.info(f"{'Created' if created else 'Retrieved'} partition {partition.table_name}")
 
         if created and restore_partition_parameters:
             # Detach the partition (uses trigger)
+            LOG.info(f"Detaching partition {partition.table_name} for data move")
             partition.active = False
             partition.save()
             # Move data from the default partition to the detached partition
+            LOG.info(f"Executing data move from default partition to {partition.table_name}")
             _move_partition_data(partition, default_partition, conditions)
             # Re-attach the partition with the original parameters (uses trigger)
+            LOG.info(f"Reattach partition {partition.table_name}")
             partition.partition_parameters = restore_partition_parameters
             partition.active = True
             partition.save()
