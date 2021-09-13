@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Check Migrations and Run Unit Tests
 
 on:
   pull_request:

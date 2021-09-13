@@ -1,4 +1,4 @@
-name: Check clowdapp
+name: Check Clowdapp
 
 on:
   pull_request:
