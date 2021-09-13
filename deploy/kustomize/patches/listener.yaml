@@ -41,10 +41,10 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: DJANGO_LOG_LEVEL
+          value: ${DJANGO_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -169,3 +169,10 @@
     name: LISTENER_CPU_LIMIT
     required: true
     value: 200m
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Log Level for listener
+    name: LISTENER_KOKU_LOG_LEVEL
+    required: true
+    value: INFO

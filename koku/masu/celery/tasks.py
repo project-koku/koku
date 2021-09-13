@@ -316,19 +316,32 @@ def crawl_account_hierarchy(provider_uuid=None):
 def delete_provider_async(name, provider_uuid, schema_name):
     with schema_context(schema_name):
         LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
-        Provider.objects.get(uuid=provider_uuid).delete()
+        try:
+            Provider.objects.get(uuid=provider_uuid).delete()
+        except Provider.DoesNotExist:
+            LOG.warning(
+                f"[delete_provider_async] Provider with uuid {provider_uuid} does not exist. Nothing to delete."
+            )
 
 
 @celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
-    Sources.objects.get(source_id=source_id).delete()
+    try:
+        Sources.objects.get(source_id=source_id).delete()
+    except Sources.DoesNotExist:
+        LOG.warning(
+            f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
+        )
 
 
 @celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
 def missing_source_delete_async(source_id):
     LOG.info(f"Removing missing Source: {str(source_id)}")
-    Sources.objects.get(source_id=source_id).delete()
+    try:
+        Sources.objects.get(source_id=source_id).delete()
+    except Sources.DoesNotExist:
+        LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)
