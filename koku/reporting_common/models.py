@@ -33,6 +33,7 @@ class CostUsageReportManifest(models.Model):
     operator_errors = models.JSONField(default=dict, null=True)
     cluster_id = models.TextField(null=True)
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
+    TEST_ID = models.TextField(null=True)
 
 
 class CostUsageReportStatus(models.Model):
