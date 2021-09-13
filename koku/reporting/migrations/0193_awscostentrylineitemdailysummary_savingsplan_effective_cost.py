@@ -26,7 +26,7 @@ def add_aws_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0191_currencysettings")]
+    dependencies = [("reporting", "0192_gcp_bigquery_partition")]
 
     operations = [
         migrations.AddField(
