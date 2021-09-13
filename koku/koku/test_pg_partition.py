@@ -58,6 +58,18 @@ partition by range (utilization_date);
 """
         _execute(sql)
 
+        sql = f"""
+create table if not exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    ref_id int,
+    utilization_code int not null,
+    label text not null,
+    data numeric(15,4),
+    primary key (utilization_date, id)
+)
+partition by list (utilization_date);
+"""
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
