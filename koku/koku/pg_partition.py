@@ -2,6 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import datetime
 import json
 import logging
 import os
@@ -1732,6 +1733,9 @@ def _check_default_partition_data(default_partition, part_rec):
         chk_where = f'"{default_partition.partition_col}" IN ( %s )'
         params = [part_rec["partition_parameters"]["in"]]
 
+    with transaction.get_connection().cursor() as cur:
+        chk_where = cur.mogrify(chk_where, params).decode("utf-8")
+
     chk_sql = f"""
 SELECT EXISTS (
     SELECT 1
@@ -1740,18 +1744,18 @@ SELECT EXISTS (
 );
 """
     with transaction.get_connection().cursor() as cur:
-        cur.execute(chk_sql, params)
+        cur.execute(chk_sql)
         res = cur.fetchone()
 
     if res[0]:
         LOG.info(f"Overlapping data found in the default partition for {chk_where}")
         restore = part_rec["partition_parameters"].copy()
         if default_partition.partition_type == default_partition.RANGE:
-            pp_from = part_rec["partition_parameters"]["from"]
-            pp_to = part_rec["partition_parameters"]["to"]
-            delta = relativedelta(years=random.randrange(100, 9999))
-            part_rec["partition_parameters"]["from"] = pp_from + delta
-            part_rec["partition_parameters"]["to"] = pp_to + delta
+            pp_from = ciso8601.parse_datetime(part_rec["partition_parameters"]["from"]).date()
+            pp_to = ciso8601.parse_datetime(part_rec["partition_parameters"]["to"]).date()
+            delta = relativedelta(years=random.randrange(100, 7000))
+            part_rec["partition_parameters"]["from"] = str(pp_from + delta)
+            part_rec["partition_parameters"]["to"] = str(pp_to + delta)
         else:
             pp_in = []
             for _ in range(10):
@@ -1822,6 +1826,14 @@ def get_or_create_partition(part_rec):
     """
     if "id" in part_rec:
         del part_rec["id"]
+    if isinstance(part_rec.get("partition_parameters", {}).get("from"), datetime.datetime):
+        part_rec["partition_parameters"]["from"] = str(part_rec["partition_parameters"]["from"].date())
+    elif isinstance(part_rec.get("partition_parameters", {}).get("from"), datetime.date):
+        part_rec["partition_parameters"]["from"] = str(part_rec["partition_parameters"]["from"])
+    if isinstance(part_rec.get("partition_parameters", {}).get("to"), datetime.datetime):
+        part_rec["partition_parameters"]["to"] = str(part_rec["partition_parameters"]["to"].date())
+    elif isinstance(part_rec.get("partition_parameters", {}).get("to"), datetime.date):
+        part_rec["partition_parameters"]["to"] = str(part_rec["partition_parameters"]["to"])
 
     with schema_context(part_rec["schema_name"]):
         # Find or create the default partition
@@ -1840,18 +1852,18 @@ def get_or_create_partition(part_rec):
             partition_of_table_name=part_rec["partition_of_table_name"],
             defaults=part_rec,
         )
-        LOG.info(f"{'Created' if created else 'Retrieved'} partition {partition.table_name}")
+        LOG.info(f'{"Created" if created else "Retrieved"} partition "{partition.table_name}"')
 
         if created and restore_partition_parameters:
             # Detach the partition (uses trigger)
-            LOG.info(f"Detaching partition {partition.table_name} for data move")
+            LOG.info(f'Detaching partition "{partition.table_name}" for data move')
             partition.active = False
             partition.save()
             # Move data from the default partition to the detached partition
-            LOG.info(f"Executing data move from default partition to {partition.table_name}")
+            LOG.info(f'Executing data move from default partition to "{partition.table_name}"')
             _move_partition_data(partition, default_partition, conditions)
             # Re-attach the partition with the original parameters (uses trigger)
-            LOG.info(f"Reattach partition {partition.table_name}")
+            LOG.info(f'Reattach partition "{partition.table_name}"')
             partition.partition_parameters = restore_partition_parameters
             partition.active = True
             partition.save()
