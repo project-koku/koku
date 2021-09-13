@@ -3,23 +3,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Currency."""
-import json
-import logging
-
 from rest_framework import permissions
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import renderer_classes
 from rest_framework.renderers import JSONRenderer
-from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
-from currency.common import load_currencies_from_file
-
-
-LOG = logging.getLogger(__name__)
+from api.currency.currencies import CURRENCIES
 
 
 @api_view(("GET",))
@@ -37,9 +29,4 @@ def get_currency(request):
         (Response): The report in a Response object
 
     """
-    try:
-        data = load_currencies_from_file()
-        paginator = ListPaginator(data, request)
-        return paginator.paginated_response
-    except (FileNotFoundError, json.JSONDecodeError):
-        return Response(status=status.HTTP_404_NOT_FOUND)
+    return ListPaginator(CURRENCIES, request).paginated_response

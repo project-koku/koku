@@ -25,6 +25,7 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
@@ -205,7 +206,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"\n  Customer: {self.customer_name}"
                 f"\n  Response: {err.message}"
             )
-            raise GCPReportDownloaderError(err_msg)
+            raise ReportDownloaderWarning(err_msg)
         return modified_hash
 
     def get_manifest_context_for_date(self, date):
