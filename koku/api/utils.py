@@ -231,6 +231,30 @@ class DateHelper:
             current = next_month
         return months
 
+    def list_month_tuples(self, start_date, end_date):
+        """Return a list of tuples of datetimes.
+        Like (first day of the month, last day of the month)
+        from the start date til the end date.
+
+        Args:
+            start_date    (DateTime) starting datetime
+            end_date      (DateTime) ending datetime
+        Returns:
+            List((DateTime, DateTime)): A list of months from the start date to end date
+
+        """
+        months = []
+        dt_first = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_midnight = end_date.replace(hour=23, minute=59, second=59, microsecond=0)
+
+        current = dt_first
+        while current < end_midnight:
+            num_days = self.days_in_month(current)
+            months.append((current, current.replace(day=num_days)))
+            next_month = current.replace(day=num_days) + self.one_day
+            current = next_month
+        return months
+
     def days_in_month(self, date):
         """Return the number of days in the month.
 
@@ -276,8 +300,11 @@ class DateHelper:
         Returns:
             List of invoice months.
         """
+        # Add a little buffer to end date for beginning of the month
+        # searches for invoice_month for dates < end_date
+        end_range = end + timedelta(1)
         invoice_months = []
-        for day in range((end - start).days):
+        for day in range((end_range - start).days):
             invoice_month = (start + timedelta(day)).strftime("%Y%m")
             if invoice_month not in invoice_months:
                 invoice_months.append(invoice_month)

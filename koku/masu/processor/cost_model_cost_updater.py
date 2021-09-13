@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Update Cost Model Cost info for report summary tables."""
+import datetime
 import logging
 
 from api.models import Provider
@@ -69,6 +70,14 @@ class CostModelCostUpdater:
 
         return None
 
+    def _format_dates(self, start_date, end_date):
+        """Convert dates to strings for use in the updater."""
+        if isinstance(start_date, datetime.date):
+            start_date = start_date.strftime("%Y-%m-%d")
+        if isinstance(end_date, datetime.date):
+            end_date = end_date.strftime("%Y-%m-%d")
+        return start_date, end_date
+
     def update_cost_model_costs(self, start_date=None, end_date=None):
         """
         Update usage charge information.
@@ -81,6 +90,8 @@ class CostModelCostUpdater:
             None
 
         """
+        start_date, end_date = self._format_dates(start_date, end_date)
+
         if self._updater:
             self._updater.update_summary_cost_model_costs(start_date, end_date)
             invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
