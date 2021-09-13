@@ -15,6 +15,10 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 LOG = logging.getLogger(__name__)
 
 
+class ReportDownloaderWarning(Exception):
+    """A class for warnings related to report downloading"""
+
+
 class ReportDownloaderBase:
     """
     Download cost reports from a provider.
