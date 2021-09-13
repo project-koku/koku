@@ -7,7 +7,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0191_currencysettings")]
+    dependencies = [("reporting", "0192_gcp_bigquery_partition")]
 
     operations = [
         migrations.CreateModel(
