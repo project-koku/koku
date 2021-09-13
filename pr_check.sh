@@ -14,7 +14,7 @@ ARTIFACTS_DIR="$WORKSPACE/artifacts"
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
-export IQE_CJI_TIMEOUT="75m"
+export IQE_CJI_TIMEOUT="90m"
 
 set -ex
 
