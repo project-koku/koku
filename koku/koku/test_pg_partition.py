@@ -47,12 +47,14 @@ class TestGoCPartition(IamTestCase):
         super().setUpClass()
         sql = f"""
 create table if not exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} (
-    id bigserial primary key,
+    id bigserial,
     ref_id int,
     utilization_date date not null,
     label text not null,
-    data numeric(15,4)
-);
+    data numeric(15,4),
+    primary key (utilization_date, id)
+)
+partition by range (utilization_date);
 """
         _execute(sql)
 
@@ -90,7 +92,7 @@ drop table if exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} ;
             }
             dp, dc = ppart.get_or_create_partition(part_rec)
             self.assertTrue(bool(dp) and dc, f"bool(dp) = {bool(dp)}; dc = {dc}")
-            self.assertFalse("id" in part_rec, f'"id" still in part_rec {part_rec["id"]}')
+            self.assertFalse("id" in part_rec, '"id" still in part_rec')
             self.assertTrue(isinstance(part_rec["partition_parameters"]["from"], str))
             self.assertTrue(isinstance(part_rec["partition_parameters"]["to"], str))
 
@@ -263,7 +265,7 @@ select count(*) from {self.SCHEMA_NAME}.{DEFAULT_PART_NAME} ;
 """
             cur = self.execute(sql)
             ct = cur.fetchone()[0]
-            self.assertEqual(ct, 2, f"Default partition had {ct} but 1 expected")
+            self.assertEqual(ct, 1, f"Default partition had {ct} but 1 expected")
 
             p01.delete()
             p02.delete()
