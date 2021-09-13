@@ -3,21 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Common utilities and helpers for Currency."""
-import json
-import os
-
 from tenant_schemas.utils import schema_context
 
+from api.currency.currencies import CURRENCIES
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.currency.models import CurrencySettings
-
-CURRENCY_FILE_NAME = f"{os.path.dirname(os.path.realpath(__file__))}/specs/currencies.json"
-
-
-def load_currencies_from_file(file_path=CURRENCY_FILE_NAME):
-    with open(file_path) as api_file:
-        data = json.load(api_file)
-        return data
 
 
 def get_selected_currency_or_setup(schema):
@@ -34,7 +24,7 @@ def get_currency_options():
             value=currency.get("code"),
             label=f"{currency.get('code')} ({currency.get('symbol')}) - {currency.get('name')}",
         )
-        for currency in load_currencies_from_file()
+        for currency in CURRENCIES
     ]
 
 

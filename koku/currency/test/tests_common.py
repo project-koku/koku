@@ -7,7 +7,6 @@ from tenant_schemas.utils import schema_context
 
 from currency.common import get_currency_options
 from currency.common import get_selected_currency_or_setup
-from currency.common import load_currencies_from_file
 from currency.common import set_currency
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.test import MasuTestCase
@@ -21,11 +20,6 @@ class TestCurrencyCommon(MasuTestCase):
         """Set up test suite."""
         with schema_context(self.schema):
             CurrencySettings.objects.all().delete()
-
-    def test_load_currencies_from_file(self):
-        """Test to load currencies from json file."""
-        currency_data = load_currencies_from_file()
-        self.assertIsNotNone(currency_data)
 
     def test_get_selected_currency_or_setup(self):
         """Test currency initialization."""
