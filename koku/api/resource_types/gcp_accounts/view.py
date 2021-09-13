@@ -31,7 +31,6 @@ class GCPAccountView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for GCP account id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
-
         error_message = {}
         query_holder = None
         # Test for only supported query_params
