@@ -174,6 +174,8 @@ class ReportSummaryUpdater:
         try:
             if self.trino_enabled and self._provider.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
                 self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
+            elif not self.trino_enabled:
+                self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex))
 
