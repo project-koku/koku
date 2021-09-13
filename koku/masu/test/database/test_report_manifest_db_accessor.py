@@ -72,6 +72,23 @@ class ReportManifestDBAccessorTest(IamTestCase):
         self.assertIsNotNone(manifest)
         self.assertEqual(added_manifest, manifest)
 
+    def test_update_number_of_files_for_manifest(self):
+        """Test that the number of files for manifest is updated."""
+        manifest = self.manifest_accessor.add(**self.manifest_dict)
+        before_count = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
+        CostUsageReportStatus.objects.create(
+            report_name="fake_report.csv",
+            last_completed_datetime=self.billing_start,
+            last_started_datetime=self.billing_start,
+            etag="etag",
+            manifest=manifest,
+        )
+        self.manifest_accessor.update_number_of_files_for_manifest(manifest)
+        after_count = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
+        updated_manifest = self.manifest_accessor.get_manifest_by_id(manifest.id)
+        self.assertNotEqual(before_count, after_count)
+        self.assertEqual(updated_manifest.num_total_files, after_count)
+
     def test_mark_manifest_as_updated(self):
         """Test that the manifest is marked updated."""
         with schema_context(self.schema):
