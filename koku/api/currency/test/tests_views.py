@@ -9,7 +9,6 @@ from rest_framework.test import APIClient
 
 from api.currency.currencies import CURRENCIES
 from api.iam.test.iam_test_case import IamTestCase
-from currency.common import CURRENCY_FILE_NAME
 
 
 class CurrencyViewTest(IamTestCase):
