@@ -53,8 +53,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""
-        records = CostUsageReportStatus.objects.filter(manifest_id=manifest.id)
-        set_num_of_files = len(records)
+        set_num_of_files = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
         if manifest:
             manifest.num_total_files = set_num_of_files
             manifest.save()
