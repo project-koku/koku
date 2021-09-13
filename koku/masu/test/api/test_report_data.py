@@ -29,7 +29,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "schema": "acct10001",
             "start_date": start_date,
@@ -47,7 +47,7 @@ class ReportDataTests(TestCase):
             Provider.PROVIDER_AWS,
             params["provider_uuid"],
             params["start_date"],
-            DateHelper().today,
+            DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
         )
 
@@ -58,7 +58,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_OCP
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "schema": "acct10001",
             "start_date": start_date,
@@ -77,7 +77,7 @@ class ReportDataTests(TestCase):
             Provider.PROVIDER_OCP,
             params["provider_uuid"],
             params["start_date"],
-            DateHelper().today,
+            DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=OCP_QUEUE,
         )
 
@@ -85,7 +85,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_schema_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing schema."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {"start_date": start_date, "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
         expected_key = "Error"
         expected_message = "schema is a required parameter."
@@ -101,7 +101,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_provider_uuid_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing provider_uuid."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {"start_date": start_date, "schema": "acct10001"}
 
         expected_key = "Error"
@@ -118,7 +118,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_provider_invalid_uuid_(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid provider_uuid."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "start_date": start_date,
             "schema": "acct10001",
@@ -138,7 +138,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_invalid_queue(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for invalid queue."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "start_date": start_date,
             "schema": "acct10001",
@@ -175,7 +175,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_mismatch_types_uuid(self, mock_update, mock_accessor, _):
         """Test GET report_data endpoint returns a 400 for mismatched type and uuid."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
@@ -206,8 +206,8 @@ class ReportDataTests(TestCase):
         params = {
             "schema": "acct10001",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": start_date.date().strftime("%Y-%m-%d"),
+            "end_date": end_date.date().strftime("%Y-%m-%d"),
         }
         expected_key = "Report Data Task IDs"
 
@@ -233,8 +233,8 @@ class ReportDataTests(TestCase):
         params = {
             "schema": "acct10001",
             "provider_type": Provider.PROVIDER_AWS,
-            "start_date": start_date,
-            "end_date": end_date,
+            "start_date": start_date.date().strftime("%Y-%m-%d"),
+            "end_date": end_date.date().strftime("%Y-%m-%d"),
         }
         expected_key = "Report Data Task IDs"
 
@@ -256,7 +256,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_all_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update, _):
         """Test GET report_data endpoint with provider_uuid=*."""
-        start_date = DateHelper().today
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {"provider_uuid": "*", "start_date": start_date}
         expected_key = "Report Data Task IDs"
 
@@ -265,7 +265,7 @@ class ReportDataTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.delay.assert_called_with(params["start_date"], DateHelper().today)
+        mock_update.delay.assert_called_with(params["start_date"], DateHelper().today.date().strftime("%Y-%m-%d"))
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.remove_expired_data")
