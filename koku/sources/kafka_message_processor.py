@@ -117,7 +117,7 @@ class KafkaMessageProcessor:
                 return False
             sources_network = self.get_sources_client()
             return sources_network.get_application_type_is_cost_management(self.cost_mgmt_id)
-        return False
+        return self.event_type in (KAFKA_SOURCE_UPDATE,)
 
     def get_sources_client(self):
         return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
