@@ -8,6 +8,7 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
             sum(node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
         FROM (
             SELECT rp.cluster_id,
+                li.node,
                 ur.interval_start,
                 max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
                 max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
