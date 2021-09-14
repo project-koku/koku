@@ -1,4 +1,4 @@
-name: pre release
+name: Create Pre-Release
 
 on:
   workflow_dispatch:

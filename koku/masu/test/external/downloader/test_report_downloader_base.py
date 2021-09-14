@@ -108,3 +108,21 @@ class ReportDownloaderBaseTest(MasuTestCase):
             downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
             with self.assertRaises(IntegrityError):
                 downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
+
+    def test_process_manifest_db_record_file_num_changed(self):
+        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        CostUsageReportStatus.objects.create(
+            report_name="fake_report.csv",
+            last_completed_datetime=self.billing_start,
+            last_started_datetime=self.billing_start,
+            etag="etag",
+            manifest=self.manifest,
+        )
+        manifest_id = self.downloader._process_manifest_db_record(
+            self.assembly_id, self.billing_start, 3, DateAccessor().today()
+        )
+        self.assertEqual(manifest_id, self.manifest.id)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            result_manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        expected_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id).count()
+        self.assertEqual(result_manifest.num_total_files, expected_count)
