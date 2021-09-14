@@ -51,5 +51,8 @@ class GCPAccountView(generics.ListAPIView):
                 query_holder = query_holder.filter(account_id__in=gcp_account_access)
             if gcp_account_access == "*" or gcp_project_access == "*":
                 return super().list(request)
-        self.queryset = query_holder
+            self.queryset = query_holder
+        else:
+            error_message = [{"insufficient access rights"}]
+            return Response(error_message, status=status.HTTP_403_FORBIDDEN)
         return super().list(request)
