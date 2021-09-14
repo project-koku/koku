@@ -1,4 +1,4 @@
-name: ClowdApp check
+name: Check Clowdapp
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  clowdapp-check:
+  check-clowdapp:
     runs-on: ubuntu-latest
 
     steps:
