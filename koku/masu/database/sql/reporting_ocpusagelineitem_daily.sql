@@ -92,11 +92,6 @@ CREATE TEMPORARY TABLE reporting_ocpusagelineitem_daily_{{uuid | sqlsafe}} AS (
 )
 ;
 
--- no need to wait on commit
-TRUNCATE TABLE ocp_cluster_capacity_{{uuid | sqlsafe}};
-DROP TABLE ocp_cluster_capacity_{{uuid | sqlsafe}};
-
-
 -- Clear out old entries first
 DELETE FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily
 WHERE usage_start >= {{start_date}}
