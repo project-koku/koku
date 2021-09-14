@@ -295,6 +295,31 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
                     )
 
 
+class SourceMsgProcessor(KafkaMessageProcessor):
+    """Processor for Source events."""
+
+    def __init__(self, msg, event_type, cost_mgmt_id):
+        """Constructor for SourceMsgProcessor."""
+        super().__init__(msg, event_type, cost_mgmt_id)
+        self.source_id = int(self.value.get("id"))
+
+    def process(self):
+        """Process the message."""
+        if self.event_type not in (KAFKA_SOURCE_UPDATE,):
+            return
+        if not storage.is_known_source(self.source_id):
+            LOG.info("[SourceMsgProcessor] update event for unknown source_id, skipping...")
+            return
+        updated = self.save_sources_details()
+        if storage.get_source_type(self.source_id) == Provider.PROVIDER_OCP:
+            updated |= self.save_source_info(auth=True)
+        if updated:
+            LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} updated")
+            storage.enqueue_source_create_or_update(self.source_id)
+        else:
+            LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
+
+
 def extract_from_header(headers, header_type):
     """Retrieve information from Kafka Headers."""
     LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
@@ -325,5 +350,7 @@ def create_msg_processor(msg, cost_mgmt_id):
             return ApplicationMsgProcessor(msg, event_type, cost_mgmt_id)
         elif event_type in (KAFKA_AUTHENTICATION_CREATE, KAFKA_AUTHENTICATION_UPDATE):
             return AuthenticationMsgProcessor(msg, event_type, cost_mgmt_id)
+        elif event_type in (KAFKA_SOURCE_UPDATE,):
+            return SourceMsgProcessor(msg, event_type, cost_mgmt_id)
         else:
             LOG.debug(f"Other Message: {msg.value()}")
