@@ -36,7 +36,6 @@ class OCPProjectsView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access
         supported_query_params = ["search", "limit"]
-        user_access = []
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -48,16 +47,15 @@ class OCPProjectsView(generics.ListAPIView):
         if request.user.admin:
             return super().list(request)
         if request.user.access:
+            ocp_project_access = request.user.access.get("openshift.project", {}).get("read", [])
+            ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
             query_holder = self.queryset
+            if ocp_project_access and ocp_project_access == "*" or ocp_cluster_access and ocp_cluster_access == "*":
+                return super().list(request)
             if request.user.access.get("openshift.project", {}).get("read", []):
-                user_access = request.user.access.get("openshift.project", {}).get("read", [])
-                query_holder = query_holder.filter(namespace__in=user_access)
+                query_holder = query_holder.filter(namespace__in=ocp_project_access)
             if request.user.access.get("openshift.cluster", {}).get("read", []):
-                user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
                 # We hold a copy of the filtered queryset just incase the user has a wildcard for user access
-                query_holder = query_holder.filter(cluster_id__in=user_access)
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        # if query_holder does not exist we return an empty queryset
-        self.queryset = query_holder or self.queryset.filter(namespace__in="")
+                query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
+        self.queryset = query_holder
         return super().list(request)
