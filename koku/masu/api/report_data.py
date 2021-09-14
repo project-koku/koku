@@ -76,6 +76,13 @@ def report_data(request):
         last_month = months[num_months - 1]
         months[num_months - 1] = (last_month[0], end_date)
 
+        # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+        for i, month in enumerate(months):
+            start, end = month
+            start_date = start.date().strftime("%Y-%m-%d")
+            end_date = end.date().strftime("%Y-%m-%d")
+            months[i] = (start_date, end_date)
+
         if not all_providers:
             if schema_name is None:
                 errmsg = "schema is a required parameter."
