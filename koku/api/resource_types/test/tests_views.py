@@ -262,7 +262,7 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"gcp.account": {"read": ["1234"]}, "gcp.project": {"read": ["1234"]}})
-    def test_rbacpermissions_aws_account_data_wildcard(self):
+    def test_rbacpermissions_gcp_returns_empty_queryset(self):
         """Test that OpenShift endpoints accept valid OpenShift permissions."""
         for endpoint in self.ENDPOINTS_GCP:
             with self.subTest(endpoint=endpoint):

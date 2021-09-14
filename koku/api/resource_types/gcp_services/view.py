@@ -49,7 +49,9 @@ class GCPServiceView(generics.ListAPIView):
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
             gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
-            if gcp_account_access and gcp_account_access == "*" or gcp_project_access or gcp_project_access == "*":
+            if (gcp_account_access and gcp_account_access == "*") or (
+                gcp_project_access and gcp_project_access == "*"
+            ):
                 return super().list(request)
             query_holder = self.queryset
             if gcp_project_access:
