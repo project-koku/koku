@@ -3,6 +3,9 @@ FROM registry.access.redhat.com/ubi8/python-38:latest
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
+# needed for successful collectstatic
+ARG PROMETHEUS_MULTIPROC_DIR=/tmp
+
 ENV LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
     PIP_NO_CACHE_DIR=off \
@@ -12,9 +15,8 @@ ENV LC_ALL=en_US.UTF-8 \
     APP_MODULE="koku.wsgi" \
     APP_CONFIG="gunicorn_conf.py" \
     DISABLE_MIGRATE=true \
-    DJANGO_READ_DOT_ENV_FILE=false
-
-ENV SUMMARY="Koku is the Cost Management application" \
+    DJANGO_READ_DOT_ENV_FILE=false \
+    SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
 
 LABEL summary="$SUMMARY" \
@@ -36,13 +38,12 @@ COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 COPY . /tmp/src/.
 
 
-RUN /usr/bin/fix-permissions /tmp/src && \
-curl -L -o /usr/bin/haberdasher https://github.com/RedHatInsights/haberdasher/releases/latest/download/haberdasher_linux_amd64 && \
-chmod 755 /usr/bin/haberdasher $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run
-
-RUN groupadd -g ${USER_ID} koku \
-    && useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku \
-    && chmod g+rwx /opt
+RUN \
+    /usr/bin/fix-permissions /tmp/src && \
+    chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
+    groupadd -g ${USER_ID} koku && \
+    useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku && \
+    chmod g+rwx /opt
 
 USER koku
 
@@ -51,8 +52,6 @@ RUN umask u=rwx,g=rwx,o=rx
 EXPOSE 8080
 
 RUN $STI_SCRIPTS_PATH/assemble
-
-ENTRYPOINT ["/usr/bin/haberdasher"]
 
 # Set the default CMD
 CMD $STI_SCRIPTS_PATH/run

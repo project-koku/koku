@@ -8,47 +8,47 @@ import logging
 import threading
 from abc import ABC
 from abc import abstractmethod
-from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
 
+from prometheus_client.exposition import MetricsHandler
+
 from koku.env import ENVIRONMENT
+from masu.prometheus_stats import WORKER_REGISTRY
 
 
 LOG = logging.getLogger(__name__)
-CLOWDER_PORT = 9000
+CLOWDER_METRICS_PORT = 9000
 if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     from app_common_python import LoadedConfig
 
-    CLOWDER_PORT = LoadedConfig.publicPort
+    CLOWDER_METRICS_PORT = LoadedConfig.metricsPort
 
 
-def start_probe_server(server_cls):
+def start_probe_server(server_cls, logger=LOG):
     """Start the probe server."""
-    httpd = HTTPServer(("0.0.0.0", CLOWDER_PORT), server_cls)
+    httpd = HTTPServer(("0.0.0.0", CLOWDER_METRICS_PORT), server_cls)
+    httpd.RequestHandlerClass.logger = logger
 
     def start_server():
         """Start a simple webserver serving path on port"""
         httpd.RequestHandlerClass.ready = False
         httpd.serve_forever()
 
-    LOG.info("starting liveness/readiness probe server")
+    logger.info("starting liveness/readiness probe server")
     daemon = threading.Thread(name="probe_server", target=start_server)
     daemon.setDaemon(True)  # Set as a daemon so it will be killed once the main thread is dead.
     daemon.start()
-    LOG.info("liveness/readiness probe server started")
+    logger.info(f"liveness/readiness probe server started on port {httpd.server_port}")
 
     return httpd
 
 
-class ProbeServer(ABC, BaseHTTPRequestHandler):
+class ProbeServer(ABC, MetricsHandler):
     """HTTP server for liveness/readiness probes."""
 
+    logger = LOG
     ready = False
-
-    def __init__(self, *args, **kwargs):
-        """Initialize the server."""
-        self.logger = logging.getLogger(__name__)
-        super().__init__(*args, **kwargs)
+    registry = WORKER_REGISTRY
 
     def _set_headers(self, status):
         """Set the response headers."""
@@ -67,6 +67,8 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
             self.liveness_check()
         elif self.path == "/readyz":
             self.readiness_check()
+        elif self.path == "/metrics":
+            self.metrics_check()
         else:
             self.default_response()
 
@@ -82,10 +84,27 @@ class ProbeServer(ABC, BaseHTTPRequestHandler):
         """Set the liveness check response."""
         self._write_response(ProbeResponse(200, "ok"))
 
+    def metrics_check(self):
+        """Get the metrics."""
+        super().do_GET()
+
     @abstractmethod
     def readiness_check(self):
         """Set the readiness check response."""
         pass
+
+
+class BasicProbeServer(ProbeServer):
+    """HTTP server for liveness/readiness probes."""
+
+    def readiness_check(self):
+        """Set the readiness check response."""
+        status = 424
+        msg = "not ready"
+        if self.ready:
+            status = 200
+            msg = "ok"
+        self._write_response(ProbeResponse(status, msg))
 
 
 class ProbeResponse:

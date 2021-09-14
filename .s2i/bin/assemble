@@ -92,8 +92,6 @@ fi
 
 if should_collectstatic; then
   (
-    echo "---> Collecting Django static files ..."
-
     APP_HOME=$(readlink -f "${APP_HOME:-.}")
     # Change the working directory to APP_HOME
     PYTHONPATH="$(pwd)${PYTHONPATH:+:$PYTHONPATH}"
@@ -105,16 +103,18 @@ if should_collectstatic; then
     if [[ ! -f "$manage_file" ]]; then
       echo "WARNING: seems that you're using Django, but we could not find a 'manage.py' file."
       echo "'manage.py collectstatic' ignored."
-      exit
+      exit 1
     fi
 
-    if ! python $manage_file collectstatic --dry-run --noinput &> /dev/null; then
+    echo "---> Dry-run of 'collectstatic' ..."
+    if ! python $manage_file collectstatic --dry-run --noinput; then
       echo "WARNING: could not run 'manage.py collectstatic'. To debug, run:"
       echo "    $ python $manage_file collectstatic --noinput"
       echo "Ignore this warning if you're not serving static files with Django."
-      exit
+      exit 1
     fi
 
+    echo "---> Collecting Django static files ..."
     python $manage_file collectstatic --noinput
   )
 fi

@@ -33,18 +33,18 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
 )
 WITH cte_ocp_on_aws_joined AS (
     SELECT aws.uuid as aws_id,
-        max(aws.lineitem_resourceid) as resource_id,
+        max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(aws.lineitem_productcode) as product_code,
-        max(aws.product_productfamily) as product_family,
-        max(aws.product_instancetype) as instance_type,
+        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(nullif(aws.product_productfamily, '')) as product_family,
+        max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
-        max(aws.lineitem_availabilityzone) as availability_zone,
-        max(aws.product_region) as region,
-        max(aws.pricing_unit) as unit,
+        max(nullif(aws.lineitem_availabilityzone, '')) as availability_zone,
+        max(nullif(aws.product_region, '')) as region,
+        max(nullif(aws.pricing_unit, '')) as unit,
         max(aws.lineitem_usageamount) as usage_amount,
-        max(aws.lineitem_currencycode) as currency_code,
+        max(nullif(aws.lineitem_currencycode, '')) as currency_code,
         max(aws.lineitem_unblendedcost) as unblended_cost,
         max(aws.resourcetags) as tags,
         max(aws.resource_id_matched) as resource_id_matched,
@@ -135,11 +135,11 @@ SELECT uuid(),
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count as unblended_cost,
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost / dsc.data_source_count
+        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.pod_usage_cpu_core_hours / ocp_aws.cluster_capacity_cpu_core_hours) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
+        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL

@@ -5,8 +5,10 @@
 """Test GCP Report Queries."""
 import logging
 from datetime import datetime
+from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
+from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -14,6 +16,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
+from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -23,6 +26,7 @@ from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
 from api.utils import DateHelper
+from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
 from reporting.models import GCPCostSummary
@@ -1082,3 +1086,45 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     service_checked = True
         self.assertTrue(service_checked)
+
+    @skip("This test needs to be re-engineered")
+    def test_gcp_date_order_by_cost_desc(self):
+        """Test execute_query with order by date for correct order of services."""
+        # execute query
+        yesterday = self.dh.yesterday.date()
+        lst = []
+        correctlst = []
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        # test query output
+        for element in data:
+            if element.get("date") == str(yesterday):
+                for service in element.get("services"):
+                    correctlst.append(service.get("service"))
+        for element in data:
+            for service in element.get("services"):
+                lst.append(service.get("service"))
+            if lst and correctlst:
+                self.assertEqual(correctlst, lst)
+            lst = []
+
+    def test_gcp_date_incorrect_date(self):
+        wrong_date = "200BC"
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, GCPCostView)
+
+    def test_gcp_out_of_range_under_date(self):
+        wrong_date = materialized_view_month_start() - timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, GCPCostView)
+
+    def test_gcp_out_of_range_over_date(self):
+        wrong_date = DateHelper().today.date() + timedelta(days=1)
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
+        with self.assertRaises(ValidationError):
+            self.mocked_query_params(url, GCPCostView)

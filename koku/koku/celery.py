@@ -1,8 +1,9 @@
 """Celery configuration for the Koku project."""
-import datetime
 import logging
 import os
 import time
+from datetime import datetime
+from datetime import timedelta
 
 from celery import Celery
 from celery import Task
@@ -45,6 +46,21 @@ class LoggingCelery(Celery):
 class WorkerProbeServer(ProbeServer):  # pragma: no cover
     """HTTP server for liveness/readiness probes."""
 
+    _collector = lambda *args: None  # noqa: E731
+    _last_query_time = datetime.min
+
+    @classmethod
+    def update_last_query_time(cls, value):
+        """Update the last query time."""
+        cls._last_query_time = value
+
+    def metrics_check(self):
+        """Get the metrics."""
+        if datetime.now() - timedelta(minutes=1) > self._last_query_time:
+            self.update_last_query_time(datetime.now())
+            self._collector()
+        super(ProbeServer, self).do_GET()
+
     def readiness_check(self):
         """Set the readiness check response."""
         status = 424
@@ -84,7 +100,7 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = datetime.timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
+    REPORT_CHECK_INTERVAL = timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
@@ -156,10 +172,10 @@ app.conf.beat_schedule["source_status_beat"] = {
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
 
 # Collect queue metrics.
-app.conf.beat_schedule["queue_metrics"] = {
-    "task": "masu.celery.tasks.collect_queue_metrics",
-    "schedule": crontab(hour="*/1", minute=0),
-}
+# app.conf.beat_schedule["queue_metrics"] = {
+#     "task": "masu.celery.tasks.collect_queue_metrics",
+#     "schedule": crontab(hour="*/1", minute=0),
+# }
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
@@ -198,6 +214,7 @@ CELERY_INSPECT = app.control.inspect()
 def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     """Wait for migrations to complete before completing worker startup."""
     from .database import check_migrations
+    from masu.celery.tasks import collect_queue_metrics
 
     httpd = start_probe_server(WorkerProbeServer)
 
@@ -206,6 +223,7 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
         time.sleep(5)
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
+    httpd.RequestHandlerClass._collector = collect_queue_metrics
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):

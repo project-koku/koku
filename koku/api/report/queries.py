@@ -187,6 +187,7 @@ class ReportQueryHandler(QueryHandler):
         """
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
+        access_filters = QueryFilterCollection()
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -204,7 +205,8 @@ class ReportQueryHandler(QueryHandler):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
             if access:
-                self.set_access_filters(access, filt, filters)
+                access_filt = copy.deepcopy(filt)
+                self.set_access_filters(access, access_filt, access_filters)
 
         # Update filters with tag filters
         filters = self._set_tag_filters(filters)
@@ -217,6 +219,9 @@ class ReportQueryHandler(QueryHandler):
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        if access_filters:
+            composed_access_filters = access_filters.compose()
+            composed_filters = composed_filters & composed_access_filters
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
@@ -651,6 +656,7 @@ class ReportQueryHandler(QueryHandler):
                     key=lambda entry: (bool(re.match(r"other*", entry[field].lower())), entry[field].lower()),
                     reverse=reverse,
                 )
+
         return sorted_data
 
     def get_tag_order_by(self, tag):

@@ -6,6 +6,7 @@
 import shutil
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from faker import Faker
@@ -156,6 +157,20 @@ class AzureReportDownloaderTest(MasuTestCase):
         """Test that error is thrown when getting manifest with an unexpected report name."""
         with self.assertRaises(AzureReportDownloaderError):
             self.downloader._get_manifest(self.mock_data.bad_test_date)
+
+    @patch("masu.external.downloader.azure.azure_report_downloader.LOG")
+    def test_get_manifest_report_not_found(self, log_mock):
+        """Test that Azure report is throwing an exception if the report was not found."""
+        self.downloader.tracing_id = "1111-2222-4444-5555"
+        self.downloader._azure_client.get_latest_cost_export_for_path = Mock(
+            side_effect=AzureCostReportNotFound("Oops!")
+        )
+        manifest, last_modified = self.downloader._get_manifest(self.mock_data.test_date)
+        self.assertEqual(manifest, {})
+        self.assertEqual(last_modified, None)
+        call_arg = log_mock.info.call_args.args[0]
+        self.assertEqual(call_arg.get("tracing_id"), self.downloader.tracing_id)
+        self.assertTrue("Unable to find manifest" in call_arg.get("message"))
 
     def test_download_file(self):
         """Test that Azure report report is downloaded."""

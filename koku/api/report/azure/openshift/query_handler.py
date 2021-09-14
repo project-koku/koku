@@ -80,11 +80,9 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
-
+            query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
@@ -100,7 +98,45 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-            query_data = self.order_by(query_data, query_order_by)
+
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                query_data = self.order_by(query_data, query_order_by)
+
             cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")

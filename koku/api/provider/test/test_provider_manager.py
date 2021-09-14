@@ -107,6 +107,20 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
         self.assertTrue(manager.get_active_status())
 
+    def test_get_paused_status(self):
+        """Can the provider paused status be returned."""
+        # Create Provider
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+
+        # Get Provider Manager
+        manager = ProviderManager(provider_uuid)
+        self.assertFalse(manager.get_paused_status())
+
     def test_data_flags(self):
         """Test the data status flag."""
         # Get Provider UUID
@@ -525,8 +539,9 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, Provider.PROVIDER_AWS)
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AWS)
+        self.assertEqual(infrastructure_info.get("uuid", ""), aws_provider.uuid)
 
     def test_ocp_on_azure_infrastructure_type(self):
         """Test that the provider infrastructure returns Azure when running on Azure."""
@@ -548,8 +563,9 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, Provider.PROVIDER_AZURE)
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info.get("type", ""), Provider.PROVIDER_AZURE)
+        self.assertEqual(infrastructure_info.get("uuid", ""), azure_provider.uuid)
 
     def test_ocp_infrastructure_type(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
@@ -566,8 +582,8 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, "Unknown")
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info, {})
 
     def test_ocp_infrastructure_type_error(self):
         """Test that the provider infrastructure returns Unknown when running stand alone."""
@@ -584,8 +600,8 @@ class ProviderManagerTest(IamTestCase):
 
         provider_uuid = provider.uuid
         manager = ProviderManager(provider_uuid)
-        infrastructure_name = manager.get_infrastructure_name()
-        self.assertEqual(infrastructure_name, "Unknown")
+        infrastructure_info = manager.get_infrastructure_info()
+        self.assertEqual(infrastructure_info, {})
 
     @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=False)
     def test_remove_not_removeable(self, _):

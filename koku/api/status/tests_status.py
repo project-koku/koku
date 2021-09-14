@@ -16,6 +16,8 @@ from rest_framework import status
 
 from api.iam.models import Tenant
 from api.status.models import Status
+from api.status.serializers import ConfigSerializer
+from api.status.serializers import StatusSerializer
 
 
 class StatusModelTest(TestCase):
@@ -39,23 +41,13 @@ class StatusModelTest(TestCase):
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
 
-    @patch("os.environ")
-    def test_commit_with_env(self, mock_os):
-        """Test the commit method via environment."""
-        expected = "buildnum"
-        mock_os.get.return_value = expected
-        result = self.status_info.commit
-        self.assertEqual(result, expected)
-
     @patch("subprocess.run")
-    @patch("api.status.models.os.environ")
-    def test_commit_with_subprocess(self, mock_os, mock_subprocess):
+    def test_commit_with_subprocess(self, mock_subprocess):
         """Test the commit method via subprocess."""
         expected = "buildnum"
         run = Mock()
         run.stdout = b"buildnum"
         mock_subprocess.return_value = run
-        mock_os.get.return_value = None
         result = self.status_info.commit
         self.assertEqual(result, expected)
 
@@ -112,5 +104,9 @@ class StatusViewTest(TestCase):
         url = reverse("server-status")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # json_result = response.json()
+        json_result = response.json()
+        for field in StatusSerializer._declared_fields:
+            self.assertTrue(field in json_result, f"Field {field} not in json_result")
+        for field in ConfigSerializer._declared_fields:
+            self.assertTrue(field in json_result["config"], f"""Field {field} not in json_result["config"]""")
         # self.assertEqual(json_result['api_version'], 1)

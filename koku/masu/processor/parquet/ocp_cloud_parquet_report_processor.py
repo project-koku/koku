@@ -11,43 +11,28 @@ from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from api.utils import DateHelper
-from masu.config import Config
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
+from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
-from masu.util.common import get_path_prefix
 
 
 LOG = logging.getLogger(__name__)
-REPORT_TYPE = "openshift"
 
 
 class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     """Parquet report processor for OCP on Cloud infrastructure data."""
 
     @property
-    def parquet_ocp_on_cloud_path_s3(self):
-        """The path in the S3 bucket where Parquet files are loaded."""
-        return get_path_prefix(
-            self.account,
-            self.provider_type,
-            self.provider_uuid,
-            self.start_date,
-            Config.PARQUET_DATA_TYPE,
-            report_type=REPORT_TYPE,
-            daily=True,
-        )
-
-    @property
     def report_type(self):
         """Report OCP on Cloud report type."""
-        return REPORT_TYPE
+        return OPENSHIFT_REPORT_TYPE
 
     @property
     def ocp_on_cloud_data_processor(self):
@@ -140,8 +125,10 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
+            LOG.info("Getting matching tags from Postgres.")
             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
             if not matched_tags:
+                LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                     self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
                 )

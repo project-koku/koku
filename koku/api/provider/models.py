@@ -130,6 +130,7 @@ class Provider(models.Model):
     data_updated_timestamp = models.DateTimeField(null=True)
 
     active = models.BooleanField(default=True)
+    paused = models.BooleanField(default=False)
 
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
@@ -220,6 +221,9 @@ class Sources(RunTextFieldValidators, models.Model):
 
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
+
+    # This field indicates if the source is paused.
+    paused = models.BooleanField(default=False)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully

@@ -5,7 +5,7 @@
     minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
     webServices:
       public:
-        enabled: true
+        enabled: false
       private:
         enabled: false
       metrics:
@@ -17,7 +17,7 @@
         - -c
         - >
           PYTHONPATH=/opt/app-root/src/koku
-          celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -41,8 +41,8 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
@@ -122,7 +122,7 @@
       livenessProbe:
         httpGet:
           path: /livez
-          port: web
+          port: metrics
           scheme: HTTP
         initialDelaySeconds: 30
         periodSeconds: 20
@@ -132,7 +132,7 @@
       readinessProbe:
         httpGet:
           path: /readyz
-          port: web
+          port: metrics
           scheme: HTTP
         initialDelaySeconds: 30
         periodSeconds: 20
@@ -152,7 +152,11 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
       volumes:
+      - name: prometheus-data
+        emptyDir: {}
       - name: koku-worker-data
         emptyDir: {}
       - name: gcp-credentials

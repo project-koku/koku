@@ -19,6 +19,12 @@
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psks
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -49,10 +55,10 @@
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -114,7 +120,11 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
       volumes:
+      - name: prometheus-data
+        emptyDir: {}
       - name: gcp-credentials
         secret:
           secretName: koku-gcp
@@ -157,3 +167,10 @@
     name: SOURCES_CLIENT_CPU_LIMIT
     required: true
     value: 200m
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Log Level for sources client
+    name: SOURCES_CLIENT_KOKU_LOG_LEVEL
+    required: true
+    value: INFO
