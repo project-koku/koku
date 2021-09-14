@@ -1,4 +1,4 @@
-name: Check manifest
+name: Check Manifest
 
 on:
   pull_request:
