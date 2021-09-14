@@ -55,22 +55,17 @@ def gcp_invoice_monthly_cost(request):
     table_name = ".".join([project_id, dataset, table_id])
     dh = DateHelper()
     invoice_months = dh.gcp_find_invoice_months_in_date_range(dh.last_month_start, dh.today)
-    previous_mapping = {"previous": invoice_months[0]}
-    current_mapping = {"current": invoice_months[1]}
+    mapping = {"previous": invoice_months[0], "current": invoice_months[1]}
 
     results = {}
+    client = bigquery.Client()
     try:
-        for invoice_mapping in [previous_mapping, current_mapping]:
-            for key, invoice_month in invoice_mapping.items():
-                query = f"""
-                SELECT sum(cost)
-                FROM {table_name}
-                WHERE invoice.month = '{invoice_month}'
-                """
-                client = bigquery.Client()
-                row = client.query(query).result().next()
-                value = row[0]
-                results[key] = value
+        for key, invoice_month in mapping.items():
+            query = f"SELECT sum(cost) FROM {table_name} WHERE invoice.month = '{invoice_month}'"
+            rows = client.query(query).result()
+            for row in rows:
+                results[key] = row[0]
+                break
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 

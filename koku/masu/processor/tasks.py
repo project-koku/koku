@@ -30,6 +30,7 @@ from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -159,7 +160,6 @@ def get_report_files(
         month = report_month
         if isinstance(report_month, str):
             month = parser.parse(report_month)
-
         report_file = report_context.get("key")
         cache_key = f"{provider_uuid}:{report_file}"
         tracing_id = report_context.get("assembly_id", "no-tracing-id")
@@ -226,6 +226,9 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
 
         return report_meta
+    except ReportDownloaderWarning as err:
+        LOG.warning(str(err))
+        WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
         LOG.error(str(err))
