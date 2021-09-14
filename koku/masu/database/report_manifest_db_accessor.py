@@ -51,6 +51,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
             manifest.save()
 
+    def update_number_of_files_for_manifest(self, manifest):
+        """Update the number of files for manifest."""
+        set_num_of_files = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
+        if manifest:
+            manifest.num_total_files = set_num_of_files
+            manifest.save()
+
     def add(self, **kwargs):
         """
         Add a new row to the CUR stats database.
