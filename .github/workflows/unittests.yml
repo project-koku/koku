@@ -1,4 +1,4 @@
-name: Unit Tests
+name: Check Migrations and Run Unit Tests
 
 on:
   pull_request:
@@ -62,6 +62,18 @@ jobs:
         if: steps.cache-dependencies.outputs.cache-hit != 'true'
         run: |
           pipenv install --dev --ignore-pipfile --python ${{ matrix.python-version }}
+
+      - name: Check migrations
+        run: bash .github/scripts/check_migrations.sh
+        env:
+          DATABASE_SERVICE_NAME: POSTGRES_SQL
+          DATABASE_ENGINE: postgresql
+          DATABASE_NAME: postgres
+          DATABASE_USER: postgres
+          DATABASE_PASSWORD: postgres
+          POSTGRES_SQL_SERVICE_HOST: localhost
+          POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
+          prometheus_multiproc_dir: /tmp
 
       - name: Run unit tests
         run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
