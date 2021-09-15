@@ -8,10 +8,10 @@ import logging
 from django.test import RequestFactory
 
 from api.provider.models import Provider
+from api.settings.utils import get_currency_options
+from api.settings.utils import get_selected_currency_or_setup
+from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
-from currency.common import get_currency_options
-from currency.common import get_selected_currency_or_setup
-from currency.common import set_currency
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 
 
@@ -30,10 +30,8 @@ class CurrencySettings:
     def handle_settings(self, settings):
         """
 		Handle setting results
-
 		Args:
 			(String) settings - settings payload.
-
 		Returns:
 			(Bool) - True, if a setting had an effect, False otherwise
 		"""
@@ -57,7 +55,6 @@ class CurrencySettings:
     def build_settings(self):
         """
 		Generate currency settings
-
 		Returns:
 			(List) - List of setting items
 		"""
@@ -65,9 +62,9 @@ class CurrencySettings:
             "title": "Currency",
             "fields": [
                 {
-                    "label": "Select the prefered currency to view Cost Information in",
-                    "name": "api.settings.openshift.title",
                     "component": "plain-text",
+                    "label": "Select the preferred currency to view Cost Information in",
+                    "name": "api.settings.openshift.title",
                 },
                 {
                     "component": "select",
