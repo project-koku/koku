@@ -31,7 +31,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     tags,
     source_uuid
 )
-WITH cte_ocp_on_aws_joined AS (
+WITH cte_ocp_on_aws_resource_id_joined AS (
     SELECT aws.uuid as aws_id,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
@@ -79,7 +79,66 @@ WITH cte_ocp_on_aws_joined AS (
         ON aws.lineitem_usagestartdate = ocp.usage_start
             AND (
                 aws.lineitem_resourceid = ocp.resource_id
-                    OR json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
+                    AND ocp.data_source = 'Pod'
+            )
+    WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
+        AND aws.year = '{{year | sqlsafe}}'
+        AND aws.month = '{{month | sqlsafe}}'
+        AND aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.report_period_id = {{report_period_id | sqlsafe}}
+        AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
+        AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
+    GROUP BY aws.uuid, ocp.namespace, ocp.data_source
+),
+cte_ocp_on_aws_tag_joined AS (
+    SELECT aws.uuid as aws_id,
+        max(nullif(aws.lineitem_resourceid, '')) as resource_id,
+        max(aws.lineitem_usagestartdate) as usage_start,
+        max(aws.lineitem_usagestartdate) as usage_end,
+        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(nullif(aws.product_productfamily, '')) as product_family,
+        max(nullif(aws.product_instancetype, '')) as instance_type,
+        max(aws.lineitem_usageaccountid) as usage_account_id,
+        max(nullif(aws.lineitem_availabilityzone, '')) as availability_zone,
+        max(nullif(aws.product_region, '')) as region,
+        max(nullif(aws.pricing_unit, '')) as unit,
+        max(aws.lineitem_usageamount) as usage_amount,
+        max(nullif(aws.lineitem_currencycode, '')) as currency_code,
+        max(aws.lineitem_unblendedcost) as unblended_cost,
+        max(aws.resourcetags) as tags,
+        max(aws.resource_id_matched) as resource_id_matched,
+        max(ocp.report_period_id) as report_period_id,
+        max(ocp.cluster_id) as cluster_id,
+        max(ocp.cluster_alias) as cluster_alias,
+        ocp.namespace,
+        ocp.data_source,
+        max(ocp.node) as node,
+        max(json_format(ocp.pod_labels)) as pod_labels,
+        sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+        sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+        sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+        sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+        sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+        max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
+        max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(ocp.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
+        max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+        max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+        max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+        max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
+        max(ocp.persistentvolume) as persistentvolume,
+        max(ocp.storageclass) as storageclass,
+        max(json_format(volume_labels)) as volume_labels,
+        max(ocp.persistentvolumeclaim_capacity_gigabyte) as persistentvolumeclaim_capacity_gigabyte,
+        max(ocp.persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
+        sum(ocp.volume_request_storage_gigabyte_months) as volume_request_storage_gigabyte_months,
+        sum(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months
+    FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
+    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        ON aws.lineitem_usagestartdate = ocp.usage_start
+            AND (
+                json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_node') = lower(ocp.node)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0))
@@ -94,6 +153,18 @@ WITH cte_ocp_on_aws_joined AS (
         AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
+),
+cte_ocp_on_aws_joined AS (
+    SELECT *
+    FROM cte_ocp_on_aws_resource_id_joined
+
+    UNION
+
+    SELECT tag.*
+    FROM cte_ocp_on_aws_tag_joined as tag
+    LEFT JOIN cte_ocp_on_aws_resource_id_joined as rid
+        ON tag.aws_id = rid.aws_id
+    WHERE rid.aws_id IS NULL
 ),
 cte_project_counts AS (
     SELECT aws_id,
@@ -135,11 +206,11 @@ SELECT uuid(),
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count as unblended_cost,
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost / dsc.data_source_count
+        THEN (ocp_aws.{{pod_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count
     END as pod_cost,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
-        THEN (ocp_aws.{{node_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
+        THEN (ocp_aws.{{pod_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL
