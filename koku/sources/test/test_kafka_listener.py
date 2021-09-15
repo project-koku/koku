@@ -46,6 +46,7 @@ from sources.kafka_message_processor import KAFKA_APPLICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
+from sources.kafka_message_processor import KAFKA_SOURCE_UPDATE
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -159,7 +160,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             Provider.PROVIDER_AWS: {
                 "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                 "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
-                "name": "Provider AWS",
+                "name": "Provider AWS - PATCHED",
                 "source_type": "AWS",
                 "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN2}},
                 "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
@@ -227,7 +228,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
                     "status": 200,
                     "json": {
-                        "name": "Provider AWS",
+                        "name": "Provider AWS - PATCHED",
                         "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS),
                         "uid": str(self.uuids.get(Provider.PROVIDER_AWS)),
                     },
@@ -268,6 +269,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         # now test the update pathway
         msgs = [
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_AWS)}),
             msg_generator(
                 KAFKA_APPLICATION_UPDATE,
                 value={
