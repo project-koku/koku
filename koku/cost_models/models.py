@@ -12,7 +12,7 @@ from django.db import models
 from django.db.models import JSONField
 
 from api.provider.models import Provider
-
+from koku.settings import KOKU_DEFAULT_CURRENCY
 
 LOG = logging.getLogger(__name__)
 
@@ -52,6 +52,8 @@ class CostModel(models.Model):
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
 
+    currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
+
 
 class CostModelAudit(models.Model):
     """A collection of rates used to calculate cost against resource usage data."""
@@ -84,6 +86,8 @@ class CostModelAudit(models.Model):
     markup = JSONField(encoder=DjangoJSONEncoder, default=dict)
 
     distribution = models.TextField(choices=DISTRIBUTION_CHOICES, default=DEFAULT_DISTRIBUTION)
+
+    currency = models.TextField(default=KOKU_DEFAULT_CURRENCY)
 
 
 class CostModelMap(models.Model):

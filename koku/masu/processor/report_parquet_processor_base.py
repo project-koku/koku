@@ -25,10 +25,6 @@ class PostgresSummaryTableError(Exception):
     """Postgres summary table is not defined."""
 
 
-class TrinoExecutionError(Exception):
-    """Postgres summary table is not defined."""
-
-
 class ReportParquetProcessorBase:
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
         self._manifest_id = manifest_id
@@ -46,7 +42,7 @@ class ReportParquetProcessorBase:
         raise PostgresSummaryTableError("This must be a property on the sub class.")
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
-        """Execute presto SQL."""
+        """Execute Trino SQL."""
         rows = []
         try:
             with trino.dbapi.connect(
@@ -57,11 +53,15 @@ class ReportParquetProcessorBase:
                 rows = cur.fetchall()
                 LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
         except TrinoUserError as err:
+            LOG.warning(err)
+        except TrinoExternalError as err:
+            if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
+                LOG.warning(err)
+            else:
+                LOG.error(err)
+        except TrinoQueryError as err:
             LOG.error(err)
-        except (TrinoExternalError, TrinoQueryError) as err:
-            LOG.error(err)
-            msg = "There was an error running Trino SQL"
-            raise TrinoExecutionError(msg)
+
         return rows
 
     def _get_provider(self):
@@ -87,7 +87,7 @@ class ReportParquetProcessorBase:
         return False
 
     def create_schema(self):
-        """Create presto schema."""
+        """Create Trino schema."""
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_sql(schema_create_sql, "default")
         LOG.info(f"Create Trino/Hive schema SQL: {schema_create_sql}")
@@ -129,10 +129,10 @@ class ReportParquetProcessorBase:
         return sql
 
     def create_table(self):
-        """Create presto SQL table."""
+        """Create Trino SQL table."""
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, self._schema_name)
-        LOG.info(f"Presto Table: {self._table_name} created.")
+        LOG.info(f"Trino Table: {self._table_name} created.")
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""

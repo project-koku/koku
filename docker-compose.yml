@@ -29,6 +29,8 @@ services:
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
         - DEVELOPMENT=${DEVELOPMENT-True}
+        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
+        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
         - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
         - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
@@ -83,6 +85,8 @@ services:
         - AWS_SECRET_ACCESS_KEY
         - DJANGO_READ_DOT_ENV_FILE=True
         - DEVELOPMENT=${DEVELOPMENT-True}
+        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
+        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
         - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
         - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
         - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
@@ -233,7 +237,7 @@ services:
       hostname: koku-worker-1
       image: koku_base
       working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', '${CELERY_LOG_LEVEL:-info}', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
       environment:
         - AWS_ACCESS_KEY_ID
         - AWS_SECRET_ACCESS_KEY
@@ -250,7 +254,8 @@ services:
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
         - DEVELOPMENT=${DEVELOPMENT-True}
-        - LOG_LEVEL=INFO
+        - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
+        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
         - DJANGO_SETTINGS_MODULE=koku.settings
         - prometheus_multiproc_dir=/tmp
         - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
@@ -333,7 +338,8 @@ services:
         - KAFKA_CONNECT=True
         - prometheus_multiproc_dir=/tmp
         - MASU_DATE_OVERRIDE
-        - LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
+        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
         - INITIAL_INGEST_NUM_MONTHS=1
         - PYTHONPATH=/koku/koku
         - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
@@ -390,9 +396,8 @@ services:
         - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
         - DEMO_ACCOUNTS
         - prometheus_multiproc_dir=/tmp
-        - LOG_LEVEL=DEBUG
-        - KOKU_LOG_LEVEL=DEBUG
-        - DJANGO_LOG_LEVEL=INFO
+        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
+        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
         - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
         - SOURCES_PSK=${SOURCES_PSK-thisMustBeEphemeralOrMinikube}
         - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
@@ -432,7 +437,6 @@ services:
         - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
         - RABBITMQ_PORT=5672
         - USE_RABBIT=${USE_RABBIT}
-        - LOG_LEVEL=INFO
         - DJANGO_SETTINGS_MODULE=koku.settings
         - prometheus_multiproc_dir=/tmp
         - SCHEDULE_REPORT_CHECKS=True

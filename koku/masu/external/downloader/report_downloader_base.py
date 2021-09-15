@@ -15,6 +15,10 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 LOG = logging.getLogger(__name__)
 
 
+class ReportDownloaderWarning(Exception):
+    """A class for warnings related to report downloading"""
+
+
 class ReportDownloaderBase:
     """
     Download cost reports from a provider.
@@ -103,6 +107,8 @@ class ReportDownloaderBase:
                 LOG.warning(log_json(self.tracing_id, msg, self.context))
                 raise IntegrityError(msg)
             else:
+                if num_of_files != manifest_entry.num_total_files:
+                    manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
                 manifest_accessor.mark_manifest_as_updated(manifest_entry)
                 manifest_id = manifest_entry.id
 
