@@ -5,7 +5,6 @@
 """View for Settings."""
 import logging
 
-from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache

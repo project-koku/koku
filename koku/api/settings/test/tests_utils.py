@@ -4,7 +4,7 @@
 #
 from tenant_schemas.utils import schema_context
 
-from api.settings.utils import get_currency_option
+from api.settings.utils import get_currency_options
 from api.settings.utils import get_selected_currency_or_setup
 from api.settings.utils import set_currency
 from koku.settings import KOKU_DEFAULT_CURRENCY
