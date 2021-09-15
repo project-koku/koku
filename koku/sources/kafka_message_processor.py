@@ -305,8 +305,8 @@ class SourceMsgProcessor(KafkaMessageProcessor):
 
     def process(self):
         """Process the message."""
-        if self.event_type not in (KAFKA_SOURCE_UPDATE,):
-            return
+        # We have no `self.event_type in (Source.X,)` statements here because we will only
+        # process Source.update. All non-update events are filtered in `msg_for_cost_mgmt`
         if not storage.is_known_source(self.source_id):
             LOG.info("[SourceMsgProcessor] update event for unknown source_id, skipping...")
             return
