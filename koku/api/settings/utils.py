@@ -43,7 +43,7 @@ def create_plain_text(name, label, variant):
     Returns:
         [Dict] - plain text component.
     """
-    plain_text = {"label": label, "name": name, "variant": variant, "component": "plain-text"}
+    plain_text = {"component": "plain-text", "label": label, "name": name, "variant": variant}
     return plain_text
 
 
@@ -89,7 +89,25 @@ def create_dual_list_select(name, left_options=[], right_options=[], **kwargs):
     dual_list_select.update(**kwargs)
     return dual_list_select
 
+
+def create_select(name, **kwargs):
+    """
+    Create a select for the settings.
+
+    Args:
+        (String) name - unique name for switch.
+
+    Returns:
+        [Dict] - Subform component.
+    """
+    select = {"component": "select", "name": name}
+    select.update(**kwargs)
+    return select
+
+
 """Common utilities and helpers for Currency."""
+
+
 def get_selected_currency_or_setup(schema):
     with schema_context(schema):
         if not CurrencySettings.objects.exists():

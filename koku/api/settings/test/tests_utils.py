@@ -2,10 +2,9 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the currency common."""
 from tenant_schemas.utils import schema_context
 
-from api.settings.utils import get_currency_options
+from api.settings.utils import get_currency_option
 from api.settings.utils import get_selected_currency_or_setup
 from api.settings.utils import set_currency
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -14,7 +13,7 @@ from reporting.currency.models import CurrencySettings
 
 
 class TestCurrencyCommon(MasuTestCase):
-    """Test cases for currency common."""
+    """Test cases for currency utils."""
 
     def setUp(self):
         """Set up test suite."""

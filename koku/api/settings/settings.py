@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Data Driven Component Generation for Tag Management Settings."""
+from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
 from tenant_schemas.utils import schema_context
@@ -11,9 +12,13 @@ from api.common import error_obj
 from api.provider.models import Provider
 from api.query_params import QueryParameters
 from api.settings.utils import create_dual_list_select
+from api.settings.utils import create_plain_text
 from api.settings.utils import create_plain_text_with_doc
+from api.settings.utils import create_select
 from api.settings.utils import create_subform
 from api.settings.utils import generate_doc_link
+from api.settings.utils import get_currency_options
+from api.settings.utils import get_selected_currency_or_setup
 from api.settings.utils import SETTINGS_PREFIX
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
@@ -71,8 +76,8 @@ obtainTagKeysProvidersParams = {
 }
 
 
-class TagManagementSettings:
-    """Class for generating tag management settings."""
+class Settings:
+    """Class for generating Cost Management settings."""
 
     def __init__(self, request):
         """Initialize settings object with incoming request."""
@@ -114,14 +119,13 @@ class TagManagementSettings:
 
         return all_tags_set, enabled
 
-    def _build_tag_key(self):
+    def _build_components(self):
         """
-        Generate tag management form component
+        Generate cost management form component
+        """
 
-        Returns:
-            (Dict) - Tab Item
-        """
         tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
+        enable_tags_title = create_plain_text(tag_key_text_name, "Enable tags and labels", "h2")
         tag_key_text_context = (
             "Enable your data source labels to be used as tag keys for report grouping and filtering."
             + " Changes will be reflected within 24 hours. <link>Learn more</link>"
@@ -133,7 +137,7 @@ class TagManagementSettings:
             )
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
-        components = []
+
         avail_objs = []
         enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
@@ -161,25 +165,36 @@ class TagManagementSettings:
             "initialValue": enabled_objs,
             "clearedValue": [],
         }
+
         dual_list_name = f'{"api.settings.tag-management.enabled"}'
-        components.append(create_dual_list_select(dual_list_name, **dual_list_options))
+        tags_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
+
+        # currency settings TODO: only show in dev mode right now
+        if settings.DEVELOPMENT:
+            currency_select_name = f'{"api.settings.openshift.title"}'
+            currency_text_context = "Select the preferred currency to view Cost Information in."
+            currency_title = create_plain_text(currency_select_name, "Currency", "h2")
+            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
+            currency_options = {
+                "label": "Currency",
+                "options": get_currency_options(),
+                "initialValue": get_selected_currency_or_setup(self.schema),
+            }
+            currency = create_select(currency_select_name, **currency_options)
+
         sub_form_name = f"{SETTINGS_PREFIX}.tag_managment.subform"
-        sub_form_title = "Enable tags and labels"
-        sub_form_fields = [tag_key_text]
-        sub_form_fields.extend(components)
+        sub_form_title = ""
+        sub_form_fields = [
+            currency_title,
+            currency_select_text,
+            currency,
+            enable_tags_title,
+            tag_key_text,
+            tags_and_labels,
+        ]
         sub_form = create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
         return sub_form
-
-    def build_settings(self):
-        """
-        Generate tag management settings
-
-        Returns:
-            (List) - List of setting items
-        """
-        settings = self._build_tag_key()
-        return [settings]
 
     def _tag_key_handler(self, settings):
         """
@@ -230,6 +245,33 @@ class TagManagementSettings:
 
         return any(updated)
 
+    def _currency_handler(self, settings):
+        try:
+            stored_currency = get_selected_currency_or_setup(self.schema)
+        except Exception as exp:
+            LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
+            return False
+        if currency is None or stored_currency == settings:
+            return False
+
+        try:
+            set_currency(self.schema, settings)
+        except Exception as exp:
+            LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
+            return False
+        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        return True
+
+    def build_settings(self):
+        """
+        Generate tag management settings
+
+        Returns:
+            (List) - List of setting items
+        """
+        settings = self._build_components()
+        return [settings]
+
     def handle_settings(self, settings):
         """
         Handle setting results
@@ -240,5 +282,10 @@ class TagManagementSettings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
+        currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        return self._tag_key_handler(tg_mgmt_settings)
+
+        if self._currency_handler(currency_settings) and self._tag_key_handler(tg_mgmt_settings):
+            return true
+
+        return false

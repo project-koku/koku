@@ -39,7 +39,7 @@ class CurrencySettings:
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:
-            LOG.warn(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
         if currency is None or stored_currency == currency:
             return False
@@ -47,7 +47,7 @@ class CurrencySettings:
         try:
             set_currency(self.schema, currency)
         except Exception as exp:
-            LOG.warn(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
+            LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
             return False
         invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
         return True
