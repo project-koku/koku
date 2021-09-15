@@ -110,11 +110,15 @@ class Settings:
         enabled = []
         with schema_context(self.schema):
             if tag_keys_kls == AWSEnabledTagKeys:
-                enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
+                all_tags_set = set()
+                for tag_key in tag_keys_kls.objects.all():
+                    all_tags_set.add(tag_key.key)
+                    if tag_key.enabled:
+                        enabled.append(tag_key.key)
             else:
                 enabled_tags = tag_keys_kls.objects.all()
+                enabled = [enabled_tag.key for enabled_tag in enabled_tags]
 
-            enabled = [enabled_tag.key for enabled_tag in enabled_tags]
             all_tags_set.update(enabled)
 
         return all_tags_set, enabled
