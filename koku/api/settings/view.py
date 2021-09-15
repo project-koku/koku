@@ -5,7 +5,6 @@
 """View for Settings."""
 import logging
 
-from currency.settings import CurrencySettings
 from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
@@ -16,6 +15,7 @@ from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
 from api.settings.tag_management import TagManagementSettings
+from api.settings.currency import CurrencySettings
 
 LOG = logging.getLogger(__name__)
 if settings.DEVELOPMENT:
