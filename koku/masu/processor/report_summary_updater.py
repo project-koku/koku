@@ -5,6 +5,7 @@
 """Update reporting summary tables."""
 import datetime
 import logging
+from functools import cached_property
 
 from api.common import log_json
 from api.models import Provider
@@ -75,6 +76,11 @@ class ReportSummaryUpdater:
         msg = f"Starting report data summarization for provider uuid: {self._provider.uuid}."
         LOG.info(log_json(self._tracing_id, msg))
 
+    @cached_property
+    def trino_enabled(self):
+        """Return whether the source is enabled for Trino processing."""
+        return enable_trino_processing(self._provider_uuid, self._provider.type, self._schema)
+
     def _set_updater(self):
         """
         Create the report summary updater object.
@@ -89,45 +95,19 @@ class ReportSummaryUpdater:
 
         """
         if self._provider.type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            report_summary_updater = (
-                AWSReportParquetSummaryUpdater
-                if enable_trino_processing(
-                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
-                )
-                else AWSReportSummaryUpdater
-            )
+            report_summary_updater = AWSReportParquetSummaryUpdater if self.trino_enabled else AWSReportSummaryUpdater
         elif self._provider.type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             report_summary_updater = (
-                AzureReportParquetSummaryUpdater
-                if enable_trino_processing(
-                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
-                )
-                else AzureReportSummaryUpdater
+                AzureReportParquetSummaryUpdater if self.trino_enabled else AzureReportSummaryUpdater
             )
         elif self._provider.type in (Provider.PROVIDER_OCP,):
-            report_summary_updater = (
-                OCPReportParquetSummaryUpdater
-                if enable_trino_processing(
-                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
-                )
-                else OCPReportSummaryUpdater
-            )
+            report_summary_updater = OCPReportParquetSummaryUpdater if self.trino_enabled else OCPReportSummaryUpdater
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            report_summary_updater = (
-                GCPReportParquetSummaryUpdater
-                if enable_trino_processing(
-                    self._provider_uuid, self._provider.type, self._provider.customer.schema_name
-                )
-                else GCPReportSummaryUpdater
-            )
+            report_summary_updater = GCPReportParquetSummaryUpdater if self.trino_enabled else GCPReportSummaryUpdater
         else:
             return (None, None)
 
-        ocp_cloud_updater = (
-            OCPCloudParquetReportSummaryUpdater
-            if enable_trino_processing(self._provider_uuid, self._provider.type, self._provider.customer.schema_name)
-            else OCPCloudReportSummaryUpdater
-        )
+        ocp_cloud_updater = OCPCloudParquetReportSummaryUpdater if self.trino_enabled else OCPCloudReportSummaryUpdater
 
         LOG.info(f"Set report_summary_updater = {report_summary_updater.__name__}")
         return (
@@ -192,7 +172,10 @@ class ReportSummaryUpdater:
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
         try:
-            self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
+            if self.trino_enabled and self._provider.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+                self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
+            elif not self.trino_enabled:
+                self._ocp_cloud_updater.update_summary_tables(start_date, end_date)
         except Exception as ex:
             raise ReportSummaryUpdaterCloudError(str(ex))
 
