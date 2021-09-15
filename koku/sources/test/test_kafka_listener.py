@@ -341,6 +341,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         # now test the update pathway
         msgs = [
             msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_AWS)}),
+            # duplicate the message to test the `not updated` pathway
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_AWS)}),
             msg_generator(
                 KAFKA_APPLICATION_UPDATE,
                 value={
@@ -447,6 +449,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
 
         # now test the update pathway
         msgs = [
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_OCP)}),
+            # duplicate the message to test the `not updated` pathway
             msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_OCP)}),
             msg_generator(
                 KAFKA_APPLICATION_UPDATE,
