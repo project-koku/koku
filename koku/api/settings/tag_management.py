@@ -96,21 +96,25 @@ class TagManagementSettings:
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1"
             "&filter[resolution]=monthly&key_only=True&filter[enabled]=False"
         )
-        tag_request = self.factory.get(url)
-        tag_request.user = self.request.user
-        query_params = QueryParameters(tag_request, tag_view_kls)
-        handler = tag_handler_kls(query_params)
-        query_output = handler.execute_query()
-        avail_data = query_output.get("data")
-        all_tags_set = set(avail_data)
-        enabled = []
         with schema_context(self.schema):
             if tag_keys_kls == AWSEnabledTagKeys:
-                enabled_tags = tag_keys_kls.objects.filter(enabled=True).all()
+                all_tags_set = set()
+                enabled = []
+                for tag_key in tag_keys_kls.objects.all():
+                    all_tags_set.add(tag_key.key)
+                    if tag_key.enabled:
+                        enabled.append(tag_key.key)
             else:
+                tag_request = self.factory.get(url)
+                tag_request.user = self.request.user
+                query_params = QueryParameters(tag_request, tag_view_kls)
+                handler = tag_handler_kls(query_params)
+                query_output = handler.execute_query()
+                avail_data = query_output.get("data")
+                all_tags_set = set(avail_data)
                 enabled_tags = tag_keys_kls.objects.all()
-            enabled = [enabled_tag.key for enabled_tag in enabled_tags]
-            all_tags_set.update(enabled)
+                enabled = [enabled_tag.key for enabled_tag in enabled_tags]
+                all_tags_set.update(enabled)
 
         return all_tags_set, enabled
 
