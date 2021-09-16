@@ -51,6 +51,7 @@ services:
         - ENABLE_TRINO_SOURCES
         - ENABLE_TRINO_ACCOUNTS
         - ENABLE_TRINO_SOURCE_TYPE
+        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       privileged: true
       ports:
         - 8000:8000
