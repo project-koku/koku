@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryByProject
@@ -27,7 +28,7 @@ class OCPProjectsView(generics.ListAPIView):
         .filter(namespace__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [OpenShiftProjectPermission]
+    permission_classes = [OpenShiftProjectPermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
@@ -59,6 +60,7 @@ class OCPProjectsView(generics.ListAPIView):
             ):
                 return super().list(request)
             if ocp_project_access:
+
                 query_holder = query_holder.filter(namespace__in=ocp_project_access)
             if ocp_cluster_access:
                 # We hold a copy of the filtered queryset just incase the user has a wildcard for user access

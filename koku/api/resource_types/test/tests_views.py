@@ -297,7 +297,7 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @RbacPermissions({"openshift.project": {"read": ["1234"]}})
-    def test_openshift_cluster_with_project_access_view(self):
+    def test_openshift_project_with_project_access_view(self):
         """Test endpoint runs with a customer owner."""
         url = reverse("openshift-projects")
         response = self.client.get(url, **self.headers)

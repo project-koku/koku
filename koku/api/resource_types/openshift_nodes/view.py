@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryByNode
@@ -27,7 +28,7 @@ class OCPNodesView(generics.ListAPIView):
         .filter(node__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [OpenShiftNodePermission]
+    permission_classes = [OpenShiftNodePermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
