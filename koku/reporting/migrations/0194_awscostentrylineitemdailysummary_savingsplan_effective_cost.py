@@ -26,7 +26,7 @@ def add_aws_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0192_gcp_bigquery_partition")]
+    dependencies = [("reporting", "0193_gcptopology")]
 
     operations = [
         migrations.AddField(
