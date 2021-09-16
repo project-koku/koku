@@ -13,6 +13,7 @@ from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpAccessPermission
+from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.gcp.models import GCPTopology
 
@@ -27,7 +28,7 @@ class GCPServiceView(generics.ListAPIView):
         .filter(service_id__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [GcpAccessPermission]
+    permission_classes = [GcpAccessPermission | GcpProjectPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]

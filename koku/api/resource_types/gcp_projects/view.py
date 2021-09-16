@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.gcp.models import GCPTopology
@@ -22,7 +23,7 @@ class GCPProjectsView(generics.ListAPIView):
 
     queryset = GCPTopology.objects.annotate(**{"value": F("project_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
-    permission_classes = [GcpProjectPermission]
+    permission_classes = [GcpProjectPermission | GcpAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
