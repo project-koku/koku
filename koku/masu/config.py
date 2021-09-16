@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Configuration loader for Masu application."""
+from django.conf import settings
+
 from koku.configurator import CONFIGURATOR
 from koku.env import ENVIRONMENT
 
@@ -12,7 +14,6 @@ DEFAULT_PVC_DIR = "/var/tmp/masu"
 DEFAULT_VOLUME_FILE_RETENTION = 60 * 60 * 24
 DEFAULT_REPORT_PROCESSING_BATCH_SIZE = 100000
 DEFAULT_MASU_DATE_OVERRIDE = None
-DEFAULT_MASU_RETAIN_NUM_MONTHS = 3
 DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = 1
 DEFAULT_INITIAL_INGEST_NUM_MONTHS = 3
 DEFAULT_INGEST_OVERRIDE = False
@@ -59,7 +60,7 @@ class Config:
     MASU_DATE_OVERRIDE = ENVIRONMENT.get_value("DATE_OVERRIDE", default=DEFAULT_MASU_DATE_OVERRIDE)
 
     # Retention policy for the number of months of report data to keep.
-    MASU_RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_MASU_RETAIN_NUM_MONTHS)
+    MASU_RETAIN_NUM_MONTHS = settings.RETAIN_NUM_MONTHS
     MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY = ENVIRONMENT.int(
         "RETAIN_NUM_MONTHS", default=DEFAULT_MASU_RETAIN_NUM_MONTHS_LINE_ITEM_ONLY
     )
