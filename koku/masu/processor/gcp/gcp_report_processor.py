@@ -109,7 +109,7 @@ class GCPReportProcessor(ReportProcessorBase):
         """Delete stale data between date range."""
         scan_start = ciso8601.parse_datetime(self.scan_start).date()
         scan_end = (ciso8601.parse_datetime(self.scan_end) + relativedelta(days=1)).date()
-        gcp_date_filters = {"usage_start__gte": scan_start, "usage_end__lt": scan_end}
+        gcp_date_filters = {"partition_date__gte": scan_start, "partition_date__lt": scan_end}
 
         if not self._manifest_id:
             return False
