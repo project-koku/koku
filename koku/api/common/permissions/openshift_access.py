@@ -32,10 +32,14 @@ class OpenShiftAccessPermission(permissions.BasePermission):
 class OpenShiftProjectPermission(OpenShiftAccessPermission):
     """Determines if a user can view OpenShift data."""
 
+    # both are needed because the user can have either and access the project endpoint
     resource_type = "openshift.project"
+    resource_type = "openshift.cluster"
 
 
 class OpenShiftNodePermission(OpenShiftAccessPermission):
     """Determines if a user can view OpenShift data."""
 
+    # both are needed because the user can have either and access the node endpoint
     resource_type = "openshift.node"
+    resource_type = "openshift.cluster"

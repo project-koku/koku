@@ -295,3 +295,43 @@ class ResourceTypesViewTest(IamTestCase):
                 url = reverse(endpoint)
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions({"openshift.project": {"read": ["1234"]}})
+    def test_openshift_cluster_with_project_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-projects")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}})
+    def test_openshift_project_with_cluster_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-projects")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.node": {"read": ["1234"]}})
+    def test_openshift_node_with_node_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-nodes")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}})
+    def test_openshift_node_with_cluster_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-nodes")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)

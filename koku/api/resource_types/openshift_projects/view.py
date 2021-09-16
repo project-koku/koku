@@ -50,7 +50,13 @@ class OCPProjectsView(generics.ListAPIView):
             ocp_project_access = request.user.access.get("openshift.project", {}).get("read", [])
             ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
             query_holder = self.queryset
-            if ocp_project_access[0] == "*" or ocp_cluster_access[0] == "*":
+            # checks if the access exists, and the user has wildcard access
+            if (
+                ocp_project_access
+                and ocp_project_access[0] == "*"
+                or ocp_cluster_access
+                and ocp_cluster_access[0] == "*"
+            ):
                 return super().list(request)
             if ocp_project_access:
                 query_holder = query_holder.filter(namespace__in=ocp_project_access)
