@@ -274,10 +274,10 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
     ):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         # default to cpu distribution
-        node_column = "node_capacity_cpu_core_hours"
+        pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            node_column = "node_capacity_memory_gigabyte_hours"
+            pod_column = "pod_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
@@ -294,7 +294,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "bill_id": bill_id,
             "markup": markup_value,
-            "node_column": node_column,
+            "pod_column": pod_column,
             "cluster_column": cluster_column,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
