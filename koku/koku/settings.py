@@ -261,6 +261,8 @@ USE_L10N = True
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
+DEFAULT_RETAIN_NUM_MONTHS = 4
+RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
