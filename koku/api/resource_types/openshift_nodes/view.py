@@ -52,9 +52,9 @@ class OCPNodesView(generics.ListAPIView):
             if ocp_node_access[0] == "*" or ocp_cluster_access[0] == "*":
                 return super().list(request)
             query_holder = self.queryset
-            if request.user.access.get("openshift.node", {}).get("read", []):
+            if ocp_node_access:
                 query_holder = query_holder.filter(node__in=ocp_node_access)
-            if request.user.access.get("openshift.cluster", {}).get("read", []):
+            if ocp_cluster_access:
                 query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
         # if query_holder does not exist we return an empty queryset
         self.queryset = query_holder

@@ -132,38 +132,6 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
 
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_endpoints_view(self):
-        """Test endpoint runs with a customer owner."""
-        for endpoint in self.ENDPOINTS_AZURE:
-            with self.subTest(endpoint=endpoint):
-                url = reverse(endpoint)
-                response = self.client.get(url, **self.headers)
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                json_result = response.json()
-                self.assertIsNotNone(json_result.get("data"))
-                self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.project": {"read": ["*"]}})
-    def test_ocp_project_with_project_rbac_access_view(self):
-        """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-projects")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"openshift.cluster": {"read": ["*"]}, "openshift.node": {"read": ["*"]}})
-    def test_ocp_project_with_node_rbac_access_view(self):
-        """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-nodes")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
     @RbacPermissions({"aws.account": {"read": ["*"]}})
     def test_aws_accounts_ocp_view(self):
         """Test endpoint runs with a customer owner."""
