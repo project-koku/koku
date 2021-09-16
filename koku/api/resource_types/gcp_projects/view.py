@@ -50,7 +50,12 @@ class GCPProjectsView(generics.ListAPIView):
                 query_holder = query_holder.filter(project_id__in=gcp_project_access)
             if gcp_account_access:
                 query_holder = query_holder.filter(account_id__in=gcp_account_access)
-            if gcp_account_access[0] == "*" or gcp_project_access[0] == "*":
+            if (
+                gcp_account_access
+                and gcp_account_access[0] == "*"
+                or gcp_project_access
+                and gcp_project_access[0] == "*"
+            ):
                 return super().list(request)
             self.queryset = query_holder
         return super().list(request)
