@@ -15,14 +15,12 @@ import koku.presto_database as kpdb
 LOG = logging.getLogger(__name__)
 
 def migrate_presto(apps, schema_editor):
-    db_password = settings.DATABASES.get("default").get("PASSWORD")
     table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
     column_name = "savingsplan_effective_cost"
-    schema = "acct10001"
     presto_conn = False
 
     try:
-        presto_conn = kpdb.connect(schema=schema)
+        presto_conn = kpdb.connect(schema=schema_editor.connection.schema_name)
         presto_cur = presto_conn.cursor()
         for table_name in table_names:
             try:
