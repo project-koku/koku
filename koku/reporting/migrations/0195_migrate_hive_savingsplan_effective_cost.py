@@ -14,22 +14,30 @@ import koku.presto_database as kpdb
 
 LOG = logging.getLogger(__name__)
 
+def check_schema(schema, presto_cursor):
+    schema_check_sql = f"SHOW SCHEMAS LIKE '{schema}'"
+    schema = presto_cursor.execute(schema_check_sql, "default")
+    LOG.info("Checking for schema")
+    if schema:
+        return True
+    return False
+
 def migrate_presto(apps, schema_editor):
     table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
     column_name = "savingsplan_effective_cost"
     presto_conn = False
-
     try:
         presto_conn = kpdb.connect(schema=schema_editor.connection.schema_name)
         presto_cur = presto_conn.cursor()
-        for table_name in table_names:
-            try:
-                LOG.info(f"Creating column {column_name} in {table_name}.")
-                presto_cur.execute(f"""
-                    ALTER TABLE "{table_name}" ADD COLUMNS "{column_name}";
-                """, None)
-            except (ProgrammingError, InsufficientPrivilege, DuplicateObject) as e:
-                LOG.info(e)
+        if check_schema(schema_editor.connection.schema_name, presto_cur):
+            for table_name in table_names:
+                try:
+                    LOG.info(f"Creating column {column_name} in {table_name}.")
+                    presto_cur.execute(f"""
+                        DROP TABLE IF EXISTS "{table_name}";
+                    """, None)
+                except (ProgrammingError, InsufficientPrivilege, DuplicateObject) as e:
+                    LOG.info(e)
     finally:
         if presto_conn:
             presto_conn.close()
