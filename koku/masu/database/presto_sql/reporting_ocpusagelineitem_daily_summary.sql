@@ -69,15 +69,16 @@ cte_ocp_namespace_label_line_item_daily AS (
         nli.namespace_labels
 ),
 -- Daily sum of cluster CPU and memory capacity
-cte_ocp_cluster_capacity AS (
-    SELECT date(cc.interval_start) as usage_start,
-        sum(cc.max_cluster_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
-        sum(cc.max_cluster_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+cte_ocp_node_capacity AS (
+    SELECT date(nc.interval_start) as usage_start,
+        nc.node,
+        sum(nc.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
+        sum(nc.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
     FROM (
         SELECT li.interval_start,
             li.node,
-            max(li.node_capacity_cpu_core_seconds) as max_cluster_capacity_cpu_core_seconds,
-            max(li.node_capacity_memory_byte_seconds) as max_cluster_capacity_memory_byte_seconds
+            max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
+            max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
         FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
         WHERE li.source = {{source}}
             AND li.year = {{year}}
@@ -86,8 +87,16 @@ cte_ocp_cluster_capacity AS (
             AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
         GROUP BY li.interval_start,
             li.node
-    ) as cc
-    GROUP BY date(cc.interval_start)
+    ) as nc
+    GROUP BY date(nc.interval_start),
+        nc.node
+),
+cte_ocp_cluster_capacity AS (
+    SELECT nc.usage_start,
+        sum(nc.node_capacity_cpu_core_seconds) as cluster_capacity_cpu_core_seconds,
+        sum(nc.node_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
+    FROM cte_ocp_node_capacity AS nc
+    GROUP BY nc.usage_start
 ),
 -- Determine which node a PVC is running on
 cte_volume_nodes AS (
@@ -182,9 +191,9 @@ FROM (
         sum(li.pod_request_memory_byte_seconds) / 3600.0 * power(2, -30) as pod_request_memory_gigabyte_hours,
         sum(li.pod_limit_memory_byte_seconds) / 3600.0 * power(2, -30) as pod_limit_memory_gigabyte_hours,
         max(li.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-        sum(li.node_capacity_cpu_core_seconds) / 3600.0 as node_capacity_cpu_core_hours,
+        max(nc.node_capacity_cpu_core_seconds) / 3600.0 as node_capacity_cpu_core_hours,
         max(li.node_capacity_memory_bytes) * power(2, -30) as node_capacity_memory_gigabytes,
-        sum(li.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as node_capacity_memory_gigabyte_hours,
+        max(nc.node_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as node_capacity_memory_gigabyte_hours,
         max(cc.cluster_capacity_cpu_core_seconds) / 3600.0 as cluster_capacity_cpu_core_hours,
         max(cc.cluster_capacity_memory_byte_seconds) / 3600.0 * power(2, -30) as cluster_capacity_memory_gigabyte_hours
     FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily as li
@@ -194,6 +203,9 @@ FROM (
     LEFT JOIN cte_ocp_namespace_label_line_item_daily as nsli
         ON nsli.namespace = li.namespace
             AND nsli.usage_start = date(li.interval_start)
+    LEFT JOIN cte_ocp_node_capacity as nc
+        ON nc.usage_start = date(li.interval_start)
+            AND nc.node = li.node
     LEFT JOIN cte_ocp_cluster_capacity as cc
         ON cc.usage_start = date(li.interval_start)
     WHERE li.source = {{source}}

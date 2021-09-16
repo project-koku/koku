@@ -8,6 +8,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
+from django.db.models import Max
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -337,6 +338,40 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), 0)
             self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
             self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), 0)
+
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_monthly_cost_infrastructure_cluster_distribution(self, mock_cost_accessor):
+        """Test OCP charge for monthly costs is updated."""
+        cluster_cost = 1000
+        infrastructure_rates = {"cluster_cost_per_month": cluster_cost}
+        mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
+        mock_cost_accessor.return_value.__enter__.return_value.supplementary_rates = {}
+        mock_cost_accessor.return_value.__enter__.return_value.distribution = "cpu"
+
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        updater._update_monthly_cost(start_date, end_date)
+        with schema_context(self.schema):
+            nodes = (
+                OCPUsageLineItemDailySummary.objects.filter(source_uuid=self.provider.uuid)
+                .values("node")
+                .annotate(
+                    **{
+                        "node_capacity_cpu_core_hours": Max("node_capacity_cpu_core_hours"),
+                        "cluster_capacity_cpu_core_hours": Max("cluster_capacity_cpu_core_hours"),
+                    }
+                )
+                .values_list("node", "node_capacity_cpu_core_hours", "cluster_capacity_cpu_core_hours")
+            )
+            for node in nodes:
+                monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
+                    infrastructure_monthly_cost_json__isnull=False, node=node[0], usage_start__gte=start_date
+                ).first()
+                expected_cost = float(node[1] / node[2] * cluster_cost)
+                self.assertAlmostEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), expected_cost)
+                self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
+                self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), 0)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_supplementary(self, mock_cost_accessor):
