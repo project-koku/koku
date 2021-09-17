@@ -15,6 +15,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import enable_trino_processing
@@ -444,9 +445,37 @@ class ParquetReportProcessor:
             s3_path = self.parquet_path_s3
         return s3_path
 
+    def _determin_s3_path_for_gcp(self, file_type, gcp_file_name):
+        """Determine the s3 path based off of the invoice month."""
+        invoice_month = gcp_file_name.split("_")[0]
+        dh = DateHelper()
+        start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+        if file_type == DAILY_FILE_TYPE:
+            report_type = self.report_type
+            if report_type is None:
+                report_type = "raw"
+            return get_path_prefix(
+                self.account,
+                self.provider_type,
+                self.provider_uuid,
+                start_of_invoice,
+                Config.PARQUET_DATA_TYPE,
+                report_type=report_type,
+                daily=True,
+            )
+        else:
+            return get_path_prefix(
+                self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+            )
+
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
-        s3_path = self._determin_s3_path(file_type)
+        if self._provider_type == Provider.PROVIDER_GCP:
+            # We need to determine the parquet file path based off
+            # of the start of the invoice month and usage start for GCP.
+            s3_path = self._determin_s3_path_for_gcp(file_type, file_name)
+        else:
+            s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
         try:
             with open(file_path, "rb") as fin:

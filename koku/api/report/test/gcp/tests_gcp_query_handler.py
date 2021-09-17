@@ -4,7 +4,6 @@
 #
 """Test GCP Report Queries."""
 import logging
-from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -12,7 +11,6 @@ from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
@@ -45,13 +43,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        # The monthly filters for gcp only use the invoice month
+        # check out this pr for more information:
+        # https://github.com/project-koku/koku/pull/3098
         self.this_month_filter = {
-            "usage_start__gte": self.dh.this_month_start,
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
                 self.dh.this_month_start, self.dh.this_month_end
-            ),
+            )
         }
-
         self.ten_day_filter = {
             "usage_start__gte": self.dh.n_days_ago(self.dh.today, 9),
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
@@ -65,11 +64,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
             ),
         }
         self.last_month_filter = {
-            "usage_start__gte": self.dh.last_month_start,
-            "usage_end__lte": self.dh.last_month_end,
             "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
                 self.dh.last_month_start, self.dh.last_month_end
-            ),
+            )
         }
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -621,20 +618,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
 
         accounts = data[0].get("accounts", [{}])
-        if isinstance(self.dh.this_month_start, datetime):
-            v_this_month_start = self.dh.this_month_start.date()
-        else:
-            v_this_month_start = self.dh.this_month_start
-        if isinstance(self.dh.today, datetime):
-            v_today = self.dh.today.date()
-            v_today_last_month = (self.dh.today - relativedelta(months=1)).date()
-        else:
-            v_today = self.dh.today
-            v_today_last_month = self.dh.today = relativedelta(months=1)
-        if isinstance(self.dh.last_month_start, datetime):
-            v_last_month_start = self.dh.last_month_start.date()
-        else:
-            v_last_month_start = self.dh.last_month_start
+        current_invoice_month = self.dh.gcp_find_invoice_months_in_date_range(
+            self.dh.this_month_start, self.dh.this_month_end
+        )
+        last_invoice_month = self.dh.gcp_find_invoice_months_in_date_range(
+            self.dh.last_month_start, self.dh.last_month_end
+        )
 
         for account in accounts:
             current_total = Decimal(0)
@@ -643,14 +632,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
                 curr = GCPCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=v_this_month_start, usage_start__lte=v_today, account_id=account.get("account")
+                    invoice_month__in=current_invoice_month, account_id=account.get("account")
                 ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = GCPCostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=v_last_month_start,
-                    usage_start__lte=v_today_last_month,
-                    account_id=account.get("account"),
+                    invoice_month__in=last_invoice_month, account_id=account.get("account")
                 ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
@@ -668,14 +655,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            curr = GCPCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            curr = GCPCostEntryLineItemDailySummary.objects.filter(invoice_month__in=current_invoice_month).aggregate(
+                value=Sum(F("unblended_cost") + F("markup_cost"))
+            )
             current_total = Decimal(curr.get("value"))
 
-            prev = GCPCostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.last_month_start, usage_start__lte=self.dh.today - relativedelta(months=1)
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            prev = GCPCostEntryLineItemDailySummary.objects.filter(invoice_month__in=last_invoice_month).aggregate(
+                value=Sum(F("unblended_cost") + F("markup_cost"))
+            )
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
