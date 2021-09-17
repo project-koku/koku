@@ -16,8 +16,14 @@ from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        numeric_columns = ["cost", "currency_conversion_rate", "usage_amount", "usage_amount_in_pricing_units"]
-        date_columns = ["usage_start_time", "usage_end_time", "export_time"]
+        numeric_columns = [
+            "cost",
+            "currency_conversion_rate",
+            "usage_amount",
+            "usage_amount_in_pricing_units",
+            "credit_amount",
+        ]
+        date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
         column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
         super().__init__(
             manifest_id=manifest_id,

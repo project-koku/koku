@@ -1,4 +1,5 @@
-
+-- TODO:
+-- Do we do the markup cost from the blended or unblended cost
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
@@ -21,7 +22,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_s
     unblended_cost,
     markup_cost,
     source_uuid,
-    invoice_month
+    invoice_month,
+    credit_amount
 )
 SELECT uuid() as uuid,
     INTEGER '{{bill_id | sqlsafe}}' as cost_entry_bill_id,
@@ -44,11 +46,13 @@ SELECT uuid() as uuid,
     cast(sum(cost) AS decimal(24,9)) as unblended_cost,
     cast(sum(cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    invoice_month
+    invoice_month,
+    sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount
 FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
 WHERE source = '{{source_uuid | sqlsafe}}'
     AND year = '{{year | sqlsafe}}'
     AND month = '{{month | sqlsafe}}'
+    AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
     AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 GROUP BY billing_account_id,
