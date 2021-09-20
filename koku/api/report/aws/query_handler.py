@@ -46,6 +46,7 @@ EXPORT_COLUMNS = [
     "currency_code",
     "unblended_rate",
     "unblended_cost",
+    "savingsplan_effective_cost",
     "blended_rate",
     "blended_cost",
     "tax_type",
@@ -74,6 +75,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         """
         # do not override mapper if its already set
+        print(parameters)
         try:
             getattr(self, "_mapper")
         except AttributeError:
@@ -82,7 +84,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 

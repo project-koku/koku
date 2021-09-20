@@ -10,6 +10,8 @@ from api.report.aws.serializers import QueryParamSerializer
 from api.report.view import ReportView
 from reporting.provider.aws.models import AWSTagsSummary
 
+# import user settings model
+
 
 class AWSView(ReportView):
     """AWS Base View."""
@@ -19,6 +21,7 @@ class AWSView(ReportView):
     serializer = QueryParamSerializer
     query_handler = AWSReportQueryHandler
     tag_handler = [AWSTagsSummary]
+    cost_type = []  # will need to add the model for user settings here grab cost_type
 
 
 class AWSCostView(AWSView):

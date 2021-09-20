@@ -73,9 +73,11 @@ class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"), ("testing", "testing"))
+    COST_TYPE_CHOICE = (("blended", "blended"), ("unblended", "unblended"), ("amortized", "amortized"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
     units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
