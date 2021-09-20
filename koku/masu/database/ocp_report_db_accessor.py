@@ -22,6 +22,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
+from sqlparse import split as sql_split
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
@@ -2273,3 +2274,22 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         """
 
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
+
+    def _execute_processing_script(self, script_file_path, sql_params):
+        sql = pkgutil.get_data("masu.database", script_file_path).decode("utf-8")
+        for sql_stmt in sql_split(sql):
+            sql_stmt = sql_stmt.strip()
+            if sql_stmt:
+                sql_stmt, params = self.jinja_sql.prepare_query(sql_stmt, sql_params)
+                with connection.cursor() as cur:
+                    cur.execute(sql_stmt, params)
+
+    def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
+        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
+        script_file_path = f"sql/reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
+        self._execute_processing_script(script_file_path, sql_params)
+
+    def populate_ocp_on_all_daily_summary(self, platform, sql_params):
+        LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
+        script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
+        self._execute_processing_script(script_file_path, sql_params)

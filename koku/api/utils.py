@@ -269,6 +269,34 @@ class DateHelper:
         _, num_days = calendar.monthrange(date.year, date.month)
         return num_days
 
+    def relative_month_start(self, month_seek, dt=None):
+        """Return start of month for month_seek months in the past or future.
+        Params:
+            month_seek (int)      : months to seek. Negative is past, positive is future
+            dt         (datetime) : start datetime. Default is today
+        Returns:
+            (datetime)            : Datetime result of operation
+        """
+        if dt is None:
+            dt = self.today
+
+        rel_month_delta = relativedelta(months=month_seek)
+        return self.month_start(dt + rel_month_delta)
+
+    def relative_month_end(self, month_seek, dt=None):
+        """Return end of month for month_seek months in the past or future.
+        Params:
+            month_seek (int)      : months to seek. Negative is past, positive is future
+            dt         (datetime) : start datetime. Default is today
+        Returns:
+            (datetime)            : Datetime result of operation
+        """
+        if dt is None:
+            dt = self.today
+
+        rel_month_delta = relativedelta(months=month_seek)
+        return self.month_end(dt + rel_month_delta)
+
     def gcp_invoice_month_start(self, date_str):
         """Find the beginning of the month for gcp invoice month.
 

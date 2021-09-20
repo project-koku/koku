@@ -194,7 +194,7 @@ class FilterSerializer(BaseSerializer):
     _tagkey_support = True
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
@@ -223,8 +223,8 @@ class FilterSerializer(BaseSerializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
-                valid_values = ["-10", "-30"]
+            if time_scope_units == "day" and time_scope_value in ("-1", "-2", "-3"):  # noqa: W504
+                valid_values = ["-10", "-30", "-90"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
@@ -233,8 +233,8 @@ class FilterSerializer(BaseSerializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"resolution": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
-            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
-                valid_values = ["-1", "-2"]
+            if time_scope_units == "month" and time_scope_value in ("-10", "-30", "-90"):  # noqa: W504
+                valid_values = ["-1", "-2", "-3"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
