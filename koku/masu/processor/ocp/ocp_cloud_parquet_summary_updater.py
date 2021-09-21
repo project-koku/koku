@@ -19,6 +19,8 @@ from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_p
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -72,6 +74,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_aws_bill_id,
                 )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                    self._provider.uuid, start, end, table=OCPAWSCostLineItemProjectDailySummary
+                )
                 accessor.populate_ocp_on_aws_cost_daily_summary_presto(
                     start,
                     end,
@@ -84,6 +89,12 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
             accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
+
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
+                sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -134,6 +145,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_azure_bill_id,
                 )
+                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                    self._provider.uuid, start, end, table=OCPAzureCostLineItemProjectDailySummary
+                )
                 accessor.populate_ocp_on_azure_cost_daily_summary_presto(
                     start,
                     end,
@@ -146,3 +160,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
             accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
+
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
+                sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)

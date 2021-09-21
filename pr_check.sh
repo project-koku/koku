@@ -9,12 +9,14 @@ IMAGE="quay.io/cloudservices/koku"
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
+ENABLE_PARQUET_PROCESSING="false"
+
 ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
-export IQE_CJI_TIMEOUT="75m"
+export IQE_CJI_TIMEOUT="90m"
 
 set -ex
 
@@ -38,6 +40,7 @@ function run_unit_tests() {
 }
 
 function run_smoke_tests() {
+    run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 4)
 
@@ -61,9 +64,17 @@ function run_smoke_tests() {
         --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
+        --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh
+}
+
+function run_trino_smoke_tests() {
+    if check_for_labels "trino-smoke-tests"
+    then
+        ENABLE_PARQUET_PROCESSING="true"
+    fi
 }
 
 function make_results_xml() {

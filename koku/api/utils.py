@@ -11,10 +11,10 @@ from datetime import timedelta
 import pint
 import pytz
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
-from masu.config import Config
 
 LOG = logging.getLogger(__name__)
 
@@ -269,6 +269,34 @@ class DateHelper:
         _, num_days = calendar.monthrange(date.year, date.month)
         return num_days
 
+    def relative_month_start(self, month_seek, dt=None):
+        """Return start of month for month_seek months in the past or future.
+        Params:
+            month_seek (int)      : months to seek. Negative is past, positive is future
+            dt         (datetime) : start datetime. Default is today
+        Returns:
+            (datetime)            : Datetime result of operation
+        """
+        if dt is None:
+            dt = self.today
+
+        rel_month_delta = relativedelta(months=month_seek)
+        return self.month_start(dt + rel_month_delta)
+
+    def relative_month_end(self, month_seek, dt=None):
+        """Return end of month for month_seek months in the past or future.
+        Params:
+            month_seek (int)      : months to seek. Negative is past, positive is future
+            dt         (datetime) : start datetime. Default is today
+        Returns:
+            (datetime)            : Datetime result of operation
+        """
+        if dt is None:
+            dt = self.today
+
+        rel_month_delta = relativedelta(months=month_seek)
+        return self.month_end(dt + rel_month_delta)
+
     def gcp_invoice_month_start(self, date_str):
         """Find the beginning of the month for gcp invoice month.
 
@@ -313,8 +341,7 @@ class DateHelper:
 
 def materialized_view_month_start(dh=DateHelper()):
     """Datetime of midnight on the first of the month where materialized summary starts."""
-    summary_month = dh.this_month_start - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
-    return summary_month
+    return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
 class UnitConverter:

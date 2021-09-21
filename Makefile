@@ -10,7 +10,6 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-APIDOC  = apidoc
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -25,16 +24,6 @@ OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
-
-# required OpenShift template parameters
-# if a value is defined in a parameter file, we try to use that.
-# otherwise, we use a default value
-NAME = $(or $(shell grep -h '^NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-NAMESPACE = $(or $(shell grep -h '^[^\#]*NAMESPACE=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-
-OC_TEMPLATE_DIR = $(TOPDIR)/openshift
-OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
-OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 # Docker compose specific file
 ifdef compose_file

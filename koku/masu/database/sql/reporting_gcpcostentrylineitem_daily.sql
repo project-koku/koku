@@ -19,6 +19,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} A
     FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem AS li
     WHERE date(li.usage_start) >= {{ start_date }}
         AND date(li.usage_start) <= {{ end_date }}
+        AND li.invoice_month = {{invoice_month}}
         {% if bill_ids %}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
@@ -45,6 +46,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_{{uuid | sqlsafe}} A
 DELETE FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily AS li
 WHERE li.usage_start >= {{start_date}}
     AND li.usage_start <= {{end_date}}
+    AND li.invoice_month = {{invoice_month}}
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids  -%}

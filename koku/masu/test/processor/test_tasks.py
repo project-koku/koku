@@ -37,6 +37,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -463,6 +464,16 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
     def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising download broad exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files", side_effect=ReportDownloaderWarning("Mocked download warning!"))
+    def test_get_report_download_warning(self, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test raising download warning is handled."""
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
 
         get_report_files(**self.get_report_args)
