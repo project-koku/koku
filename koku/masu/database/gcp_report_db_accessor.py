@@ -353,6 +353,17 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         )
 
     def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
+        """Overwrite the parent class to include invoice month for gcp.
+
+        Args:
+            source_uuid (uuid): uuid of a given source
+            start_date (datetime): start range date
+            end_date (datetime): end range date
+            table (string): table name
+        """
+        # We want to include the invoice month in the delete to make sure we
+        # don't accidentially delete last month's data that flows into the
+        # next month
         invoice_month = start_date.strftime("%Y%m")
         if table is None:
             table = self.line_item_daily_summary_table
