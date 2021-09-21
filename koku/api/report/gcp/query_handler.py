@@ -60,8 +60,31 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
         self.group_by_alias = {"service": "service_alias", "project": "project_name"}
 
+        # We need to overwrite the pack keys here to include the credit
+        # dictionary in the endpoint returns.
+        gcp_pack_keys = {
+            "infra_raw": {"key": "raw", "group": "infrastructure"},
+            "infra_markup": {"key": "markup", "group": "infrastructure"},
+            "infra_usage": {"key": "usage", "group": "infrastructure"},
+            "infra_credit": {"key": "credit", "group": "infrastructure"},
+            "infra_total": {"key": "total", "group": "infrastructure"},
+            "sup_raw": {"key": "raw", "group": "supplementary"},
+            "sup_markup": {"key": "markup", "group": "supplementary"},
+            "sup_usage": {"key": "usage", "group": "supplementary"},
+            "sup_credit": {"key": "credit", "group": "supplementary"},
+            "sup_total": {"key": "total", "group": "supplementary"},
+            "cost_raw": {"key": "raw", "group": "cost"},
+            "cost_markup": {"key": "markup", "group": "cost"},
+            "cost_usage": {"key": "usage", "group": "cost"},
+            "cost_credit": {"key": "credit", "group": "cost"},
+            "cost_total": {"key": "total", "group": "cost"},
+        }
+        gcp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
+        gcp_pack_definitions["cost_groups"]["keys"] = gcp_pack_keys
+
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+        self._mapper.PACK_DEFINITIONS = gcp_pack_definitions
 
     @property
     def annotations(self):
@@ -135,7 +158,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             self._pack_data_object(query_sum, **self._mapper.PACK_DEFINITIONS)
         return query_sum
 
-    def execute_query(self):
+    def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
         Returns:
@@ -147,9 +170,10 @@ class GCPReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
             for alias_key, alias_value in self.group_by_alias.items():
@@ -169,7 +193,44 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
-            query_data = self.order_by(query_data, query_order_by)
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                # return_query_data = []
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                # &order_by[cost]=desc&order_by[date]=2021-08-02
+                query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
                 if self._limit:

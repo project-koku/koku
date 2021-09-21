@@ -2625,6 +2625,74 @@
                 }
             }
         },
+        "/resource-types/gcp-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Services For RBAC",
+                "operationId": "listResourcesGcpServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/gcp-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List GCP Regions For RBAC",
+                "operationId": "listResourcesGcpRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/aws-organizational-units/": {
             "get": {
                 "tags": [
@@ -2666,6 +2734,74 @@
                 ],
                 "summary": "List Azure Subscription Guids For RBAC",
                 "operationId": "listResourcesAzureSubGuids",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Services For RBAC",
+                "operationId": "listResourcesAzureServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/azure-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List Azure Regions For RBAC",
+                "operationId": "listResourcesAzureRegions",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryOffset"
                     },
@@ -4254,11 +4390,11 @@
                 "in": "query",
                 "name": "limit",
                 "required": false,
-                "description": "Parameter for selecting the amount of data in a returned.",
+                "description": "Parameter for selecting the amount of data in a returned. Limit of 0 will return all data.",
                 "schema": {
                     "type": "integer",
                     "default": 100,
-                    "minimum": 1,
+                    "minimum": 0,
                     "maximum": 1000
                 }
             },
@@ -5193,6 +5329,11 @@
                                 "description": "Flag to indicate if provider is successfully configured.",
                                 "default": false
                             },
+                            "paused": {
+                                "type": "boolean",
+                                "description": "Flag to indicate if provider is paused.",
+                                "default": false
+                            },
                             "current_month_data": {
                                 "type": "boolean",
                                 "description": "Flag to indicate if provider has report data for the current month.",
@@ -5209,9 +5350,12 @@
                                 "default": false
                             },
                             "infrastructure": {
-                                "type": "string",
-                                "description": "OpenShift foundational infrastructure type.",
-                                "example": "AWS"
+                                "type": "object",
+                                "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
+                                "example": {
+                                    "type": "AWS",
+                                    "uuid": "57e60f90-8c0c-4bd1-87a0-2143759aae1d"
+                                }
                             },
                             "cost_models": {
                                 "type": "array",
@@ -8154,6 +8298,13 @@
                             "django.utils.six": "1.10.0",
                             "django_filters": "1.0.4",
                             "http.server": "0.6"
+                        }
+                    },
+                    "config": {
+                        "type": "object",
+                        "example": {
+                            "debug": true,
+                            "account_access_type": "db"
                         }
                     }
                 }

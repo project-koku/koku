@@ -189,19 +189,22 @@ def get_report_details(report_directory):
 
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
-
     payload_dict = {}
-    try:
-        with open(manifest_path) as file:
-            payload_dict = json.load(file)
-            payload_dict["date"] = parser.parse(payload_dict["date"])
-            payload_dict["manifest_path"] = manifest_path
-            # parse start and end dates if in manifest
-            for field in ["start", "end"]:
-                if payload_dict.get(field):
-                    payload_dict[field] = parser.parse(payload_dict[field])
-    except (OSError, IOError, KeyError) as exc:
-        LOG.error("Unable to extract manifest data: %s", exc)
+    if os.path.exists(manifest_path):
+        try:
+            with open(manifest_path) as file:
+                payload_dict = json.load(file)
+                payload_dict["date"] = parser.parse(payload_dict["date"])
+                payload_dict["manifest_path"] = manifest_path
+                # parse start and end dates if in manifest
+                for field in ["start", "end"]:
+                    if payload_dict.get(field):
+                        payload_dict[field] = parser.parse(payload_dict[field])
+        except (OSError, IOError, KeyError) as exc:
+            LOG.error("Unable to extract manifest data: %s", exc)
+    else:
+        msg = f"No manifest available at {manifest_path}"
+        LOG.info(msg)
 
     return payload_dict
 
@@ -442,22 +445,13 @@ def ocp_generate_daily_data(data_frame, report_type):
     return daily_data_frame
 
 
-def match_openshift_labels(tag_dict, matched_tags, cluster_topology):
+def match_openshift_labels(tag_dict, matched_tags):
     """Match AWS data by OpenShift label associated with OpenShift cluster."""
     tag_dict = json.loads(tag_dict)
-    cluster_id = cluster_topology.get("cluster_id").lower()
-    cluster_alias = cluster_topology.get("cluster_alias").lower()
-    nodes = [node.lower() for node in cluster_topology.get("nodes", [])]
-    projects = [project.lower() for project in cluster_topology.get("projects", [])]
     tag_matches = []
     for key, value in tag_dict.items():
-        tag = json.dumps({key.lower(): value.lower()}).replace("{", "").replace("}", "")
-        if {key.lower(): value.lower()} in matched_tags:
+        lower_tag = {key.lower(): value.lower()}
+        if lower_tag in matched_tags:
+            tag = json.dumps(lower_tag).replace("{", "").replace("}", "")
             tag_matches.append(tag)
-        elif key.lower() == "openshift_project" and value.lower() in projects:
-            return tag
-        elif key.lower() == "openshift_node" and value.lower() in nodes:
-            return tag
-        elif key.lower() == "openshift_cluster" and value.lower() in (cluster_id, cluster_alias):
-            return tag
     return ",".join(tag_matches)

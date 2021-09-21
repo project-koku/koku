@@ -4,6 +4,7 @@
 #
 """Test the Sources Kafka Listener handler."""
 import queue
+from random import choice
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -35,13 +36,17 @@ from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
 from sources.kafka_listener import storage_callback
 from sources.kafka_message_processor import ApplicationMsgProcessor
+from sources.kafka_message_processor import AUTH_TYPES
 from sources.kafka_message_processor import AuthenticationMsgProcessor
 from sources.kafka_message_processor import KAFKA_APPLICATION_CREATE
 from sources.kafka_message_processor import KAFKA_APPLICATION_DESTROY
+from sources.kafka_message_processor import KAFKA_APPLICATION_PAUSE
+from sources.kafka_message_processor import KAFKA_APPLICATION_UNPAUSE
 from sources.kafka_message_processor import KAFKA_APPLICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_CREATE
 from sources.kafka_message_processor import KAFKA_AUTHENTICATION_UPDATE
 from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
+from sources.kafka_message_processor import KAFKA_SOURCE_UPDATE
 from sources.sources_http_client import ENDPOINT_APPLICATION_TYPES
 from sources.sources_http_client import ENDPOINT_APPLICATIONS
 from sources.sources_http_client import ENDPOINT_AUTHENTICATIONS
@@ -59,6 +64,8 @@ from sources.test.test_sources_http_client import MOCK_URL
 faker = Faker()
 FAKE_AWS_ARN = "arn:aws:iam::111111111111:role/CostManagement"
 FAKE_AWS_ARN2 = "arn:aws:iam::22222222222:role/CostManagement"
+FAKE_CLUSTER_ID_1 = str(uuid4())
+FAKE_CLUSTER_ID_2 = str(uuid4())
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 
@@ -131,12 +138,17 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             "account_id": "acct10001",
             "offset": 11,
         }
-        self.uuids = {Provider.PROVIDER_AWS: uuid4()}
+        self.uuids = {
+            Provider.PROVIDER_AWS: uuid4(),
+            # Provider.PROVIDER_AZURE: uuid4(),
+            # Provider.PROVIDER_GCP: uuid4(),
+            Provider.PROVIDER_OCP: uuid4(),
+        }
         self.source_ids = {
             Provider.PROVIDER_AWS: 10,
             # Provider.PROVIDER_AZURE: 11,
             # Provider.PROVIDER_GCP: 12,
-            # Provider.PROVIDER_OCP: 13,
+            Provider.PROVIDER_OCP: 13,
         }
         self.sources = {
             Provider.PROVIDER_AWS: {
@@ -149,20 +161,40 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
                 "offset": 5,
-            }
+            },
+            Provider.PROVIDER_OCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                "source_uuid": self.uuids.get(Provider.PROVIDER_OCP),
+                "name": "Provider OCP",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_1}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
         }
         self.updated_sources = {
             Provider.PROVIDER_AWS: {
                 "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                 "source_uuid": self.uuids.get(Provider.PROVIDER_AWS),
-                "name": "Provider AWS",
+                "name": "Provider AWS - PATCHED",
                 "source_type": "AWS",
                 "authentication": {"credentials": {"role_arn": FAKE_AWS_ARN2}},
                 "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
                 "offset": 5,
-            }
+            },
+            Provider.PROVIDER_OCP: {
+                "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                "source_uuid": self.uuids.get(Provider.PROVIDER_OCP),
+                "name": "Provider OCP - PATCHED",
+                "source_type": "OCP",
+                "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_2}},
+                "auth_header": Config.SOURCES_FAKE_HEADER,
+                "account_id": "12345",
+                "offset": 5,
+            },
         }
         self.mock_create_requests = {
             Provider.PROVIDER_AWS: [
@@ -195,7 +227,29 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                         "uid": str(self.uuids.get(Provider.PROVIDER_AWS)),
                     },
                 },
-            ]
+            ],
+            Provider.PROVIDER_OCP: [
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"not": "empty"}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_OCP]]}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",
+                    "status": 200,
+                    "json": {
+                        "name": "Provider OCP",
+                        "source_ref": FAKE_CLUSTER_ID_1,
+                        "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP),
+                        "uid": str(self.uuids.get(Provider.PROVIDER_OCP)),
+                    },
+                },
+            ],
         }
         self.mock_update_requests = {
             Provider.PROVIDER_AWS: [
@@ -223,16 +277,38 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                     "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_AWS)}",
                     "status": 200,
                     "json": {
-                        "name": "Provider AWS",
+                        "name": "Provider AWS - PATCHED",
                         "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_AWS),
                         "uid": str(self.uuids.get(Provider.PROVIDER_AWS)),
                     },
                 },
-            ]
+            ],
+            Provider.PROVIDER_OCP: [
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATION_TYPES}/{COST_MGMT_APP_TYPE_ID}/sources?filter[id]={self.source_ids.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"not": "empty"}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCE_TYPES}?filter[id]={SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP)}",  # noqa: E501
+                    "status": 200,
+                    "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_OCP]]}]},
+                },
+                {
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_SOURCES}/{self.source_ids.get(Provider.PROVIDER_OCP)}",
+                    "status": 200,
+                    "json": {
+                        "name": "Provider OCP - PATCHED",
+                        "source_ref": FAKE_CLUSTER_ID_2,
+                        "source_type_id": SOURCE_TYPE_IDS_MAP.get(Provider.PROVIDER_OCP),
+                        "uid": str(self.uuids.get(Provider.PROVIDER_OCP)),
+                    },
+                },
+            ],
         }
 
-    def test_listen_for_messages_aws_create_update_delete(self):
-        """Test for app/auth create, app/auth update, app/source delete."""
+    def test_listen_for_messages_aws_create_update_pause_unpause_delete_AWS(self):
+        """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
         # First, test the create pathway:
         msgs = [
             msg_generator(
@@ -248,7 +324,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -260,10 +336,13 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_AWS), msg="failed create")
 
         # now test the update pathway
         msgs = [
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_AWS)}),
+            # duplicate the message to test the `not updated` pathway
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_AWS)}),
             msg_generator(
                 KAFKA_APPLICATION_UPDATE,
                 value={
@@ -277,7 +356,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 value={
                     "id": 1,
                     "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
-                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                    "authtype": AUTH_TYPES.get(Provider.PROVIDER_AWS),
                 },
             ),
         ]
@@ -289,7 +368,36 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
             s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_AWS).keys()])
-            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS))
+            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_AWS), msg="failed update")
+
+        # now test pause/unpause pathway
+        msgs = {
+            KAFKA_APPLICATION_PAUSE: msg_generator(
+                KAFKA_APPLICATION_PAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            KAFKA_APPLICATION_UNPAUSE: msg_generator(
+                KAFKA_APPLICATION_UNPAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        }
+
+        with requests_mock.mock() as m:
+            for resp in self.mock_update_requests.get(Provider.PROVIDER_AWS):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for event, msg in msgs.items():
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
+                self.assertEqual(source.paused, event == KAFKA_APPLICATION_PAUSE, msg="failed pause/unpause")
 
         # now test the delete pathway
         msgs = [
@@ -314,7 +422,108 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             mock_consumer = MockKafkaConsumer([msg])
             source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
             source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_AWS))
-            self.assertTrue(source.pending_delete)
+            self.assertTrue(source.pending_delete, msg="failed delete")
+
+    def test_listen_for_messages_aws_create_update_pause_unpause_delete_OCP(self):
+        """Test for app/auth create, app/auth update, app pause/unpause, app/source delete."""
+        # First, test the create pathway:
+        msgs = [
+            msg_generator(
+                KAFKA_APPLICATION_CREATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            )
+        ]
+        with requests_mock.mock() as m:
+            for resp in self.mock_create_requests.get(Provider.PROVIDER_OCP):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
+            s = model_to_dict(source, fields=[f for f in self.sources.get(Provider.PROVIDER_OCP).keys()])
+            self.assertDictEqual(s, self.sources.get(Provider.PROVIDER_OCP), msg="failed create")
+
+        # now test the update pathway
+        msgs = [
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_OCP)}),
+            # duplicate the message to test the `not updated` pathway
+            msg_generator(KAFKA_SOURCE_UPDATE, value={"id": self.source_ids.get(Provider.PROVIDER_OCP)}),
+            msg_generator(
+                KAFKA_APPLICATION_UPDATE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        ]
+        with requests_mock.mock() as m:
+            for resp in self.mock_update_requests.get(Provider.PROVIDER_OCP):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for msg in msgs:
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
+            s = model_to_dict(source, fields=[f for f in self.updated_sources.get(Provider.PROVIDER_OCP).keys()])
+            self.assertDictEqual(s, self.updated_sources.get(Provider.PROVIDER_OCP), msg="failed update")
+
+        # now test pause/unpause pathway
+        msgs = {
+            KAFKA_APPLICATION_PAUSE: msg_generator(
+                KAFKA_APPLICATION_PAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            KAFKA_APPLICATION_UNPAUSE: msg_generator(
+                KAFKA_APPLICATION_UNPAUSE,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        }
+
+        with requests_mock.mock() as m:
+            for resp in self.mock_update_requests.get(Provider.PROVIDER_OCP):
+                m.get(url=resp.get("url"), status_code=resp.get("status"), json=resp.get("json"))
+            for event, msg in msgs.items():
+                mock_consumer = MockKafkaConsumer([msg])
+                source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+                source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
+                self.assertEqual(source.paused, event == KAFKA_APPLICATION_PAUSE, msg="failed pause/unpause")
+
+        # now test the delete pathway
+        msgs = [
+            msg_generator(
+                KAFKA_APPLICATION_DESTROY,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+            msg_generator(
+                KAFKA_SOURCE_DESTROY,
+                value={
+                    "id": 1,
+                    "source_id": self.source_ids.get(Provider.PROVIDER_OCP),
+                    "application_type_id": COST_MGMT_APP_TYPE_ID,
+                },
+            ),
+        ]
+        for msg in msgs:
+            mock_consumer = MockKafkaConsumer([msg])
+            source_integration.listen_for_messages(msg, mock_consumer, COST_MGMT_APP_TYPE_ID)
+            source = Sources.objects.get(source_id=self.source_ids.get(Provider.PROVIDER_OCP))
+            self.assertTrue(source.pending_delete, msg="failed delete")
 
     def test_message_not_associated_with_cost_mgmt(self):
         """Test that messages not associated with cost-mgmt are not processed."""
@@ -322,6 +531,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_CREATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UPDATE},
             {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_DESTROY},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_PAUSE},
+            {"processor": ApplicationMsgProcessor, "event": KAFKA_APPLICATION_UNPAUSE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_CREATE},
             {"processor": AuthenticationMsgProcessor, "event": KAFKA_AUTHENTICATION_UPDATE},
         ]
@@ -383,6 +594,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])
@@ -420,6 +632,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                             "id": 1,
                             "source_id": self.source_ids.get(Provider.PROVIDER_AWS),
                             "application_type_id": COST_MGMT_APP_TYPE_ID,
+                            "authtype": choice(list(AUTH_TYPES.values())),
                         },
                     )
                     mock_consumer = MockKafkaConsumer([msg])

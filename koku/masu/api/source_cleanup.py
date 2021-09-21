@@ -67,10 +67,10 @@ def handle_providers_without_sources_response(request, response):
         cleanup_provider_without_source(response)
         return Response({"job_queued": "providers_without_sources"})
     else:
-        providers_without_sources = []
-        for provider in response["providers_without_sources"]:
-            providers_without_sources.append(f"{provider.name} ({provider.uuid})")
-            response["providers_without_sources"] = providers_without_sources
+        providers_without_sources = [
+            f"{provider.name} ({provider.uuid})" for provider in response["providers_without_sources"]
+        ]
+        response["providers_without_sources"] = providers_without_sources
         return Response(response)
 
 
@@ -79,10 +79,8 @@ def handle_out_of_order_deletes_response(request, response):
         cleanup_out_of_order_deletes(response)
         return Response({"job_queued": "out_of_order_deletes"})
     else:
-        out_of_order_delete = []
-        for source in response["out_of_order_deletes"]:
-            out_of_order_delete.append(f"Source ID: {source.source_id})")
-            response["out_of_order_deletes"] = out_of_order_delete
+        out_of_order_delete = [f"Source ID: {source.source_id}" for source in response["out_of_order_deletes"]]
+        response["out_of_order_deletes"] = out_of_order_delete
         return Response(response)
 
 
@@ -91,10 +89,11 @@ def handle_missing_sources_response(request, response):
         cleanup_missing_sources(response)
         return Response({"job_queued": "missing_sources"})
     else:
-        missing_sources = []
-        for source in response["missing_sources"]:
-            missing_sources.append(f"Source ID: {source.source_id} Source UUID: {source.source_uuid}")
-            response["missing_sources"] = missing_sources
+        missing_sources = [
+            f"Source ID: {source.source_id} Source UUID: {source.source_uuid}"
+            for source in response["missing_sources"]
+        ]
+        response["missing_sources"] = missing_sources
         return Response(response)
 
 
@@ -133,7 +132,7 @@ def _providers_without_sources(provider_uuid=None):
         try:
             Sources.objects.get(koku_uuid=provider.uuid)
         except Sources.DoesNotExist:
-            LOG.info(f"No Source found for Provider {provider.name} ({provider.uuid})")
+            LOG.debug(f"No Source found for Provider {provider.name} ({provider.uuid})")
             providers_without_sources.append(provider)
     return providers_without_sources
 
@@ -141,10 +140,9 @@ def _providers_without_sources(provider_uuid=None):
 def _sources_out_of_order_deletes():
     sources_out_of_order_delete = []
     try:
-        out_of_order_list = Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all()
-        for source in out_of_order_list:
-            LOG.info(f"Out of order source: {str(source)}")
-            sources_out_of_order_delete.append(source)
+        sources_out_of_order_delete = list(Sources.objects.filter(out_of_order_delete=True, koku_uuid=None).all())
+        for source in sources_out_of_order_delete:
+            LOG.debug(f"Out of order source: {str(source)}")
     except Sources.DoesNotExist:
         pass
     return sources_out_of_order_delete
@@ -159,10 +157,10 @@ def _missing_sources(source_uuid):
     missing_sources = []
     for source in sources:
         try:
-            sources_client = SourcesHTTPClient(source.auth_header, source.source_id)
+            sources_client = SourcesHTTPClient(source.auth_header, source.source_id, source.account_id)
             _ = sources_client.get_source_details()
         except SourceNotFoundError:
-            LOG.info(
+            LOG.debug(
                 f"Source {source.name} ID: {source.source_id} UUID: {source.source_uuid} not found in platform sources"
             )
             missing_sources.append(source)

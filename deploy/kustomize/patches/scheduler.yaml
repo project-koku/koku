@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: scheduler
+    name: clowder-scheduler
     minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
     webServices:
       public:
@@ -17,7 +17,7 @@
         - -c
         - >
           PYTHONPATH=/opt/app-root/src/koku
-          celery -A koku beat -l $LOG_LEVEL
+          celery -A koku beat -l $CELERY_LOG_LEVEL
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -41,12 +41,14 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -77,8 +79,10 @@
           value: ${SCHEDULER_WORKER_QUEUE}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
-        - name: SCHEDULE_REPORT_CHECKS ########################################
+        - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
+        - name: SOURCE_STATUS_FREQUENCY_MINUTES
+          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -149,14 +153,14 @@
     displayName: Memory Request
     name: SCHEDULER_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SCHEDULER_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
@@ -184,3 +188,9 @@
     displayName: Scheduler report checks
     name: SCHEDULE_REPORT_CHECKS
     value: "True"
+- op: add
+  path: /parameters/-
+  value:
+    displayName: Frequency to check sources availability (minutes)
+    name: SOURCE_STATUS_FREQUENCY_MINUTES
+    value: '60'

@@ -234,6 +234,55 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(manifest.operator_version, version)
         self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.utils.get_report_details")
+    def test_get_manifest_context_new_info(self, mock_manifest, mock_delete):
+        """Test that the manifest is read."""
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+
+        assembly_id = "1234"
+        compression = "PLAIN"
+        report_keys = ["file1", "file2"]
+        version = "5678"
+        mock_manifest.return_value = {
+            "uuid": assembly_id,
+            "Compression": compression,
+            "reportKeys": report_keys,
+            "date": current_month,
+            "files": report_keys,
+            "version": version,
+            "certified": False,
+            "cluster_id": "4e009161-4f40-42c8-877c-3e59f6baea3d",
+            "cr_status": {
+                "clusterID": "4e009161-4f40-42c8-877c-3e59f6baea3d",
+                "clusterVersion": "stable-4.6",
+                "api_url": "https://cloud.redhat.com",
+                "authentication": {"type": "token"},
+                "packaging": {"max_reports_to_store": 30, "max_size_MB": 100},
+                "upload": {"ingress_path": "/api/ingress/v1/upload", "upload": False},
+                "operator_commit": "a09a5b21e55ce4a07fe31aa560650b538ec6de7c",
+                "prometheus": {"error": "fake error"},
+                "reports": {"report_month": "07", "last_hour_queried": "2021-07-28 11:00:00 - 2021-07-28 11:59:59"},
+                "source": {"sources_path": "/api/sources/v1.0/", "name": "INSERT-SOURCE-NAME"},
+            },
+        }
+        self.assertIsNone(self.ocp_report_downloader.context.get("version"))
+        result = self.ocp_report_downloader.get_manifest_context_for_date(current_month)
+        self.assertEqual(result.get("assembly_id"), assembly_id)
+        self.assertEqual(result.get("compression"), compression)
+        self.assertIsNotNone(result.get("files"))
+
+        manifest_id = result.get("manifest_id")
+        manifest = ReportManifestDBAccessor().get_manifest_by_id(manifest_id)
+        expected_errors = {"prometheus_error": "fake error"}
+        self.assertEqual(manifest.operator_version, version)
+        self.assertEqual(manifest.operator_certified, False)
+        self.assertEqual(manifest.operator_airgapped, True)
+        self.assertEqual(manifest.cluster_channel, "stable-4.6")
+        self.assertEqual(manifest.cluster_id, "4e009161-4f40-42c8-877c-3e59f6baea3d")
+        self.assertEqual(manifest.operator_errors, expected_errors)
+        self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
+
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
@@ -262,3 +311,16 @@ class OCPReportDownloaderTest(MasuTestCase):
             1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date, context=context
         )
         self.assertEqual(result, expected)
+
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.LOG")
+    def test_get_report_for_verify_tracing_id(self, log_mock):
+        self.ocp_report_downloader.tracing_id = "1111-2222-4444-5555"
+        current_month = DateAccessor().today().replace(day=1, second=1, microsecond=1)
+        self.ocp_report_downloader.get_report_for(current_month)
+        call_args = log_mock.debug.call_args[0][0]
+        self.assertTrue("Looking for cluster" in call_args.get("message"))
+        self.assertEqual(call_args.get("tracing_id"), self.ocp_report_downloader.tracing_id)
+
+        call_args = log_mock.info.call_args[0][0]
+        self.assertTrue("manifest found:" in call_args.get("message"))
+        self.assertEqual(call_args.get("tracing_id"), self.ocp_report_downloader.tracing_id)

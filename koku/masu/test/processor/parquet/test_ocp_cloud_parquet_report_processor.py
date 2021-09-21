@@ -1,18 +1,6 @@
 #
-# Copyright 2021 Red Hat, Inc.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as
-# published by the Free Software Foundation, either version 3 of the
-# License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
 #
 from unittest.mock import patch
 
@@ -26,7 +14,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
-from masu.processor.parquet.ocp_cloud_parquet_report_processor import REPORT_TYPE
+from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
@@ -57,11 +45,11 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     def test_parquet_ocp_on_cloud_path_s3(self):
         """Test that the path is set properly."""
-        self.assertIn(REPORT_TYPE, self.report_processor.parquet_ocp_on_cloud_path_s3)
+        self.assertIn(OPENSHIFT_REPORT_TYPE, self.report_processor.parquet_ocp_on_cloud_path_s3)
 
     def test_report_type(self):
         """Test that the report type is set properly."""
-        self.assertEqual(REPORT_TYPE, self.report_processor.report_type)
+        self.assertEqual(OPENSHIFT_REPORT_TYPE, self.report_processor.report_type)
 
     def test_ocp_on_cloud_data_processor(self):
         """Test that the processor is properly set."""
@@ -144,7 +132,8 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_determin_s3_path(self):
         """Test that we return the OCP on cloud path."""
         self.assertEqual(
-            self.report_processor._determin_s3_path(REPORT_TYPE), self.report_processor.parquet_ocp_on_cloud_path_s3
+            self.report_processor._determin_s3_path(OPENSHIFT_REPORT_TYPE),
+            self.report_processor.parquet_ocp_on_cloud_path_s3,
         )
         self.assertIsNone(self.report_processor._determin_s3_path("incorrect"))
 
@@ -152,12 +141,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "_write_parquet_to_file")
     def test_create_ocp_on_cloud_parquet(self, mock_write, mock_create_table):
         """Test that we write OCP on Cloud data and create a table."""
-        file_name = f"{self.ocp_provider_uuid}{PARQUET_EXT}"
-        file_path = f"{self.report_processor.local_path}/{file_name}"
+        base_file_name = f"{self.ocp_provider_uuid}"
+        file_path = f"{self.report_processor.local_path}"
         df = pd.DataFrame()
-        self.report_processor.create_ocp_on_cloud_parquet(df, self.ocp_provider_uuid)
+        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0, self.ocp_provider_uuid)
         mock_write.assert_called()
-        mock_create_table.assert_called_with(file_path, daily=True)
+        expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
+        mock_create_table.assert_called_with(expected, daily=True)
 
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
@@ -165,7 +155,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     def test_process(self, mock_data_processor, mock_create_parquet, mock_topology):
         """Test that ocp on cloud data is fully processed."""
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
-        self.report_processor.process("", pd.DataFrame())
+        self.report_processor.process("", [pd.DataFrame()])
 
         mock_topology.assert_called()
         mock_data_processor.assert_called()

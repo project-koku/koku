@@ -3,11 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessors for Sources database table."""
-import binascii
 import logging
-from base64 import b64decode
-from json import loads as json_loads
-from json.decoder import JSONDecodeError
 
 from django.db import InterfaceError
 from django.db import OperationalError
@@ -302,17 +298,9 @@ def get_source_instance(source_id):
     return get_source(source_id, f"[get_source_instance] source_id: {source_id} does not exist.", LOG.info)
 
 
-def create_source_event(source_id, auth_header, offset):
+def create_source_event(source_id, account_id, auth_header, offset):
     """Create a Sources database object."""
     LOG.info(f"[create_source_event] starting for source_id {source_id} ...")
-    try:
-        decoded_rh_auth = b64decode(auth_header)
-        json_rh_auth = json_loads(decoded_rh_auth)
-        account_id = json_rh_auth.get("identity", {}).get("account_number")
-    except (binascii.Error, JSONDecodeError) as error:
-        LOG.error(str(error))
-        return
-
     try:
         source = Sources.objects.filter(source_id=source_id).first()
         if source:
@@ -410,6 +398,17 @@ def add_provider_koku_uuid(source_id, koku_uuid):
         source_query.update(koku_uuid=koku_uuid)
 
 
+def add_source_pause(source_id, pause):
+    """Add pause to Sources database object."""
+    LOG.info(f"[add_source_pause] start setting pause: {pause} to source_id: {source_id}")
+    source = get_source(source_id, f"[add_source_pause] error: source_id: {source_id} does not exist.", LOG.error)
+    if source and source.paused != pause:
+        LOG.info(f"[add_source_pause] set pause: {pause} on source_id: {source_id}")
+        source.paused = pause
+        source.pending_update = True
+        source.save()
+
+
 def save_status(source_id, status):
     """Save source status."""
     source = get_source(source_id, f"[save_status] warning: source_id: {source_id} does not exist.", LOG.warning)
@@ -423,6 +422,7 @@ def save_status(source_id, status):
 
 def is_known_source(source_id):
     """Check if source exists in database."""
+    LOG.debug(f"[is_known_source] checking if source_id: {source_id} is known.")
     try:
         Sources.objects.get(source_id=source_id)
         source_exists = True
@@ -431,4 +431,5 @@ def is_known_source(source_id):
     except (InterfaceError, OperationalError) as error:
         LOG.error(f"Accessing Sources resulting in {type(error).__name__}: {error}")
         raise error
+    LOG.debug(f"[is_known_source] source_id: {source_id} is known: {source_exists}")
     return source_exists

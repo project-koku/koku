@@ -21,38 +21,7 @@ Ephemeral Cluster Development
 
 Running Koku in OpenShift using Clowder in an Ephermal environment
 ------------------------------------------------------------------
-Koku is deployed via `Clowder`_.
-
-1. Make sure that you have cloned and followed the setup instructions of the following repos::
-
-    - https://github.com/project-koku/koku
-
-2. Next, make sure that you have the following tools installed::
-
-    - oc
-    - python
-    - crc-bonfire
-    - base64
-
-4. Make a copy of ``dev/config.yaml.local-example`` and save as ``config.yaml``. Update the ``repo`` field to point to the system path of the ``koku`` repo.
-
-5. Reserve an ephemeral environment namespace (default duration is 1 hour. This can be changed)::
-
-    NAMESPACE=$(bonfire namespace reserve --duration 12)
-
-6. Checkout that reserved namespace::
-
-    oc project $NAMESPACE
-
-7. Using bonfire, deploy the clowdapp to the cluster::
-
-    bonfire process \
-    hccm \
-    --source=appsre \
-    --no-remove-resources \
-    --namespace $NAMESPACE | oc apply -f - -n $NAMESPACE
-
-8. Log into the cluster, select your reserved namespace, and observe the project deploying.
+Koku is deployed via `Clowder`_. Follow the `Ephemeral Environment <https://docs.google.com/document/d/1iBu_shOSY6LfleHdtGdqyxD5Bc_gGKgG1UK57tuqojw/edit?usp=sharing>`_ documentation.
 
 Local Development
 =================
@@ -64,11 +33,6 @@ The recommended way to deploy a local OpenShift 4.x installation on Linux for Ko
 Installing and configuring `crc`_ is outside the scope of this document.  Please refer to the `crc`_ documentation for details.
 
 In order to access RHEL images for building Koku, you must configure `Red Hat Registry Authentication`_.
-
-Deployment via Clowder
-----------------------
-
-TBD
 
 General Platform information
 ============================

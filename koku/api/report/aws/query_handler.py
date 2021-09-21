@@ -578,9 +578,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
-            query_order_by.extend([self.order])  # add implicit ordering
+            query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
             if not self.parameters.parameters.get("compute_count"):
@@ -598,6 +599,18 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
+            def check_if_valid_date_str(date_str):
+                """Check to see if a valid date has been passed in."""
+                import ciso8601
+
+                try:
+                    ciso8601.parse_datetime(date_str)
+                except ValueError:
+                    return False
+                except TypeError:
+                    return False
+                return True
+
             query_sum = self._build_sum(query, annotations)
 
             if self._limit and query_data and not org_unit_applied:
@@ -609,7 +622,31 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            query_data = self.order_by(query_data, query_order_by)
+            order_date = None
+            for i, param in enumerate(query_order_by):
+                if check_if_valid_date_str(param):
+                    order_date = param
+                    break
+            # Remove the date order by as it is not actually used for ordering
+            if order_date:
+
+                sort_term = self._get_group_by()[0]
+                query_order_by.pop(i)
+                filtered_query_data = []
+                for index in query_data:
+                    for key, value in index.items():
+                        if (key == "date") and (value == order_date):
+                            filtered_query_data.append(index)
+                ordered_data = self.order_by(filtered_query_data, query_order_by)
+                order_of_interest = []
+                for entry in ordered_data:
+                    order_of_interest.append(entry.get(sort_term))
+                # write a special order by function that iterates through the
+                # rest of the days in query_data and puts them in the same order
+                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+                query_data = self.order_by(sorted_data, ["-date"])
+            else:
+                query_data = self.order_by(query_data, query_order_by)
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)

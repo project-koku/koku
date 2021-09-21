@@ -221,33 +221,11 @@ class OCPUtilTests(MasuTestCase):
 
     def test_match_openshift_labels(self):
         """Test that a label match returns."""
-        cluster_alias = "my-ocp-cluster"
-        cluster_topology = {
-            "resource_ids": ["id1", "id2", "id3"],
-            "cluster_id": self.ocp_cluster_id,
-            "cluster_alias": cluster_alias,
-            "nodes": ["compute-1"],
-            "projects": ["cost-management"],
-        }
-
         matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
 
         tag_dicts = [
             {"tag": json.dumps({"key": "value"}), "expected": '"key": "value"'},
             {"tag": json.dumps({"key": "other_value"}), "expected": ""},
-            {
-                "tag": json.dumps({"OpenShift_Project": "Cost-Management"}),
-                "expected": '"openshift_project": "cost-management"',
-            },
-            {"tag": json.dumps({"openshift_node": "COMPUTE-1"}), "expected": '"openshift_node": "compute-1"'},
-            {
-                "tag": json.dumps({"openshift_clusteR": f"{self.ocp_cluster_id}"}),
-                "expected": f'"openshift_cluster": "{self.ocp_cluster_id}"'.lower(),
-            },
-            {
-                "tag": json.dumps({"openshift_cluster": f"{cluster_alias}"}),
-                "expected": f'"openshift_cluster": "{cluster_alias}"'.lower(),
-            },
             {
                 "tag": json.dumps({"key": "value", "other_key": "other_value"}),
                 "expected": '"key": "value","other_key": "other_value"',
@@ -257,5 +235,26 @@ class OCPUtilTests(MasuTestCase):
         for tag_dict in tag_dicts:
             td = tag_dict.get("tag")
             expected = tag_dict.get("expected")
-            result = utils.match_openshift_labels(td, matched_tags, cluster_topology)
+            result = utils.match_openshift_labels(td, matched_tags)
             self.assertEqual(result, expected)
+
+    def test_get_report_details(self):
+        """Test that we handle manifest files properly."""
+        with tempfile.TemporaryDirectory() as manifest_path:
+            manifest_file = f"{manifest_path}/manifest.json"
+            with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
+                expected = f"INFO:masu.util.ocp.common:No manifest available at {manifest_file}"
+                utils.get_report_details(manifest_path)
+                self.assertIn(expected, logger.output)
+
+            with open(manifest_file, "w") as f:
+                data = {"key": "value"}
+                json.dump(data, f)
+            utils.get_report_details(manifest_path)
+
+            with patch("masu.util.ocp.common.open") as mock_open:
+                mock_open.side_effect = OSError
+                with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
+                    expected = "ERROR:masu.util.ocp.common:Unable to extract manifest data"
+                    utils.get_report_details(manifest_path)
+                    self.assertIn(expected, logger.output[0])

@@ -37,6 +37,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
@@ -50,7 +51,6 @@ from masu.processor.tasks import record_report_status
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
-from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
@@ -469,6 +469,16 @@ class TestProcessorTasks(MasuTestCase):
         get_report_files(**self.get_report_args)
         mock_cache_remove.assert_called()
 
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files", side_effect=ReportDownloaderWarning("Mocked download warning!"))
+    def test_get_report_download_warning(self, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test raising download warning is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
 
 class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
@@ -486,23 +496,6 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
-            self.assertIn(expected.format(str(expected_results)), logger.output)
-
-    @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
-    def test_remove_expired_line_items_only(self, fake_view, fake_remover):
-        """Test task."""
-        expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
-        fake_remover.return_value = expected_results
-
-        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
-
-        # disable logging override set in masu/__init__.py
-        logging.disable(logging.NOTSET)
-        with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
-            remove_expired_data(
-                schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True, line_items_only=True
-            )
             self.assertIn(expected.format(str(expected_results)), logger.output)
 
 
@@ -747,20 +740,25 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         expected_start_date = start_date.strftime("%Y-%m-%d")
         expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        tracing_id = "1234"
 
         update_summary_tables(
-            self.schema, provider, provider_aws_uuid, start_date, end_date, manifest_id, synchronous=True
+            self.schema,
+            provider,
+            provider_aws_uuid,
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
         )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(self.schema, provider_aws_uuid, expected_start_date, expected_end_date).set(
-                queue=UPDATE_COST_MODEL_COSTS_QUEUE
-            )
+            update_cost_model_costs.s(
+                self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
+            ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | refresh_materialized_views.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id
+                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
             ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
-            | remove_expired_data.si(self.schema, provider, False, provider_aws_uuid, True, None).set(
-                queue=REMOVE_EXPIRED_DATA_QUEUE
-            )
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -1077,8 +1075,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
@@ -1087,11 +1085,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that file list is saved in ReportStatsDBAccessor race condition."""
         files_list = ["file1.csv", "file2.csv", "file3.csv"]
         manifest_id = 1
-
-        record_all_manifest_files(manifest_id, files_list)
+        tracing_id = "1234"
+        record_all_manifest_files(manifest_id, files_list, tracing_id)
         with patch.object(ReportStatsDBAccessor, "does_db_entry_exist", return_value=False):
             with patch.object(ReportStatsDBAccessor, "add", side_effect=IntegrityError):
-                record_all_manifest_files(manifest_id, files_list)
+                record_all_manifest_files(manifest_id, files_list, tracing_id)
 
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()

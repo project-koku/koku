@@ -4,7 +4,6 @@
 #
 """View for server status."""
 import logging
-import os
 import platform
 import socket
 import subprocess
@@ -34,26 +33,25 @@ from sources.sources_http_client import SourcesHTTPClientError
 
 LOG = logging.getLogger(__name__)
 
+BROKER_CONNECTION = BrokerConnection(
+    SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC
+)
 BROKER_CONNECTION_ERROR = "Unable to establish connection with broker."
 CELERY_WORKER_NOT_FOUND = "No running Celery workers were found."
 
 
 def check_kafka_connection():
     """Check connectability of Kafka Broker."""
-    conn = BrokerConnection(SourcesConfig.SOURCES_KAFKA_HOST, int(SourcesConfig.SOURCES_KAFKA_PORT), socket.AF_UNSPEC)
-    connected = conn.connect_blocking(timeout=1)
+    connected = BROKER_CONNECTION.connect_blocking(timeout=1)
     if connected:
-        conn.close()
+        BROKER_CONNECTION.close()
     return connected
 
 
 def check_sources_connection():
     """Check sources-backend connection."""
     try:
-        cost_management_type_id = SourcesHTTPClient(
-            SourcesConfig.SOURCES_FAKE_HEADER
-        ).get_cost_management_application_type_id()
-        return cost_management_type_id
+        return SourcesHTTPClient(SourcesConfig.SOURCES_FAKE_HEADER).get_cost_management_application_type_id()
     except (SourcesHTTPClientError, SourceNotFoundError):
         return
 
@@ -104,11 +102,9 @@ class ApplicationStatus:
         :returns: A build number
 
         """
-        commit_info = os.environ.get("OPENSHIFT_BUILD_COMMIT", None)
-        if not commit_info:
-            commit_info = subprocess.run(["git", "describe", "--always"], stdout=subprocess.PIPE)
-            if commit_info.stdout:
-                commit_info = commit_info.stdout.decode("utf-8").strip()
+        commit_info = subprocess.run(["git", "rev-parse", "--short", "HEAD"], stdout=subprocess.PIPE)
+        if commit_info.stdout:
+            commit_info = commit_info.stdout.decode("utf-8").strip()
         return commit_info
 
     @property

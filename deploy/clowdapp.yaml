@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: koku
@@ -13,7 +13,7 @@ objects:
       version: ${{DATABASE_VERSION}}
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
-      name: api
+      name: clowder-api
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -50,10 +50,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${KOKU_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -64,16 +64,14 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -99,7 +97,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-api
+              containerName: koku-clowder-api
               resource: limits.cpu
         - name: GUNICORN_THREADS
           value: ${GUNICORN_THREADS}
@@ -107,6 +105,8 @@ objects:
           value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -146,7 +146,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -161,7 +165,7 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{LISTENER_MIN_REPLICAS}}
-      name: listener
+      name: clowder-listener
       podSpec:
         command:
         - /bin/bash
@@ -192,12 +196,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: DJANGO_LOG_LEVEL
+          value: ${DJANGO_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -237,6 +243,26 @@ objects:
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${LISTENER_CPU_LIMIT}
@@ -245,12 +271,16 @@ objects:
             cpu: ${LISTENER_CPU_REQUEST}
             memory: ${LISTENER_MEMORY_REQUEST}
         volumeMounts:
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-listener-data
         - name: gcp-credentials
@@ -267,7 +297,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{MASU_MIN_REPLICAS}}
-      name: masu
+      name: clowder-masu
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -306,10 +336,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${MASU_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -320,16 +350,14 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -337,7 +365,7 @@ objects:
         - name: POD_CPU_LIMIT
           valueFrom:
             resourceFieldRef:
-              containerName: koku-masu
+              containerName: koku-clowder-masu
               resource: limits.cpu
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
@@ -389,7 +417,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -404,13 +436,13 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
-      name: scheduler
+      name: clowder-scheduler
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku beat -l $LOG_LEVEL
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku beat -l $CELERY_LOG_LEVEL
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -434,12 +466,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -472,6 +506,8 @@ objects:
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
+        - name: SOURCE_STATUS_FREQUENCY_MINUTES
+          value: ${SOURCE_STATUS_FREQUENCY_MINUTES}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
           value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
         - name: REMOVE_EXPIRED_REPORT_UTC_TIME
@@ -537,7 +573,7 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
-      name: sources-client
+      name: clowder-sources-client
       podSpec:
         command:
         - /usr/libexec/s2i/run
@@ -546,6 +582,12 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psks
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -576,10 +618,10 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: GUNICORN_LOG_LEVEL
+          value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -590,16 +632,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -620,23 +654,23 @@ objects:
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
-          failureThreshold: 10
+          failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
             port: web
             scheme: HTTP
-          initialDelaySeconds: 10
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
         readinessProbe:
-          failureThreshold: 10
+          failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
             port: web
             scheme: HTTP
-          initialDelaySeconds: 15
-          periodSeconds: 30
+          initialDelaySeconds: 30
+          periodSeconds: 20
           successThreshold: 1
           timeoutSeconds: 10
         resources:
@@ -650,7 +684,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -665,7 +703,7 @@ objects:
         public:
           enabled: true
     - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
-      name: sources-listener
+      name: clowder-sources-listener
       podSpec:
         command:
         - /bin/bash
@@ -676,6 +714,12 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_PSK
+          valueFrom:
+            secretKeyRef:
+              key: psks
+              name: ${SOURCES_PSK_SECRET_NAME}
+              optional: true
         - name: DJANGO_SECRET_KEY
           valueFrom:
             secretKeyRef:
@@ -706,10 +750,8 @@ objects:
           value: ${APP_DOMAIN}
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
-          value: ${KOKU_LOG_LEVEL}
+          value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -720,16 +762,8 @@ objects:
           value: ${DJANGO_LOG_DIRECTORY}
         - name: DJANGO_LOGGING_FILE
           value: ${DJANGO_LOG_FILE}
-        - name: SOURCES_API_SVC_HOST
-          value: ${SOURCES_HOST}
-        - name: SOURCES_API_SVC_PORT
-          value: ${SOURCES_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
-        - name: RBAC_SERVICE_HOST
-          value: ${RBAC_HOST}
-        - name: RBAC_SERVICE_PORT
-          value: ${RBAC_SERVICE_PORT}
         - name: RBAC_SERVICE_PATH
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
@@ -749,6 +783,26 @@ objects:
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${SOURCES_LISTENER_CPU_LIMIT}
@@ -760,7 +814,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - name: gcp-credentials
           secret:
             items:
@@ -769,19 +827,19 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: false
+          enabled: true
         private:
           enabled: false
         public:
           enabled: false
     - minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
-      name: worker-celery
+      name: clowder-worker-celery
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -805,12 +863,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -882,6 +942,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_CELERY_CPU_LIMIT}
@@ -895,7 +975,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -912,13 +996,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_COST_MODEL_MIN_REPLICAS}}
-      name: worker-cost-model
+      name: clowder-worker-cost-model
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -942,12 +1026,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1019,6 +1105,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_COST_MODEL_CPU_LIMIT}
@@ -1032,7 +1138,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1049,13 +1159,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_DOWNLOAD_MIN_REPLICAS}}
-      name: worker-download
+      name: clowder-worker-download
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1079,12 +1189,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1156,6 +1268,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_DOWNLOAD_CPU_LIMIT}
@@ -1169,7 +1301,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1186,13 +1322,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
-      name: worker-ocp
+      name: clowder-worker-ocp
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1216,12 +1352,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1293,6 +1431,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_OCP_CPU_LIMIT}
@@ -1306,7 +1464,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1323,13 +1485,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_PRIORITY_MIN_REPLICAS}}
-      name: worker-priority
+      name: clowder-worker-priority
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1353,12 +1515,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1430,6 +1594,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_PRIORITY_CPU_LIMIT}
@@ -1443,7 +1627,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1460,13 +1648,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_REFRESH_MIN_REPLICAS}}
-      name: worker-refresh
+      name: clowder-worker-refresh
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1490,12 +1678,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1567,6 +1757,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_REFRESH_CPU_LIMIT}
@@ -1580,7 +1790,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1597,13 +1811,13 @@ objects:
         public:
           enabled: false
     - minReplicas: ${{WORKER_SUMMARY_MIN_REPLICAS}}
-      name: worker-summary
+      name: clowder-worker-summary
       podSpec:
         command:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1627,12 +1841,14 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -1704,6 +1920,26 @@ objects:
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
         image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
         resources:
           limits:
             cpu: ${WORKER_SUMMARY_CPU_LIMIT}
@@ -1717,7 +1953,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${PROMETHEUS_DIR}
+          name: prometheus-data
         volumes:
+        - emptyDir: {}
+          name: prometheus-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1788,7 +2028,7 @@ parameters:
   required: true
   value: quay.io/cloudservices/koku
 - name: S3_BUCKET_NAME
-  value: koku-reports
+  value: koku-eph-s3
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
@@ -1805,8 +2045,11 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- displayName: Celery log level
+  name: CELERY_LOG_LEVEL
+  value: INFO
 - displayName: Gunicorn log level
-  name: LOG_LEVEL
+  name: GUNICORN_LOG_LEVEL
   value: INFO
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
@@ -1892,14 +2135,6 @@ parameters:
   displayName: Source Types to be processed with Trino
   name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
-- description: Enable API Sentry
-  displayName: Enable API Sentry
-  name: ENABLE_API_SENTRY
-  value: "false"
-- description: Enable Celery Sentry
-  displayName: Enable Celery Sentry
-  name: ENABLE_CELERY_SENTRY
-  value: "false"
 - description: Scheduler check interval
   displayName: Scheduler check interval
   name: SCHEDULE_CHECK_INTERVAL
@@ -1959,12 +2194,6 @@ parameters:
   displayName: RabbitMQ port
   name: RABBITMQ_PORT
   value: "5672"
-- displayName: Rbac service host
-  name: RBAC_HOST
-  value: rbac
-- displayName: Rbac service port
-  name: RBAC_SERVICE_PORT
-  value: "8080"
 - displayName: Rbac service path
   name: RBAC_SERVICE_PATH
   value: /api/rbac/v1/access/
@@ -1973,22 +2202,19 @@ parameters:
   value: "30"
 - displayName: Presto host
   name: PRESTO_HOST
-  value: presto
+  value: presto-coordinator
 - displayName: Presto port
   name: PRESTO_PORT
-  value: "8080"
+  value: "8000"
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
-- displayName: Sources-api service hostname
-  name: SOURCES_HOST
-  value: sources-api-svc.sources.svc
-- displayName: Sources-api service port number
-  name: SOURCES_PORT
-  value: "8000"
 - description: Source API Path prefix
   name: SOURCES_API_PREFIX
   value: /api/sources/v1.0
+- description: Sources PSK secret name
+  name: SOURCES_PSK_SECRET_NAME
+  value: sources-psk
 - displayName: Secret Key (Ephemeral)
   from: '[a-f0-9]{20}'
   generate: expression
@@ -2013,11 +2239,11 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 768Mi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
@@ -2026,6 +2252,10 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 300m
+- displayName: Log Level for koku-api
+  name: KOKU_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: LISTENER_MIN_REPLICAS
   required: true
@@ -2045,7 +2275,11 @@ parameters:
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 500m
+  value: 200m
+- displayName: Log Level for listener
+  name: LISTENER_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: MASU_MIN_REPLICAS
   required: true
@@ -2066,6 +2300,10 @@ parameters:
   name: MASU_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for masu
+  name: MASU_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: SCHEDULER_MIN_REPLICAS
   required: true
@@ -2073,11 +2311,11 @@ parameters:
 - displayName: Memory Request
   name: SCHEDULER_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SCHEDULER_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: SCHEDULER_CPU_REQUEST
   required: true
@@ -2093,6 +2331,9 @@ parameters:
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
+- displayName: Frequency to check sources availability (minutes)
+  name: SOURCE_STATUS_FREQUENCY_MINUTES
+  value: "60"
 - displayName: Minimum replicas
   name: SOURCES_CLIENT_MIN_REPLICAS
   required: true
@@ -2100,7 +2341,7 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
@@ -2113,6 +2354,10 @@ parameters:
   name: SOURCES_CLIENT_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for sources client
+  name: SOURCES_CLIENT_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: SOURCES_LISTENER_MIN_REPLICAS
   required: true
@@ -2120,7 +2365,7 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 100Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
@@ -2133,6 +2378,10 @@ parameters:
   name: SOURCES_LISTENER_CPU_LIMIT
   required: true
   value: 200m
+- displayName: Log Level for sources listener
+  name: SOURCES_LISTENER_KOKU_LOG_LEVEL
+  required: true
+  value: INFO
 - displayName: Minimum replicas
   name: WORKER_CELERY_MIN_REPLICAS
   required: true
@@ -2140,7 +2389,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
@@ -2164,11 +2413,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_COST_MODEL_CPU_REQUEST
   required: true
@@ -2192,7 +2441,7 @@ parameters:
 - displayName: Memory Limit
   name: WORKER_DOWNLOAD_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1Gi
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
@@ -2200,7 +2449,7 @@ parameters:
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 200m
+  value: 500m
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2212,11 +2461,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_OCP_CPU_REQUEST
   required: true
@@ -2236,7 +2485,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
@@ -2260,11 +2509,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 256Mi
 - displayName: CPU Request
   name: WORKER_REFRESH_CPU_REQUEST
   required: true
@@ -2284,7 +2533,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 128Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true

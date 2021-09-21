@@ -164,7 +164,7 @@ class TagQueryHandler(QueryHandler):
             if self.parameters.get_filter("value") and filter_key == "enabled":
                 continue
             filter_value = self.parameters.get_filter(filter_key)
-            if filter_value and not TagQueryHandler.has_wildcard(filter_value):
+            if filter_value is not None and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_value, bool):
                     filters.add(QueryFilter(**filter_obj))
@@ -249,17 +249,19 @@ class TagQueryHandler(QueryHandler):
         tag_keys = set()
         with tenant_context(self.tenant):
             for source in self.data_sources:
+                select_cols = ["key"]
                 tag_keys_query = source.get("db_table").objects
                 annotations = source.get("annotations")
                 if annotations:
                     tag_keys_query = tag_keys_query.annotate(**annotations)
+                    select_cols.extend(annotations)
                 if filters is True:
                     tag_keys_query = tag_keys_query.filter(self.query_filter)
 
                 if type_filter and type_filter != source.get("type"):
                     continue
                 exclusion = self._get_exclusions("key")
-                tag_keys_query = tag_keys_query.exclude(exclusion).values("key").distinct().all()
+                tag_keys_query = tag_keys_query.exclude(exclusion).values(*select_cols).distinct().all()
 
                 tag_keys.update({tag.get("key") for tag in tag_keys_query})
 
@@ -372,7 +374,7 @@ class TagQueryHandler(QueryHandler):
     def _get_dictionary_for_key(dictionary_list, key):
         """Get dictionary matching key from list of dictionaries."""
         for di in dictionary_list:
-            if key in di.get("key"):
+            if key == di.get("key"):
                 return di
         return None
 

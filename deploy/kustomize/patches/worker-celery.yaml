@@ -1,7 +1,7 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: worker-celery
+    name: clowder-worker-celery
     minReplicas: ${{WORKER_CELERY_MIN_REPLICAS}}
     webServices:
       public:
@@ -17,7 +17,7 @@
         - -c
         - >
           PYTHONPATH=/opt/app-root/src/koku
-          celery -A koku worker -E -l $LOG_LEVEL -Q $WORKER_QUEUES
+          celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -41,12 +41,14 @@
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
-        - name: LOG_LEVEL
-          value: ${LOG_LEVEL}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
         - name: prometheus_multiproc_dir
           value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
         - name: ENABLE_S3_ARCHIVING
           value: ${ENABLE_S3_ARCHIVING}
         - name: ENABLE_PARQUET_PROCESSING
@@ -117,6 +119,26 @@
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+      livenessProbe:
+        httpGet:
+          path: /livez
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: metrics
+          scheme: HTTP
+        initialDelaySeconds: 30
+        periodSeconds: 20
+        successThreshold: 1
+        failureThreshold: 5
+        timeoutSeconds: 10
       resources:
         limits:
           cpu: ${WORKER_CELERY_CPU_LIMIT}
@@ -130,7 +152,11 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: prometheus-data
+        mountPath: ${PROMETHEUS_DIR}
       volumes:
+      - name: prometheus-data
+        emptyDir: {}
       - name: koku-worker-data
         emptyDir: {}
       - name: gcp-credentials
@@ -153,7 +179,7 @@
     displayName: Memory Request
     name: WORKER_CELERY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 128Mi
 - op: add
   path: /parameters/-
   value:

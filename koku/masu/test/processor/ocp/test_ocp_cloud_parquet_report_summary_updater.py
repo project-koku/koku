@@ -65,6 +65,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         updater.update_aws_summary_tables(
             self.ocp_test_provider_uuid, self.aws_test_provider_uuid, start_date, end_date
         )
+        distribution = None
         mock_ocp_on_aws.assert_called_with(
             start_date,
             end_date,
@@ -73,6 +74,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
@@ -97,22 +99,25 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            credentials = provider_accessor.get_credentials()
-        cluster_id = credentials.get("cluster_id")
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+        with schema_context(self.schema_name):
+            current_ocp_report_period_id = report_period.id
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
             self.ocp_test_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
         )
+        distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
             self.ocp_test_provider_uuid,
             self.azure_test_provider_uuid,
-            cluster_id,
+            current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
@@ -139,20 +144,23 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
 
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
-            credentials = provider_accessor.get_credentials()
-        cluster_id = credentials.get("cluster_id")
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+        with schema_context(self.schema_name):
+            current_ocp_report_period_id = report_period.id
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
             self.ocp_test_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
         )
+        distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
             self.ocp_test_provider_uuid,
             self.azure_test_provider_uuid,
-            cluster_id,
+            current_ocp_report_period_id,
             bill_id,
             decimal.Decimal(0),
+            distribution,
         )

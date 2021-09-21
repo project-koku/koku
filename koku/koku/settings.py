@@ -261,6 +261,8 @@ USE_L10N = True
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
+DEFAULT_RETAIN_NUM_MONTHS = 4
+RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
@@ -408,12 +410,14 @@ RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 
 # AWS S3 Bucket Settings
+REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
-S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket("koku-reports")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
-S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key()
-S3_SECRET = CONFIGURATOR.get_object_store_secret_key()
+S3_BUCKET_NAME = CONFIGURATOR.get_object_store_bucket(REQUESTED_BUCKET)
+S3_ACCESS_KEY = CONFIGURATOR.get_object_store_access_key(REQUESTED_BUCKET)
+S3_SECRET = CONFIGURATOR.get_object_store_secret_key(REQUESTED_BUCKET)
+S3_MINIO_IN_USE = "minio" in S3_ENDPOINT.lower()
 
 ENABLE_S3_ARCHIVING = ENVIRONMENT.bool("ENABLE_S3_ARCHIVING", default=False)
 ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)

@@ -107,7 +107,13 @@ def gcp_post_processor(data_frame):
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
     data_frame = data_frame.rename(columns=column_name_map)
-    return data_frame
+
+    label_set = set()
+    unique_labels = data_frame.labels.unique()
+    for label in unique_labels:
+        label_set.update(json.loads(label).keys())
+
+    return (data_frame, label_set)
 
 
 def get_column_converters():

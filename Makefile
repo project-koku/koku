@@ -10,7 +10,6 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-APIDOC  = apidoc
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -25,16 +24,6 @@ OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
-
-# required OpenShift template parameters
-# if a value is defined in a parameter file, we try to use that.
-# otherwise, we use a default value
-NAME = $(or $(shell grep -h '^NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-NAMESPACE = $(or $(shell grep -h '^[^\#]*NAMESPACE=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-
-OC_TEMPLATE_DIR = $(TOPDIR)/openshift
-OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
-OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 # Docker compose specific file
 ifdef compose_file
@@ -98,6 +87,9 @@ help:
 	@echo "  remove-test-db                        remove the django test db"
 	@echo "  reset-db-statistics                   clear the pg_stat_statements statistics"
 	@echo "  run-migrations                        run migrations against database"
+	@echo "                                          @param applabel - (optional) Use specified application"
+	@echo "                                          @param migration - (optional) Migrate to this migration"
+	@echo "                                          SPECIFY BOTH PARAMETERS OR NEITHER"
 	@echo "  serve                                 run the Django app on localhost"
 	@echo "  shell                                 run the Django interactive shell"
 	@echo "  shell-schema                          run the Django interactive shell with the specified schema"
@@ -132,6 +124,8 @@ help:
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
+	@echo "  docker-iqe-smokes-tests-trino        run smoke tests without reininting the db and clearing testing"
+
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
@@ -224,7 +218,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas
+	$(DJANGO_MANAGE) migrate_schemas $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
@@ -342,13 +336,15 @@ _koku-wait:
      done
 
 docker-up:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale)
+	$(DOCKER_COMPOSE) build koku-base
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
 docker-up-min:
-	$(DOCKER_COMPOSE) up --build -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) build koku-base
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
@@ -377,6 +373,9 @@ docker-iqe-local-hccm: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_local_hccm.sh $(iqe_cmd)
 
 docker-iqe-smokes-tests: docker-reinitdb _set-test-dir-permissions clear-testing
+	./testing/run_smoke_tests.sh
+
+docker-iqe-smokes-tests-trino:
 	./testing/run_smoke_tests.sh
 
 docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
@@ -421,7 +420,7 @@ docker-presto-cleanup:
 	make clear-testing
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d $(build)
 
 docker-presto-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps

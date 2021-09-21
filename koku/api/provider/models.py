@@ -130,6 +130,7 @@ class Provider(models.Model):
     data_updated_timestamp = models.DateTimeField(null=True)
 
     active = models.BooleanField(default=True)
+    paused = models.BooleanField(default=False)
 
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
@@ -170,9 +171,10 @@ class Provider(models.Model):
             using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
-                cascade_delete(self.__class__, self.__class__, self.__class__.objects.filter(pk=self.pk))
+                cascade_delete(self.__class__, self.__class__.objects.filter(pk=self.pk))
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
+            LOG.warning("Cannot customer link cannot be found! Using ORM delete!")
             super().delete()
 
 
@@ -219,6 +221,9 @@ class Sources(RunTextFieldValidators, models.Model):
 
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
+
+    # This field indicates if the source is paused.
+    paused = models.BooleanField(default=False)
 
     # When source has been deleted on Platform-Sources this is True indicating it hasn't been
     # removed on the Koku side yet.  Entry is removed entirely once Koku-Provider was successfully

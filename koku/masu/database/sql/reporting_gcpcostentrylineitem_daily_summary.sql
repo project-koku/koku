@@ -47,7 +47,8 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
         li.usage_pricing_unit as unit,
         li.currency,
         ab.provider_id as source_uuid,
-        0.0::decimal as markup_cost
+        0.0::decimal as markup_cost,
+        li.invoice_month
     FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily AS li
     LEFT JOIN cte_filtered_tags AS fvl
         ON li.id = fvl.id
@@ -59,6 +60,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
         ON li.cost_entry_bill_id = ab.id
     WHERE li.usage_start >= {{start_date}}::date
         AND li.usage_start <= {{end_date}}::date
+        AND li.invoice_month = {{invoice_month}}
         {% if bill_ids %}
         AND cost_entry_bill_id IN (
             {%- for bill_id in bill_ids  -%}
@@ -81,7 +83,8 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
         li.currency,
         li.usage_pricing_unit,
         fvl.gcp_tags,
-        ab.provider_id
+        ab.provider_id,
+        li.invoice_month
 )
 ;
 
@@ -89,6 +92,7 @@ CREATE TEMPORARY TABLE reporting_gcpcostentrylineitem_daily_summary_{{uuid | sql
 DELETE FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary AS li
 WHERE li.usage_start >= {{start_date}}
     AND li.usage_start <= {{end_date}}
+    AND li.invoice_month = {{invoice_month}}
     {% if bill_ids %}
     AND cost_entry_bill_id IN (
         {%- for bill_id in bill_ids  -%}
@@ -119,7 +123,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     line_item_type,
     unblended_cost,
     source_uuid,
-    markup_cost
+    markup_cost,
+    invoice_month
 
 )
     SELECT uuid,
@@ -142,6 +147,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     line_item_type,
     unblended_cost,
     source_uuid,
-    markup_cost
+    markup_cost,
+    invoice_month
     FROM reporting_gcpcostentrylineitem_daily_summary_{{uuid | sqlsafe}}
 ;

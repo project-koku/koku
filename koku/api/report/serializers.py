@@ -7,6 +7,7 @@ import copy
 
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
+from rest_framework.fields import DateField
 
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
@@ -193,7 +194,7 @@ class FilterSerializer(BaseSerializer):
     _tagkey_support = True
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
@@ -201,7 +202,7 @@ class FilterSerializer(BaseSerializer):
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
 
     resource_scope = StringOrListField(child=serializers.CharField(), required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
+    limit = serializers.IntegerField(required=False, min_value=0)
     offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
@@ -222,8 +223,8 @@ class FilterSerializer(BaseSerializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and (time_scope_value == "-1" or time_scope_value == "-2"):  # noqa: W504
-                valid_values = ["-10", "-30"]
+            if time_scope_units == "day" and time_scope_value in ("-1", "-2", "-3"):  # noqa: W504
+                valid_values = ["-10", "-30", "-90"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
@@ -232,8 +233,8 @@ class FilterSerializer(BaseSerializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"resolution": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
-            if time_scope_units == "month" and (time_scope_value == "-10" or time_scope_value == "-30"):  # noqa: W504
-                valid_values = ["-1", "-2"]
+            if time_scope_units == "month" and time_scope_value in ("-10", "-30", "-90"):  # noqa: W504
+                valid_values = ["-1", "-2", "-3"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
@@ -251,7 +252,7 @@ class OrderSerializer(BaseSerializer):
 
     _tagkey_support = True
 
-    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"))
+    ORDER_CHOICES = (("asc", "asc"), ("desc", "desc"), (DateField, DateField))
 
     cost = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
     infrastructure = serializers.ChoiceField(choices=ORDER_CHOICES, required=False)
@@ -352,7 +353,7 @@ class ParamSerializer(BaseSerializer):
 
         return data
 
-    def validate_order_by(self, value):
+    def validate_order_by(self, value):  # noqa: C901
         """Validate incoming order_by data.
 
         Args:
@@ -392,6 +393,19 @@ class ParamSerializer(BaseSerializer):
                 # special case: we order by account_alias, but we group by account.
                 if key == "account_alias" and ("account" in group_keys or "account" in or_keys):
                     continue
+                # sepcial case: we order by date, but we group by an allowed param.
+                if key == "date" and group_keys:
+                    # Checks to make sure the orderby date is allowed
+                    dh = DateHelper()
+                    if (
+                        value.get("date") >= materialized_view_month_start(dh).date()
+                        and value.get("date") <= dh.today.date()
+                    ):
+                        continue
+                    error[key] = _(
+                        f"Order-by date must be from {materialized_view_month_start(dh).date()} to {dh.today.date()}"
+                    )
+                    raise serializers.ValidationError(error)
 
             error[key] = _(f'Order-by "{key}" requires matching Group-by.')
             raise serializers.ValidationError(error)

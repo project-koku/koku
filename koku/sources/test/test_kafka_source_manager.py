@@ -22,13 +22,14 @@ faker = Faker()
 
 
 class MockSourceObject:
-    def __init__(self, name, type, authentication, billing_source, uuid=None):
+    def __init__(self, name, type, authentication, billing_source, uuid=None, paused=False):
         self.name = name
         self.source_type = type
         self.authentication = authentication
         self.billing_source = billing_source
         self.source_uuid = uuid
         self.koku_uuid = uuid
+        self.paused = paused
 
 
 class ProviderBuilderTest(IamTestCase):
@@ -129,6 +130,18 @@ class ProviderBuilderTest(IamTestCase):
             updated_provider = client.update_provider_from_source(self.mock_source)
             self.assertEqual(updated_provider.uuid, provider.uuid)
             self.assertEqual(updated_provider.name, new_name)
+
+    def test_update_provider_pause(self):
+        """Test to update a provider for pause/unpause."""
+        client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            provider = client.create_provider_from_source(self.mock_source)
+            self.assertFalse(provider.paused)
+            for test in [True, False]:
+                with self.subTest(paused=test):
+                    self.mock_source.paused = test
+                    updated_provider = client.update_provider_from_source(self.mock_source)
+                    self.assertEqual(updated_provider.paused, test)
 
     def test_update_provider_exception(self):
         """Test to update a provider with a connection error."""

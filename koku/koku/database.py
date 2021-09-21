@@ -6,7 +6,10 @@
 import json
 import logging
 import os
+import threading
+import types
 
+import django
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
@@ -15,6 +18,7 @@ from django.db import OperationalError
 from django.db import transaction
 from django.db.migrations.loader import MigrationLoader
 from django.db.models import DecimalField
+from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
@@ -33,6 +37,18 @@ engines = {
     "postgresql": "tenant_schemas.postgresql_backend",
     "mysql": "django.db.backends.mysql",
 }
+
+
+PARTITIONED_MODEL_NAMES = [
+    "AWSCostEntryLineItemDailySummary",
+    "AzureCostEntryLineItemDailySummary",
+    "GCPCostEntryLineItemDailySummary",
+    "OCPUsageLineItemDailySummary",
+    "OCPAllCostLineItemDailySummaryP",
+    "OCPAllCostLineItemProjectDailySummaryP",
+]
+DB_MODELS_LOCK = threading.Lock()
+DB_MODELS = {}
 
 
 def _cert_config(db_config, database_cert):
@@ -195,11 +211,48 @@ def execute_update_sql(query, **updatespec):
     return execute_compiled_sql(sql, params=params)
 
 
-def cascade_delete(base_model, from_model, instance_pk_query, level=0):
+def set_constraints_immediate():
+    with transaction.get_connection().cursor() as cur:
+        LOG.debug("Setting constaints to execute immediately")
+        cur.execute("set constraints all immediate;")
+
+
+def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_model=None, level=0):
+    """
+    Performs a cascading delete by walking the Django model relations and executing compiled SQL
+    to perform the on_delete actions instead or running the collector.
+    Parameters:
+        from_model (models.Model) : A model class that is the relation root
+        instance_pk_query (QuerySet) : A query for the records to delete and cascade from
+        base_model (None; Model) : The root model class, If null, this will be set for you.
+        level (int) : Recursion depth. This is used in logging only. Do not set.
+        skip_relations (Iterable of Models) : Relations to skip over in case they are handled explicitly elsewhere
+    """
+    if base_model is None:
+        base_model = from_model
+
+    if skip_relations is None:
+        skip_relations = []
+
+    # Skip the low-level data.
+    skip_relations.extend(
+        (
+            get_model("reporting_awscostentrylineitem"),
+            get_model("reporting_gcpcostentrylineitem"),
+            get_model("reporting_ocpusagelineitem"),
+            get_model("reporting_ocpnodelabellineitem"),
+            get_model("reporting_ocpstoragelineitem"),
+        )
+    )
+
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
     LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
+        if related_model in skip_relations:
+            LOG.info(f"SKIPPING RELATION {related_model.__name__} by directive")
+            continue
+
         if model_relation.on_delete.__name__ == "SET_NULL":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             updatespec = {f"{model_relation.remote_field.column}": None}
@@ -207,15 +260,234 @@ def cascade_delete(base_model, from_model, instance_pk_query, level=0):
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
-            rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
-            LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+            with transaction.atomic():
+                set_constraints_immediate()
+                rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
+                LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
             LOG.info(f"    Cascading delete to relations of {related_model.__name__}")
-            cascade_delete(base_model, related_model, related_pk_values, level=level + 1)
+            cascade_delete(
+                related_model, related_pk_values, base_model=base_model, level=level + 1, skip_relations=skip_relations
+            )
 
-    filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
     LOG.info(f"Level {level}: delete records from {from_model.__name__}")
-    rec_count = execute_delete_sql(from_model.objects.filter(**filterspec))
-    LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+    if level == 0:
+        del_query = instance_pk_query
+    else:
+        filterspec = {f"{from_model._meta.pk.name}__in": models.Subquery(instance_pk_query)}
+        del_query = from_model.objects.filter(**filterspec)
+
+    with transaction.atomic():
+        set_constraints_immediate()
+        rec_count = execute_delete_sql(del_query)
+        LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+
+
+def _load_db_models():
+    """Initialize the global dict that will hold the table_name/model_name -> Model map"""
+    qualified_only = set()
+    for app, _models in django.apps.apps.all_models.items():
+        for lmodel_name, model in _models.items():
+            qualified_model_name = f"{app}.{lmodel_name}"
+            if lmodel_name in DB_MODELS:
+                qualified_only.add(lmodel_name)
+                del DB_MODELS[lmodel_name]
+
+            DB_MODELS[qualified_model_name] = model
+            DB_MODELS[model._meta.db_table] = model
+            if lmodel_name not in qualified_only:
+                DB_MODELS[lmodel_name] = model
+
+
+def get_model(model_or_table_name):
+    """Get a model class from the model name or table name"""
+    with DB_MODELS_LOCK:
+        if not DB_MODELS:
+            _load_db_models()
+    return DB_MODELS[model_or_table_name.lower()]
+
+
+def _count_fk_fields(model):
+    num_fk = 0
+    for f in model._meta.fields:
+        num_fk += int(isinstance(f, ForeignKey))
+    return num_fk
+
+
+def p_table_sql(self, model):
+    # Use default model class for the original django SQL generation
+    sql, params = self.o_table_sql(model)
+
+    # Based on model name match, get the defined model from the app
+    # For some reason, this differs from the model class passed into this method
+    # from the django migration processing
+    if model.__name__ in PARTITIONED_MODEL_NAMES:
+        pmodel = get_model(model.__name__)
+    else:
+        pmodel = None
+
+    # If there was a partition name match and the class has the required attribute,
+    # use this information to add the partition clause to the create table sql
+    # Otherwise, return the original sql and params
+    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+        LOG.info(f"*** Creating PARTITIONED TABLE {pmodel._meta.db_table}")
+        partition_cols = pmodel.PartitionInfo.partition_cols
+        sparams = {
+            "partition_type": pmodel.PartitionInfo.partition_type.upper(),
+            "partition_cols": ", ".join(f'"{c}"' for c in partition_cols),
+        }
+
+        # The primary key will be overridden here
+        # Partitioned tables require that the partition column(s) be part of the primary key
+        p_sql = self.sql_partitioned_table % sparams
+        sql = sql.replace("PRIMARY KEY", "") + p_sql
+
+        pk_cols = partition_cols[:]
+        try:
+            mod_pk = pmodel._meta.pk.get_attname()
+        except Exception:
+            pass
+        else:
+            pk_cols.append(mod_pk)
+
+        sparams = {
+            "table_name": f'"{pmodel._meta.db_table}"',
+            "constraint_name": f'"{pmodel._meta.db_table}_pk"',
+            "constraint_cols": ", ".join(f'"{c}"' for c in pk_cols),
+        }
+        pk_constraint = self.sql_partitioned_pk % sparams
+
+        num_fk = _count_fk_fields(pmodel)
+        if num_fk:
+            self.deferred_sql.insert(-num_fk - 1, pk_constraint)
+        else:
+            self.deferred_sql.append(pk_constraint)
+
+        # Add a deferred sql statement to create the default partition
+        sparams = {
+            "default_partition_name": f"{pmodel._meta.db_table}_default",
+            "partitioned_table_name": pmodel._meta.db_table,
+            "partition_type": pmodel.PartitionInfo.partition_type.lower(),
+            "partition_col": ",".join(partition_cols),
+            "partition_parameters": '{"default": true}',
+        }
+        with self.connection.cursor() as cur:
+            self.deferred_sql.append(cur.mogrify(self.sql_partition_default, sparams).decode("utf-8"))
+    else:
+        LOG.info(f"Creating TABLE {model._meta.db_table}")
+
+    return sql, params
+
+
+def p_delete_model(self, model):
+    if model.__name__ in PARTITIONED_MODEL_NAMES:
+        pmodel = get_model(model.__name__)
+    else:
+        pmodel = None
+
+    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+        sparams = {"partitioned_table_name": pmodel._meta.db_table}
+        with self.connection.cursor() as cur:
+            drop_partitions_sql = cur.mogrify(self.sql_drop_partitions, sparams).decode("utf-8")
+        self.execute(drop_partitions_sql)
+
+    self.o_delete_model(model)
+
+
+def set_partitioned_schema_editor(schema_editor):
+    """
+    Add attributes and override method of given schema_editor to allow partition table sql statements
+    to be emitted.
+    """
+    # Add SQL templates, if not already present
+    if not hasattr(schema_editor, "sql_partitioned_table"):
+        setattr(schema_editor, "sql_partitioned_table", " PARTITION BY %(partition_type)s (%(partition_cols)s) ")
+
+    if not hasattr(schema_editor, "sql_partitioned_pk"):
+        setattr(
+            schema_editor,
+            "sql_partitioned_pk",
+            "ALTER TABLE %(table_name)s ADD CONSTRAINT %(constraint_name)s PRIMARY KEY (%(constraint_cols)s)",
+        )
+
+    # Special sql template to be added to the deferred sql to create the default partition
+    # This REQUIRES that the partitioned_tables table is present as well as the trigger and trigger
+    # function exists for partition management via this tracking table.
+    if not hasattr(schema_editor, "sql_partition_default"):
+        default_partition_sql = """
+INSERT INTO partitioned_tables (
+    schema_name,
+    table_name,
+    partition_of_table_name,
+    partition_type,
+    partition_col,
+    partition_parameters,
+    active
+)
+VALUES
+(
+    current_schema,
+    %(default_partition_name)s,
+    %(partitioned_table_name)s,
+    %(partition_type)s,
+    %(partition_col)s,
+    %(partition_parameters)s::jsonb,
+    true
+)
+"""
+        setattr(schema_editor, "sql_partition_default", default_partition_sql)
+
+    # Template to drop partitions by using the partition manager trigger function set
+    # on the table
+    if not hasattr(schema_editor, "sql_drop_partitions"):
+        drop_partitions_sql = """
+DELETE
+  FROM partitioned_tables
+ WHERE schema_name = current_schema
+   AND partition_of_table_name = %(partitioned_table_name)s
+"""
+        setattr(schema_editor, "sql_drop_partitions", drop_partitions_sql)
+
+    # Backup original method to emit create table sql and replace with the new method
+    if not hasattr(schema_editor, "o_table_sql"):
+        setattr(schema_editor, "o_table_sql", schema_editor.table_sql)
+        setattr(schema_editor, "table_sql", types.MethodType(p_table_sql, schema_editor))
+
+    if not hasattr(schema_editor, "o_delete_model"):
+        setattr(schema_editor, "o_delete_model", schema_editor.delete_model)
+        setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
+
+
+def set_partition_mode(apps, schema_editor):
+    set_partitioned_schema_editor(schema_editor)
+
+
+def unset_partitioned_schema_editor(schema_editor):
+    # Delete partition template attributes, if present
+    if not hasattr(schema_editor, "sql_partitioned_table"):
+        delattr(schema_editor, "sql_partitioned_table")
+
+    if not hasattr(schema_editor, "sql_partitioned_pk"):
+        delattr(schema_editor, "sql_partitioned_pk")
+
+    if not hasattr(schema_editor, "sql_partition_default"):
+        delattr(schema_editor, "sql_partition_default")
+
+    if not hasattr(schema_editor, "sql_drop_partitions"):
+        delattr(schema_editor, "sql_drop_partitions")
+
+    # Restore original functionality for create table sql emit
+    if not hasattr(schema_editor, "o_table_sql"):
+        setattr(schema_editor, "table_sql", schema_editor.o_table_sql)
+        delattr(schema_editor, "o_table_sql")
+
+    # Restore original functionality for delete_model method
+    if not hasattr(schema_editor, "o_delete_model"):
+        setattr(schema_editor, "table_sql", schema_editor.o_delete_model)
+        delattr(schema_editor, "o_delete_model")
+
+
+def unset_partition_mode(apps, schema_editor):
+    unset_partitioned_schema_editor(schema_editor)

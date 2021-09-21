@@ -108,11 +108,17 @@ class AWSCostEntryLineItem(models.Model):
 
     id = models.BigAutoField(primary_key=True)
 
-    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE)
-    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey("AWSCostEntryProduct", on_delete=models.SET_NULL, null=True)
-    cost_entry_pricing = models.ForeignKey("AWSCostEntryPricing", on_delete=models.SET_NULL, null=True)
-    cost_entry_reservation = models.ForeignKey("AWSCostEntryReservation", on_delete=models.SET_NULL, null=True)
+    cost_entry = models.ForeignKey("AWSCostEntry", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, db_constraint=False)
+    cost_entry_product = models.ForeignKey(
+        "AWSCostEntryProduct", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_pricing = models.ForeignKey(
+        "AWSCostEntryPricing", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
+    cost_entry_reservation = models.ForeignKey(
+        "AWSCostEntryReservation", on_delete=models.SET_NULL, null=True, db_constraint=False
+    )
 
     tags = JSONField(null=True)
 
@@ -207,11 +213,14 @@ class AWSCostEntryLineItemDailySummary(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for AWSCostEntryLineItemDailySummary."""
 
         db_table = "reporting_awscostentrylineitem_daily_summary"
-        managed = False
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_usage_start_idx"),

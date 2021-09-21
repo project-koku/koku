@@ -186,6 +186,17 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
+    @override_settings(ENABLE_S3_ARCHIVING=True, S3_MINIO_IN_USE=True)
+    def test_delete_archived_data_minio(self):
+        """Test that delete_archived_data correctly interacts with AWS S3."""
+        schema_name = "acct10001"
+        provider_type = Provider.PROVIDER_AWS
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
+            self.assertIn("Skipping delete_archived_data. MinIO in use.", captured_logs.output[0])
+
     @patch("masu.celery.tasks.Config")
     @patch("masu.external.date_accessor.DateAccessor.get_billing_months")
     def test_clean_volume(self, mock_date, mock_config):
@@ -268,12 +279,37 @@ class TestCeleryTasks(MasuTestCase):
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.celery_app")
-    @patch("masu.celery.tasks.push_to_gateway")
-    def test_collect_queue_len(self, mock_celery_app, mock_push):
+    def test_collect_queue_len(self, mock_celery_app):
         """Test that the collect queue len function runs correctly."""
         mock_celery_app.pool.acquire(block=True).default_channel.client.llen.return_value = 2
-        mock_push.return_value = True
-        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+        with self.assertLogs("masu.celery.tasks", "DEBUG") as captured_logs:
             tasks.collect_queue_metrics()
             expected_log_msg = "Celery queue backlog info: "
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_delete_provider_async_not_found(self):
+        """Test that delete_provider_async does not raise unhandled error on missing Provider."""
+        provider_uuid = "00000000-0000-0000-0000-000000000001"
+        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+            tasks.delete_provider_async("fake name", provider_uuid, "fake_schema")
+            expected_log_msg = "does not exist"
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_out_of_order_source_delete_async_not_found(self):
+        """Test that out_of_order_source_delete_async does not raise unhandled error or missing Source."""
+        source_id = 0
+        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+            tasks.out_of_order_source_delete_async(source_id)
+            expected_log_msg = "does not exist"
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+    def test_missing_source_delete_async_not_found(self):
+        """Test that missing_source_delete_async does not raise unhandled error on missing Source."""
+        source_id = 0
+        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+            tasks.missing_source_delete_async(source_id)
+            expected_log_msg = "does not exist"
             self.assertIn(expected_log_msg, captured_logs.output[0])
