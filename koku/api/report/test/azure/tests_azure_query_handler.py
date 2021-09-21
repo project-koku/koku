@@ -667,8 +667,18 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
+        with tenant_context(self.tenant):
+            tag_count = (
+                AzureCostEntryLineItemDailySummary.objects.filter(
+                    resource_location=location, usage_start__gte=self.dh.this_month_start
+                )
+                .values(handler._mapper.tag_column)
+                .distinct()
+                .count()
+            )
+
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), 1)
+        self.assertEqual(len(data), tag_count)
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)

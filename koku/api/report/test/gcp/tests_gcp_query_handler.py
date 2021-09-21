@@ -575,8 +575,16 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
+        with tenant_context(self.tenant):
+            tag_count = (
+                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values(handler._mapper.tag_column)
+                .distinct()
+                .count()
+            )
+
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), 1)
+        self.assertEqual(len(data), tag_count)
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
@@ -601,7 +609,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
         with tenant_context(self.tenant):
-            tag_count = GCPCostEntryLineItemDailySummary.objects.values(handler._mapper.tag_column).distinct().count()
+            tag_count = (
+                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
+                .values(handler._mapper.tag_column)
+                .distinct()
+                .count()
+            )
 
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         self.assertEqual(len(data), tag_count)
