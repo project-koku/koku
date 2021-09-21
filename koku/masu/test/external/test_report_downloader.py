@@ -140,7 +140,7 @@ class ReportDownloaderTest(MasuTestCase):
     @patch("masu.external.report_downloader.ReportDownloader._set_downloader", side_effect=ReportDownloaderWarning)
     def test_init_with_downloader_warning(self, mock_downloader_init):
         """Assert ReportDownloaderWarning is raised when _set_downloader raises a ReportDownloaderWarning."""
-        with self.assertRaises(ReportDownloaderError):
+        with self.assertRaises(ReportDownloaderWarning):
             self.create_downloader(Provider.PROVIDER_GCP)
         mock_downloader_init.assert_called()
 
