@@ -32,7 +32,7 @@ def migrate_presto(apps, schema_editor):
         if check_schema(schema_editor.connection.schema_name, presto_cur):
             for table_name in table_names:
                 try:
-                    LOG.info(f"Creating column {column_name} in {table_name}.")
+                    LOG.info(f"Dropping table {table_name} from {schema_editor.connection.schema_name}.")
                     presto_cur.execute(f"""
                         DROP TABLE IF EXISTS "{table_name}";
                     """, None)
