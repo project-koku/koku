@@ -21,6 +21,7 @@ from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownload
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -66,6 +67,8 @@ class ReportDownloader:
 
         try:
             self._downloader = self._set_downloader()
+        except ReportDownloaderWarning as err:
+            raise ReportDownloaderWarning(str(err))
         except Exception as err:
             raise ReportDownloaderError(str(err))
 
