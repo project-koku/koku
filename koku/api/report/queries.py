@@ -392,7 +392,7 @@ class ReportQueryHandler(QueryHandler):
         if self.is_csv_output:
             add_tags = True
             for entry in group_by:
-                if "tag" in entry:
+                if self._mapper.tag_column in entry:
                     # There is already a specific tag group_by
                     add_tags = False
             if add_tags:
