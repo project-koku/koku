@@ -175,7 +175,7 @@ class CostModelDBAccessor(KokuDBAccess):
             tag_key = tag.get("tag_key")
             default_rate = 0
             for tag_rate in tag.get("tag_values"):
-                rate_value = tag_rate.get("value")
+                rate_value = float(tag_rate.get("value"))
                 unit = tag_rate.get("unit")
                 default = tag_rate.get("default")
                 if default:
