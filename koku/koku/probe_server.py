@@ -47,6 +47,7 @@ class ProbeServer(ABC, MetricsHandler):
     """HTTP server for liveness/readiness probes."""
 
     logger = LOG
+    log_level = None
     ready = False
     registry = WORKER_REGISTRY
 
