@@ -79,7 +79,8 @@ class ProbeServer(ABC, MetricsHandler):
 
     def log_message(self, format, *args):
         """Basic log message."""
-        self.logger.log(self.log_level, "%s", format % args)
+        log_level = self.log_level or logging.WARNING
+        self.logger.log(log_level, "%s", format % args)
 
     def default_response(self):
         """Set the default response."""
