@@ -6,16 +6,16 @@
 # flake8: noqa
 from reporting.currency.models import CurrencySettings
 from reporting.partition.models import PartitionedTable
-from reporting.provider.all.openshift.models import OCPAllComputeSummary
-from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummary
-from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummary
-from reporting.provider.all.openshift.models import OCPAllCostSummary
-from reporting.provider.all.openshift.models import OCPAllCostSummaryByAccount
-from reporting.provider.all.openshift.models import OCPAllCostSummaryByRegion
-from reporting.provider.all.openshift.models import OCPAllCostSummaryByService
-from reporting.provider.all.openshift.models import OCPAllDatabaseSummary
-from reporting.provider.all.openshift.models import OCPAllNetworkSummary
-from reporting.provider.all.openshift.models import OCPAllStorageSummary
+from reporting.provider.all.openshift.models import OCPAllComputeSummaryP
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.all.openshift.models import OCPAllCostLineItemProjectDailySummaryP
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByAccountP
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByRegionP
+from reporting.provider.all.openshift.models import OCPAllCostSummaryByServiceP
+from reporting.provider.all.openshift.models import OCPAllCostSummaryP
+from reporting.provider.all.openshift.models import OCPAllDatabaseSummaryP
+from reporting.provider.all.openshift.models import OCPAllNetworkSummaryP
+from reporting.provider.all.openshift.models import OCPAllStorageSummaryP
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSComputeSummary
 from reporting.provider.aws.models import AWSComputeSummaryByAccount
@@ -183,16 +183,14 @@ OCP_ON_AZURE_MATERIALIZED_VIEWS = (
 )
 
 OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
-    # OCPAllCostLineItemDailySummary,
-    # OCPAllCostSummary,
-    # OCPAllCostSummaryByAccount,
-    # OCPAllCostSummaryByService,
-    # OCPAllCostSummaryByRegion,
-    # OCPAllComputeSummary,
-    # OCPAllDatabaseSummary,
-    # OCPAllNetworkSummary,
-    # OCPAllStorageSummary,
-    # OCPAllCostLineItemProjectDailySummary,
+    OCPAllCostSummaryP,
+    OCPAllCostSummaryByAccountP,
+    OCPAllCostSummaryByServiceP,
+    OCPAllCostSummaryByRegionP,
+    OCPAllComputeSummaryP,
+    OCPAllDatabaseSummaryP,
+    OCPAllNetworkSummaryP,
+    OCPAllStorageSummaryP,
     OCPCostSummary,
     OCPCostSummaryByProject,
     OCPCostSummaryByNode,

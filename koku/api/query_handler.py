@@ -229,6 +229,9 @@ class QueryHandler:
                 # get current month
                 start = self.dh.this_month_start
                 end = self.dh.today
+            elif time_scope_value == -3:
+                start = self.dh.relative_month_start(-2)
+                end = self.dh.month_end(start)
             else:
                 # get previous month
                 start = self.dh.last_month_start
@@ -237,6 +240,9 @@ class QueryHandler:
             if time_scope_value == -10:
                 # get last 10 days
                 start = self.dh.n_days_ago(self.dh.this_hour, 9)
+                end = self.dh.this_hour
+            elif time_scope_value == -90:
+                start = self.dh.n_days_ago(self.dh.this_hour, 89)
                 end = self.dh.this_hour
             else:
                 # get last 30 days
@@ -259,10 +265,10 @@ class QueryHandler:
 
     def _get_date_delta(self):
         """Return a time delta."""
-        if self.time_scope_value in [-1, -2]:
+        if self.time_scope_value in [-1, -2, -3]:
             date_delta = relativedelta.relativedelta(months=abs(self.time_scope_value))
-        elif self.time_scope_value == -30:
-            date_delta = datetime.timedelta(days=30)
+        elif self.time_scope_value in (-90, -30, -10):
+            date_delta = datetime.timedelta(days=abs(self.time_scope_value))
         else:
             date_delta = datetime.timedelta(days=10)
         return date_delta
