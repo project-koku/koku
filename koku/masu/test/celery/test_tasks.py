@@ -123,6 +123,11 @@ class TestCeleryTasks(MasuTestCase):
         tasks.sync_data_to_customer(data_export_object.uuid)
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
 
+    # Used for debugging to look at variables
+    def test_do_nothing(self):
+
+        self.assertIsNotNone(tasks.do_nothing(self))
+
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
         """Test that delete_archived_data raises an exception when given bad inputs."""
