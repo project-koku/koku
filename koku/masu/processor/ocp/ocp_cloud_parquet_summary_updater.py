@@ -43,11 +43,16 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             )
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
-            # self._handle_partitions(
-            #     ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
-            #     start_date,
-            #     end_date,
-            # )
+            self._handle_partitions(
+                (
+                    "reporting_ocpawscostlineitem_daily_summary",
+                    "reporting_ocpawscostlineitem_project_daily_summary",
+                    "reporting_ocpallcostlineitem_daily_summary_p",
+                    "reporting_ocpallcostlineitem_project_daily_summary_p",
+                ),
+                start_date,
+                end_date,
+            )
 
             aws_bill_ids = [str(bill.id) for bill in aws_bills]
             current_aws_bill_id = aws_bills.first().id if aws_bills else None
@@ -91,7 +96,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
                 sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
@@ -111,14 +115,16 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             )
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
-            # self._handle_partitions(
-            #     (
-            #         "reporting_ocpazurecostlineitem_daily_summary",
-            #         "reporting_ocpazurecostlineitem_project_daily_summary",
-            #     ),
-            #     start_date,
-            #     end_date,
-            # )
+            self._handle_partitions(
+                (
+                    "reporting_ocpazurecostlineitem_daily_summary",
+                    "reporting_ocpazurecostlineitem_project_daily_summary",
+                    "reporting_ocpallcostlineitem_daily_summary_p",
+                    "reporting_ocpallcostlineitem_project_daily_summary_p",
+                ),
+                start_date,
+                end_date,
+            )
 
             azure_bill_ids = [str(bill.id) for bill in azure_bills]
             current_azure_bill_id = azure_bills.first().id if azure_bills else None
@@ -162,7 +168,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                self._handle_partitions("reporting_ocpallcostlineitem_daily_summary", start_date, end_date)
                 sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
