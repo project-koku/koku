@@ -63,7 +63,6 @@ class ProbeServer(ABC, MetricsHandler):
 
     def _write_response(self, response):
         """Write the response to the client."""
-        self._set_log_level(response.status_code)
         self._set_headers(response.status_code)
         self.wfile.write(response.json.encode("utf-8"))
 
@@ -82,6 +81,11 @@ class ProbeServer(ABC, MetricsHandler):
         """Basic log message."""
         log_level = self.log_level or logging.WARNING
         self.logger.log(log_level, "%s", format % args)
+
+    def send_response(self, code, message=None):
+        """Send the response."""
+        self._set_log_level(code)
+        super().send_response(code, message)
 
     def default_response(self):
         """Set the default response."""
