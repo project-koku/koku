@@ -217,7 +217,6 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 accessor.populate_ocp_on_azure_cost_daily_summary(start, end, cluster_id, azure_bill_ids, markup_value)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
 
-        LOG.critical("*******************  OCP-ON-Azure  ************************")
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
             sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
             ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
