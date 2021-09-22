@@ -9,6 +9,7 @@ import os
 from datetime import datetime
 from datetime import timedelta
 
+import requests
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
@@ -275,6 +276,42 @@ def clean_volume():
     LOG.info("Removing all files older than %s", expiration_date)
     LOG.info("The following files were too new to delete: %s", retain_files)
     LOG.info("The following files were deleted: %s", deleted_files)
+
+
+@celery_app.task(name="masu.celery.tasks.do_nothing", queue=DEFAULT)
+def do_nothing(self):
+
+    conversionRates = {}
+    # List of the 15 supported currencies
+    currencyList = [
+        "USD",
+        "AUD",
+        "CAD",
+        "CHF",
+        "CNY",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "NZD",
+        "SEK",
+        "sgd",
+        "ZAR",
+    ]
+    endpoint = "http://api.exchangeratesapi.io/v1/latest?"
+    access_key = "your access key"
+
+    url = endpoint + access_key
+    response = requests.get(url)
+    json_result = response.json()
+    # stores the output of the json response
+    dictOfRates = json_result.get("rates")
+    # grabs all the rates, for this hit the base is GBP or EUR, you can not change it on the free version
+    for value in currencyList:
+        conversionRates[value] = dictOfRates[value]
+    return conversionRates
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
