@@ -346,6 +346,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # During the initial upload we want the export time to be the
                 # day of the previous month
         self.big_query_export_time = last_export_time
+        new_export_time = last_export_time
         # Update the manifest
         client = bigquery.Client()
         export_query = f"""
