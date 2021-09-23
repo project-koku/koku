@@ -313,7 +313,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if start == end:
                 continue
             end = end + relativedelta(days=1)
-            # Instead of using the etag maybe we can use the export time
             relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
 
