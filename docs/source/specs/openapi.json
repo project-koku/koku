@@ -8299,6 +8299,13 @@
                             "django_filters": "1.0.4",
                             "http.server": "0.6"
                         }
+                    },
+                    "config": {
+                        "type": "object",
+                        "example": {
+                            "debug": true,
+                            "account_access_type": "db"
+                        }
                     }
                 }
             },
