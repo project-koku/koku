@@ -2282,6 +2282,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             if sql_stmt:
                 sql_stmt, params = self.jinja_sql.prepare_query(sql_stmt, sql_params)
                 with connection.cursor() as cur:
+                    LOG.debug(cur.mogrify(sql_stmt, params).decode("utf-8"))
                     cur.execute(sql_stmt, params)
 
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
