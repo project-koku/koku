@@ -210,7 +210,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def update_export_time_for_manifest(self, key, new_export_time):
         """Given a file name update the export time for the manifest."""
         record = CostUsageReportStatus.objects.filter(report_name=key).first()
-        manifest_id = record.manifest_id
-        manifest = self.get_manifest_by_id(manifest_id)
-        manifest.export_time = new_export_time
-        manifest.save()
+        if record:
+            manifest_id = record.manifest_id
+            manifest = self.get_manifest_by_id(manifest_id)
+            manifest.export_time = new_export_time
+            manifest.save()
