@@ -9,6 +9,7 @@ import hashlib
 import logging
 import os
 
+import ciso8601
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -154,6 +155,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.tracing_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+        self.big_query_export_time = None
 
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
@@ -242,8 +244,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        end_of_month = start_date + relativedelta(months=1)
-
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
                 self._provider_uuid, start_date
@@ -253,6 +253,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
+            end_of_month = start_date + relativedelta(months=1)
             if isinstance(end_of_month, datetime.datetime):
                 end_of_month = end_of_month.date()
             if end_of_month < self.scan_end:
@@ -278,11 +279,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Generate an assembly ID for use in manifests.
 
         The assembly id is a unique identifier to ensure we don't needlessly
-        re-fetch data with BigQuery because it cost the costomer money.
+        re-fetch data with BigQuery because it cost us money.
         We use BigQuery to collect the last modified date of the table and md5
         hash it.
             Format: {provider_id}:(etag}:{invoice_month}
-            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:1"
+            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:202109"
 
         Returns:
             str unique to this provider and GCP table and last modified date
@@ -312,6 +313,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if start == end:
                 continue
             end = end + relativedelta(days=1)
+            # Instead of using the etag maybe we can use the export time
             relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
 
@@ -333,6 +335,32 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
+    def _get_export_time_for_big_query(self, scan_start, scan_end, key):
+        """
+        Logic to set export_time in the manifest.
+        """
+        bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
+            if not last_export_time:
+                last_export_time = bill_start - relativedelta(days=1)
+                # During the initial upload we want the export time to be the
+                # day of the previous month
+        self.big_query_export_time = last_export_time
+        # Update the manifest
+        client = bigquery.Client()
+        export_query = f"""
+        SELECT max(export_time) FROM {self.table_name}
+        WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+        AND DATE(_PARTITIONTIME) < '{scan_end}'
+        """
+        eq_result = client.query(export_query).result()
+        for row in eq_result:
+            new_export_time = row[0]
+            break
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_accessor.update_export_time_for_manifest(key, new_export_time)
+
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
@@ -352,11 +380,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             filename = os.path.splitext(key)[0]
             date_range = filename.split("_")[-1]
             scan_start, scan_end = date_range.split(":")
+            self._get_export_time_for_big_query(scan_start, scan_end, key)
             query = f"""
             SELECT {self.build_query_select_statement()}
             FROM {self.table_name}
             WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
             AND DATE(_PARTITIONTIME) < '{scan_end}'
+            AND export_time >= '{self.big_query_export_time}'
             """
             client = bigquery.Client()
             LOG.info(f"{query}")

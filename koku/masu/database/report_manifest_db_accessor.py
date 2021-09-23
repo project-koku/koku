@@ -6,6 +6,7 @@
 import logging
 
 from django.db.models import F
+from django.db.models import Max
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import schema_context
@@ -198,3 +199,18 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()
+
+    def get_max_export_time_for_manifests(self, provider_uuid, bill_date):
+        """Return the max export time for manifests given provider and bill date."""
+        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        manifests = CostUsageReportManifest.objects.filter(**filters).all()
+        max_export = manifests.aggregate(Max("export_time"))
+        return max_export.get("export_time__max")
+
+    def update_export_time_for_manifest(self, key, new_export_time):
+        """Given a file name update the export time for the manifest."""
+        record = CostUsageReportStatus.objects.filter(report_name=key).first()
+        manifest_id = record.manifest_id
+        manifest = self.get_manifest_by_id(manifest_id)
+        manifest.export_time = new_export_time
+        manifest.save()
