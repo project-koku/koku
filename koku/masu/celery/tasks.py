@@ -278,8 +278,8 @@ def clean_volume():
     LOG.info("The following files were deleted: %s", deleted_files)
 
 
-@celery_app.task(name="masu.celery.tasks.do_nothing", queue=DEFAULT)
-def do_nothing(self):
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates(self):
 
     conversionRates = {}
     # List of the 15 supported currencies
@@ -297,7 +297,7 @@ def do_nothing(self):
         "NOK",
         "NZD",
         "SEK",
-        "sgd",
+        "SGD",
         "ZAR",
     ]
     endpoint = "http://api.exchangeratesapi.io/v1/latest?"
@@ -308,10 +308,29 @@ def do_nothing(self):
     json_result = response.json()
     # stores the output of the json response
     dictOfRates = json_result.get("rates")
+    stringOfCurrencyLists = ",".join(currencyList)
     # grabs all the rates, for this hit the base is GBP or EUR, you can not change it on the free version
-    for value in currencyList:
-        conversionRates[value] = dictOfRates[value]
-    return conversionRates
+    # the symbols, would just return a dict with a range of all 15 supported currency
+    # the base is the base currency
+    # Does this need to be a dict or JSON response
+    for currency in currencyList:
+        for value in currencyList:
+            #
+            url = endpoint + access_key + "&base=" + value + "&symbols=" + stringOfCurrencyLists
+            LOG.info("endpoint getting hit..")
+            response = requests.get(url)
+            if response.status_code == 200:
+                LOG.info("Endpoint is up")
+                json_result = response.json()
+                dictOfRates = json_result.get("rates")
+                conversionRates[value] = dictOfRates[value]
+                # Store results in database with the main base value attached.
+                return conversionRates
+            else:
+                LOG.warning(f"Endpoint is down error {response.status_code}")
+                return
+
+            # store value in database here with the currency value
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)

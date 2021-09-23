@@ -125,8 +125,11 @@ class TestCeleryTasks(MasuTestCase):
 
     # Used for debugging to look at variables
     def test_do_nothing(self):
-
-        self.assertIsNotNone(tasks.do_nothing(self))
+        # reads the logs to make sure the endpoint was git
+        with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
+            tasks.get_daily_currency_rates(self)
+            self.assertIn("Endpoint is down 400", captured_logs.output[0])
+        # self.assertIsNotNone(tasks.do_nothing(self))
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
