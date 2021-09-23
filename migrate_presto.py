@@ -1,8 +1,16 @@
 import logging
+import os
 
 import prestodb
 
 LOG = logging.getLogger(__name__)
+PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
+PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
+PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
+try:
+    PRESTO_PORT = int(os.environ.get("PRESTO_PORT", "8080"))
+except ValueError:
+    PRESTO_PORT = 8080
 
 
 def check_schema(schema, presto_cursor):
@@ -30,28 +38,29 @@ def get_schemas(presto_cursor):
 table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
 presto_conn = False
 try:
-    presto_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
+    presto_conn = prestodb.dbapi.connect(
+        host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
+    )
     presto_cur = presto_conn.cursor()
     schemas = get_schemas(presto_cur)
     presto_conn.close()
     for schema in schemas:
-        presto_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
+        presto_conn = prestodb.dbapi.connect(
+            host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema=schema
+        )
         presto_cur = presto_conn.cursor()
         if check_schema(schema, presto_cur):
             for table_name in table_names:
                 try:
-                    print(f"Dropping table {table_name} from {schema}.")
+                    LOG.info(f"Dropping table {table_name} from {schema}.")
                     presto_cur.execute(
                         f"""
                         DROP TABLE IF EXISTS {table_name}
                     """,
                         None,
                     )
-                    print("Success")
-                    result = presto_cur.fetchall()
-                    print(result)
                 except Exception as e:
-                    print(e)
+                    LOG.info(e)
 finally:
     if presto_conn:
         presto_conn.close()
