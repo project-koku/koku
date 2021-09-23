@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Data Driven Component Generation for Tag Management Settings."""
+import logging
+
 from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.serializers import ValidationError
@@ -19,6 +21,7 @@ from api.settings.utils import create_subform
 from api.settings.utils import generate_doc_link
 from api.settings.utils import get_currency_options
 from api.settings.utils import get_selected_currency_or_setup
+from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
@@ -35,6 +38,7 @@ from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
 from reporting.models import OCPEnabledTagKeys
 
+LOG = logging.getLogger(__name__)
 
 obtainTagKeysProvidersParams = {
     "openshift": {
@@ -127,7 +131,6 @@ class Settings:
         """
         Generate cost management form component
         """
-
         tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
         enable_tags_title = create_plain_text(tag_key_text_name, "Enable tags and labels", "h2")
         tag_key_text_context = (
@@ -175,7 +178,7 @@ class Settings:
 
         # currency settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT:
-            currency_select_name = f'{"api.settings.openshift.title"}'
+            currency_select_name = f'{"api.settings.currency"}'
             currency_text_context = "Select the preferred currency to view Cost Information in."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
             currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
@@ -230,6 +233,7 @@ class Settings:
                 updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
             else:
                 remove_tags = []
+
                 with schema_context(self.schema):
                     existing_enabled_tags = enabled_tag_keys.objects.all()
                     for existing_tag in existing_enabled_tags:
@@ -250,12 +254,13 @@ class Settings:
         return any(updated)
 
     def _currency_handler(self, settings):
+        currency = settings
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:
             LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
-        if currency is None or stored_currency == settings:
+        if currency is None or stored_currency == currency:
             return False
 
         try:
@@ -290,6 +295,6 @@ class Settings:
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
 
         if self._currency_handler(currency_settings) and self._tag_key_handler(tg_mgmt_settings):
-            return true
+            return True
 
-        return false
+        return False
