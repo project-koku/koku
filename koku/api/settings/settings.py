@@ -189,16 +189,20 @@ class Settings:
             }
             currency = create_select(currency_select_name, **currency_options)
 
-        sub_form_name = f"{SETTINGS_PREFIX}.tag_managment.subform"
+            sub_form_fields = [
+                currency_title,
+                currency_select_text,
+                currency,
+                enable_tags_title,
+                tag_key_text,
+                tags_and_labels,
+            ]
+
+        else:
+            sub_form_fields = [enable_tags_title, tag_key_text, tags_and_labels]
+
+        sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
-        sub_form_fields = [
-            currency_title,
-            currency_select_text,
-            currency,
-            enable_tags_title,
-            tag_key_text,
-            tags_and_labels,
-        ]
         sub_form = create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
         return sub_form
