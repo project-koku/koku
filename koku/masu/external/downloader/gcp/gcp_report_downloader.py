@@ -358,7 +358,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     export_query = f"""
                     SELECT max(export_time) FROM {self.table_name}
                     WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
-                    AND DATE(_PARTITIONTIME) < '{dh.today}'
+                    AND DATE(_PARTITIONTIME) < '{dh.today.date()}'
                     """
                     eq_result = client.query(export_query).result()
                     for row in eq_result:
