@@ -1996,6 +1996,11 @@ objects:
           - /bin/bash
           - -c
           - $HOME/scripts/run_aws_savings_plan_presto_migration.sh
+        env:
+          - name: PRESTO_HOST
+            value: ${PRESTO_HOST}
+          - name: PRESTO_PORT
+            value: ${PRESTO_PORT}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
