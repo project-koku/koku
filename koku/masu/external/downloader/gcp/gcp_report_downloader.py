@@ -350,11 +350,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 processed_files = manifest_accessor.number_of_files_processed(record.manifest_id)
                 if (total_files - 1) == processed_files:
                     client = bigquery.Client()
-                    # TODO: Put more thought into if the end parameter should be the
-                    # scan_end or today. If we do scan_end we have to think about
-                    # all the reports downloading in random order. Whereas today
-                    # is more of contant. Plus we only update on the last manifest
-                    # anyway.
                     export_query = f"""
                     SELECT max(export_time) FROM {self.table_name}
                     WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
