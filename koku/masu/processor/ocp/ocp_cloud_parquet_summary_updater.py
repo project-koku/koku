@@ -106,6 +106,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     "cluster_id": cluster_id,
                     "cluster_alias": cluster_alias,
                 }
+                LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
 
@@ -186,5 +187,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     "cluster_id": cluster_id,
                     "cluster_alias": cluster_alias,
                 }
+                LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
