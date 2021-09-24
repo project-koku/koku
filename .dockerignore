@@ -11,3 +11,4 @@
 !db_functions/
 !scripts/run_migrations.sh
 !scripts/run_aws_savings_plan_presto_migration.sh
+!scripts/migrate_presto.py

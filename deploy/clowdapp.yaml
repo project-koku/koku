@@ -1991,7 +1991,7 @@ objects:
     - name: savingsplan-clowd-job
       podSpec:
         name: savingsplan-hive
-        image: busybox
+        image: ${IMAGE}:${IMAGE_TAG}
         args:
           - /bin/bash
           - -c
