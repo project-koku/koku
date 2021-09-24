@@ -339,6 +339,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Logic to set export_time in the manifest.
         """
+        dh = DateHelper()
         bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
@@ -349,10 +350,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 processed_files = manifest_accessor.number_of_files_processed(record.manifest_id)
                 if (total_files - 1) == processed_files:
                     client = bigquery.Client()
+                    # TODO: Put more thought into if the end parameter should be the
+                    # scan_end or today. If we do scan_end we have to think about
+                    # all the reports downloading in random order. Whereas today
+                    # is more of contant. Plus we only update on the last manifest
+                    # anyway.
                     export_query = f"""
                     SELECT max(export_time) FROM {self.table_name}
                     WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
-                    AND DATE(_PARTITIONTIME) < '{scan_end}'
+                    AND DATE(_PARTITIONTIME) < '{dh.today}'
                     """
                     eq_result = client.query(export_query).result()
                     for row in eq_result:
