@@ -3,7 +3,7 @@ import os
 
 import prestodb
 
-LOG = logging.getLogger(__name__)
+logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
 PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
 PRESTO_CATALOG = os.environ.get("PRESTO_CATALOG", "hive")
@@ -16,7 +16,7 @@ except ValueError:
 def check_schema(schema, presto_cursor):
     schema_check_sql = f"SHOW SCHEMAS LIKE '{schema}'"
     schema = presto_cursor.execute(schema_check_sql, "default")
-    LOG.info("Checking for schema")
+    logging.info("Checking for schema")
     if schema:
         return True
     return False
@@ -37,12 +37,15 @@ def get_schemas(presto_cursor):
 
 table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
 presto_conn = False
+logging.info("Running the hive migration for aws savings plan")
 try:
     presto_conn = prestodb.dbapi.connect(
         host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
     )
     presto_cur = presto_conn.cursor()
     schemas = get_schemas(presto_cur)
+    logging.info("Running against the following schemas")
+    logging.info(schemas)
     presto_conn.close()
     for schema in schemas:
         presto_conn = prestodb.dbapi.connect(
@@ -52,7 +55,7 @@ try:
         if check_schema(schema, presto_cur):
             for table_name in table_names:
                 try:
-                    LOG.info(f"Dropping table {table_name} from {schema}.")
+                    logging.info(f"Dropping table {table_name} from {schema}.")
                     presto_cur.execute(
                         f"""
                         DROP TABLE IF EXISTS {table_name}
@@ -60,7 +63,7 @@ try:
                         None,
                     )
                 except Exception as e:
-                    LOG.info(e)
+                    logging.info(e)
 finally:
     if presto_conn:
         presto_conn.close()
