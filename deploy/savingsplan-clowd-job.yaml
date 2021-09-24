@@ -1,0 +1,9 @@
+---
+apiVersion: cloud.redhat.com/v1alpha1
+kind: ClowdJobInvocation
+metadata:
+  name: savingsplan-clowd-job
+spec:
+  appName: koku
+  jobs:
+    - curl

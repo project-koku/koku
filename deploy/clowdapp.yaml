@@ -1987,6 +1987,14 @@ objects:
     - sources-api
     testing:
       iqePlugin: cost-management
+  jobs:
+    - name: savingsplan-clowd-job
+      podSpec:
+        name: savingsplan-hive
+        image: busybox
+        args:
+        - /bin/sh
+        - ./run_aws_savings_plan_presto_migration.sh
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
