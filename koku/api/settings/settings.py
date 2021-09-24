@@ -218,6 +218,7 @@ class Settings:
             (Bool) - True, if a setting had an effect, False otherwise
         """
         updated = [False] * len(obtainTagKeysProvidersParams)
+
         for ix, providerName in enumerate(obtainTagKeysProvidersParams):
             provider_in_settings = settings.get(providerName)
             if provider_in_settings is None:
@@ -229,6 +230,7 @@ class Settings:
             provider = obtainTagKeysProvidersParams[providerName]["provider"]
             available, _ = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
             invalid_keys = [tag_key for tag_key in enabled_tags if tag_key not in available]
+
             if invalid_keys:
                 key = "settings"
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
@@ -237,7 +239,6 @@ class Settings:
                 updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
             else:
                 remove_tags = []
-
                 with schema_context(self.schema):
                     existing_enabled_tags = enabled_tag_keys.objects.all()
                     for existing_tag in existing_enabled_tags:
