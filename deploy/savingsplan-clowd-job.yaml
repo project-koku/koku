@@ -6,4 +6,4 @@ metadata:
 spec:
   appName: koku
   jobs:
-    - curl
+    - savingsplan-clowd-job
