@@ -32,6 +32,7 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -341,25 +342,25 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
-            if not last_export_time:
-                last_export_time = bill_start - relativedelta(days=1)
-                # During the initial upload we want the export time to be the
-                # day of the previous month
-        self.big_query_export_time = last_export_time
-        new_export_time = last_export_time
-        # Update the manifest
-        client = bigquery.Client()
-        export_query = f"""
-        SELECT max(export_time) FROM {self.table_name}
-        WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-        AND DATE(_PARTITIONTIME) < '{scan_end}'
-        """
-        eq_result = client.query(export_query).result()
-        for row in eq_result:
-            new_export_time = row[0]
-            break
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_accessor.update_export_time_for_manifest(key, new_export_time)
+            record = CostUsageReportStatus.objects.filter(report_name=key).first()
+            if record:
+                manifest = manifest_accessor.get_manifest_by_id(record.manifest_id)
+                total_files = manifest.num_total_files
+                processed_files = manifest_accessor.number_of_files_processed(record.manifest_id)
+                if (total_files - 1) == processed_files:
+                    client = bigquery.Client()
+                    export_query = f"""
+                    SELECT max(export_time) FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
+                    AND DATE(_PARTITIONTIME) < '{scan_end}'
+                    """
+                    eq_result = client.query(export_query).result()
+                    for row in eq_result:
+                        new_export_time = row[0]
+                        break
+                    manifest.export_time = new_export_time
+                    manifest.save()
+        return last_export_time
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
@@ -380,14 +381,22 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             filename = os.path.splitext(key)[0]
             date_range = filename.split("_")[-1]
             scan_start, scan_end = date_range.split(":")
-            self._get_export_time_for_big_query(scan_start, scan_end, key)
-            query = f"""
-            SELECT {self.build_query_select_statement()}
-            FROM {self.table_name}
-            WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-            AND DATE(_PARTITIONTIME) < '{scan_end}'
-            AND export_time >= '{self.big_query_export_time}'
-            """
+            last_export_time = self._get_export_time_for_big_query(scan_start, scan_end, key)
+            if not last_export_time:
+                query = f"""
+                SELECT {self.build_query_select_statement()}
+                FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) < '{scan_end}'
+                """
+            else:
+                query = f"""
+                SELECT {self.build_query_select_statement()}
+                FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) < '{scan_end}'
+                AND export_time >= '{last_export_time}'
+                """
             client = bigquery.Client()
             LOG.info(f"{query}")
             query_job = client.query(query)
