@@ -217,39 +217,48 @@ class Settings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
+        tag_delimiter = "-"
         updated = [False] * len(obtainTagKeysProvidersParams)
 
-        for ix, providerName in enumerate(obtainTagKeysProvidersParams):
-            provider_in_settings = settings.get(providerName)
-            if provider_in_settings is None:
-                continue
-            enabled_tags = provider_in_settings.get("enabled", [])
-            tag_view = obtainTagKeysProvidersParams[providerName]["tag_view"]
-            query_handler = obtainTagKeysProvidersParams[providerName]["query_handler"]
-            enabled_tag_keys = obtainTagKeysProvidersParams[providerName]["enabled_tag_keys"]
-            provider = obtainTagKeysProvidersParams[providerName]["provider"]
+        for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
+            enabled_tags_no_abbr = []
+            tag_view = obtainTagKeysProvidersParams[provider_name]["tag_view"]
+            query_handler = obtainTagKeysProvidersParams[provider_name]["query_handler"]
+            enabled_tag_keys = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
+            provider = obtainTagKeysProvidersParams[provider_name]["provider"]
             available, _ = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
-            invalid_keys = [tag_key for tag_key in enabled_tags if tag_key not in available]
+
+            # build a list of enabled tags for a given provider, removing the provider name prefix
+            for enabled_tag in settings.get("enabled", []):
+                if enabled_tag.startswith(provider_name + tag_delimiter):
+                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter)[1])
+
+            invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
 
             if invalid_keys:
                 key = "settings"
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
-            if "aws" in providerName:
-                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags)
+
+            if "aws" in provider_name:
+                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
+
             else:
                 remove_tags = []
                 with schema_context(self.schema):
                     existing_enabled_tags = enabled_tag_keys.objects.all()
+
                     for existing_tag in existing_enabled_tags:
-                        if existing_tag.key in enabled_tags:
-                            enabled_tags.remove(existing_tag.key)
+                        if existing_tag.key in enabled_tags_no_abbr:
+                            enabled_tags_no_abbr.remove(existing_tag.key)
                         else:
                             remove_tags.append(existing_tag)
                             updated[ix] = True
+
                     for rm_tag in remove_tags:
                         rm_tag.delete()
-                    for new_tag in enabled_tags:
+
+                    for new_tag in enabled_tags_no_abbr:
                         enabled_tag_keys.objects.create(key=new_tag)
                         updated[ix] = True
 
@@ -299,7 +308,7 @@ class Settings:
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
 
-        if self._currency_handler(currency_settings) and self._tag_key_handler(tg_mgmt_settings):
+        if self._tag_key_handler(tg_mgmt_settings) and self._currency_handler(currency_settings):
             return True
 
         return False
