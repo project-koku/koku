@@ -206,12 +206,3 @@ class ReportManifestDBAccessor(KokuDBAccess):
         manifests = CostUsageReportManifest.objects.filter(**filters).all()
         max_export = manifests.aggregate(Max("export_time"))
         return max_export.get("export_time__max")
-
-    def update_export_time_for_manifest(self, key, new_export_time):
-        """Given a file name update the export time for the manifest."""
-        record = CostUsageReportStatus.objects.filter(report_name=key).first()
-        if record:
-            manifest_id = record.manifest_id
-            manifest = self.get_manifest_by_id(manifest_id)
-            manifest.export_time = new_export_time
-            manifest.save()
