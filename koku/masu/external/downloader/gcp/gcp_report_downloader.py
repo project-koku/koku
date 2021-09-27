@@ -38,7 +38,9 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, last_export_time, context={}
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -52,7 +54,11 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    download_hash = None
     daily_file_names = []
+    if last_export_time:
+        download_hash = hashlib.md5(str(last_export_time).encode())
+        download_hash = download_hash.hexdigest()
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
         dh = DateHelper()
         directory = os.path.dirname(filepath)
@@ -78,7 +84,10 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             for daily_data in daily_data_frames:
                 day = daily_data.get("date")
                 df = daily_data.get("data_frame")
-                day_file = f"{invoice_month}_{day}.csv"
+                if download_hash:
+                    day_file = f"{invoice_month}_{day}_{download_hash}.csv"
+                else:
+                    day_file = f"{invoice_month}_{day}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 df.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -339,7 +348,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Logic to set export_time in the manifest.
         """
-        dh = DateHelper()
+        today = DateAccessor().today().date()
         bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
@@ -353,7 +362,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     export_query = f"""
                     SELECT max(export_time) FROM {self.table_name}
                     WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
-                    AND DATE(_PARTITIONTIME) < '{dh.today.date()}'
+                    AND DATE(_PARTITIONTIME) < '{today}'
                     """
                     eq_result = client.query(export_query).result()
                     for row in eq_result:
@@ -448,6 +457,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             full_local_path,
             manifest_id,
             start_date,
+            last_export_time,
             self.context,
         )
 
