@@ -1988,9 +1988,9 @@ objects:
     testing:
       iqePlugin: cost-management
     jobs:
-    - name: savingsplan-clowd-job
+    - name: koku-script-runner-job
       podSpec:
-        name: savingsplan-hive
+        name: koku-script-runner
         image: ${IMAGE}:${IMAGE_TAG}
         args:
           - /bin/bash

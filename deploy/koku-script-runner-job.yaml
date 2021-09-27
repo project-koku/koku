@@ -2,8 +2,8 @@
 apiVersion: cloud.redhat.com/v1alpha1
 kind: ClowdJobInvocation
 metadata:
-  name: savingsplan-clowd-job
+  name: koku-script-runner-job
 spec:
   appName: koku
   jobs:
-    - savingsplan-clowd-job
+    - koku-script-runner-job
