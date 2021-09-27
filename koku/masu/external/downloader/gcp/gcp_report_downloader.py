@@ -268,6 +268,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 end_of_month = end_of_month.date()
             if end_of_month < self.scan_end:
                 self.scan_end = end_of_month
+            today = DateAccessor().today().date()
+            if today < end_of_month:
+                self.scan_end = today
 
         invoice_month = self.scan_start.strftime("%Y%m")
         bill_date = self.scan_start.replace(day=1)
@@ -348,7 +351,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Logic to set export_time in the manifest.
         """
-        today = DateAccessor().today().date()
+        today = DateAccessor().today().date() + relativedelta(days=1)
         bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
