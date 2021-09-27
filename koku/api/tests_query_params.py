@@ -720,7 +720,7 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+        with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(params.get_filter("account"), ["999999999"])
 
@@ -740,7 +740,7 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+        with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(params.get_filter("account"), ["999999999"])
 
@@ -765,7 +765,7 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects") as mock_object:
+        with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects") as mock_object:
             mock_object.filter.return_value.values_list.return_value.distinct.return_value = ["999999999"]
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(sorted(params.get_filter("account")), sorted(["999999999", str(guid)]))
@@ -813,7 +813,7 @@ class QueryParametersTests(TestCase):
             serializer=Mock,
             tag_handler=[],
         )
-        with patch("reporting.models.OCPAllCostLineItemDailySummary.objects", return_value=[]):
+        with patch("reporting.models.OCPAllCostLineItemDailySummaryP.objects", return_value=[]):
             params = QueryParameters(fake_request, fake_view)
             access_list = params._get_providers(Provider.OCP_ALL.lower())
             result = params._check_restrictions(access_list)
