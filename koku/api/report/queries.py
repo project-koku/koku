@@ -350,6 +350,15 @@ class ReportQueryHandler(QueryHandler):
         for filter_map in self._mapper._report_type_map.get("filter"):
             filters.add(**filter_map)
 
+        if self.query_table == self._mapper.query_table and "gcp/storage" in self.parameters.request.path:
+            filters.add(
+                **{
+                    "field": "service_alias",
+                    "operation": "in",
+                    "parameter": ["Filestore", "Storage", "Cloud Storage", "Data Transfer"],
+                }
+            )
+
         # define filter parameters using API query params.
         composed_filters = self._get_search_filter(filters)
 
