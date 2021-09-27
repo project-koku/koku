@@ -2,55 +2,79 @@ resources:
 - base/base.yaml
 
 patches:
-- path: patches/koku.yaml
+- path: patches/deployments/koku.yaml
   target:
     version: v1
     kind: Template
-- path: patches/listener.yaml
+- path: patches/deployments/listener.yaml
   target:
     version: v1
     kind: Template
-- path: patches/masu.yaml
+- path: patches/deployments/masu.yaml
   target:
     version: v1
     kind: Template
-- path: patches/scheduler.yaml
+- path: patches/deployments/scheduler.yaml
   target:
     version: v1
     kind: Template
-- path: patches/sources-client.yaml
+- path: patches/deployments/sources-client.yaml
   target:
     version: v1
     kind: Template
-- path: patches/sources-listener.yaml
+- path: patches/deployments/sources-listener.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-celery.yaml
+- path: patches/deployments/worker-celery.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-cost-model.yaml
+- path: patches/deployments/worker-cost-model.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-download.yaml
+- path: patches/deployments/worker-download.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-ocp.yaml
+- path: patches/deployments/worker-ocp.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-priority.yaml
+- path: patches/deployments/worker-priority.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-refresh.yaml
+- path: patches/deployments/worker-refresh.yaml
   target:
     version: v1
     kind: Template
-- path: patches/worker-summary.yaml
+- path: patches/deployments/worker-summary.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-celery.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-cost-model.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-download.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-ocp.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-refresh.yaml
+  target:
+    version: v1
+    kind: Template
+- path: patches/horizontalpodautoscalers/worker-summary.yaml
   target:
     version: v1
     kind: Template
