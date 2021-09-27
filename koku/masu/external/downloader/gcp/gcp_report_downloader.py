@@ -351,7 +351,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Logic to set export_time in the manifest.
         """
-        today = DateAccessor().today().date() + relativedelta(days=1)
+        tomorrow = DateAccessor().today().date() + relativedelta(days=1)
         bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
         with ReportManifestDBAccessor() as manifest_accessor:
             last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
@@ -365,7 +365,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     export_query = f"""
                     SELECT max(export_time) FROM {self.table_name}
                     WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
-                    AND DATE(_PARTITIONTIME) < '{today}'
+                    AND DATE(_PARTITIONTIME) < '{tomorrow}'
                     """
                     eq_result = client.query(export_query).result()
                     for row in eq_result:
