@@ -12,15 +12,15 @@
         kind: Deployment
         apiVersion: apps/v1
         name: koku-clowder-worker-download
-        metrics:
-        - type: Pods
-          pods:
-            metric:
-              name: koku:celery:download_queue
-            target:
-              # desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
-              # average the metric over the number of Pods in the deployment
-              type: AverageValue
-              averageValue: 20
-        # behavior: # use default HPA behavior
-        # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#default-behavior
+      metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: koku:celery:download_queue
+          target:
+            # desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
+            # average the metric over the number of Pods in the deployment
+            type: AverageValue
+            averageValue: 20
+      # behavior: # use default HPA behavior
+      # https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/#default-behavior

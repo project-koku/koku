@@ -12,21 +12,21 @@
         kind: Deployment
         apiVersion: apps/v1
         name: koku-clowder-worker-cost-model
-        metrics:
-        - type: Pods
-          pods:
-            metric:
-              name: koku:celery:cost_model_queue
-            target:
-              # desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
-              # average the metric over the number of Pods in the deployment
-              type: AverageValue
-              averageValue: 5
-        behavior:
-          scaleUp:
-            # scale up 1 pod per 5 minutes
-            stabilizationWindowSeconds: 300
-            policies:
-            - type: Pods
-              value: 1
-              periodSeconds: 15
+      metrics:
+      - type: Pods
+        pods:
+          metric:
+            name: koku:celery:cost_model_queue
+          target:
+            # desiredReplicas = ceil[currentReplicas * ( currentMetricValue / desiredMetricValue )]
+            # average the metric over the number of Pods in the deployment
+            type: AverageValue
+            averageValue: 5
+      behavior:
+        scaleUp:
+          # scale up 1 pod per 5 minutes
+          stabilizationWindowSeconds: 300
+          policies:
+          - type: Pods
+            value: 1
+            periodSeconds: 15

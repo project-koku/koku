@@ -2011,50 +2011,50 @@ objects:
   metadata:
     name: koku-clowder-worker-celery-hpa
   spec:
+    behavior:
+      scaleUp:
+        policies:
+        - periodSeconds: 15
+          type: Pods
+          value: 1
+        stabilizationWindowSeconds: 300
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:default_celery_queue
+        target:
+          averageValue: 20
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
-      behavior:
-        scaleUp:
-          policies:
-          - periodSeconds: 15
-            type: Pods
-            value: 1
-          stabilizationWindowSeconds: 300
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:default_celery_queue
-          target:
-            averageValue: 20
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-celery
 - apiVersion: autoscaling/v2beta2
   kind: HorizontalPodAutoscaler
   metadata:
     name: koku-clowder-worker-cost-model-hpa
   spec:
+    behavior:
+      scaleUp:
+        policies:
+        - periodSeconds: 15
+          type: Pods
+          value: 1
+        stabilizationWindowSeconds: 300
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:cost_model_queue
+        target:
+          averageValue: 5
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
-      behavior:
-        scaleUp:
-          policies:
-          - periodSeconds: 15
-            type: Pods
-            value: 1
-          stabilizationWindowSeconds: 300
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:cost_model_queue
-          target:
-            averageValue: 5
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-cost-model
 - apiVersion: autoscaling/v2beta2
   kind: HorizontalPodAutoscaler
@@ -2062,92 +2062,92 @@ objects:
     name: koku-clowder-worker-download-hpa
   spec:
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:download_queue
+        target:
+          averageValue: 20
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:download_queue
-          target:
-            averageValue: 20
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-download
 - apiVersion: autoscaling/v2beta2
   kind: HorizontalPodAutoscaler
   metadata:
     name: koku-clowder-worker-ocp-hpa
   spec:
+    behavior:
+      scaleUp:
+        policies:
+        - periodSeconds: 15
+          type: Pods
+          value: 1
+        stabilizationWindowSeconds: 300
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:ocp_queue
+        target:
+          averageValue: 5
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
-      behavior:
-        scaleUp:
-          policies:
-          - periodSeconds: 15
-            type: Pods
-            value: 1
-          stabilizationWindowSeconds: 300
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:ocp_queue
-          target:
-            averageValue: 5
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-ocp
 - apiVersion: autoscaling/v2beta2
   kind: HorizontalPodAutoscaler
   metadata:
     name: koku-clowder-worker-refresh-hpa
   spec:
+    behavior:
+      scaleUp:
+        policies:
+        - periodSeconds: 15
+          type: Pods
+          value: 1
+        stabilizationWindowSeconds: 300
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:refresh_queue
+        target:
+          averageValue: 20
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
-      behavior:
-        scaleUp:
-          policies:
-          - periodSeconds: 15
-            type: Pods
-            value: 1
-          stabilizationWindowSeconds: 300
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:refresh_queue
-          target:
-            averageValue: 20
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-refresh
 - apiVersion: autoscaling/v2beta2
   kind: HorizontalPodAutoscaler
   metadata:
     name: koku-clowder-worker-summary-hpa
   spec:
+    behavior:
+      scaleUp:
+        policies:
+        - periodSeconds: 15
+          type: Pods
+          value: 1
+        stabilizationWindowSeconds: 300
     maxReplicas: 5
+    metrics:
+    - pods:
+        metric:
+          name: koku:celery:summary_queue
+        target:
+          averageValue: 20
+          type: AverageValue
+      type: Pods
     scaleTargetRef:
       apiVersion: apps/v1
-      behavior:
-        scaleUp:
-          policies:
-          - periodSeconds: 15
-            type: Pods
-            value: 1
-          stabilizationWindowSeconds: 300
       kind: Deployment
-      metrics:
-      - pods:
-          metric:
-            name: koku:celery:summary_queue
-          target:
-            averageValue: 20
-            type: AverageValue
-        type: Pods
       name: koku-clowder-worker-summary
 parameters:
 - name: ENV_NAME
