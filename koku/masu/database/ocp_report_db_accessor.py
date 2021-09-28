@@ -22,9 +22,8 @@ from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
-from psycopg2 import DatabaseError
-from psycopg2 import ProgrammingError
 from sqlparse import split as sql_split
 from tenant_schemas.utils import schema_context
 
@@ -2287,7 +2286,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 with connection.cursor() as cur:
                     try:
                         cur.execute(sql_stmt, params)
-                    except (ProgrammingError, DatabaseError) as exc:
+                    except ProgrammingError as exc:
                         msg = [
                             f"ERROR in SQL statement '{exc}'",
                             f"STATEMENT: {sql_stmt}",
