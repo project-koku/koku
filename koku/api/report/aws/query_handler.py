@@ -75,11 +75,17 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         """
         # do not override mapper if its already set
-        print(parameters)
+
         try:
             getattr(self, "_mapper")
+            print("mapppppppeedddd in try")
         except AttributeError:
-            self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+            print("mapped in atribute except")
+            self._mapper = AWSProviderMap(
+                provider=self.provider,
+                report_type=parameters.report_type,
+                cost_type=parameters.parameters.get("cost_type"),
+            )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")

@@ -39,10 +39,8 @@ CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 class AWSProviderMap(ProviderMap):
     """AWS Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, cost_type):
         """Constructor."""
-        cost_type = "unblended_cost"
-        print(report_type)
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_AWS,

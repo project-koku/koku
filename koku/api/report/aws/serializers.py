@@ -74,7 +74,11 @@ class QueryParamSerializer(ParamSerializer):
 
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"), ("testing", "testing"))
-    COST_TYPE_CHOICE = (("blended", "blended"), ("unblended", "unblended"), ("amortized", "amortized"))
+    COST_TYPE_CHOICE = (
+        ("blended_cost", "blended_cost"),
+        ("unblended_cost", "unblended_cost"),
+        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
+    )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
@@ -213,3 +217,15 @@ class QueryParamSerializer(ParamSerializer):
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value
+
+    def validate_cost_type(self, value):
+        """Validate incoming cost_type value based on path."""
+        valid_cost_type = ["unblended_cost", "blended_cost", "savingsplan_effective_cost"]
+        if value not in valid_cost_type:
+            error = {"cost_type": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
+
+    def get_item_cost_type(self):
+
+        return self.cost_type
