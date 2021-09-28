@@ -1977,6 +1977,18 @@ objects:
     inMemoryDb: true
     jobs:
     - name: koku-script-runner-job
+      podSpec:
+        args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_aws_savings_plan_presto_migration.sh
+        env:
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        image: ${IMAGE}:${IMAGE_TAG}
+        name: koku-script-runner
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
@@ -1987,18 +1999,6 @@ objects:
     - ingress
     - rbac
     - sources-api
-    podSpec:
-      args:
-      - /bin/bash
-      - -c
-      - $HOME/scripts/run_aws_savings_plan_presto_migration.sh
-      env:
-      - name: PRESTO_HOST
-        value: ${PRESTO_HOST}
-      - name: PRESTO_PORT
-        value: ${PRESTO_PORT}
-      image: ${IMAGE}:${IMAGE_TAG}
-      name: koku-script-runner
     testing:
       iqePlugin: cost-management
 - apiVersion: v1
