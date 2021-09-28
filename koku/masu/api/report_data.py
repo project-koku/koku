@@ -102,9 +102,13 @@ def report_data(request):
                 ).apply_async(queue=queue_name or PRIORITY_QUEUE)
                 async_results.append({str(month): str(async_result)})
         else:
-            for month in months:
-                async_result = update_all_summary_tables.delay(month[0], month[1])
-                async_results.append({str(month): str(async_result)})
+            # TODO: temporarily disable resummarization for all providers to prevent burning the db.
+            # this query can be re-enabled if we need it, but we should consider limiting its use to a schema.
+            errmsg = "?provider_uuid=* is invalid query."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            # for month in months:
+            #     async_result = update_all_summary_tables.delay(month[0], month[1])
+            #     async_results.append({str(month): str(async_result)})
         return Response({REPORT_DATA_KEY: async_results})
 
     if request.method == "DELETE":
