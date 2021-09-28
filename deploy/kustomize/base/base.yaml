@@ -39,6 +39,20 @@ objects:
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
+    jobs:
+    - name: koku-script-runner-job
+    podSpec:
+      name: koku-script-runner
+      image: ${IMAGE}:${IMAGE_TAG}
+      args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_aws_savings_plan_presto_migration.sh
+      env:
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
