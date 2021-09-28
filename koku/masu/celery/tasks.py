@@ -16,7 +16,6 @@ from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
-from api.currency.models import CurrencyCodes
 from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
@@ -316,19 +315,23 @@ def get_daily_currency_rates():
     # Does this need to be a dict or JSON response
     # for base in currencyList:
     #     for starting in base:
-    try:
-        exchange = ExchangeRates.objects.get()
-    except ExchangeRates.DoesNotExist:
-        exchange = ExchangeRates()
-        # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
-        # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
-    response = requests.get(url)
-    json_result = response.json()
-    response = json_result.get("rates")
-    baseCurrency = CurrencyCodes.EUR
-    exchange.baseCurrency = baseCurrency
-    exchange.exchangeRate = response
-    exchange.save()
+    for currency in ExchangeRates.SUPPORTED_CURRENCIES:
+        LOG.info(currency)
+        try:
+            exchange = ExchangeRates.objects.get(baseCurrency=currency)
+        except ExchangeRates.DoesNotExist:
+            LOG.info("Creating the exchange rate")
+            exchange = ExchangeRates(baseCurrency=currency)
+            # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
+            # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
+        response = requests.get(url)
+        LOG.info(response)
+        json_result = response.json()
+        response = json_result.get("rates")
+        LOG.info("Here are the rates")
+        LOG.info(response)
+        exchange.exchangeRate = response
+        exchange.save()
     # for currency in currencyList:
     #     for value in currencyList:
     #         url = endpoint + access_key
