@@ -47,6 +47,7 @@ class ProbeServer(ABC, MetricsHandler):
     """HTTP server for liveness/readiness probes."""
 
     logger = LOG
+    log_level = None
     ready = False
     registry = WORKER_REGISTRY
 
@@ -55,6 +56,10 @@ class ProbeServer(ABC, MetricsHandler):
         self.send_response(status)
         self.send_header("Content-type", "application/json")
         self.end_headers()
+
+    def _set_log_level(self, status_code):
+        """Set the log level."""
+        self.log_level = logging.DEBUG if status_code == 200 else logging.WARNING
 
     def _write_response(self, response):
         """Write the response to the client."""
@@ -74,7 +79,13 @@ class ProbeServer(ABC, MetricsHandler):
 
     def log_message(self, format, *args):
         """Basic log message."""
-        self.logger.info("%s", format % args)
+        log_level = self.log_level or logging.WARNING
+        self.logger.log(log_level, "%s", format % args)
+
+    def send_response(self, code, message=None):
+        """Send the response."""
+        self._set_log_level(code)
+        super().send_response(code, message)
 
     def default_response(self):
         """Set the default response."""
