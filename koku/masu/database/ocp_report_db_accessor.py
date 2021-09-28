@@ -7,6 +7,7 @@ import copy
 import datetime
 import json
 import logging
+import os
 import pkgutil
 import uuid
 from decimal import Decimal
@@ -22,6 +23,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
+from psycopg2 import DatabaseError
 from psycopg2 import ProgrammingError
 from sqlparse import split as sql_split
 from tenant_schemas.utils import schema_context
@@ -2284,13 +2286,16 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                 sql_stmt, params = self.jinja_sql.prepare_query(sql_stmt, sql_params)
                 with connection.cursor() as cur:
                     try:
-                        LOG.debug(cur.mogrify(sql_stmt, params).decode("utf-8"))
-                    except ProgrammingError:
-                        LOG.error(f"STATEMENT: {sql_stmt}")
-                        LOG.error(f"PARAMS: {params}")
-                        LOG.error(f"INPUT_PARAMS: {sql_params}")
+                        cur.execute(sql_stmt, params)
+                    except (ProgrammingError, DatabaseError) as exc:
+                        msg = [
+                            f"ERROR in SQL statement '{exc}'",
+                            f"STATEMENT: {sql_stmt}",
+                            f"PARAMS: {params}",
+                            f"INPUT_PARAMS: {sql_params}",
+                        ]
+                        LOG.error(os.linesep.join(msg))
                         raise
-                    cur.execute(sql_stmt, params)
 
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
