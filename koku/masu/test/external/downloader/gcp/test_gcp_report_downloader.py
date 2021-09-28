@@ -139,13 +139,16 @@ class GCPReportDownloaderTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
-        expected_end_date = dh.this_month_end.date()
         expected_assembly_id = ":".join([str(provider_uuid), self.etag, invoice_month])
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
         downloader.scan_end = dh.this_month_end.date()
+        if self.today.date() < downloader.scan_end:
+            expected_end_date = self.today.date()
+        else:
+            expected_end_date = downloader.scan_end
         result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
         expected_files = create_expected_csv_files(
-            dh.this_month_start.date(), dh.this_month_end.date(), invoice_month, self.etag
+            dh.this_month_start.date(), downloader.scan_end, invoice_month, self.etag
         )
         expected_manifest_data = {
             "assembly_id": expected_assembly_id,
@@ -225,8 +228,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         p_uuid = uuid4()
         expected_assembly_id = f"{p_uuid}:{self.etag}:{invoice_month}"
         downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
+        if self.today.date() < downloader.scan_end:
+            expected_end = self.today.date()
+        else:
+            expected_end = downloader.scan_end
         expected_files = create_expected_csv_files(
-            dh.this_month_start.date(), downloader.scan_end, invoice_month, self.etag, True
+            dh.this_month_start.date(), expected_end, invoice_month, self.etag, True
         )
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
@@ -266,7 +273,7 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         start_date = DateHelper().this_month_start
         daily_file_names = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date
+            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
         )
 
         mock_s3.assert_called()

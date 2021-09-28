@@ -47,8 +47,8 @@ function run_smoke_tests() {
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
 
-    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json)
-    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json)
+    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id" | @base64d' < aws-creds.json)
+    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key" | @base64d' < aws-creds.json)
     GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
 
     bonfire deploy \
