@@ -86,6 +86,10 @@ DEFAULT_BACKLOG = Gauge(
     registry=WORKER_REGISTRY,
     multiprocess_mode="livesum",
 )
+OCP_BACKLOG = Gauge(
+    "ocp_backlog", "Number of celery tasks in the OCP queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
+)
+
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
     "summary": SUMMARY_BACKLOG,
@@ -93,6 +97,7 @@ QUEUES = {
     "refresh": REFRESH_BACKLOG,
     "cost_model": COST_MODEL_BACKLOG,
     "celery": DEFAULT_BACKLOG,
+    "ocp": OCP_BACKLOG,
 }
 
 SOURCES_KAFKA_LOOP_RETRY = Counter(
