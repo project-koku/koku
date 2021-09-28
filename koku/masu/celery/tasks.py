@@ -16,6 +16,8 @@ from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
+from api.currency.models import CurrencyCodes
+from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
@@ -279,58 +281,72 @@ def clean_volume():
 
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
-def get_daily_currency_rates(self):
+def get_daily_currency_rates():
 
-    conversionRates = {}
+    # conversionRates = {}
     # List of the 15 supported currencies
-    currencyList = [
-        "USD",
-        "AUD",
-        "CAD",
-        "CHF",
-        "CNY",
-        "DKK",
-        "EUR",
-        "GBP",
-        "HKD",
-        "JPY",
-        "NOK",
-        "NZD",
-        "SEK",
-        "SGD",
-        "ZAR",
-    ]
-    endpoint = "http://api.exchangeratesapi.io/v1/latest?"
-    access_key = "your access key"
+    # currencyList = [
+    #     "USD",
+    #     "AUD",
+    #     "CAD",
+    #     "CHF",
+    #     "CNY",
+    #     "DKK",
+    #     "EUR",
+    #     "GBP",
+    #     "HKD",
+    #     "JPY",
+    #     "NOK",
+    #     "NZD",
+    #     "SEK",
+    #     "SGD",
+    #     "ZAR",
+    # ]
+    endpoint = "http://api.exchangeratesapi.io/v1/latest?access_key=76b80adfa0400a63c7a8c8e5bc843b89"
 
-    url = endpoint + access_key
+    url = endpoint
     response = requests.get(url)
     json_result = response.json()
     # stores the output of the json response
-    dictOfRates = json_result.get("rates")
-    stringOfCurrencyLists = ",".join(currencyList)
+    # dictOfRates = json_result.get("rates")
+    # stringOfCurrencyLists = ",".join(currencyList)
     # grabs all the rates, for this hit the base is GBP or EUR, you can not change it on the free version
     # the symbols, would just return a dict with a range of all 15 supported currency
     # the base is the base currency
     # Does this need to be a dict or JSON response
-    for currency in currencyList:
-        for value in currencyList:
-            #
-            url = endpoint + access_key + "&base=" + value + "&symbols=" + stringOfCurrencyLists
-            LOG.info("endpoint getting hit..")
-            response = requests.get(url)
-            if response.status_code == 200:
-                LOG.info("Endpoint is up")
-                json_result = response.json()
-                dictOfRates = json_result.get("rates")
-                conversionRates[value] = dictOfRates[value]
-                # Store results in database with the main base value attached.
-                return conversionRates
-            else:
-                LOG.warning(f"Endpoint is down error {response.status_code}")
-                return
-
-            # store value in database here with the currency value
+    # for base in currencyList:
+    #     for starting in base:
+    try:
+        exchange = ExchangeRates.objects.get()
+    except ExchangeRates.DoesNotExist:
+        exchange = ExchangeRates()
+        # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
+        # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
+    response = requests.get(url)
+    json_result = response.json()
+    response = json_result.get("rates")
+    baseCurrency = CurrencyCodes.EUR
+    exchange.baseCurrency = baseCurrency
+    exchange.exchangeRate = response
+    exchange.save()
+    # for currency in currencyList:
+    #     for value in currencyList:
+    #         url = endpoint + access_key
+    #         # "&base=" + value + "&symbols=" + stringOfCurrencyLists
+    #         LOG.info("endpoint getting hit..")
+    #         response = requests.get(url)
+    #         if response.status_code == 200:
+    #             LOG.info("Endpoint is up")
+    #             json_result = response.json()
+    #             dictOfRates = json_result.get("rates")
+    #             conversionRates[value] = dictOfRates[value]
+    #             # Store results in database with the main base value attached.
+    #             exchange.save(conversionRates)
+    #         else:
+    #             LOG.warning(f"Endpoint is down error {response.status_code}")
+    #             return
+    # exchange.exchangeRate = response
+    # store value in database here with the currency value
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
