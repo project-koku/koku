@@ -408,7 +408,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 FROM {self.table_name}
                 WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
                 AND DATE(_PARTITIONTIME) < '{scan_end}'
-                AND export_time >= '{last_export_time}'
+                AND export_time > '{last_export_time}'
                 """
             client = bigquery.Client()
             LOG.info(f"{query}")
