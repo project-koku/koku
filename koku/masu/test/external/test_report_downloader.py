@@ -19,6 +19,7 @@ from masu.external.downloader.azure.azure_report_downloader import AzureReportDo
 from masu.external.downloader.azure_local.azure_local_report_downloader import AzureLocalReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.test import MasuTestCase
@@ -134,6 +135,13 @@ class ReportDownloaderTest(MasuTestCase):
         """Assert ReportDownloaderError is raised when _set_downloader raises an exception."""
         with self.assertRaises(ReportDownloaderError):
             self.create_downloader(Provider.PROVIDER_AWS)
+        mock_downloader_init.assert_called()
+
+    @patch("masu.external.report_downloader.ReportDownloader._set_downloader", side_effect=ReportDownloaderWarning)
+    def test_init_with_downloader_warning(self, mock_downloader_init):
+        """Assert ReportDownloaderWarning is raised when _set_downloader raises a ReportDownloaderWarning."""
+        with self.assertRaises(ReportDownloaderWarning):
+            self.create_downloader(Provider.PROVIDER_GCP)
         mock_downloader_init.assert_called()
 
     def test_invalid_provider_type(self):

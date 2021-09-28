@@ -164,6 +164,7 @@ REPORT_COLUMN_MAP = defaultdict(
             "credits": "credits",
             "invoice.month": "invoice_month",
             "cost_type": "cost_type",
+            "partition_date": "partition_date",
         },
     },
 )
