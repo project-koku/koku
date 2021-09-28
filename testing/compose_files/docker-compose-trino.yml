@@ -14,7 +14,7 @@ services:
       - 9000:9000
     command: server /data
     volumes:
-      - ./../../testing/parquet_data:/data
+      - ./../../.trino/parquet_data:/data
 
   koku-create-parquet-bucket:
     image: minio/mc:latest
@@ -55,15 +55,15 @@ services:
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
-      - ./../../testing/metastore/hive-config:/hive-config
-      - ./../../testing/metastore/hive-scripts:/hive-scripts
-      - ./../../testing/metastore/hive-jmx-config:/opt/jmx_exporter/config
-      - ./../../testing/metastore/db-data:/var/lib/hive
-      - ./../../testing/hadoop/hadoop-dfs-name:/hadoop/dfs/name
-      - ./../../testing/hadoop/hadoop-dfs-data:/hadoop/dfs/data
-      - ./../../testing/hadoop/hadoop-logs:/opt/hadoop/logs
-      - ./../../testing/hadoop/hadoop-config:/hadoop-config
-      - ./../../testing/hadoop/hadoop-starting-config:/hadoop-starting-config
+      - ./../../.trino/metastore/hive-config:/hive-config
+      - ./../../.trino/metastore/hive-scripts:/hive-scripts
+      - ./../../.trino/metastore/hive-jmx-config:/opt/jmx_exporter/config
+      - ./../../.trino/metastore/db-data:/var/lib/hive
+      - ./../../.trino/hadoop/hadoop-dfs-name:/hadoop/dfs/name
+      - ./../../.trino/hadoop/hadoop-dfs-data:/hadoop/dfs/data
+      - ./../../.trino/hadoop/hadoop-logs:/opt/hadoop/logs
+      - ./../../.trino/hadoop/hadoop-config:/hadoop-config
+      - ./../../.trino/hadoop/hadoop-starting-config:/hadoop-starting-config
 
   trino:
     container_name: trino
@@ -89,14 +89,14 @@ services:
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
-      - ./../../testing/trino/etc/config.properties:/etc/trino/config.properties
-      - ./../../testing/trino/etc/jvm.config:/etc/trino/jvm.config
-      - ./../../testing/trino/etc/log.properties:/etc/trino/log.properties
-      - ./../../testing/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
-      - ./../../testing/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
-      - ./../../testing/trino/trino-data:/data/trino/data
-      - ./../../testing/trino/trino-logs:/data/trino/logs
-      - ./../../testing/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
+      - ./../../.trino/trino/etc/config.properties:/etc/trino/config.properties
+      - ./../../.trino/trino/etc/jvm.config:/etc/trino/jvm.config
+      - ./../../.trino/trino/etc/log.properties:/etc/trino/log.properties
+      - ./../../.trino/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+      - ./../../.trino/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
+      - ./../../.trino/trino/trino-data:/data/trino/data
+      - ./../../.trino/trino/trino-logs:/data/trino/logs
+      - ./../../.trino/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
     links:
       - hive-metastore
     depends_on:
