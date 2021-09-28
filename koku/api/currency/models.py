@@ -8,13 +8,13 @@ from django.db import models
 from django.db.models import JSONField
 
 
-class CurrencyCodes(models.Model):
+class ExchangeRates(models.Model):
     AUD = "aud"
     CAD = "cad"
     CHF = "chf"
     CNY = "cny"
     DKK = "dkk"
-    EUR = "EUR"
+    EUR = "eur"
     GBP = "gbp"
     HKD = "hkd"
     JPY = "jpy"
@@ -41,9 +41,5 @@ class CurrencyCodes(models.Model):
         (USD, "USD"),
         (ZAR, "ZAR"),
     )
-    name = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True)
-
-
-class ExchangeRates(models.Model):
-    baseCurrency = models.ForeignKey(CurrencyCodes, related_name="column_item", on_delete=models.CASCADE)
+    baseCurrency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True)
     exchangeRate = JSONField(default=dict)
