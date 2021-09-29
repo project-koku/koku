@@ -8,14 +8,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.tags.aws.queries import AWSTagQueryHandler
-from api.tags.aws.view import AWSTagView
-from api.tags.azure.queries import AzureTagQueryHandler
-from api.tags.azure.view import AzureTagView
-from api.tags.gcp.queries import GCPTagQueryHandler
-from api.tags.gcp.view import GCPTagView
-from api.tags.ocp.queries import OCPTagQueryHandler
-from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 
 
@@ -60,10 +52,10 @@ class SettingsViewTest(IamTestCase):
     def test_get_settings_tag_enabled(self):
         """Test that a GET settings call returns expected format."""
         test_matrix = [
-            {"handler": OCPTagQueryHandler, "view": OCPTagView, "name": "openshift", "label": "OpenShift labels"},
-            {"handler": AWSTagQueryHandler, "view": AWSTagView, "name": "aws", "label": "Amazon Web Services tags"},
-            {"handler": AzureTagQueryHandler, "view": AzureTagView, "name": "azure", "label": "Azure tags"},
-            {"handler": GCPTagQueryHandler, "view": GCPTagView, "name": "gcp", "label": "Google Cloud Platform tags"},
+            {"name": "openshift", "label": "OpenShift labels"},
+            {"name": "aws", "label": "Amazon Web Services tags"},
+            {"name": "azure", "label": "Azure tags"},
+            {"name": "gcp", "label": "Google Cloud Platform tags"},
         ]
 
         response = self.get_settings()
@@ -85,6 +77,41 @@ class SettingsViewTest(IamTestCase):
                 if enabled.split("-")[0] == test.get("name"):
                     enabled_tags.append(enabled.split("-")[1])
                     self.assertIn(enabled.split("-")[1], available)
+
+    def test_post_settings_tag_enabled(self):
+        """Test settings POST calls change enabled tags"""
+        test_matrix = [
+            {
+                "name": "test01",
+                "enabled_tags": [
+                    "aws-app",
+                    "aws-environment",
+                    "openshift-environment",
+                    "openshift-storageclass",
+                    "openshift-version",
+                ],
+            },
+            {"name": "test02", "enabled_tags": ["aws-environment", "openshift-storageclass", "openshift-version"]},
+            {"name": "test03", "enabled_tags": ["openshift-storageclass", "openshift-version"]},
+            {"name": "test04", "enabled_tags": ["openshift-version"]},
+        ]
+
+        for test in test_matrix:
+            enabled_tags = test.get("enabled_tags")
+
+            body = {"api": {"settings": {"tag-management": {"enabled": enabled_tags}}}}
+            response = self.post_settings(body)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            response = self.get_settings()
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+            duallist = self.get_duallist_from_response(response)
+            resp_enabled_tags = duallist.get("initialValue")
+            self.assertEqual(len(resp_enabled_tags), len(enabled_tags))
+
+            for tag in enabled_tags:
+                self.assertIn(tag, resp_enabled_tags)
 
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""
