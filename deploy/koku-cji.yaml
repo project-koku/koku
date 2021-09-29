@@ -2,8 +2,8 @@
 apiVersion: cloud.redhat.com/v1alpha1
 kind: ClowdJobInvocation
 metadata:
-  name: koku-script-runner-job
+  name: koku-cji
 spec:
   appName: koku
   jobs:
-    - koku-script-runner-job
+    - script-runner
