@@ -1,7 +1,7 @@
 import logging
 import os
 
-import prestodb
+import trino
 
 logging.basicConfig(format="%(asctime)s: %(message)s", datefmt="%m/%d/%Y %I:%M:%S %p", level=logging.INFO)
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
@@ -39,7 +39,7 @@ table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
 presto_conn = False
 logging.info("Running the hive migration for aws savings plan")
 try:
-    presto_conn = prestodb.dbapi.connect(
+    presto_conn = trino.dbapi.connect(
         host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
     )
     presto_cur = presto_conn.cursor()
@@ -48,7 +48,7 @@ try:
     logging.info(schemas)
     presto_conn.close()
     for schema in schemas:
-        presto_conn = prestodb.dbapi.connect(
+        presto_conn = trino.dbapi.connect(
             host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema=schema
         )
         presto_cur = presto_conn.cursor()
