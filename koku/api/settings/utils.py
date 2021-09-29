@@ -129,6 +129,10 @@ def get_currency_options():
 def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
     with schema_context(schema):
         account_currency_setting = CurrencySettings.objects.all().first()
+
+        if currency_code not in CURRENCIES:
+            raise ValueError(currency_code + " is not a supported currency")
+
         if not account_currency_setting:
             CurrencySettings.objects.create(currency=currency_code)
         else:

@@ -86,4 +86,16 @@ class SettingsViewTest(IamTestCase):
                     enabled_tags.append(enabled.split("-")[1])
                     self.assertIn(enabled.split("-")[1], available)
 
-    # @TODO: Additional tests needed
+    def test_post_settings_ocp_tag_enabled_invalid_tag(self):
+        """Test setting OCP tags as enabled with invalid tag key."""
+        tag = "gcp-Invalid_tag_key_test"
+
+        body = {"api": {"settings": {"tag-management": {"enabled": [tag]}}}}
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_settings_bad_format(self):
+        """Test settings with bad post format."""
+        body = []
+        response = self.post_settings(body)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
