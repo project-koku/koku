@@ -114,6 +114,9 @@ parameters:
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
   value: INFO
+- displayName: Unleash log level
+  name: UNLEASH_LOG_LEVEL
+  value: WARNING
 - displayName: Django log level
   name: DJANGO_LOG_LEVEL
   value: INFO

@@ -54,6 +54,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -200,6 +202,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
@@ -344,6 +348,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${MASU_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -476,6 +482,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -632,6 +640,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -764,6 +774,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -881,6 +893,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1046,6 +1060,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1211,6 +1227,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1376,6 +1394,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1541,6 +1561,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1706,6 +1728,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -1871,6 +1895,8 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
@@ -2083,6 +2109,9 @@ parameters:
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
   value: INFO
+- displayName: Unleash log level
+  name: UNLEASH_LOG_LEVEL
+  value: WARNING
 - displayName: Django log level
   name: DJANGO_LOG_LEVEL
   value: INFO

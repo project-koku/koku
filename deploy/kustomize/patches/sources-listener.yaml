@@ -59,6 +59,8 @@
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER

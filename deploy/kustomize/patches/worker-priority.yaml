@@ -45,6 +45,8 @@
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
