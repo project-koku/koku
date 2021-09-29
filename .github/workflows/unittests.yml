@@ -73,7 +73,7 @@ jobs:
           DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
-          prometheus_multiproc_dir: /tmp
+          PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Run unit tests
         run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
@@ -86,7 +86,7 @@ jobs:
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           ACCOUNT_ENHANCED_METRICS: True
-          prometheus_multiproc_dir: /tmp
+          PROMETHEUS_MULTIPROC_DIR: /tmp
           HIVE_DATABASE_PASSWORD: hivedbpw
 
       - name: Convert coverage report to XML
