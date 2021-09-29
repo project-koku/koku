@@ -1,8 +1,8 @@
 import os
 import sys
 
-import prestodb
 import pyarrow.parquet as pq
+import trino
 
 PRESTO_HOST = os.environ.get("PRESTO_HOST", "localhost")
 PRESTO_USER = os.environ.get("PRESTO_USER", "admin")
@@ -57,7 +57,7 @@ for idx, col in enumerate(parquet_columns):
 
 sql += f") WITH(external_location = 's3a://{s3_path}', format = 'PARQUET')"
 
-conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
+conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema="default")
 cur = conn.cursor()
 print("Creating Schema:")
 schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {schema}"
@@ -66,7 +66,7 @@ cur.execute(schema_create_sql)
 rows = cur.fetchall()
 conn.close()
 
-schema_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
+schema_conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="hive", schema=schema)
 schema_cur = conn.cursor()
 print("Presto table create SQL:")
 print(sql)
@@ -81,7 +81,7 @@ for row in rows:
 schema_conn.close()
 
 print("\nPostgres DB AWS Summary Data Query Example:")
-postgres_conn = prestodb.dbapi.connect(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
+postgres_conn = trino.dbapi.connect(host="localhost", port=8080, user="admin", catalog="postgres", schema=schema)
 postgres_cur = postgres_conn.cursor()
 
 postgres_cur.execute("SELECT * FROM reporting_awscostentrylineitem_daily_summary LIMIT 3")

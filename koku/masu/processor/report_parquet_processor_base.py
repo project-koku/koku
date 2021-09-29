@@ -5,14 +5,14 @@
 """Processor for Parquet files."""
 import logging
 
-import prestodb
 import pyarrow.parquet as pq
+import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from prestodb.exceptions import PrestoExternalError
-from prestodb.exceptions import PrestoQueryError
-from prestodb.exceptions import PrestoUserError
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
+from trino.exceptions import TrinoQueryError
+from trino.exceptions import TrinoUserError
 
 from api.models import Provider
 from masu.util.common import strip_characters_from_column_name
@@ -42,24 +42,24 @@ class ReportParquetProcessorBase:
         raise PostgresSummaryTableError("This must be a property on the sub class.")
 
     def _execute_sql(self, sql, schema_name):  # pragma: no cover
-        """Execute presto SQL."""
+        """Execute Trino SQL."""
         rows = []
         try:
-            with prestodb.dbapi.connect(
+            with trino.dbapi.connect(
                 host=settings.PRESTO_HOST, port=settings.PRESTO_PORT, user="admin", catalog="hive", schema=schema_name
             ) as conn:
                 cur = conn.cursor()
                 cur.execute(sql)
                 rows = cur.fetchall()
                 LOG.debug(f"_execute_sql rows: {str(rows)}. Type: {type(rows)}")
-        except PrestoUserError as err:
+        except TrinoUserError as err:
             LOG.warning(err)
-        except PrestoExternalError as err:
+        except TrinoExternalError as err:
             if err.error_name in ("HIVE_METASTORE_ERROR", "HIVE_FILESYSTEM_ERROR", "JDBC_ERROR"):
                 LOG.warning(err)
             else:
                 LOG.error(err)
-        except PrestoQueryError as err:
+        except TrinoQueryError as err:
             LOG.error(err)
 
         return rows
@@ -87,7 +87,7 @@ class ReportParquetProcessorBase:
         return False
 
     def create_schema(self):
-        """Create presto schema."""
+        """Create Trino schema."""
         schema_create_sql = f"CREATE SCHEMA IF NOT EXISTS {self._schema_name}"
         self._execute_sql(schema_create_sql, "default")
         LOG.info(f"Create Trino/Hive schema SQL: {schema_create_sql}")
@@ -129,10 +129,10 @@ class ReportParquetProcessorBase:
         return sql
 
     def create_table(self):
-        """Create presto SQL table."""
+        """Create Trino SQL table."""
         sql = self._generate_create_table_sql()
         self._execute_sql(sql, self._schema_name)
-        LOG.info(f"Presto Table: {self._table_name} created.")
+        LOG.info(f"Trino Table: {self._table_name} created.")
 
     def get_or_create_postgres_partition(self, bill_date, **kwargs):
         """Make sure we have a Postgres partition for a billing period."""
