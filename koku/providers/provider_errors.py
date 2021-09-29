@@ -78,8 +78,8 @@ class ProviderErrors:
         "Edit your Azure source to include these details."
     )
     AZURE_INCORRECT_CLIENT_SECRET_MESSAGE = (
-        "The client secret was entered incorrectly for this source. "
-        "Edit your Azure source and verify the client secret."
+        "A problem has been detected with the Azure client secret for this source. "
+        "Refer to the Microsoft Azure troubleshooting guide in the cost management documentation for details."
     )
     AZURE_INCORRECT_CLIENT_ID_MESSAGE = (
         "The client ID was entered incorrectly for this source. Edit your Azure source and verify the client ID."
