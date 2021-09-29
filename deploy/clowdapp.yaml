@@ -2213,10 +2213,10 @@ parameters:
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
-- displayName: Presto host
+- displayName: Presto/Trino host
   name: PRESTO_HOST
-  value: presto-coordinator
-- displayName: Presto port
+  value: trino-coordinator
+- displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "8000"
 - displayName: Prometheus Pushgateway
