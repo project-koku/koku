@@ -105,6 +105,8 @@ objects:
           value: ${ACCOUNT_ENHANCED_METRICS}
         - name: CACHED_VIEWS_DISABLED
           value: ${CACHED_VIEWS_DISABLED}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -1992,12 +1994,12 @@ objects:
   metadata:
     name: koku-secret
 - apiVersion: v1
-  data:
-    aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
-    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
   kind: Secret
   metadata:
     name: koku-aws
+  stringData:
+    aws-access-key-id: ${AWS_ACCESS_KEY_ID_EPH}
+    aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY_EPH}
 - apiVersion: v1
   data:
     gcp-credentials: ${GCP_CREDENTIALS_EPH}
@@ -2221,11 +2223,11 @@ parameters:
 - displayName: AWS Access Key ID (Ephemeral)
   name: AWS_ACCESS_KEY_ID_EPH
   required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+  value: insert-string-value
 - displayName: AWS Secret Access Key (Ephemeral)
   name: AWS_SECRET_ACCESS_KEY_EPH
   required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+  value: insert-string-value
 - displayName: GCP Credentials (Ephemeral)
   name: GCP_CREDENTIALS_EPH
   required: true
