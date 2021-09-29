@@ -186,7 +186,7 @@ class Settings:
                 "label": "Currency",
                 "options": get_currency_options(),
                 "initialValue": get_selected_currency_or_setup(self.schema),
-                "FormGroupProps": {"style": {"width": "30%"}},
+                "FormGroupProps": {"style": {"width": "400px"}},
             }
             currency = create_select(currency_select_name, **currency_options)
 
@@ -275,6 +275,7 @@ class Settings:
         except Exception as exp:
             LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
+
         if currency is None or stored_currency == currency:
             return False
 
