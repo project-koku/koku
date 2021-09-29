@@ -11,6 +11,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.common import error_obj
+from api.currency.currencies import CURRENCIES
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -392,6 +393,12 @@ class CostModelSerializer(serializers.Serializer):
 
     distribution = serializers.ChoiceField(
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
+    )
+
+    currency = serializers.ChoiceField(
+        choices=tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES]),
+        required=False,
+        allow_blank=True,
     )
 
     @property
