@@ -34,3 +34,8 @@ class TestCurrencyCommon(MasuTestCase):
         """Test get_currency_options."""
         options = get_currency_options()
         self.assertTrue(len(options) != 0)
+
+    def test_set_currency_negative(self):
+        """Test currency raises exception when providing a non-supported currency"""
+        with self.assertRaises(ValueError):
+            set_currency(self.schema, currency_code="BOGUS")
