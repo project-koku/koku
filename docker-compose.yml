@@ -54,6 +54,8 @@ services:
       - ENABLE_TRINO_ACCOUNTS
       - ENABLE_TRINO_SOURCE_TYPE
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     ports:
       - 8000:8000
@@ -104,6 +106,8 @@ services:
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     ports:
       - 5000:8000
@@ -167,9 +171,12 @@ services:
       - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
       - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     ports:
       - 6001-6020:9000
+      - 5678:5678
     volumes:
       - '.:/koku'
       - './testing:/testing'
@@ -231,6 +238,8 @@ services:
       - ENABLE_TRINO_SOURCES
       - ENABLE_TRINO_ACCOUNTS
       - ENABLE_TRINO_SOURCE_TYPE
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     ports:
       - 7001-7020:9000
@@ -276,6 +285,8 @@ services:
       - RUN_GUNICORN=${RUN_GUNICORN-False}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     ports:
       - 4000:8000
@@ -313,6 +324,8 @@ services:
       - SCHEDULE_CHECK_INTERVAL=10000000
       - SOURCE_STATUS_FREQUENCY_MINUTES
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
     privileged: true
     volumes:
       - '.:/koku'

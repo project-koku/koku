@@ -307,6 +307,7 @@ CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
 DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")
 KOKU_LOGGING_LEVEL = ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO")
+UNLEASH_LOGGING_LEVEL = ENVIRONMENT.get_value("UNLEASH_LOG_LEVEL", default="WARNING")
 LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
@@ -386,6 +387,10 @@ LOGGING = {
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
+        # Setting to WARNING will prevent the INFO level spam.
+        "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
+        "apscheduler": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
     },
 }
 
