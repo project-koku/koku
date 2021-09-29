@@ -348,7 +348,6 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 if "/beta/" in referer:
                     user.beta = True
             request.user = user
-            request.context = {"schema": account, "req_id": req_id}
 
     def process_response(self, request, response):
         """Process response for identity middleware.

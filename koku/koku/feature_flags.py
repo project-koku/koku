@@ -50,3 +50,4 @@ if not UNLEASH_CLIENT.is_initialized:
     except requests.exceptions.ConnectionError:
         print("Unleash Server is not reachable. Using Mock client.")
         UNLEASH_CLIENT = Mock()
+        UNLEASH_CLIENT.is_enabled.return_value = False
