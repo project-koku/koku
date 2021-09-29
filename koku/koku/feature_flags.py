@@ -19,7 +19,7 @@ class SchemaStrategy(Strategy):
 
     def apply(self, context):
         default_value = False
-        if "schema" in context.keys():
+        if "schema" in context and context["schema"] is not None:
             default_value = context["schema"] in self.parsed_provisioning
         return default_value
 

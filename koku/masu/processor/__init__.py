@@ -22,7 +22,7 @@ def enable_trino_processing(source_uuid, source_type, account):  # noqa
         account = f"acct{account}"
 
     context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
-    LOG.debug(f"enable_trino_processing({context})")
+    LOG.info(f"enable_trino_processing context: {context}")
     return bool(
         settings.ENABLE_PARQUET_PROCESSING
         or source_uuid in settings.ENABLE_TRINO_SOURCES
