@@ -40,6 +40,7 @@ UNLEASH_CLIENT = UnleashClient(
     custom_headers=headers,
     custom_strategies=strategies,
     cache_directory=settings.UNLEASH_CACHE_DIR,
+    verbose_log_level=40,
 )
 
 if not UNLEASH_CLIENT.is_initialized:
