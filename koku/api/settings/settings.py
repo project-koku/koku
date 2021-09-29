@@ -186,6 +186,7 @@ class Settings:
                 "label": "Currency",
                 "options": get_currency_options(),
                 "initialValue": get_selected_currency_or_setup(self.schema),
+                "FormGroupProps": {"style": {"width": "30%"}},
             }
             currency = create_select(currency_select_name, **currency_options)
 
