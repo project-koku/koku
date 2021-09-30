@@ -332,6 +332,7 @@ def get_daily_currency_rates():
         LOG.info(response)
         exchange.exchangeRate = response
         exchange.save()
+        LOG.info(exchange)
     # for currency in currencyList:
     #     for value in currencyList:
     #         url = endpoint + access_key
