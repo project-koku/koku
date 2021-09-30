@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryByProject
@@ -27,7 +28,7 @@ class OCPProjectsView(generics.ListAPIView):
         .filter(namespace__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [OpenShiftProjectPermission]
+    permission_classes = [OpenShiftProjectPermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
@@ -36,8 +37,8 @@ class OCPProjectsView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access
         supported_query_params = ["search", "limit"]
-        user_access = []
         error_message = {}
+        query_holder = None
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -46,9 +47,23 @@ class OCPProjectsView(generics.ListAPIView):
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
-        elif request.user.access:
-            user_access = request.user.access.get("openshift.project", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(namespace__in=user_access)
+        if request.user.access:
+            ocp_project_access = request.user.access.get("openshift.project", {}).get("read", [])
+            ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
+            query_holder = self.queryset
+            # checks if the access exists, and the user has wildcard access
+            if (
+                ocp_project_access
+                and ocp_project_access[0] == "*"
+                or ocp_cluster_access
+                and ocp_cluster_access[0] == "*"
+            ):
+                return super().list(request)
+            if ocp_project_access:
+
+                query_holder = query_holder.filter(namespace__in=ocp_project_access)
+            if ocp_cluster_access:
+                # We hold a copy of the filtered queryset just incase the user has a wildcard for user access
+                query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
+        self.queryset = query_holder
         return super().list(request)
