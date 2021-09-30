@@ -109,6 +109,15 @@ def create_select(name, **kwargs):
 
 
 def get_selected_currency_or_setup(schema):
+    """
+    get currency and/or setup initial currency
+
+    Args:
+        (schema) - currency schema.
+
+    Returns:
+        (schema) - currency.
+    """
     with schema_context(schema):
         if not CurrencySettings.objects.exists():
             set_currency(schema)
@@ -117,6 +126,12 @@ def get_selected_currency_or_setup(schema):
 
 
 def get_currency_options():
+    """
+    get currency options
+
+    Returns:
+        (dict) - options.
+    """
     return [
         dict(
             value=currency.get("code"),
@@ -127,6 +142,16 @@ def get_currency_options():
 
 
 def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
+    """
+    set currency
+
+    Args:
+        (schema) - currency schema.
+        (currency_code) - currency code based on supported currencies(api.currency.currencies)
+
+    Returns:
+        (schema) - currency.
+    """
     with schema_context(schema):
         account_currency_setting = CurrencySettings.objects.all().first()
         supported_currency_codes = [code.get("code") for code in CURRENCIES]
