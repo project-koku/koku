@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Create Unleash Client."""
+import logging
 from unittest.mock import Mock
 
 import requests
@@ -11,6 +12,11 @@ from UnleashClient import UnleashClient
 from UnleashClient.strategies import Strategy
 
 from .env import ENVIRONMENT
+
+
+log_level = 40
+if isinstance(getattr(logging, settings.UNLEASH_LOGGING_LEVEL), int):
+    log_level = getattr(logging, settings.UNLEASH_LOGGING_LEVEL)
 
 
 class SchemaStrategy(Strategy):
@@ -40,7 +46,7 @@ UNLEASH_CLIENT = UnleashClient(
     custom_headers=headers,
     custom_strategies=strategies,
     cache_directory=settings.UNLEASH_CACHE_DIR,
-    verbose_log_level=settings.UNLEASH_LOGGING_LEVEL,
+    verbose_log_level=log_level,
 )
 
 if not UNLEASH_CLIENT.is_initialized:
