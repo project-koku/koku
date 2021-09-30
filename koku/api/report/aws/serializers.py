@@ -72,7 +72,6 @@ class FilterSerializer(BaseFilterSerializer):
 class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
-    # need to grab default from users_settings table
     # Tuples are (key, display_name)
     DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"), ("testing", "testing"))
     COST_TYPE_CHOICE = (
@@ -82,6 +81,7 @@ class QueryParamSerializer(ParamSerializer):
     )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    # ToDo need to set default from user settings table for the cost_type
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, default="unblended_cost")
     units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
