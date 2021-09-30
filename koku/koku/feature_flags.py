@@ -14,9 +14,11 @@ from UnleashClient.strategies import Strategy
 from .env import ENVIRONMENT
 
 
-log_level = 40
+log_level = getattr(logging, "WARNING")
 if isinstance(getattr(logging, settings.UNLEASH_LOGGING_LEVEL), int):
     log_level = getattr(logging, settings.UNLEASH_LOGGING_LEVEL)
+else:
+    print(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
 
 
 class SchemaStrategy(Strategy):
