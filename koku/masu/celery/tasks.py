@@ -318,10 +318,10 @@ def get_daily_currency_rates():
     for currency in ExchangeRates.SUPPORTED_CURRENCIES:
         LOG.info(currency)
         try:
-            exchange = ExchangeRates.objects.get(baseCurrency=currency)
+            exchange = ExchangeRates.objects.get(base_currency=currency)
         except ExchangeRates.DoesNotExist:
             LOG.info("Creating the exchange rate")
-            exchange = ExchangeRates(baseCurrency=currency)
+            exchange = ExchangeRates(base_currency=currency)
             # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
             # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
         response = requests.get(url)
