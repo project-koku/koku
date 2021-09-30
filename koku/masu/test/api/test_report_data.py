@@ -4,6 +4,7 @@
 #
 """Test the report_data endpoint view."""
 import datetime
+from unittest.mock import call
 from unittest.mock import patch
 from urllib.parse import urlencode
 
@@ -201,6 +202,8 @@ class ReportDataTests(TestCase):
         """Test GET report_data endpoint with end date."""
         start_date = DateHelper().today
         end_date = start_date + datetime.timedelta(days=1)
+        multiple_calls = start_date.month != end_date.month
+
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
@@ -211,18 +214,42 @@ class ReportDataTests(TestCase):
         }
         expected_key = "Report Data Task IDs"
 
+        expected_calls = [
+            call(
+                params["schema"],
+                provider_type,
+                params["provider_uuid"],
+                params["start_date"],
+                params["end_date"],
+                queue_name=PRIORITY_QUEUE,
+            )
+        ]
+
+        if multiple_calls:
+            expected_calls = [
+                call(
+                    params["schema"],
+                    provider_type,
+                    params["provider_uuid"],
+                    params["start_date"],
+                    params["start_date"],
+                    queue_name=PRIORITY_QUEUE,
+                ),
+                call(
+                    params["schema"],
+                    provider_type,
+                    params["provider_uuid"],
+                    params["end_date"],
+                    params["end_date"],
+                    queue_name=PRIORITY_QUEUE,
+                ),
+            ]
+
         response = self.client.get(reverse("report_data"), params)
         body = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.s.assert_called_with(
-            params["schema"],
-            provider_type,
-            params["provider_uuid"],
-            params["start_date"],
-            params["end_date"],
-            queue_name=PRIORITY_QUEUE,
-        )
+        mock_update.s.assert_has_calls(expected_calls, any_order=True)
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.report_data.update_summary_tables")
@@ -230,6 +257,8 @@ class ReportDataTests(TestCase):
         """Test GET report_data endpoint with only provider_type."""
         start_date = DateHelper().today
         end_date = start_date + datetime.timedelta(days=1)
+        multiple_calls = start_date.month != end_date.month
+
         params = {
             "schema": "acct10001",
             "provider_type": Provider.PROVIDER_AWS,
@@ -237,20 +266,43 @@ class ReportDataTests(TestCase):
             "end_date": end_date.date().strftime("%Y-%m-%d"),
         }
         expected_key = "Report Data Task IDs"
+        expected_calls = [
+            call(
+                params["schema"],
+                params["provider_type"],
+                None,
+                params["start_date"],
+                params["end_date"],
+                queue_name=PRIORITY_QUEUE,
+            )
+        ]
+
+        if multiple_calls:
+            expected_calls = [
+                call(
+                    params["schema"],
+                    params["provider_type"],
+                    None,
+                    params["start_date"],
+                    params["start_date"],
+                    queue_name=PRIORITY_QUEUE,
+                ),
+                call(
+                    params["schema"],
+                    params["provider_type"],
+                    None,
+                    params["end_date"],
+                    params["end_date"],
+                    queue_name=PRIORITY_QUEUE,
+                ),
+            ]
 
         response = self.client.get(reverse("report_data"), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.s.assert_called_with(
-            params["schema"],
-            params["provider_type"],
-            None,
-            params["start_date"],
-            params["end_date"],
-            queue_name=PRIORITY_QUEUE,
-        )
+        mock_update.s.assert_has_calls(expected_calls, any_order=True)
 
     @override_settings(DEVELOPMENT=True)
     @patch("koku.middleware.MASU", return_value=True)
