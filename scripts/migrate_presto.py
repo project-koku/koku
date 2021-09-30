@@ -36,6 +36,7 @@ def get_schemas(presto_cursor):
 
 
 table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
+column_name = "savingsplan_effective_cost"
 presto_conn = False
 logging.info("Running the hive migration for aws savings plan")
 try:
@@ -55,10 +56,10 @@ try:
         if check_schema(schema, presto_cur):
             for table_name in table_names:
                 try:
-                    logging.info(f"Dropping table {table_name} from {schema}.")
+                    logging.info(f"Creating column {column_name} in {table_name} for schema {schema}.")
                     presto_cur.execute(
                         f"""
-                        DROP TABLE IF EXISTS {table_name}
+                        ALTER TABLE {table_name} ADD COLUMNS {column_name}
                     """,
                         None,
                     )
