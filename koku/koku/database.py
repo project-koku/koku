@@ -202,7 +202,6 @@ def execute_compiled_sql(sql, params=None):
 def execute_delete_sql(query):
     """Execute sql directly, returns cursor."""
     sql, params = get_delete_sql(query)
-    # wrap this in a try except
     try: 
         return execute_compiled_sql(sql, params=params)
     except Exception as e: 
