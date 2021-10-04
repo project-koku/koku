@@ -43,9 +43,11 @@
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -87,6 +89,8 @@
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
       livenessProbe:
         httpGet:
           path: /livez
@@ -115,15 +119,15 @@
           cpu: ${LISTENER_CPU_REQUEST}
           memory: ${LISTENER_MEMORY_REQUEST}
       volumeMounts:
-      - name: prometheus-data
-        mountPath: ${PROMETHEUS_DIR}
       - name: koku-listener-data
         mountPath: /var/tmp/masu/
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: tmp-data
+        mountPath: ${TMP_DIR}
       volumes:
-      - name: prometheus-data
+      - name: tmp-data
         emptyDir: {}
       - name: koku-listener-data
         emptyDir: {}
