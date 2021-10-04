@@ -4,12 +4,18 @@
 #
 from tenant_schemas.utils import schema_context
 
-from api.settings.utils import get_currency_options
+from api.settings.utils import get_cost_type_options
+from api.settings.utils import get_selected_cost_type_or_setup
 from api.settings.utils import get_selected_currency_or_setup
+from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
+from koku.reporting.user_settings.models import UserSettings
+from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.test import MasuTestCase
-from reporting.currency.models import CurrencySettings
+
+# from api.settings.utils import get_currency_options
+# from reporting.currency.models import CurrencySettings
 
 
 class TestCurrencyCommon(MasuTestCase):
@@ -18,7 +24,10 @@ class TestCurrencyCommon(MasuTestCase):
     def setUp(self):
         """Set up test suite."""
         with schema_context(self.schema):
-            CurrencySettings.objects.all().delete()
+            # CurrencySettings.objects.all().delete()
+            UserSettings.objects.all().delete()
+
+    """Tests for cost_type utils."""
 
     def test_get_selected_currency_or_setup(self):
         """Test currency initialization."""
@@ -32,10 +41,32 @@ class TestCurrencyCommon(MasuTestCase):
 
     def test_get_currency_options(self):
         """Test get_currency_options."""
-        options = get_currency_options()
+        options = get_cost_type_options()
         self.assertTrue(len(options) != 0)
 
     def test_set_currency_negative(self):
-        """Test currency raises exception when providing a non-supported currency"""
+        """Test cost_type raises exception when providing a non-supported cost_type"""
         with self.assertRaises(ValueError):
-            set_currency(self.schema, currency_code="BOGUS")
+            set_currency(self.schema, cost_type_code="BOGUS")
+
+    """Tests for cost_type utils."""
+
+    def test_get_selected_cost_type_or_setup(self):
+        """Test cost_type initialization."""
+        cost_type = get_selected_cost_type_or_setup(self.schema)
+        self.assertEqual(cost_type, KOKU_DEFAULT_COST_TYPE)
+
+        new_cost_type = "Amortized Cost"
+        set_cost_type(self.schema, cost_type_name=new_cost_type)
+        cost_type = get_selected_cost_type_or_setup(self.schema)
+        self.assertEqual(cost_type, new_cost_type)
+
+    def test_get_cost_type_options(self):
+        """Test get_cost_type_options."""
+        options = get_cost_type_options()
+        self.assertTrue(len(options) != 0)
+
+    def test_set_cost_type_negative(self):
+        """Test cost_type raises exception when providing a non-supported cost_type"""
+        with self.assertRaises(ValueError):
+            set_cost_type(self.schema, cost_type_name="BOGUS")

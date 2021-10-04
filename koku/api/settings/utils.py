@@ -8,6 +8,12 @@ from api.currency.currencies import CURRENCIES
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.currency.models import CurrencySettings
 
+
+# from api.user_settings.settings import CURRENCIES, COST_TYPES
+# from koku.settings import KOKU_DEFAULT_CURRENCY, KOKU_DEFAULT_COST_TYPE
+# from reporting.user_settings.models import UserSettings
+# from reporting.currency.models import CurrencySettings
+
 """Utilities for Settings."""
 SETTINGS_PREFIX = "api.settings"
 OPENSHIFT_SETTINGS_PREFIX = f"{SETTINGS_PREFIX}.openshift"
@@ -164,3 +170,129 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
         else:
             account_currency_setting.currency = currency_code
             account_currency_setting.save()
+
+
+# def set_default_user_settings(schema):
+#     default_settings = {
+#         "currency" : KOKU_DEFAULT_CURRENCY,
+#         "cost_type" : KOKU_DEFAULT_COST_TYPE
+#     }
+
+#     UserSettings.objects.create(settings=default_settings)
+
+
+# def get_selected_currency_or_setup(schema):
+#     """
+#     get currency and/or setup initial currency
+
+#     Args:
+#         (schema) - user_settings schema.
+
+#     Returns:
+#         (schema) - user_settings.
+#     """
+#     with schema_context(schema):
+#         if not UserSettings.objects.exists():
+#             set_currency(schema)
+#         currency = UserSettings.objects.all().first().settings["currency"]
+#         return currency
+
+
+# def get_currency_options():
+#     """
+#     get currency options
+
+#     Returns:
+#         (dict) - options.
+#     """
+#     return [
+#         dict(
+#             value=currency.get("code"),
+#             label=f"{currency.get('code')} ({currency.get('symbol')}) - {currency.get('name')}",
+#         )
+#         for currency in CURRENCIES
+#     ]
+
+
+# def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
+#     """
+#     set currency
+
+#     Args:
+#         (schema) - currency schema.
+#         (currency_code) - currency code based on supported currencies(api.currency.currencies)
+
+#     Returns:
+#         (schema) - currency.
+#     """
+#     with schema_context(schema):
+#         account_currency_setting = UserSettings.objects.all().first()
+#         supported_currency_codes = [code.get("code") for code in CURRENCIES]
+
+#         if currency_code not in supported_currency_codes:
+#             raise ValueError(currency_code + " is not a supported currency")
+
+#         if not account_currency_setting:
+#             set_default_user_settings(schema)
+#         else:
+#             account_currency_setting["currency"] = currency_code
+#             account_currency_setting.save()
+
+
+# """Common utilities and helpers for Cost_type."""
+# def get_selected_cost_type_or_setup(schema):
+#     """
+#     get cost_type and/or setup initial currency
+
+#     Args:
+#         (schema) - user_settings schema.
+
+#     Returns:
+#         (schema) - user_settings.
+#     """
+#     with schema_context(schema):
+#         if not UserSettings.objects.exists():
+#             set_currency(schema)
+#         currency = UserSettings.objects.all().first().currency
+#         return currency
+
+
+# def get_cost_type_options():
+#     """
+#     get currency options
+
+#     Returns:
+#         (dict) - options.
+#     """
+#     return [
+#         dict(
+#             value=currency.get("name"),
+#             label=f"{currency.get('code')} ({currency.get('symbol')}) - {currency.get('name')}",
+#         )
+#         for currency in CURRENCIES
+#     ]
+
+
+# def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
+#     """
+#     set currency
+
+#     Args:
+#         (schema) - currency schema.
+#         (currency_code) - currency code based on supported currencies(api.currency.currencies)
+
+#     Returns:
+#         (schema) - currency.
+#     """
+#     with schema_context(schema):
+#         account_current_setting = UserSettings.objects.all().first()
+#         supported_cost_type_codes = [code.get("code") for code in COST_TYPES]
+
+#         if cost_type_code not in supported_cost_type_codes:
+#             raise ValueError(cost_type_code + " is not a supported currency")
+
+#         if not account_current_setting:
+#             set_default_user_settings(schema)
+#         else:
+#             account_current_setting["cost_type"] = cost_type_code
+#             account_current_setting.save()
