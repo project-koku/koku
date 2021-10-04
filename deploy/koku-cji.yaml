@@ -1,9 +1,14 @@
 ---
 apiVersion: cloud.redhat.com/v1alpha1
-kind: ClowdJobInvocation
+kind: Template
 metadata:
   name: koku-cji
-spec:
-  appName: koku
-  jobs:
-    - script-runner
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: koku-cji
+  spec:
+    appName: koku
+    jobs:
+      - script-runner
