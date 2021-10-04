@@ -4,12 +4,16 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
+from koku.database import set_partition_mode
+from koku.database import unset_partition_mode
+
 
 class Migration(migrations.Migration):
 
     dependencies = [("reporting", "0193_gcptopology")]
 
     operations = [
+        migrations.RunPython(set_partition_mode, reverse_code=unset_partition_mode),
         migrations.CreateModel(
             name="OCPAllComputeSummaryPT",
             fields=[
@@ -353,4 +357,5 @@ class Migration(migrations.Migration):
             model_name="ocpallcomputesummarypt",
             index=models.Index(fields=["resource_id"], name="ocpap_cmpsumm_rsrc_id_ix"),
         ),
+        migrations.RunPython(unset_partition_mode, reverse_code=set_partition_mode),
     ]
