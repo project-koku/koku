@@ -1,12 +1,12 @@
 mgmt_services/cost-mgmt:koku/registry.access.redhat.com/ubi8/python-38:latest
 mgmt_services/cost-mgmt:koku/python-adal:1.2.7.pipfile
 mgmt_services/cost-mgmt:koku/python-amqp:2.6.1.pipfile
-mgmt_services/cost-mgmt:koku/python-app-common-python:0.1.9.pipfile
+mgmt_services/cost-mgmt:koku/python-app-common-python:0.1.10.pipfile
 mgmt_services/cost-mgmt:koku/python-appdirs:1.4.4.pipfile
 mgmt_services/cost-mgmt:koku/python-apscheduler:3.8.0.pipfile
 mgmt_services/cost-mgmt:koku/python-asgiref:3.4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-common:1.1.27.pipfile
-mgmt_services/cost-mgmt:koku/python-azure-core:1.18.0.pipfile
+mgmt_services/cost-mgmt:koku/python-azure-core:1.19.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-core:1.3.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-costmanagement:0.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-mgmt-resource:20.0.0.pipfile
@@ -14,10 +14,10 @@ mgmt_services/cost-mgmt:koku/python-azure-mgmt-storage:11.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-azure-storage-blob:12.9.0.pipfile
 mgmt_services/cost-mgmt:koku/python-beautifulsoup4:4.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-billiard:3.6.4.0.pipfile
-mgmt_services/cost-mgmt:koku/python-boto3:1.18.50.pipfile
-mgmt_services/cost-mgmt:koku/python-botocore:1.21.50.pipfile
+mgmt_services/cost-mgmt:koku/python-boto3:1.18.54.pipfile
+mgmt_services/cost-mgmt:koku/python-botocore:1.21.54.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
-mgmt_services/cost-mgmt:koku/python-cachetools:4.2.2.pipfile
+mgmt_services/cost-mgmt:koku/python-cachetools:4.2.4.pipfile
 mgmt_services/cost-mgmt:koku/python-celery:4.4.7.pipfile
 mgmt_services/cost-mgmt:koku/python-celery-prometheus-exporter:1.7.0.pipfile
 mgmt_services/cost-mgmt:koku/python-certifi:2021.5.30.pipfile
@@ -25,7 +25,7 @@ mgmt_services/cost-mgmt:koku/python-cffi:1.14.6.pipfile
 mgmt_services/cost-mgmt:koku/python-charset-normalizer:2.0.6.pipfile
 mgmt_services/cost-mgmt:koku/python-ciso8601:2.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-confluent-kafka:1.7.0.pipfile
-mgmt_services/cost-mgmt:koku/python-cryptography:3.4.8.pipfile
+mgmt_services/cost-mgmt:koku/python-cryptography:35.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-django:3.1.13.pipfile
 mgmt_services/cost-mgmt:koku/python-django-cors-headers:3.9.0.pipfile
 mgmt_services/cost-mgmt:koku/python-django-environ:0.7.0.pipfile
@@ -42,7 +42,7 @@ mgmt_services/cost-mgmt:koku/python-google-api-core:2.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-google-api-python-client:2.23.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth:2.2.1.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth-httplib2:0.1.0.pipfile
-mgmt_services/cost-mgmt:koku/python-google-cloud-bigquery:2.27.1.pipfile
+mgmt_services/cost-mgmt:koku/python-google-cloud-bigquery:2.28.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-cloud-core:2.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-crc32c:1.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-resumable-media:2.0.3.pipfile
@@ -51,7 +51,7 @@ mgmt_services/cost-mgmt:koku/python-grpcio:1.41.0.pipfile
 mgmt_services/cost-mgmt:koku/python-gunicorn:20.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-httplib2:0.19.1.pipfile
 mgmt_services/cost-mgmt:koku/python-ibm-cloud-sdk-core:3.11.3.pipfile
-mgmt_services/cost-mgmt:koku/python-ibm-platform-services:0.20.1.pipfile
+mgmt_services/cost-mgmt:koku/python-ibm-platform-services:0.21.0.pipfile
 mgmt_services/cost-mgmt:koku/python-idna:3.2.pipfile
 mgmt_services/cost-mgmt:koku/python-importlib-metadata:4.8.1.pipfile
 mgmt_services/cost-mgmt:koku/python-isodate:0.6.0.pipfile
@@ -73,7 +73,7 @@ mgmt_services/cost-mgmt:koku/python-pandas:1.3.3.pipfile
 mgmt_services/cost-mgmt:koku/python-patsy:0.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-pint:0.17.pipfile
 mgmt_services/cost-mgmt:koku/python-prometheus-client:0.11.0.pipfile
-mgmt_services/cost-mgmt:koku/python-proto-plus:1.19.0.pipfile
+mgmt_services/cost-mgmt:koku/python-proto-plus:1.19.2.pipfile
 mgmt_services/cost-mgmt:koku/python-protobuf:3.18.0.pipfile
 mgmt_services/cost-mgmt:koku/python-psutil:5.8.0.pipfile
 mgmt_services/cost-mgmt:koku/python-psycopg2-binary:2.9.1.pipfile
@@ -86,7 +86,7 @@ mgmt_services/cost-mgmt:koku/python-pyflakes:2.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-pyjwt:2.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-pyparsing:2.4.7.pipfile
 mgmt_services/cost-mgmt:koku/python-python-dateutil:2.8.2.pipfile
-mgmt_services/cost-mgmt:koku/python-pytz:2021.1.pipfile
+mgmt_services/cost-mgmt:koku/python-pytz:2021.3.pipfile
 mgmt_services/cost-mgmt:koku/python-querystring-parser:1.2.4.pipfile
 mgmt_services/cost-mgmt:koku/python-redis:3.5.3.pipfile
 mgmt_services/cost-mgmt:koku/python-requests:2.26.0.pipfile
@@ -98,7 +98,7 @@ mgmt_services/cost-mgmt:koku/python-sentry-sdk:1.4.3.pipfile
 mgmt_services/cost-mgmt:koku/python-six:1.16.0.pipfile
 mgmt_services/cost-mgmt:koku/python-soupsieve:2.2.1.pipfile
 mgmt_services/cost-mgmt:koku/python-sqlparse:0.4.2.pipfile
-mgmt_services/cost-mgmt:koku/python-statsmodels:0.12.2.pipfile
+mgmt_services/cost-mgmt:koku/python-statsmodels:0.13.0.pipfile
 mgmt_services/cost-mgmt:koku/python-trino:0.306.0.pipfile
 mgmt_services/cost-mgmt:koku/python-tzlocal:2.1.pipfile
 mgmt_services/cost-mgmt:koku/python-ujson:4.2.0.pipfile
