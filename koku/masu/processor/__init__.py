@@ -11,6 +11,7 @@ from koku.feature_flags import UNLEASH_CLIENT
 from masu.external import GZIP_COMPRESSED
 from masu.external import UNCOMPRESSED
 
+
 LOG = logging.getLogger(__name__)
 
 ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)

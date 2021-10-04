@@ -24,15 +24,13 @@ class SettingsViewTest(IamTestCase):
         """Request settings from API."""
         url = reverse("settings")
         client = APIClient()
-        response = client.get(url, **self.headers)
-        return response
+        return client.get(url, **self.headers)
 
     def post_settings(self, body):
         """Request settings from API."""
         url = reverse("settings")
         client = APIClient()
-        response = client.post(url, data=body, format="json", **self.headers)
-        return response
+        return client.post(url, data=body, format="json", **self.headers)
 
     def get_duallist_from_response(self, response):
         """Utility to get dual list object from response."""

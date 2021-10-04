@@ -2,6 +2,44 @@
     "version": 1,
     "features": [
         {
+            "name": "cost-currency-api-view",
+            "description": "Toggle for the /currency endpoint",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": "10001"
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2021-09-14T21:22:00.756Z"
+        },
+        {
+            "name": "cost-currency-settings",
+            "description": "Enables Currency settings at the /settings endpoint",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": "10001"
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2021-09-14T21:21:15.395Z"
+        },
+        {
             "name": "cost-trino-processor",
             "description": "Toggle to enable trino processing",
             "type": "permission",

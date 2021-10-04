@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Metrics views."""
+from unittest.mock import patch
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -14,7 +16,8 @@ from api.iam.test.iam_test_case import IamTestCase
 class CurrencyViewTest(IamTestCase):
     """Tests for the metrics view."""
 
-    def test_supported_currencies(self):
+    @patch("api.currency.view.UNLEASH_CLIENT.is_enabled", return_value=True)
+    def test_supported_currencies(self, _):
         """Test that a list GET call returns the supported currencies."""
         qs = "?limit=20"
         url = reverse("currency") + qs
@@ -25,3 +28,13 @@ class CurrencyViewTest(IamTestCase):
 
         data = response.data
         self.assertEqual(data.get("data"), CURRENCIES)
+
+    @patch("api.currency.view.UNLEASH_CLIENT.is_enabled", return_value=False)
+    def test_supported_currencies_ff_disabled(self, _):
+        """Test that a list GET call returns the supported currencies."""
+        qs = "?limit=20"
+        url = reverse("currency") + qs
+        client = APIClient()
+
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

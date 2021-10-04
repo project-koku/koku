@@ -32,6 +32,7 @@ from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
@@ -173,12 +174,12 @@ class Settings:
             "clearedValue": [],
         }
 
-        dual_list_name = f'{"api.settings.tag-management.enabled"}'
+        dual_list_name = "api.settings.tag-management.enabled"
         tags_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
         # currency settings TODO: only show in dev mode right now
-        if settings.DEVELOPMENT:
-            currency_select_name = f'{"api.settings.currency"}'
+        if settings.DEVELOPMENT or UNLEASH_CLIENT.is_enabled("cost-currency-settings"):
+            currency_select_name = "api.settings.currency"
             currency_text_context = "Select the preferred currency to view Cost Information in."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
             currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
@@ -204,9 +205,7 @@ class Settings:
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
-        sub_form = create_subform(sub_form_name, sub_form_title, sub_form_fields)
-
-        return sub_form
+        return create_subform(sub_form_name, sub_form_title, sub_form_fields)
 
     def _tag_key_handler(self, settings):
         """
