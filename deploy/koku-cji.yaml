@@ -1,5 +1,5 @@
 ---
-apiVersion: cloud.redhat.com/v1alpha1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: koku-cji
