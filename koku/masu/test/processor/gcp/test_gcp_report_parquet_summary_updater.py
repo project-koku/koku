@@ -76,6 +76,9 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(end, expected_end)
 
     @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501
+    )
+    @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
     )
     @patch(
@@ -85,7 +88,9 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
     )
-    def test_update_daily_summary_tables(self, mock_presto, mock_tag_update, mock_summary_update, mock_delete):
+    def test_update_daily_summary_tables(
+        self, mock_presto, mock_tag_update, mock_summary_update, mock_delete, mock_topo
+    ):
         """Test that we run Presto summary."""
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
