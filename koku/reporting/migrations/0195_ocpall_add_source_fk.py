@@ -6,7 +6,10 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0049_auto_20210818_2208"), ("reporting", "0193_gcptopology")]
+    dependencies = [
+        ("api", "0049_auto_20210818_2208"),
+        ("reporting", "0194_awscostentrylineitemdailysummary_savingsplan_effective_cost"),
+    ]
 
     operations = [
         migrations.AlterField(
