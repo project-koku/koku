@@ -245,13 +245,17 @@ superuser:
 	$(DJANGO_MANAGE) createsuperuser
 
 unleash-export:
-	 curl -X GET -H "Authorization: Basic YWRtaW46" "http://localhost:4242/api/admin/state/export?format=json&featureToggles=1&strategies=0&tags=0&projects=0&download=1" > .unleash/flags.json
+	curl -X GET -H "Authorization: Basic YWRtaW46" \
+	"http://localhost:4242/api/admin/state/export?format=json&featureToggles=1&strategies=0&tags=0&projects=0&download=1" \
+	-s | python -m json.tool > .unleash/flags.json
 
 unleash-import:
-	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" -d @.unleash/flags.json http://localhost:4242/api/admin/state/import
+	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
+	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import
 
 unleash-import-drop:
-	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
+	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
+	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
 
 ####################################
 # Commands using OpenShift Cluster #
