@@ -45,7 +45,9 @@
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -132,7 +134,11 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: tmp-data
+        mountPath: ${TMP_DIR}
       volumes:
+      - name: tmp-data
+        emptyDir: {}
       - name: gcp-credentials
         secret:
           secretName: koku-gcp

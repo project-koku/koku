@@ -136,6 +136,13 @@ if DEVELOPMENT:
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
 
+### Feature Flags
+UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
+UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
+UNLEASH_URL = f"http://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
+UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
+UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+
 ### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]
@@ -300,6 +307,7 @@ CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
 DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")
 KOKU_LOGGING_LEVEL = ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO")
+UNLEASH_LOGGING_LEVEL = ENVIRONMENT.get_value("UNLEASH_LOG_LEVEL", default="WARNING")
 LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
@@ -379,6 +387,10 @@ LOGGING = {
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
+        # Setting to WARNING will prevent the INFO level spam.
+        "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
+        "apscheduler": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
     },
 }
 
