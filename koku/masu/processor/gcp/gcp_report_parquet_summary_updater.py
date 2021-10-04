@@ -116,6 +116,7 @@ class GCPReportParquetSummaryUpdater:
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
+            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
