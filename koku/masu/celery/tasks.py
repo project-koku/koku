@@ -301,11 +301,11 @@ def get_daily_currency_rates():
     #     "SGD",
     #     "ZAR",
     # ]
-    endpoint = "http://api.exchangeratesapi.io/v1/latest?access_key=76b80adfa0400a63c7a8c8e5bc843b89"
-
-    url = endpoint
-    response = requests.get(url)
-    json_result = response.json()
+    endpoint = settings.CURRENCY_ENDPOINT
+    # mock endpoint
+    # url = endpoint
+    # response = requests.get(url)
+    # json_result = response.json()
     # stores the output of the json response
     # dictOfRates = json_result.get("rates")
     # stringOfCurrencyLists = ",".join(currencyList)
@@ -316,23 +316,35 @@ def get_daily_currency_rates():
     # for base in currencyList:
     #     for starting in base:
     for currency in ExchangeRates.SUPPORTED_CURRENCIES:
-        LOG.info(currency)
-        try:
-            exchange = ExchangeRates.objects.get(base_currency=currency)
-        except ExchangeRates.DoesNotExist:
-            LOG.info("Creating the exchange rate")
-            exchange = ExchangeRates(base_currency=currency)
-            # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
-            # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
-        response = requests.get(url)
-        LOG.info(response)
-        json_result = response.json()
-        response = json_result.get("rates")
-        LOG.info("Here are the rates")
-        LOG.info(response)
-        exchange.exchangeRate = response
-        exchange.save()
-        LOG.info(exchange)
+        for targetCurrency in ExchangeRates.SUPPORTED_CURRENCIES:
+            response = requests.get(endpoint)  # step 1
+            json_result = response.json()
+            response = json_result.get("rates")
+            LOG.info("Here are the rates")
+            try:  # step 2
+                exchange = ExchangeRates.objects.get(base_currency=currency, target_currency=targetCurrency)
+            except ExchangeRates.DoesNotExist:
+                LOG.info("Creating the exchange rate")
+                exchange = ExchangeRates(base_currency=currency, target_currency=targetCurrency)
+                # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
+                # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
+            # Now that we have 3 fields we want to fill in we need to save two different datas
+            # We do this with a double for loop that saves the base currency to base currency
+            # The target currency to the loop through all the rates and save them
+            # Then save them all and loop through again
+            for target in response.keys():
+                value = response[target]
+                LOG.info("new info here")
+                # LOG.info(exchange)
+                # LOG.info(exchange.exchange_rate)
+                # LOG.info(exchange.base_currency)
+                # LOG.info(exchange.target_currency)
+                # LOG.info(response)#step 3
+                # LOG.info(target)
+                exchange.exchange_rate = value
+                exchange.save()
+                # exchange2.exchangeRate = "usd"
+
     # for currency in currencyList:
     #     for value in currencyList:
     #         url = endpoint + access_key
