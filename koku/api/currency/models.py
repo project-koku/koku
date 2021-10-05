@@ -4,8 +4,8 @@
 #
 """Models for AWS cost entry tables."""
 # from uuid import uuid4
+# from env import currency endpoimy
 from django.db import models
-from django.db.models import JSONField
 
 
 class ExchangeRates(models.Model):
@@ -24,7 +24,6 @@ class ExchangeRates(models.Model):
     SGD = "sgd"
     USD = "usd"
     ZAR = "zar"
-    # SUPPORTED_CURRENCIES = tuple([(curr.code.toLower(), curr.code)for curr in CURRENCIES])
     SUPPORTED_CURRENCIES = (
         (AUD, "AUD"),
         (CAD, "CAD"),
@@ -43,6 +42,6 @@ class ExchangeRates(models.Model):
         (ZAR, "ZAR"),
     )
 
-    base_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True)
-    # target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True)
-    exchangeRate = JSONField(default=dict)
+    base_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True, null=True)
+    target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True, null=True)
+    exchange_rate = models.FloatField(default=0)
