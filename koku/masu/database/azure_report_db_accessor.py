@@ -15,6 +15,7 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from koku.database import get_model
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -47,6 +48,14 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return AzureCostEntryLineItemDailySummary
+
+    @property
+    def ocpall_line_item_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemDailySummaryP")
+
+    @property
+    def ocpall_line_item_project_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemProjectDailySummaryP")
 
     @property
     def line_item_daily_table(self):
