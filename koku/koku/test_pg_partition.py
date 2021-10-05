@@ -2,6 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import datetime
 import uuid
 
 from django.db import connection as conn
@@ -35,6 +36,252 @@ select c.relkind,
         res = cur.fetchone()
 
     return dict(zip(("relkind", "relispartition"), res)) if res else res
+
+
+class TestGoCPartition(IamTestCase):
+    PARTITIONED_TABLE_NAME = "__pg_partition_test2"
+    SCHEMA_NAME = "acct10001"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        sql = f"""
+create table if not exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    ref_id int,
+    utilization_date date not null,
+    label text not null,
+    data numeric(15,4),
+    primary key (utilization_date, id)
+)
+partition by range (utilization_date);
+"""
+        _execute(sql)
+
+        sql = f"""
+create table if not exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    ref_id int,
+    utilization_code int not null,
+    label text not null,
+    data numeric(15,4),
+    primary key (utilization_date, id)
+)
+partition by list (utilization_date);
+"""
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        sql = f"""
+drop table if exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} ;
+"""
+        _execute(sql)
+
+    def execute(self, sql, params=None):
+        return _execute(sql, params)
+
+    def drop_all_partitions(self):
+        PartitionedTable.objects.filter(
+            schema_name=self.SCHEMA_NAME, partition_of_table_name=self.PARTITIONED_TABLE_NAME
+        ).delete()
+
+    def test_input_scrub(self):
+        """Test input dict value scrubbing"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "id": 1000,
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_default",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_parameters": {
+                    "default": True,
+                    "from": datetime.datetime(2021, 1, 1),
+                    "to": datetime.date(2021, 2, 1),
+                },
+                "active": True,
+            }
+            dp, dc = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(bool(dp) and dc, f"bool(dp) = {bool(dp)}; dc = {dc}")
+            self.assertFalse("id" in part_rec, '"id" still in part_rec')
+            self.assertTrue(isinstance(part_rec["partition_parameters"]["from"], str))
+            self.assertTrue(isinstance(part_rec["partition_parameters"]["to"], str))
+
+            dp.delete()
+
+    def test_create_default_partition(self):
+        """Test that a default partition can be explicitly created"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_default",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_parameters": {"default": True},
+                "active": True,
+            }
+            dp, dc = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(bool(dp) and dc, "Default partition not created")
+            self.assertEqual(dp.table_name, part_rec["table_name"])
+            self.assertTrue(dp.partition_parameters["default"])
+
+            dp.delete()
+
+    def test_create_partition_creates_default(self):
+        """Test that creating a data partition will also create the default partition, if needed"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_2021_01",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_type": "range",
+                "partition_col": "utilization_date",
+                "partition_parameters": {"default": False, "from": "2021-01-01", "to": "2021-02-01"},
+                "active": True,
+            }
+            p, c = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(bool(p), f"Partition {part_rec['table_name']} creation failed")
+            self.assertTrue(c, f"Partition {part_rec['table_name']} was not created")
+            self.assertEqual(part_rec["table_name"], p.table_name)
+            self.assertEqual(part_rec["partition_of_table_name"], p.partition_of_table_name)
+            self.assertEqual(part_rec["partition_parameters"], p.partition_parameters)
+
+            # This is using an "internal" function that the main interface will call
+            dp, dc = ppart._get_or_create_default_partition(part_rec)
+            self.assertTrue(bool(dp), "Failed to get tracking record for default partition")
+            self.assertFalse(dc, "Default partition was created when it should not have been")
+
+            dp.delete()
+            p.delete()
+
+    def test_get_existing_default_partition(self):
+        """Test that an existing default partition can be retrieved without creation"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_default",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_parameters": {"default": True},
+                "active": True,
+            }
+            dp, dc = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(bool(dp) and dc, "Default partition not created for test")
+
+            dp2, dc2 = ppart.get_or_create_partition(part_rec)
+            self.assertFalse(dc2, "Default partition marked as created when it should exist")
+            self.assertEqual(dp, dp2, "Different default partitions returned.")
+
+            dp.delete()
+
+    def test_get_existing_partition(self):
+        """Test that an existing partition can be retrieved without creation"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_2021_01",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_type": "range",
+                "partition_col": "utilization_date",
+                "partition_parameters": {"default": False, "from": "2021-01-01", "to": "2021-02-01"},
+                "active": True,
+            }
+            p, c = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(bool(p) and c, "Partition not created for test")
+
+            p2, c2 = ppart.get_or_create_partition(part_rec)
+            self.assertFalse(c2, "Partition marked as created when it should exist")
+            self.assertEqual(p, p2, "Different partitions returned.")
+
+            p.delete()
+
+    def test_overlapping_data_in_default(self):
+        """Test that overlapping data in the default partition is moved to the desired partition"""
+        DEFAULT_PART_NAME = f"{self.PARTITIONED_TABLE_NAME}_default"
+        PART_01_NAME = f"{self.PARTITIONED_TABLE_NAME}_2021_01"
+        PART_02_NAME = f"{self.PARTITIONED_TABLE_NAME}_2021_02"
+
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": PART_01_NAME,
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_type": "range",
+                "partition_col": "utilization_date",
+                "partition_parameters": {"default": False, "from": "2021-01-01", "to": "2021-02-01"},
+                "active": True,
+            }
+            p01, created = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(created, "Partition 1 was not created")
+
+            sql = f"""
+INSERT INTO {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} (utilization_date, label)
+VALUES (%s, %s), (%s, %s), (%s, %s) ;
+"""
+            self.execute(sql, ("2021-01-01", "test 01", "2021-02-01", "test 02", "2021-03-01", "test 03"))
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 3, "Initial load failed")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{PART_01_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 1, f"Partition 2021_01 had {ct} but 1 expected")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{DEFAULT_PART_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 2, f"Default partition had {ct} but 2 expected")
+
+            part_rec["table_name"] = PART_02_NAME
+            part_rec["partition_parameters"]["from"] = "2021-02-01"
+            part_rec["partition_parameters"]["to"] = "2021-03-01"
+            p02, created = ppart.get_or_create_partition(part_rec)
+            self.assertTrue(created, "Partition 2 was not created")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{self.PARTITIONED_TABLE_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 3, f"Total record count changed {ct} (should be 3)")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{PART_01_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 1, f"Partition 2021_01 had {ct} but 1 expected")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{PART_02_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 1, f"Partition 2021_02 had {ct} but 1 expected")
+
+            sql = f"""
+select count(*) from {self.SCHEMA_NAME}.{DEFAULT_PART_NAME} ;
+"""
+            cur = self.execute(sql)
+            ct = cur.fetchone()[0]
+            self.assertEqual(ct, 1, f"Default partition had {ct} but 1 expected")
+
+            p01.delete()
+            p02.delete()
+            ppart._get_or_create_default_partition(part_rec)[0].delete()
 
 
 class TestPGPartition(IamTestCase):
