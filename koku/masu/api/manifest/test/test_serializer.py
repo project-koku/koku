@@ -36,6 +36,7 @@ class ManifestSerializerTest(IamTestCase):
             "s3_csv_cleared": True,
             "s3_parquet_cleared": True,
             "operator_version": "1.0",
+            "export_time": datetime.datetime.now(),
         }
 
     def test_manifest_contains_expected_fields(self):
@@ -55,6 +56,7 @@ class ManifestSerializerTest(IamTestCase):
                 "s3_csv_cleared",
                 "s3_parquet_cleared",
                 "operator_version",
+                "export_time",
             },
         )
 
