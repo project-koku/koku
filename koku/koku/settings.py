@@ -137,9 +137,10 @@ if DEVELOPMENT:
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
 
 ### Feature Flags
+UNLEASH_PREFIX = ENVIRONMENT.get_value("UNLEASH_PREFIX", default="https://")
 UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
 UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
-UNLEASH_URL = f"http://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
+UNLEASH_URL = f"{UNLEASH_PREFIX}{UNLEASH_HOST}:{UNLEASH_PORT}/api"
 UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
 UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
 
