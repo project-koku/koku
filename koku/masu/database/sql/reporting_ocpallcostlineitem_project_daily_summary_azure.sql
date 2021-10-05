@@ -4,7 +4,9 @@ DELETE
   FROM reporting_ocpallcostlineitem_project_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
-   AND source_uuid = {{source_uuid}}::uuid;
+   AND source_uuid = {{source_uuid}}::uuid
+   AND cluster_id = {{cluster_id}}
+   AND source_type = 'Azure';
 
 
 INSERT
@@ -36,7 +38,7 @@ INSERT
        )
 SELECT 'Azure' as source_type,
        cluster_id,
-       max(cluster_alias) as cluster_alias,
+       {{cluster_alias}} as cluster_alias,
        data_source,
        namespace::text as namespace,
        node::text as node,
@@ -61,6 +63,7 @@ SELECT 'Azure' as source_type,
   FROM reporting_ocpazurecostlineitem_project_daily_summary
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
+   AND cluster_id = {{cluster_id}}
    AND source_uuid = {{source_uuid}}::uuid
  GROUP
     BY usage_start,
