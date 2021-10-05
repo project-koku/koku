@@ -242,7 +242,13 @@ class Settings:
                 raise ValidationError(error_obj(key, message))
 
             if "aws" in provider_name:
-                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
+                existing_enabled_tags = []
+                for key in enabled_tag_keys.objects.all():
+                    if key.enabled:
+                        existing_enabled_tags.append(key.key)
+
+                if enabled_tags_no_abbr != existing_enabled_tags:
+                    updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
 
             else:
                 remove_tags = []
@@ -257,9 +263,12 @@ class Settings:
                             updated[ix] = True
 
                     for rm_tag in remove_tags:
+                        LOG.info(f"Updating " + provider_name + " tag '" + rm_tag.key + "': DISABLED")
                         rm_tag.delete()
+                        updated[ix] = True
 
                     for new_tag in enabled_tags_no_abbr:
+                        LOG.info(f"Updating " + provider_name + " tag '" + new_tag + "': ENABLED")
                         enabled_tag_keys.objects.create(key=new_tag)
                         updated[ix] = True
 
@@ -280,10 +289,12 @@ class Settings:
             return False
 
         try:
+            LOG.info(f"Updating currency to: " + settings)
             set_currency(self.schema, settings)
         except Exception as exp:
             LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
             return False
+
         invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
         return True
 
@@ -309,8 +320,10 @@ class Settings:
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        tags_change = self._tag_key_handler(tg_mgmt_settings)
+        currency_change = self._currency_handler(currency_settings)
 
-        if self._tag_key_handler(tg_mgmt_settings) and self._currency_handler(currency_settings):
+        if tags_change or currency_change:
             return True
 
         return False
