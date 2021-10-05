@@ -9,12 +9,12 @@ import pyarrow.parquet as pq
 import trino
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.exceptions import TrinoUserError
 
 from api.models import Provider
+from koku.pg_partition import get_or_create_partition
 from masu.util.common import strip_characters_from_column_name
 from reporting.models import PartitionedTable
 
@@ -140,22 +140,42 @@ class ReportParquetProcessorBase:
         partition_type = kwargs.get("partition_type", PartitionedTable.RANGE)
         partition_column = kwargs.get("partition_column", "usage_start")
 
-        with schema_context(self._schema_name):
-            record, created = PartitionedTable.objects.get_or_create(
-                schema_name=self._schema_name,
-                table_name=f"{table_name}_{bill_date.strftime('%Y_%m')}",
-                partition_of_table_name=table_name,
-                partition_type=partition_type,
-                partition_col=partition_column,
-                partition_parameters={
-                    "default": False,
-                    "from": str(bill_date),
-                    "to": str(bill_date + relativedelta(months=1)),
-                },
-                active=True,
-            )
-        if created:
-            LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
+        # Get or Create records for last partition, this partition, next partition range
+        # This is to help with those vendors whose billing info spills over a 1-month
+        # boundary. The next boundary partition will be created in case of a reprocess.
+        _bill_date = bill_date.replace(day=1)  # Force a month-start bounds
+        one_month_delta = relativedelta(months=1)
+        two_month_delta = relativedelta(months=2)
+        partition_ranges = (
+            (_bill_date - one_month_delta, _bill_date),
+            (_bill_date, _bill_date + one_month_delta),
+            (_bill_date + one_month_delta, _bill_date + two_month_delta),
+        )
+
+        part_rec = dict(
+            schema_name=self._schema_name,
+            table_name=None,
+            partition_of_table_name=table_name,
+            partition_type=partition_type,
+            partition_col=partition_column,
+            partition_parameters={"default": False, "from": None, "to": None},
+            active=True,
+        )
+
+        created = False  # used for actual bill_date partition
+        for _from, _to in partition_ranges:
+            part_rec["table_name"] = f'{table_name}_{_from.strftime("%Y_%m")}'
+            part_rec["partition_parameters"]["from"] = str(_from)
+            part_rec["partition_parameters"]["to"] = str(_to)
+            # This func will to the get_or_create on the tracking table
+            # which, if needed, will fire the trigger to create a partition
+            # BUT it will also check the default partition for overlapping data
+            # AND move it to the new partition.
+            record, _created = get_or_create_partition(part_rec)
+            if _from == _bill_date:
+                created = _created
+            if _created:
+                LOG.info(f"Created a new partition for {record.partition_of_table_name} : {record.table_name}")
 
         return created
 
