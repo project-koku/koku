@@ -18,6 +18,7 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
+from django.db.utils import ProgrammingError
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -1161,3 +1162,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider_uuid, self.ocp_on_aws_ocp_provider.uuid, start_date, end_date
         )
         mock_presto.assert_called()
+
+    def test_bad_sql_execution(self):
+        script_file_path = "sql/reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            with self.assertRaises(ProgrammingError):
+                accessor._execute_processing_script(script_file_path, {})

@@ -131,6 +131,9 @@ pgadmin_servers.json
 # Testing
 testing/
 
+# Trino
+.trino/
+
 # Local OpenShift folders
 openshift.local.clusterup/
 scripts/openshift.local.clusterup/
@@ -141,3 +144,6 @@ certs/
 # Bonfire configs
 dev/*.yaml
 dev/*.yml
+
+# unleash cache
+.unleash/cache/

@@ -1,0 +1,112 @@
+version: '3'
+
+services:
+  koku-minio:
+    image: local-minio:latest
+    build:
+        context: .
+        dockerfile: ../../Dockerfile.minio
+    container_name: kokuminio
+    environment:
+      MINIO_ROOT_USER: kokuminioaccess
+      MINIO_ROOT_PASSWORD: kokuminiosecret
+    ports:
+      - 9000:9000
+    command: server /data
+    volumes:
+      - ./../../.trino/parquet_data:/data
+
+  koku-create-parquet-bucket:
+    image: minio/mc:latest
+    depends_on:
+      - koku-minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host rm local;
+      /usr/bin/mc config host add --quiet --api s3v4 local http://kokuminio:9000 kokuminioaccess kokuminiosecret;
+      /usr/bin/mc rb --force local/koku-bucket/;
+      /usr/bin/mc mb --quiet local/koku-bucket/;
+      /usr/bin/mc policy set public local/koku-bucket;
+      /usr/bin/mc rb --force local/metastore/;
+      /usr/bin/mc mb --quiet local/metastore/;
+      /usr/bin/mc policy set public local/metastore;
+
+      "
+
+  hive-metastore:
+    container_name: hive-metastore
+    #image: quay.io/cloudservices/ubi-hive:2.3.3-002
+    image: local-ubi-hive:2.3.3-002
+    build:
+        context: .
+        dockerfile: ../../Dockerfile.ubi-hive
+    entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
+    ports:
+      - "9083:9083"
+    environment:
+      - HIVE_LOGLEVEL=INFO
+      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
+      - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
+      - S3_SECRET=${S3_SECRET-kokuminiosecret}
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+    volumes:
+      - ./../../.trino/metastore/hive-config:/hive-config
+      - ./../../.trino/metastore/hive-scripts:/hive-scripts
+      - ./../../.trino/metastore/hive-jmx-config:/opt/jmx_exporter/config
+      - ./../../.trino/metastore/db-data:/var/lib/hive
+      - ./../../.trino/hadoop/hadoop-dfs-name:/hadoop/dfs/name
+      - ./../../.trino/hadoop/hadoop-dfs-data:/hadoop/dfs/data
+      - ./../../.trino/hadoop/hadoop-logs:/opt/hadoop/logs
+      - ./../../.trino/hadoop/hadoop-config:/hadoop-config
+      - ./../../.trino/hadoop/hadoop-starting-config:/hadoop-starting-config
+
+  trino:
+    container_name: trino
+    image: quay.io/cloudservices/ubi-trino:360-001
+    # build:
+    #     context: .
+    #     dockerfile: ../../Dockerfile.ubi-trino
+    user: root
+    ports:
+      - 8080:8080
+      - 10000:10000
+    environment:
+      - MY_NODE_ID=${MY_NODE_ID-localhost}
+      - LOCAL=TRUE
+      - TRINO_LOG_LEVEL=${LOG_LEVEL-INFO}
+      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
+      - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
+      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
+      - S3_SECRET=${S3_SECRET-kokuminiosecret}
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+    volumes:
+      - ./../../.trino/trino/etc/config.properties:/etc/trino/config.properties
+      - ./../../.trino/trino/etc/jvm.config:/etc/trino/jvm.config
+      - ./../../.trino/trino/etc/log.properties:/etc/trino/log.properties
+      - ./../../.trino/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+      - ./../../.trino/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
+      - ./../../.trino/trino/trino-data:/data/trino/data
+      - ./../../.trino/trino/trino-logs:/data/trino/logs
+      - ./../../.trino/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
+    links:
+      - hive-metastore
+    depends_on:
+      - hive-metastore
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
+
+networks:
+ default:
+   external:
+     name: koku_default

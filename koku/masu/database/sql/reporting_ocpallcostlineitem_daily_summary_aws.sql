@@ -4,7 +4,9 @@ DELETE
   FROM reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
-   AND source_uuid = {{source_uuid}}::uuid;
+   AND source_uuid = {{source_uuid}}::uuid
+   AND cluster_id = {{cluster_id}}
+   AND source_type = 'AWS';
 
 
 INSERT
@@ -35,7 +37,7 @@ INSERT
        )
 SELECT 'AWS'::text AS source_type,
        aws.cluster_id,
-       max(aws.cluster_alias),
+       {{cluster_alias}},
        aws.namespace,
        aws.node,
        aws.resource_id,
@@ -59,6 +61,7 @@ SELECT 'AWS'::text AS source_type,
   FROM reporting_ocpawscostlineitem_daily_summary AS aws
  WHERE aws.usage_start >= {{start_date}}::date
    AND aws.usage_start <= {{end_date}}::date
+   AND aws.cluster_id = {{cluster_id}}
    AND aws.source_uuid = {{source_uuid}}::uuid
  GROUP
     BY aws.cluster_id,

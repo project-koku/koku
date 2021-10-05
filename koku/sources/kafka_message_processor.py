@@ -253,8 +253,6 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
 
             if self.event_type in (KAFKA_APPLICATION_PAUSE, KAFKA_APPLICATION_UNPAUSE):
                 LOG.info(f"[ApplicationMsgProcessor] source_id {self.source_id} paused/unpaused")
-                context = {"schema": self.account_number, "application-type": self.application_type_id}
-                LOG.debug(f"[ApplicationMsgProcessor] context: {context}")
                 pause = self.event_type == KAFKA_APPLICATION_PAUSE
                 storage.add_source_pause(self.source_id, pause)
 

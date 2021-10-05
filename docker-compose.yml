@@ -2,138 +2,348 @@ version: '3'
 
 services:
   koku-base:
-      image: koku_base
-      build:
-        context: .
-        dockerfile: Dockerfile
-        args:
-          PIPENV_DEV: "True"
+    image: koku_base
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PIPENV_DEV: "True"
+    depends_on:
+      - db
+      - redis
+      - unleash
 
   koku-server:
-      container_name: koku_server
-      image: koku_base
-      working_dir: /koku
-      entrypoint:
-        - /koku/run_server.sh
-      environment:
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - KOKU_SOURCES_CLIENT_HOST=${KOKU_SOURCES_CLIENT_HOST-sources-client}
-        - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
-        - AWS_ACCESS_KEY_ID
-        - AWS_SECRET_ACCESS_KEY
-        - DJANGO_READ_DOT_ENV_FILE=True
-        - DEVELOPMENT=${DEVELOPMENT-True}
-        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
-        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
-        - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
-        - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
-        - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT-False}
-        - RBAC_CACHE_TTL
-        - prometheus_multiproc_dir=/tmp
-        - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
-        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-        - DEMO_ACCOUNTS
-        - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-        - RUN_GUNICORN=${RUN_GUNICORN}
-        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
-        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
-        - ENABLE_TRINO_SOURCES
-        - ENABLE_TRINO_ACCOUNTS
-        - ENABLE_TRINO_SOURCE_TYPE
-        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
-      privileged: true
-      ports:
-        - 8000:8000
-        - 8001:9000
-      volumes:
-        - '.:/koku/'
-      links:
-        - db
-        - redis
-        - masu-server
-        - sources-client
-      depends_on:
-        - koku-base
-        - db
+    container_name: koku_server
+    image: koku_base
+    working_dir: /koku
+    entrypoint:
+      - /koku/run_server.sh
+    environment:
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - KOKU_SOURCES_CLIENT_HOST=${KOKU_SOURCES_CLIENT_HOST-sources-client}
+      - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
+      - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
+      - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - USE_RABBIT=${USE_RABBIT-False}
+      - RBAC_CACHE_TTL
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - DEMO_ACCOUNTS
+      - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
+      - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - ENABLE_TRINO_SOURCES
+      - ENABLE_TRINO_ACCOUNTS
+      - ENABLE_TRINO_SOURCE_TYPE
+      - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+    privileged: true
+    ports:
+      - 8000:8000
+      - 8001:9000
+    volumes:
+      - '.:/koku/'
+    depends_on:
+      - koku-base
 
   masu-server:
-      container_name: masu_server
-      image: koku_base
-      working_dir: /koku
-      entrypoint:
-        - /koku/run_internal.sh
-      environment:
-        - MASU=True
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - AWS_ACCESS_KEY_ID
-        - AWS_SECRET_ACCESS_KEY
-        - DJANGO_READ_DOT_ENV_FILE=True
-        - DEVELOPMENT=${DEVELOPMENT-True}
-        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
-        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
-        - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
-        - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
-        - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
-        - RBAC_CACHE_TTL
-        - prometheus_multiproc_dir=/tmp
-        - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
-        - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-        - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
-        - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
-        - MASU_DATE_OVERRIDE
-        - ENABLE_TRINO_SOURCES
-        - ENABLE_TRINO_ACCOUNTS
-        - ENABLE_TRINO_SOURCE_TYPE
-        - RUN_GUNICORN=${RUN_GUNICORN}
-        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
-        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
-        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
-      privileged: true
-      ports:
-        - 5000:8000
-        - 5001:9000
-      volumes:
-        - '.:/koku/'
-      links:
-        - db
-        - redis
-      depends_on:
-        - koku-base
-        - db
-
-  redis:
-    container_name: koku_redis
-    image: redis:5.0.4
+    container_name: masu_server
+    image: koku_base
+    working_dir: /koku
+    entrypoint:
+      - /koku/run_internal.sh
+    environment:
+      - MASU=True
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - RBAC_SERVICE_HOST=${RBAC_SERVICE_HOST-rbac-server}
+      - RBAC_SERVICE_PORT=${RBAC_SERVICE_PORT-9000}
+      - RBAC_SERVICE_PATH=${RBAC_SERVICE_PATH-/r/insights/platform/rbac/v1/access/}
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - USE_RABBIT=${USE_RABBIT-False}
+      - RBAC_CACHE_TTL
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - API_PATH_PREFIX=${API_PATH_PREFIX-/api/cost-management}
+      - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
+      - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
+      - MASU_DATE_OVERRIDE
+      - ENABLE_TRINO_SOURCES
+      - ENABLE_TRINO_ACCOUNTS
+      - ENABLE_TRINO_SOURCE_TYPE
+      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
+      - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+    privileged: true
     ports:
-      - 6379:6379
+      - 5000:8000
+      - 5001:9000
+    volumes:
+      - '.:/koku/'
+    depends_on:
+      - koku-base
+
+  koku-worker:
+    hostname: koku-worker-1
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - USE_RABBIT=${USE_RABBIT-False}
+      - DEVELOPMENT=${DEVELOPMENT-True}
+      - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - KOKU_CELERY_ENABLE_SENTRY
+      - KOKU_CELERY_SENTRY_DSN
+      - KOKU_SENTRY_ENVIRONMENT
+      - DEMO_ACCOUNTS
+      - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
+      - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
+      - PRESTO_HOST=${PRESTO_HOST-trino}
+      - PRESTO_PORT=${PRESTO_PORT-8080}
+      - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
+      - DATE_OVERRIDE
+      - ENABLE_TRINO_SOURCES
+      - ENABLE_TRINO_ACCOUNTS
+      - ENABLE_TRINO_SOURCE_TYPE
+      - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
+      - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
+      - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+    privileged: true
+    ports:
+      - 6001-6020:9000
+      - 5678:5678
+    volumes:
+      - '.:/koku'
+      - './testing:/testing'
+      - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/aws_local:/tmp/local_bucket'
+      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+      - './testing/local_providers/gcp_local/:/tmp/gcp_local_bucket'
+      - './testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0'
+      - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
+      - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
+      - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
+    depends_on:
+        - koku-base
+
+  koku-listener:
+    container_name: koku_listener
+    image: koku_base
+    working_dir: /koku/
+    entrypoint: ['python', 'koku/manage.py', 'listener']
+    environment:
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - USE_RABBIT=${USE_RABBIT-False}
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - INSIGHTS_KAFKA_HOST=kafka
+      - INSIGHTS_KAFKA_PORT=29092
+      - KAFKA_CONNECT=True
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - MASU_DATE_OVERRIDE
+      - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - INITIAL_INGEST_NUM_MONTHS=1
+      - PYTHONPATH=/koku/koku
+      - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
+      - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
+      - S3_ENDPOINT
+      - S3_ACCESS_KEY
+      - S3_SECRET
+      - PRESTO_HOST=${PRESTO_HOST-trino}
+      - PRESTO_PORT=${PRESTO_PORT-8080}
+      - ENABLE_TRINO_SOURCES
+      - ENABLE_TRINO_ACCOUNTS
+      - ENABLE_TRINO_SOURCE_TYPE
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+    privileged: true
+    ports:
+      - 7001-7020:9000
+    volumes:
+      - '.:/koku'
+    depends_on:
+      - koku-base
+
+  sources-client:
+    container_name: sources_client
+    image: koku_base
+    restart: on-failure:25
+    working_dir: /koku/
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', /koku/run_sources.sh]
+    environment:
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
+      - KOKU_API_PORT=${KOKU_API_PORT-8000}
+      - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
+      - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
+      - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
+      - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
+      - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - DEMO_ACCOUNTS
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
+      - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
+      - SOURCES_PSK=${SOURCES_PSK-thisMustBeEphemeralOrMinikube}
+      - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
+      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
+      - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+    privileged: true
+    ports:
+      - 4000:8000
+      - 4001:9000
+    volumes:
+      - '.:/koku'
+    depends_on:
+      - koku-base
+
+  koku-beat:
+    container_name: koku_beat
+    hostname: koku_beat
+    image: koku_base
+    working_dir: /koku/koku
+    entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+    environment:
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - DATABASE_SERVICE_NAME=POSTGRES_SQL
+      - DATABASE_ENGINE=postgresql
+      - DATABASE_NAME=${DATABASE_NAME-postgres}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_USER=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - REDIS_HOST=${REDIS_HOST-redis}
+      - REDIS_PORT=${REDIS_PORT-6379}
+      - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
+      - RABBITMQ_PORT=5672
+      - USE_RABBIT=${USE_RABBIT-False}
+      - LOG_LEVEL=INFO
+      - DJANGO_SETTINGS_MODULE=koku.settings
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - SCHEDULE_REPORT_CHECKS=True
+      - SCHEDULE_CHECK_INTERVAL=10000000
+      - SOURCE_STATUS_FREQUENCY_MINUTES
+      - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
+      - UNLEASH_HOST=${UNLEASH_HOST-unleash}
+      - UNLEASH_PORT=${UNLEASH_PORT-4242}
+    privileged: true
+    volumes:
+      - '.:/koku'
+    depends_on:
+        - koku-base
+
+### Utilities
 
   db:
     container_name: koku_db
     image: postgres:12
     environment:
-    - POSTGRES_DB=${DATABASE_NAME-postgres}
+    - POSTGRES_MULTIPLE_DATABASES=${DATABASE_NAME-postgres},unleash
     - POSTGRES_USER=${DATABASE_USER-postgres}
     - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
     ports:
@@ -200,6 +410,18 @@ services:
       # - -c
       # - log_statement_stats=true
 
+  redis:
+    container_name: koku_redis
+    image: redis:5.0.4
+    ports:
+      - 6379:6379
+
+  pushgateway:
+    container_name: koku-pushgateway
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
+
   pgadmin:
     container_name: pgAdmin
     image: dpage/pgadmin4
@@ -218,243 +440,34 @@ services:
         dockerfile: Dockerfile-grafana
     ports:
       - 3001:3000
-    links:
-        - db
     depends_on:
-        - koku-base
         - db
 
   koku-rabbit:
-      container_name: koku_rabbit
-      hostname: rabbit
-      image: rabbitmq:latest
-      environment:
-          - RABBITMQ_DEFAULT_USER=guest
-          - RABBITMQ_DEFAULT_PASS=guest
-      ports:
-        - "${RABBITMQ_PORT-5674}:5672"
-
-  koku-worker:
-      hostname: koku-worker-1
-      image: koku_base
-      working_dir: /koku/koku
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', '${CELERY_LOG_LEVEL:-info}', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
-      environment:
-        - AWS_ACCESS_KEY_ID
-        - AWS_SECRET_ACCESS_KEY
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
-        - DEVELOPMENT=${DEVELOPMENT-True}
-        - CELERY_LOG_LEVEL=${CELERY_LOG_LEVEL-INFO}
-        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
-        - DJANGO_SETTINGS_MODULE=koku.settings
-        - prometheus_multiproc_dir=/tmp
-        - PROMETHEUS_PUSHGATEWAY=${PROMETHEUS_PUSHGATEWAY-pushgateway:9091}
-        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
-        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
-        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
-        - S3_ENDPOINT
-        - S3_ACCESS_KEY
-        - S3_SECRET
-        - PVC_DIR=${PVC_DIR-/testing/pvc_dir}
-        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-        - KOKU_CELERY_ENABLE_SENTRY
-        - KOKU_CELERY_SENTRY_DSN
-        - KOKU_SENTRY_ENVIRONMENT
-        - DEMO_ACCOUNTS
-        - INITIAL_INGEST_OVERRIDE=${INITIAL_INGEST_OVERRIDE-False}
-        - INITIAL_INGEST_NUM_MONTHS=${INITIAL_INGEST_NUM_MONTHS-2}
-        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
-        - REPORT_PROCESSING_BATCH_SIZE=${REPORT_PROCESSING_BATCH_SIZE-100000}
-        - PRESTO_HOST=${PRESTO_HOST-presto}
-        - PRESTO_PORT=${PRESTO_PORT-8080}
-        - SOURCES_API_HOST=${SOURCES_API_HOST-sources-server}
-        - SOURCES_API_PORT=${SOURCES_API_PORT-3000}
-        - DATE_OVERRIDE
-        - ENABLE_TRINO_SOURCES
-        - ENABLE_TRINO_ACCOUNTS
-        - ENABLE_TRINO_SOURCE_TYPE
-        - TRINO_DATE_STEP=${TRINO_DATE_STEP-31}
-        - MAX_CELERY_TASKS_PER_WORKER=${MAX_CELERY_TASKS_PER_WORKER-10}
-        - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
-      privileged: true
-      ports:
-        - 6001-6020:9000
-      volumes:
-        - '.:/koku'
-        - './testing:/testing'
-        - './testing/local_providers/azure_local:/tmp/local_container'
-        - './testing/local_providers/aws_local:/tmp/local_bucket'
-        - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
-        - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
-        - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
-        - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
-        - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
-        - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
-        - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
-        - './testing/local_providers/gcp_local/:/tmp/gcp_local_bucket'
-        - './testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0'
-        - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
-        - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
-        - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
-      links:
-          - redis
-      depends_on:
-          - koku-base
-          - redis
-
-  koku-listener:
-      container_name: koku_listener
-      image: koku_base
-      working_dir: /koku/
-      entrypoint: ['python', 'koku/manage.py', 'listener']
-      environment:
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - DATABASE_HOST=db
-        - DATABASE_PORT=5432
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - INSIGHTS_KAFKA_HOST=kafka
-        - INSIGHTS_KAFKA_PORT=29092
-        - KAFKA_CONNECT=True
-        - prometheus_multiproc_dir=/tmp
-        - MASU_DATE_OVERRIDE
-        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-INFO}
-        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
-        - INITIAL_INGEST_NUM_MONTHS=1
-        - PYTHONPATH=/koku/koku
-        - ENABLE_S3_ARCHIVING=${ENABLE_S3_ARCHIVING-False}
-        - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING-False}
-        - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
-        - S3_BUCKET_PATH=${S3_BUCKET_PATH-data_archive}
-        - S3_ENDPOINT
-        - S3_ACCESS_KEY
-        - S3_SECRET
-        - PRESTO_HOST=${PRESTO_HOST-presto}
-        - PRESTO_PORT=${PRESTO_PORT-8080}
-        - ENABLE_TRINO_SOURCES
-        - ENABLE_TRINO_ACCOUNTS
-        - ENABLE_TRINO_SOURCE_TYPE
-      privileged: true
-      ports:
-        - 7001-7020:9000
-      volumes:
-        - '.:/koku'
-      links:
-        - db
-        - redis
-      depends_on:
-        - koku-base
-        - db
-        - redis
-
-  sources-client:
-      container_name: sources_client
-      image: koku_base
-      restart: on-failure:25
-      working_dir: /koku/
-      entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', /koku/run_sources.sh]
-      environment:
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - KOKU_API_HOST=${KOKU_API_HOST-koku-server}
-        - KOKU_API_PORT=${KOKU_API_PORT-8000}
-        - KOKU_API_PATH_PREFIX=${KOKU_API_PATH_PREFIX-/api/cost-management/v1}
-        - SOURCES_API_SVC_HOST=${SOURCES_API_HOST-sources-server}
-        - SOURCES_API_SVC_PORT=${SOURCES_API_PORT-3000}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - INSIGHTS_KAFKA_HOST=${INSIGHTS_KAFKA_HOST-kafka}
-        - INSIGHTS_KAFKA_PORT=${INSIGHTS_KAFKA_PORT-29092}
-        - KOKU_SOURCES_CLIENT_PORT=${KOKU_SOURCES_CLIENT_PORT-9000}
-        - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
-        - DEMO_ACCOUNTS
-        - prometheus_multiproc_dir=/tmp
-        - KOKU_LOG_LEVEL=${KOKU_LOG_LEVEL-DEBUG}
-        - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL-INFO}
-        - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
-        - SOURCES_PSK=${SOURCES_PSK-thisMustBeEphemeralOrMinikube}
-        - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
-        - RUN_GUNICORN=${RUN_GUNICORN}
-        - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
-        - GUNICORN_THREADS=${GUNICORN_THREADS-False}
-      privileged: true
-      ports:
-        - 4000:8080
-        - 4001:9000
-      volumes:
-        - '.:/koku'
-      links:
-        - db
-        - redis
-      depends_on:
-        - koku-base
-
-  koku-beat:
-      container_name: koku_beat
-      hostname: koku_beat
-      image: koku_base
-      working_dir: /koku/koku
-      entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
-      environment:
-        - AWS_ACCESS_KEY_ID
-        - AWS_SECRET_ACCESS_KEY
-        - DATABASE_SERVICE_NAME=POSTGRES_SQL
-        - DATABASE_ENGINE=postgresql
-        - DATABASE_NAME=${DATABASE_NAME-postgres}
-        - POSTGRES_SQL_SERVICE_HOST=db
-        - POSTGRES_SQL_SERVICE_PORT=5432
-        - DATABASE_USER=${DATABASE_USER-postgres}
-        - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-        - REDIS_HOST=${REDIS_HOST-redis}
-        - REDIS_PORT=${REDIS_PORT-6379}
-        - RABBITMQ_HOST=${RABBITMQ_HOST-koku-rabbit}
-        - RABBITMQ_PORT=5672
-        - USE_RABBIT=${USE_RABBIT}
-        - DJANGO_SETTINGS_MODULE=koku.settings
-        - prometheus_multiproc_dir=/tmp
-        - SCHEDULE_REPORT_CHECKS=True
-        - SCHEDULE_CHECK_INTERVAL=10000000
-        - SOURCE_STATUS_FREQUENCY_MINUTES
-        - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
-      privileged: true
-      volumes:
-        - '.:/koku'
-      links:
-          - redis
-      depends_on:
-          - koku-base
-          - redis
-
-  pushgateway:
-    container_name: koku-pushgateway
-    image: prom/pushgateway
+    container_name: koku_rabbit
+    hostname: rabbit
+    image: rabbitmq:latest
+    environment:
+        - RABBITMQ_DEFAULT_USER=guest
+        - RABBITMQ_DEFAULT_PASS=guest
     ports:
-      - 9091:9091
+      - "${RABBITMQ_PORT-5674}:5672"
+
+  unleash:
+    container_name: koku-unleash
+    image: unleashorg/unleash-server:3.9  # 3.9 to match clowder
+    environment:
+      - AUTH_ENABLE_API_TOKEN=true
+      - CHECK_VERSION=false
+      - DATABASE_HOST=db
+      - DATABASE_NAME=unleash
+      - DATABASE_USERNAME=${DATABASE_USER-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
+      - DATABASE_SSL=false
+      - IMPORT_DROP_BEFORE_IMPORT=false
+      - IMPORT_FILE=/.unleash/flags.json
+      - LOG_LEVEL=INFO
+    ports:
+      - 4242:4242
+    volumes:
+      - './.unleash:/.unleash'
