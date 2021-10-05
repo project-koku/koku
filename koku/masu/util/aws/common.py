@@ -422,6 +422,7 @@ def aws_generate_daily_data(data_frame):
             "lineitem_blendedcost": ["sum"],
             "pricing_publicondemandcost": ["sum"],
             "pricing_publicondemandrate": ["max"],
+            "savingsplan_savingsplaneffectivecost": ["sum"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)
@@ -504,6 +505,7 @@ def get_column_converters():
         "lineItem/BlendedCost": safe_float,
         "pricing/publicOnDemandCost": safe_float,
         "pricing/publicOnDemandRate": safe_float,
+        "savingsPlan/SavingsPlanEffectiveCost": safe_float,
     }
 
 
