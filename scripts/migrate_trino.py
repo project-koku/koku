@@ -61,9 +61,12 @@ try:
                         DROP TABLE IF EXISTS {table_name}
                     """
                     )
+<<<<<<< HEAD
                     result = trino_cur.fetchall()
                     logging.info("Drop table result: ")
                     logging.info(result)
+=======
+>>>>>>> de0674b7... update the script (#3175)
                 except Exception as e:
                     logging.info(e)
 finally:
