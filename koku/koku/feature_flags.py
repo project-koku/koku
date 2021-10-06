@@ -4,9 +4,7 @@
 #
 """Create Unleash Client."""
 import logging
-from unittest.mock import Mock
 
-import requests
 from django.conf import settings
 from UnleashClient import UnleashClient
 from UnleashClient.strategies import Strategy
@@ -14,11 +12,14 @@ from UnleashClient.strategies import Strategy
 from .env import ENVIRONMENT
 
 
+LOG = logging.getLogger(__name__)
+
+
 log_level = getattr(logging, "WARNING")
 if isinstance(getattr(logging, settings.UNLEASH_LOGGING_LEVEL), int):
     log_level = getattr(logging, settings.UNLEASH_LOGGING_LEVEL)
 else:
-    print(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
+    LOG.info(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
 
 
 class SchemaStrategy(Strategy):
@@ -51,12 +52,12 @@ UNLEASH_CLIENT = UnleashClient(
     verbose_log_level=log_level,
 )
 
-if not UNLEASH_CLIENT.is_initialized:
-    try:
-        print(f"Initializing Unleash Client. URL: {settings.UNLEASH_URL}")
-        requests.get(settings.UNLEASH_URL)
-        UNLEASH_CLIENT.initialize_client()
-    except requests.exceptions.ConnectionError:
-        print("Unleash Server is not reachable. Using Mock client.")
-        UNLEASH_CLIENT = Mock()
-        UNLEASH_CLIENT.is_enabled.return_value = False
+# if not UNLEASH_CLIENT.is_initialized:
+#     try:
+#         print(f"Initializing Unleash Client. URL: {settings.UNLEASH_URL}")
+#         requests.get(settings.UNLEASH_URL)
+#         UNLEASH_CLIENT.initialize_client()
+#     except requests.exceptions.ConnectionError:
+#         print("Unleash Server is not reachable. Using Mock client.")
+#         UNLEASH_CLIENT = Mock()
+#         UNLEASH_CLIENT.is_enabled.return_value = False
