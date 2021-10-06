@@ -231,7 +231,7 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    LOG.info("Initializing UNLEASH_CLIENT for worker.")
+    LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
 
 
