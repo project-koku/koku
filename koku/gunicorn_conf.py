@@ -35,5 +35,5 @@ def on_starting(server):
 
 def post_fork(server, worker):
     """Called just after a worker has been forked."""
-    worker.log.INFO("Initializing UNLEASH_CLIENT for gunicorn worker.")
+    worker.log.info("Initializing UNLEASH_CLIENT for gunicorn worker.")
     UNLEASH_CLIENT.initialize_client()
