@@ -462,3 +462,6 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+
+    def back_populate_ocp_on_gcp_daily_summary_trino(self, gcp_bill_ids, start_date, end_date):
+        pass
