@@ -242,10 +242,9 @@ class Settings:
                 raise ValidationError(error_obj(key, message))
 
             if "aws" in provider_name:
-                existing_enabled_tags = []
-                for key in enabled_tag_keys.objects.all():
-                    if key.enabled:
-                        existing_enabled_tags.append(key.key)
+                existing_enabled_tags = list(
+                    enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
+                )
 
                 if enabled_tags_no_abbr != existing_enabled_tags:
                     updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
