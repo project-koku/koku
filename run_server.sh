@@ -1,7 +1,7 @@
 #!/bin/sh
 sleep 5
 python koku/manage.py migrate_schemas
-if [[ -z "$RUN_GUNICORN"  ]]; then
+if [[ -z "$RUN_GUNICORN" ]]; then
     DJANGO_READ_DOT_ENV_FILE=True python koku/manage.py runserver 0.0.0.0:8000
   else
     cd ./koku
