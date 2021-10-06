@@ -1108,7 +1108,8 @@
           "billing_period_start_datetime",
           "provider_id",
           "s3_csv_cleared",
-          "s3_parquet_cleared"
+          "s3_parquet_cleared",
+          "export_time"
         ],
         "properties": {
           "id": {
@@ -1153,6 +1154,11 @@
           },
           "operator_version": {
             "type": "string"
+          },
+          "export_time": {
+            "enum": [
+              "year-month-day:time"
+            ]
           }
         }
       },
