@@ -10,7 +10,7 @@ from koku.database import unset_partition_mode
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0193_gcptopology")]
+    dependencies = [("reporting", "0195_ocpall_add_source_fk")]
 
     operations = [
         migrations.RunPython(set_partition_mode, reverse_code=unset_partition_mode),

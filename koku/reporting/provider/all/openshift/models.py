@@ -889,6 +889,10 @@ class OCPAllComputeSummaryPT(models.Model):
 class OCPAllDatabaseSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for OCPAllDatabaseSummary."""
 
@@ -932,6 +936,10 @@ class OCPAllDatabaseSummaryPT(models.Model):
 class OCPAllNetworkSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the network service category."""
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for OCPAllNetworkSummary."""
 
@@ -973,6 +981,10 @@ class OCPAllNetworkSummaryPT(models.Model):
 
 class OCPAllStorageSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the storage service category."""
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
 
     class Meta:
         """Meta for OCPAllStorageSummary."""
