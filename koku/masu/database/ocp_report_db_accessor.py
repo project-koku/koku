@@ -36,6 +36,7 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE as GCP_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -434,12 +435,15 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
+        gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
 
         if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
         if aws_provider_uuid and not self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
         if azure_provider_uuid and not self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE):
+            return {}
+        if gcp_provider_uuid and not self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
 
         if isinstance(start_date, str):
@@ -456,10 +460,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             "aws_provider_uuid": aws_provider_uuid,
             "ocp_provider_uuid": ocp_provider_uuid,
             "azure_provider_uuid": azure_provider_uuid,
+            "gcp_provider_uuid": gcp_provider_uuid,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
-
         db_results = {}
         for entry in results:
             # This dictionary is keyed on an OpenShift provider UUID

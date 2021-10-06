@@ -121,6 +121,8 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemDailySummary
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummary
 
 AWS_MATERIALIZED_VIEWS = (
     AWSComputeSummary,

@@ -7,6 +7,7 @@ import datetime
 import logging
 import pkgutil
 import uuid
+import json
 from os import path
 
 from dateutil.parser import parse
@@ -379,3 +380,80 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
+    
+    def populate_ocp_on_gcp_cost_daily_summary_presto(
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        gcp_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
+        distribution,
+    ):
+        """Populate the daily cost aggregated summary for OCP on GCP.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        # Default to cpu distribution
+        node_column = "node_capacity_cpu_core_hours"
+        cluster_column = "cluster_capacity_cpu_core_hours"
+        if distribution == "memory":
+            node_column = "node_capacity_memory_gigabyte_hours"
+            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+
+        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcpcostlineitem_daily_summary.sql")
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+            "end_date": end_date,
+            "gcp_source_uuid": gcp_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "bill_id": bill_id,
+            "report_period_id": report_period_id,
+            "markup": markup_value,
+            "node_column": node_column,
+            "cluster_column": cluster_column,
+        }
+        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
+    def get_openshift_on_cloud_matched_tags(self, gcp_source_uuid, ocp_source_uuid):
+        return None
+
+    def get_openshift_on_cloud_matched_tags_trino(self, gcp_source_uuid, ocp_source_uuid, start_date, end_date):
+        """Return a list of matched tags."""
+        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcp_matched_tags.sql")
+        sql = sql.decode("utf-8")
+
+        sql_params = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "schema": self.schema,
+            "gcp_source_uuid": gcp_source_uuid,
+            "ocp_source_uuid": ocp_source_uuid,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+        return [json.loads(result[0]) for result in results]
+
+    def populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date):
+        """Populate the line item aggregated totals data table."""
+        table_name = self._table_map["ocp_on_gcp_tags_summary"]
+
+        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcptags_summary.sql")
+        agg_sql = agg_sql.decode("utf-8")
+        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
+        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))

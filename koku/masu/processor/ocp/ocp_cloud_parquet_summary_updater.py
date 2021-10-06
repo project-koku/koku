@@ -13,10 +13,12 @@ from tenant_schemas.utils import schema_context
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
+from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_provider
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
@@ -166,3 +168,62 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 sql_params = {"start_date": start_date, "end_date": end_date, "source_uuid": self._provider.uuid}
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
+
+    def update_gcp_summary_tables(self, openshift_provider_uuid, gcp_provider_uuid, start_date, end_date):
+        """Update operations specifically for OpenShift on GCP."""
+        if isinstance(start_date, str):
+            start_date = parser.parse(start_date).date()
+        if isinstance(end_date, str):
+            end_date = parser.parse(end_date).date()
+
+        cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            accessor.delete_infrastructure_raw_cost_from_daily_summary(
+                openshift_provider_uuid, report_period.id, start_date, end_date
+            )
+        gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
+        with schema_context(self._schema):
+            # self._handle_partitions(
+            #     ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
+            #     start_date,
+            #     end_date,
+            # )
+
+            gcp_bill_ids = [str(bill.id) for bill in gcp_bills]
+            current_gcp_bill_id = gcp_bills.first().id if gcp_bills else None
+            current_ocp_report_period_id = report_period.id
+
+        with CostModelDBAccessor(self._schema, gcp_provider_uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = Decimal(markup.get("value", 0)) / 100
+
+        with CostModelDBAccessor(self._schema, openshift_provider_uuid) as cost_model_accessor:
+            distribution = cost_model_accessor.distribution
+
+        # OpenShift on GCP
+        with GCPReportDBAccessor(self._schema) as accessor:
+            for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+                LOG.info(
+                    "Updating OpenShift on GCP summary table for "
+                    "\n\tSchema: %s \n\tProvider: %s \n\tDates: %s - %s"
+                    "\n\tCluster ID: %s, GCP Bill ID: %s",
+                    self._schema,
+                    self._provider.uuid,
+                    start,
+                    end,
+                    cluster_id,
+                    current_gcp_bill_id,
+                )
+                accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
+                    start,
+                    end,
+                    openshift_provider_uuid,
+                    gcp_provider_uuid,
+                    current_ocp_report_period_id,
+                    current_gcp_bill_id,
+                    markup_value,
+                    distribution,
+                )
+            #accessor.back_populate_ocp_on_aws_daily_summary_trino(start_date, end_date, current_ocp_report_period_id
+            #accessor.populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date)
