@@ -225,5 +225,5 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     markup_value,
                     distribution,
                 )
-            # accessor.back_populate_ocp_on_aws_daily_summary_trino(start_date, end_date, current_ocp_report_period_id
+            accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date)
