@@ -43,5 +43,5 @@ class ExchangeRates(models.Model):
     )
 
     base_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True, null=True)
-    target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=True, null=True)
+    target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=False, null=True)
     exchange_rate = models.FloatField(default=0)

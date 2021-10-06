@@ -282,87 +282,50 @@ def clean_volume():
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
 
-    # conversionRates = {}
     # List of the 15 supported currencies
-    # currencyList = [
-    #     "USD",
-    #     "AUD",
-    #     "CAD",
-    #     "CHF",
-    #     "CNY",
-    #     "DKK",
-    #     "EUR",
-    #     "GBP",
-    #     "HKD",
-    #     "JPY",
-    #     "NOK",
-    #     "NZD",
-    #     "SEK",
-    #     "SGD",
-    #     "ZAR",
-    # ]
-    endpoint = settings.CURRENCY_ENDPOINT
-    # mock endpoint
-    # url = endpoint
-    # response = requests.get(url)
-    # json_result = response.json()
-    # stores the output of the json response
-    # dictOfRates = json_result.get("rates")
-    # stringOfCurrencyLists = ",".join(currencyList)
-    # grabs all the rates, for this hit the base is GBP or EUR, you can not change it on the free version
-    # the symbols, would just return a dict with a range of all 15 supported currency
-    # the base is the base currency
-    # Does this need to be a dict or JSON response
-    # for base in currencyList:
-    #     for starting in base:
-    for currency in ExchangeRates.SUPPORTED_CURRENCIES:
-        for targetCurrency in ExchangeRates.SUPPORTED_CURRENCIES:
-            response = requests.get(endpoint)  # step 1
-            json_result = response.json()
-            response = json_result.get("rates")
-            LOG.info("Here are the rates")
-            try:  # step 2
-                exchange = ExchangeRates.objects.get(base_currency=currency, target_currency=targetCurrency)
-            except ExchangeRates.DoesNotExist:
-                LOG.info("Creating the exchange rate")
-                exchange = ExchangeRates(base_currency=currency, target_currency=targetCurrency)
-                # RIGHT HERE IS WHERE WE NEED TO QUERY AN EXTERNAL API
-                # QUERY THE API AND GET THE DICTIONARY AND SAVE IT
-            # Now that we have 3 fields we want to fill in we need to save two different datas
-            # We do this with a double for loop that saves the base currency to base currency
-            # The target currency to the loop through all the rates and save them
-            # Then save them all and loop through again
-            for target in response.keys():
-                value = response[target]
-                LOG.info("new info here")
-                # LOG.info(exchange)
-                # LOG.info(exchange.exchange_rate)
-                # LOG.info(exchange.base_currency)
-                # LOG.info(exchange.target_currency)
-                # LOG.info(response)#step 3
-                # LOG.info(target)
-                exchange.exchange_rate = value
-                exchange.save()
-                # exchange2.exchangeRate = "usd"
+    currencyList = [
+        "USD",
+        "AUD",
+        "CAD",
+        "CHF",
+        "CNY",
+        "DKK",
+        "EUR",
+        "GBP",
+        "HKD",
+        "JPY",
+        "NOK",
+        "NZD",
+        "SEK",
+        "SGD",
+        "ZAR",
+    ]
 
-    # for currency in currencyList:
-    #     for value in currencyList:
-    #         url = endpoint + access_key
-    #         # "&base=" + value + "&symbols=" + stringOfCurrencyLists
-    #         LOG.info("endpoint getting hit..")
-    #         response = requests.get(url)
-    #         if response.status_code == 200:
-    #             LOG.info("Endpoint is up")
-    #             json_result = response.json()
-    #             dictOfRates = json_result.get("rates")
-    #             conversionRates[value] = dictOfRates[value]
-    #             # Store results in database with the main base value attached.
-    #             exchange.save(conversionRates)
-    #         else:
-    #             LOG.warning(f"Endpoint is down error {response.status_code}")
-    #             return
-    # exchange.exchangeRate = response
-    # store value in database here with the currency value
+    url = "https://open.er-api.com/v6/latest/USD"
+
+    def get_daily_rates(url):
+        data = requests.get(url).json()
+        rates = data["rates"]
+        return rates
+
+    rates = get_daily_rates(url)
+
+    def get_exchange_rates(rates):
+        for currency in ExchangeRates.SUPPORTED_CURRENCIES:
+            for target in rates.keys():
+                try:  # step 2
+                    exchange = ExchangeRates.objects.get(base_currency=currency)
+                except ExchangeRates.DoesNotExist:
+                    LOG.info("Creating the exchange rate")
+                    exchange = ExchangeRates(base_currency=currency, target_currency=target)
+                if target in currencyList:
+                    value = rates[target]
+                    LOG.info("new info here")
+                    exchange.exchange_rate = value
+                    exchange.save()
+                    # exchange2.exchangeRate = "usd"
+
+    get_exchange_rates(rates)
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
