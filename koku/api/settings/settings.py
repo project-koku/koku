@@ -262,15 +262,17 @@ class Settings:
                             remove_tags.append(existing_tag)
                             updated[ix] = True
 
-                    for rm_tag in remove_tags:
-                        LOG.info(f"Updating " + provider_name + " tag '" + rm_tag.key + "': DISABLED")
-                        rm_tag.delete()
-                        updated[ix] = True
+                    if len(remove_tags):
+                        LOG.info(f"Updating %d %s keys to DISABLED", len(remove_tags), provider_name)
+                        for rm_tag in remove_tags:
+                            rm_tag.delete()
+                            updated[ix] = True
 
-                    for new_tag in enabled_tags_no_abbr:
-                        LOG.info(f"Updating " + provider_name + " tag '" + new_tag + "': ENABLED")
-                        enabled_tag_keys.objects.create(key=new_tag)
-                        updated[ix] = True
+                    if len(enabled_tags_no_abbr):
+                        LOG.info(f"Updating %d %s keys to ENABLED", len(enabled_tags_no_abbr), provider_name)
+                        for new_tag in enabled_tags_no_abbr:
+                            enabled_tag_keys.objects.create(key=new_tag)
+                            updated[ix] = True
 
             if updated[ix]:
                 invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
