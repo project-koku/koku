@@ -4,10 +4,10 @@
 #
 """Database accessor for GCP report data."""
 import datetime
+import json
 import logging
 import pkgutil
 import uuid
-import json
 from os import path
 
 from dateutil.parser import parse
@@ -380,7 +380,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
-    
+
     def populate_ocp_on_gcp_cost_daily_summary_presto(
         self,
         start_date,
@@ -448,12 +448,17 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
         return [json.loads(result[0]) for result in results]
 
-    def populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date):
+    def populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["ocp_on_gcp_tags_summary"]
 
         agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
+        agg_sql_params = {
+            "schema": self.schema,
+            "gcp_bill_ids": gcp_bill_ids,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))

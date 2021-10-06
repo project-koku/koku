@@ -135,6 +135,7 @@ def get_column_converters():
         "credits": process_gcp_credits,
     }
 
+
 def gcp_generate_daily_data(data_frame):
     """Return the gcp data frame, as it is already daily."""
     return data_frame
@@ -194,4 +195,3 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     )
 
     return openshift_matched_data_frame
-

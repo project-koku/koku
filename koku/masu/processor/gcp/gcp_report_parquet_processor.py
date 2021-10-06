@@ -15,7 +15,6 @@ from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 from reporting.provider.gcp.models import PRESTO_OCP_ON_GCP_DAILY_TABLE
 
 
-
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
         numeric_columns = [

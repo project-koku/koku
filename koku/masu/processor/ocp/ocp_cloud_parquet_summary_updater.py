@@ -18,8 +18,8 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
-from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_provider
 from masu.util.common import date_range_pair
+from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_provider
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
@@ -185,7 +185,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             # self._handle_partitions(
-            #     ("reporting_ocpawscostlineitem_daily_summary", "reporting_ocpawscostlineitem_project_daily_summary"),
+            #     ("reporting_ocpgcpcostlineitem_daily_summary", "reporting_ocpgcpcostlineitem_project_daily_summary"),
             #     start_date,
             #     end_date,
             # )
@@ -225,5 +225,5 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     markup_value,
                     distribution,
                 )
-            #accessor.back_populate_ocp_on_aws_daily_summary_trino(start_date, end_date, current_ocp_report_period_id
-            #accessor.populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date)
+            # accessor.back_populate_ocp_on_aws_daily_summary_trino(start_date, end_date, current_ocp_report_period_id
+            accessor.populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date)

@@ -102,7 +102,7 @@ class OCPGCPCostLineItemDailySummary(models.Model):
 
 class OCPGCPCostLineItemProjectDailySummary(models.Model):
     """A summarized view of OCP on GCP cost by OpenShift project."""
-    
+
     class PartitionInfo:
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
@@ -171,7 +171,7 @@ class OCPGCPCostLineItemProjectDailySummary(models.Model):
     service_alias = models.CharField(max_length=256, null=True, blank=True)
 
     sku_id = models.CharField(max_length=256, null=True)
-    
+
     sku_alias = models.CharField(max_length=256, null=True)
 
     region = models.TextField(null=True)
@@ -197,6 +197,7 @@ class OCPGCPCostLineItemProjectDailySummary(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+
 
 class OCPGCPTagsValues(models.Model):
     class Meta:
