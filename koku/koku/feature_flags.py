@@ -51,13 +51,3 @@ UNLEASH_CLIENT = UnleashClient(
     cache_directory=settings.UNLEASH_CACHE_DIR,
     verbose_log_level=log_level,
 )
-
-# if not UNLEASH_CLIENT.is_initialized:
-#     try:
-#         print(f"Initializing Unleash Client. URL: {settings.UNLEASH_URL}")
-#         requests.get(settings.UNLEASH_URL)
-#         UNLEASH_CLIENT.initialize_client()
-#     except requests.exceptions.ConnectionError:
-#         print("Unleash Server is not reachable. Using Mock client.")
-#         UNLEASH_CLIENT = Mock()
-#         UNLEASH_CLIENT.is_enabled.return_value = False
