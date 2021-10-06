@@ -9,6 +9,7 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
+from celery.signals import worker_ready
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -160,7 +161,7 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-LOG.info(f"Source status schedule: {str(source_status_schedule)}")
+print(f"Source status schedule: {source_status_schedule}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
@@ -224,6 +225,17 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+
+
+@worker_ready.connect
+def init_worker(**kwargs):
+    from koku.feature_flags import UNLEASH_CLIENT
+
+    worker = kwargs.get("sender")
+
+    UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
+    LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
+    UNLEASH_CLIENT.initialize_client()
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):
