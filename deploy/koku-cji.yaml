@@ -7,7 +7,7 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: koku-cji
+    name: koku-cji-v2
   spec:
     appName: koku
     jobs:
