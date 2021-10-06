@@ -179,7 +179,7 @@ class Settings:
         # currency settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT:
             currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency to view Cost Information in."
+            currency_text_context = "Select the preferred currency view for your organizations."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
             currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
             currency_options = {
