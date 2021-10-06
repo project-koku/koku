@@ -92,6 +92,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         AND gcp.month = '{{month | sqlsafe}}'
         AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND cast(gcp.ocp_matched AS BOOLEAN)
         AND ocp.report_period_id = {{report_period_id | sqlsafe}}
         AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')

@@ -147,7 +147,6 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     tags = tags.str.lower()
 
     LOG.info("Matching OpenShift on GCP by labels.")
-    LOG.warning(cluster_topology)
     ocp_matched = tags.str.contains("kubernetes-io-cluster-")
 
     data_frame["ocp_matched"] = ocp_matched
