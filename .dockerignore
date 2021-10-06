@@ -11,4 +11,4 @@
 !db_functions/
 !scripts/run_migrations.sh
 !scripts/job_script.sh
-!scripts/migrate_presto.py
+!scripts/migrate_trino.py
