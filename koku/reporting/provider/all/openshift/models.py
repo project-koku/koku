@@ -577,7 +577,7 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
     # It is used to divide cost evenly among projects
     shared_projects = models.IntegerField(null=False, default=1)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, db_column="source_uuid", null=True)
 
 
 class OCPAllCostLineItemProjectDailySummaryP(models.Model):
@@ -657,7 +657,7 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, db_column="source_uuid", null=True)
 
 
 # ======================================================

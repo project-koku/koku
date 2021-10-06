@@ -5,7 +5,6 @@
 """View for Settings."""
 import logging
 
-from django.conf import settings
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
 from django.views.decorators.cache import never_cache
@@ -14,14 +13,11 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.settings.tag_management import TagManagementSettings
-from currency.settings import CurrencySettings
+from api.settings.settings import Settings
 
 LOG = logging.getLogger(__name__)
-if settings.DEVELOPMENT:
-    SETTINGS_GENERATORS = {"tag-management": TagManagementSettings, "currency": CurrencySettings}
-else:
-    SETTINGS_GENERATORS = {"tag-management": TagManagementSettings}
+
+SETTINGS_GENERATORS = {"settings": Settings}
 
 
 class SettingsView(APIView):

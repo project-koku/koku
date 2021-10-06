@@ -8,12 +8,14 @@ import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.db import connection
 from django.db.models import Sum
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -247,3 +249,39 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNotNone(project_infra_cost)
         self.assertNotEqual(infra_cost, decimal.Decimal(0))
         self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
+
+    def test_partition_handler_str_table(self):
+        new_table_sql = f"""
+create table {self.schema}._eek_pt0 (usage_start date not null, id int) partition by range (usage_start);
+"""
+        with schema_context(self.schema):
+            with connection.cursor() as cur:
+                cur.execute(new_table_sql)
+
+            partable = get_model("PartitionedTable")
+            default_part = partable(
+                schema_name=self.schema,
+                table_name="_eek_pt0_default",
+                partition_of_table_name="_eek_pt0",
+                partition_type=partable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": True},
+                active=True,
+            )
+            default_part.save()
+
+            ocrsu = OCPCloudReportSummaryUpdater(self.schema, self.ocp_on_aws_ocp_provider, None)
+            num_eek = partable.objects.filter(schema_name=self.schema, partition_of_table_name="_eek_pt0").count()
+            self.assertEqual(num_eek, 1)
+
+            ocrsu._handle_partitions("_eek_pt0", datetime.date(1970, 10, 1), datetime.date(1970, 12, 1))
+            eek_p = partable.objects.filter(
+                schema_name=self.schema, partition_of_table_name="_eek_pt0", partition_parameters__default=False
+            ).all()
+            self.assertEqual(len(eek_p), 3)
+
+            eek_p.delete()
+            default_part.delete()
+
+            with connection.cursor() as cur:
+                cur.execute(f"drop table {self.schema}._eek_pt0 ;")

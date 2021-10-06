@@ -79,7 +79,7 @@ if is_gunicorn_installed; then
 
   if [[ "$APP_MODULE" ]]; then
     echo "---> Serving application with gunicorn ($APP_MODULE) ..."
-    exec gunicorn "$APP_MODULE" --bind=0.0.0.0:$CLOWDER_PORT --access-logfile=- --config "$APP_CONFIG"
+    exec gunicorn "$APP_MODULE" --bind=0.0.0.0:$CLOWDER_PORT --access-logfile=- --config "$APP_CONFIG" --preload
   fi
 fi
 
