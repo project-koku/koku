@@ -62,11 +62,17 @@ try:
                     """
                     )
 <<<<<<< HEAD
+<<<<<<< HEAD
                     result = trino_cur.fetchall()
                     logging.info("Drop table result: ")
                     logging.info(result)
 =======
 >>>>>>> de0674b7... update the script (#3175)
+=======
+                    result = trino_cur.fetchall()
+                    logging.info("Drop table result: ")
+                    logging.info(result)
+>>>>>>> 5b770b97... log the result and update CJI name (#3179)
                 except Exception as e:
                     logging.info(e)
 finally:
