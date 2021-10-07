@@ -10,23 +10,9 @@ from rest_framework.test import APIClient
 from api.iam.test.iam_test_case import IamTestCase
 from api.user_settings.settings import COST_TYPES
 
-# from api.user_settings.settings import CURRENCIES
-
 
 class UserSettingsViewTest(IamTestCase):
     """Tests for the metrics view."""
-
-    # def test_supported_currencies(self):
-    #     """Test that a list GET call returns the supported currencies."""
-    #     qs = "?limit=20"
-    #     url = reverse("currency") + qs
-    #     client = APIClient()
-
-    #     response = client.get(url, **self.headers)
-    #     self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    #     data = response.data
-    #     self.assertEqual(data.get("data"), CURRENCIES)
 
     def test_supported_cost_types(self):
         """Test that a list GET call returns the supported cost_types."""

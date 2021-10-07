@@ -13,26 +13,6 @@ from rest_framework.settings import api_settings
 from api.common.pagination import ListPaginator
 from api.user_settings.settings import COST_TYPES
 
-# from api.user_settings.settings import CURRENCIES
-
-
-# @api_view(("GET",))
-# @permission_classes((permissions.AllowAny,))
-# @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
-# def get_currency(request):
-#     """Get Currency Data.
-
-#     This method is responsible for passing request data to the reporting APIs.
-
-#     Args:
-#         request (Request): The HTTP request object
-
-#     Returns:
-#         (Response): The report in a Response object
-
-#     """
-#     return ListPaginator(CURRENCIES, request).paginated_response
-
 
 @api_view(("GET",))
 @permission_classes((permissions.AllowAny,))
