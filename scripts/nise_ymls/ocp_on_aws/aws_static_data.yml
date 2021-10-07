@@ -9,6 +9,7 @@ generators:
       region: us-east-1a
       tags:
         resourceTags/user:version: prod
+        resourceTags/user:dashed-key-on-aws: dashed-value
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -27,6 +28,7 @@ generators:
       tags:
         resourceTags/user:environment: dev
         resourceTags/user:version: beta
+        resourceTags/user:dashed-key-on-aws: dashed-value
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -45,6 +47,7 @@ generators:
       tags:
         resourceTags/user:environment: dev
         resourceTags/user:version: gamma
+        resourceTags/user:dashed-key-on-aws: dashed-value
       instance_type:
         inst_type: m5.large
         vcpu: 2
@@ -62,6 +65,7 @@ generators:
       region: us-east-1a
       tags:
         resourceTags/user:version: master
+        resourceTags/user:dashed-key-on-aws: dashed-value
       instance_type:
         inst_type: m5.large
         vcpu: 2

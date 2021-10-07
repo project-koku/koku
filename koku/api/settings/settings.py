@@ -232,7 +232,7 @@ class Settings:
             # build a list of enabled tags for a given provider, removing the provider name prefix
             for enabled_tag in settings.get("enabled", []):
                 if enabled_tag.startswith(provider_name + tag_delimiter):
-                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter)[1])
+                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
 
             invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
 
