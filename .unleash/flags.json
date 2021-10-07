@@ -1,0 +1,38 @@
+{
+    "version": 1,
+    "features": [
+        {
+            "name": "cost-trino-processor",
+            "description": "Toggle to enable trino processing",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2021-09-14T21:22:00.756Z"
+        }
+    ],
+    "strategies": [
+        {
+            "name": "schema-strategy",
+            "description": "Enablement based on account/schema number",
+            "parameters": [
+                {
+                    "name": "schema-name",
+                    "type": "list",
+                    "description": "values must begin with `acct`",
+                    "required": false
+                }
+            ]
+        }
+    ]
+}
