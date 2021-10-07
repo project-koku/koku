@@ -24,6 +24,7 @@ from rest_framework.filters import OrderingFilter
 
 from api.common.filters import CharListFilter
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
+from api.settings.utils import get_selected_currency_or_setup
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 from cost_models.serializers import CostModelSerializer
@@ -172,3 +173,9 @@ class CostModelViewSet(viewsets.ModelViewSet):
     @method_decorator(never_cache)
     def update(self, request, *args, **kwargs):
         return super().update(request=request, args=args, kwargs=kwargs)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        default_currency = get_selected_currency_or_setup(schema=self.request.user.customer.schema_name)
+        context.update({"default_currency": default_currency})
+        return context

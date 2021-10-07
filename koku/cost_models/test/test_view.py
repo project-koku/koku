@@ -35,6 +35,7 @@ class CostModelViewTests(IamTestCase):
             request_context = context.get("request_context")
         else:
             request_context = self.request_context
+        request_context["default_currency"] = "USD"
 
         provider_data = {
             "name": "test_provider",
