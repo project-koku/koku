@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
+from koku.pg_partition import get_or_create_partition
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -108,12 +109,7 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     newpart_vals["partition_parameters"]["from"] = str(needed_partition)
                     newpart_vals["partition_parameters"]["to"] = str(needed_partition + month_interval)
                     # Successfully creating a new record will also create the partition
-                    newpart, created = PartitionedTable.objects.get_or_create(
-                        defaults=newpart_vals,
-                        schema_name=self._schema,
-                        partition_of_table_name=table_name,
-                        table_name=partition_name,
-                    )
+                    newpart, created = get_or_create_partition(newpart_vals)
                     LOG.debug(f"part = {newpart}")
                     LOG.debug(f"ctd = {created}")
                     if created:
@@ -133,6 +129,8 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     "reporting_ocpawscostlineitem_project_daily_summary",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
+                    "reporting_ocpall_compute_summary_pt",
+                    "reporting_ocpall_cost_summary_pt",
                 ),
                 start_date,
                 end_date,
@@ -174,10 +172,13 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 "source_uuid": self._provider.uuid,
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_alias,
+                "source_type": "AWS",
             }
             LOG.info(f"Processing OCP-ALL for AWS  (s={start_date} e={end_date})")
             ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
             ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
+            ocp_accessor.populate_ocp_on_all_compute_summary(sql_params)
+            ocp_accessor.populate_ocp_on_all_cost_summary(sql_params)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -193,6 +194,8 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                     "reporting_ocpazurecostlineitem_project_daily_summary",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
+                    "reporting_ocpall_compute_summary_pt",
+                    "reporting_ocpall_cost_summary_pt",
                 ),
                 start_date,
                 end_date,
@@ -234,7 +237,10 @@ class OCPCloudReportSummaryUpdater(OCPCloudUpdaterBase):
                 "source_uuid": self._provider.uuid,
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_alias,
+                "source_type": "Azure",
             }
             LOG.info(f"Processing OCP-ALL for Azure (s={start_date} e={end_date})")
             ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
             ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
+            ocp_accessor.populate_ocp_on_all_compute_summary(sql_params)
+            ocp_accessor.populate_ocp_on_all_cost_summary(sql_params)

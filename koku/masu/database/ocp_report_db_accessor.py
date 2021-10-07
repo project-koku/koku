@@ -2305,3 +2305,31 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         self._execute_processing_script(script_file_path, sql_params)
+
+    def populate_ocp_on_all_cost_summary(self, sql_params):
+        LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_cost_summary")
+        script_file_path = f"sql/reporting_ocpall_cost_summary_pt.sql"
+        self._execute_processing_script(script_file_path, sql_params)
+
+    def populate_ocp_on_all_cost_by_account_summary(self):
+        pass
+
+    def populate_ocp_on_all_cost_by_region_summary(self):
+        pass
+
+    def populate_ocp_on_all_cost_by_service_summary(self):
+        pass
+
+    def populate_ocp_on_all_compute_summary(self, sql_params):
+        LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_compute_summary")
+        script_file_path = f"sql/reporting_ocpall_compute_summary_pt.sql"
+        self._execute_processing_script(script_file_path, sql_params)
+
+    def populate_ocp_on_all_database_summary(self):
+        pass
+
+    def populate_ocp_on_all_network_summary(self):
+        pass
+
+    def populate_ocp_on_all_storage_summary(self):
+        pass
