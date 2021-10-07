@@ -9,6 +9,7 @@ import time
 from django.core.management.base import BaseCommand
 
 from koku.database import check_migrations
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
@@ -57,6 +58,9 @@ class Command(BaseCommand):
             time.sleep(timeout)
 
         httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
+
+        LOG.info("Initializing UNLEASH_CLIENT for sources-listener.")
+        UNLEASH_CLIENT.initialize_client()
 
         LOG.info("Starting Sources Kafka Handler")
         initialize_sources_integration()
