@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0195_ocpall_add_source_fk")]
+    dependencies = [("reporting", "0196_ocpall_cvt_matview_to_part")]
 
     operations = [
         migrations.CreateModel(
