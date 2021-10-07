@@ -16,6 +16,7 @@ from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
+from api.currency.currencies import CURRENCIES
 from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
@@ -281,56 +282,33 @@ def clean_volume():
 
 @celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
 def get_daily_currency_rates():
+    """Task to get latest daily conversion rates."""
+    # Create list of supported currencies
+    supported_currencies = []
+    for curr_object in CURRENCIES:
+        supported_currencies.append(curr_object.get("code"))
 
-    # List of the 15 supported currencies
-    currencyList = [
-        "usd",
-        "aud",
-        "cad",
-        "chf",
-        "cny",
-        "dkk",
-        "eur",
-        "gbp",
-        "hkd",
-        "jpy",
-        "nok",
-        "nzd",
-        "sek",
-        "sgd",
-        "zar",
-    ]
-
-    url = "https://open.er-api.com/v6/latest/USD"
-
-    def get_daily_rates(url):
+    url = settings.CURRENCY_URL
+    # Retrieve conversion rates from URL
+    try:
         data = requests.get(url).json()
-        rates = data["rates"]
-        return rates
+    except Exception as e:
+        LOG.error(f"Couldn't pull latest conversion rates from {url}")
+        LOG.error(e)
+    rates = data["rates"]
 
-    rates = get_daily_rates(url)
-
-    def get_exchange_rates(rates):
-        # for currency in ExchangeRates.SUPPORTED_CURRENCIES:
-        for target in rates.keys():
-            if target.lower() in currencyList:
-                try:  # step 2
-                    exchange = ExchangeRates.objects.get(base_currency="usd", target_currency=target.lower())
-                except ExchangeRates.DoesNotExist:
-                    LOG.info("Creating the exchange rate")
-                    exchange = ExchangeRates(base_currency="usd", target_currency=target.lower())
-                LOG.info(exchange)
-                value = rates[target]
-                LOG.info(target)
-                exchange.exchange_rate = value
-                LOG.info(value)
-                exchange.save()
-                LOG.info(exchange)
-            else:
-                exchange.save()
-                # exchange2.exchangeRate = "usd"
-
-    get_exchange_rates(rates)
+    # Update conversion rates in database
+    for curr_type in rates.keys():
+        if curr_type.upper() in supported_currencies:
+            value = rates[curr_type]
+            try:
+                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+                LOG.info(f"Updating currency {curr_type} to {value}")
+            except ExchangeRates.DoesNotExist:
+                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+                exchange = ExchangeRates(currency_type=curr_type.lower())
+            exchange.exchange_rate = value
+            exchange.save()
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
