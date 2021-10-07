@@ -13,19 +13,19 @@ except ValueError:
     PRESTO_PORT = 8080
 
 
-def check_schema(schema, presto_cursor):
+def check_schema(schema, trino_cursor):
     schema_check_sql = f"SHOW SCHEMAS LIKE '{schema}'"
-    schema = presto_cursor.execute(schema_check_sql, "default")
+    schema = trino_cursor.execute(schema_check_sql)
     logging.info("Checking for schema")
     if schema:
         return True
     return False
 
 
-def get_schemas(presto_cursor):
+def get_schemas(trino_cursor):
     schemas_sql = "SELECT schema_name FROM information_schema.schemata"
-    presto_cursor.execute(schemas_sql)
-    schemas = presto_cursor.fetchall()
+    trino_cursor.execute(schemas_sql)
+    schemas = trino_cursor.fetchall()
     schemas = [
         schema
         for listed_schema in schemas
@@ -36,34 +36,36 @@ def get_schemas(presto_cursor):
 
 
 table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
-presto_conn = False
+trino_conn = False
 logging.info("Running the hive migration for aws savings plan")
 try:
-    presto_conn = trino.dbapi.connect(
+    trino_conn = trino.dbapi.connect(
         host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
     )
-    presto_cur = presto_conn.cursor()
-    schemas = get_schemas(presto_cur)
+    trino_cur = trino_conn.cursor()
+    schemas = get_schemas(trino_cur)
     logging.info("Running against the following schemas")
     logging.info(schemas)
-    presto_conn.close()
+    trino_conn.close()
     for schema in schemas:
-        presto_conn = trino.dbapi.connect(
+        trino_conn = trino.dbapi.connect(
             host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema=schema
         )
-        presto_cur = presto_conn.cursor()
-        if check_schema(schema, presto_cur):
+        trino_cur = trino_conn.cursor()
+        if check_schema(schema, trino_cur):
             for table_name in table_names:
                 try:
                     logging.info(f"Dropping table {table_name} from {schema}.")
-                    presto_cur.execute(
+                    trino_cur.execute(
                         f"""
                         DROP TABLE IF EXISTS {table_name}
-                    """,
-                        None,
+                    """
                     )
+                    result = trino_cur.fetchall()
+                    logging.info("Drop table result: ")
+                    logging.info(result)
                 except Exception as e:
                     logging.info(e)
 finally:
-    if presto_conn:
-        presto_conn.close()
+    if trino_conn:
+        trino_conn.close()
