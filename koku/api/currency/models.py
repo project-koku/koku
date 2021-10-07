@@ -42,6 +42,6 @@ class ExchangeRates(models.Model):
         (ZAR, "ZAR"),
     )
 
-    base_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=False, null=True)
-    target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=False, null=True)
+    base_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=False, blank=True)
+    target_currency = models.CharField(max_length=100, choices=SUPPORTED_CURRENCIES, unique=False, blank=True)
     exchange_rate = models.FloatField(default=0)

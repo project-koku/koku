@@ -284,21 +284,21 @@ def get_daily_currency_rates():
 
     # List of the 15 supported currencies
     currencyList = [
-        "USD",
-        "AUD",
-        "CAD",
-        "CHF",
-        "CNY",
-        "DKK",
-        "EUR",
-        "GBP",
-        "HKD",
-        "JPY",
-        "NOK",
-        "NZD",
-        "SEK",
-        "SGD",
-        "ZAR",
+        "usd",
+        "aud",
+        "cad",
+        "chf",
+        "cny",
+        "dkk",
+        "eur",
+        "gbp",
+        "hkd",
+        "jpy",
+        "nok",
+        "nzd",
+        "sek",
+        "sgd",
+        "zar",
     ]
 
     url = "https://open.er-api.com/v6/latest/USD"
@@ -313,19 +313,19 @@ def get_daily_currency_rates():
     def get_exchange_rates(rates):
         # for currency in ExchangeRates.SUPPORTED_CURRENCIES:
         for target in rates.keys():
-            if target in currencyList:
+            if target.lower() in currencyList:
                 try:  # step 2
-                    exchange = ExchangeRates.objects.get(base_currency="USD", target_currency=target)
+                    exchange = ExchangeRates.objects.get(base_currency="usd", target_currency=target.lower())
                 except ExchangeRates.DoesNotExist:
                     LOG.info("Creating the exchange rate")
-                    exchange = ExchangeRates(base_currency="USD", target_currency=target)
+                    exchange = ExchangeRates(base_currency="usd", target_currency=target.lower())
                 LOG.info(exchange)
                 value = rates[target]
-
                 LOG.info(target)
                 exchange.exchange_rate = value
                 LOG.info(value)
                 exchange.save()
+                LOG.info(exchange)
             else:
                 exchange.save()
                 # exchange2.exchangeRate = "usd"
