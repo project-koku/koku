@@ -101,16 +101,12 @@ CURRENCIES = [
 """List of cost_types."""
 COST_TYPES = [
     {
-        "name": "Unblended Cost",
-        "description":" "
+        "code": "unblended_cost",
+        "name": "Unblended",
     },
     {
-        "name": "Amortized Cost",
-        "description":" "
-    },
-    {
-        "name": "Blended Cost",
-        "description": " "
+        "code": "savingsplan_effective_cost",
+        "name": "Amortized"
     },
 ]
 # fmt: on
