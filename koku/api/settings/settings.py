@@ -209,15 +209,6 @@ class Settings:
         return sub_form
 
     def _tag_key_handler(self, settings):
-        """
-        Handle setting results
-
-        Args:
-            (String) name - unique name for switch.
-
-        Returns:
-            (Bool) - True, if a setting had an effect, False otherwise
-        """
         tag_delimiter = "-"
         updated = [False] * len(obtainTagKeysProvidersParams)
 
@@ -319,20 +310,16 @@ class Settings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
+        # @TODO: only call currency settings in DEVELOPMENT mode
+        currency_change = False
         if settings.get("api", {}).get("settings", {}).get("currency", None):
             currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
             currency_change = self._currency_handler(currency_settings)
 
-            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-            tags_change = self._tag_key_handler(tg_mgmt_settings)
+        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        tags_change = self._tag_key_handler(tg_mgmt_settings)
 
-            if tags_change or currency_change:
-                return True
-        else:
-            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-            tags_change = self._tag_key_handler(tg_mgmt_settings)
-
-            if tags_change:
-                return True
+        if tags_change or currency_change:
+            return True
 
         return False
