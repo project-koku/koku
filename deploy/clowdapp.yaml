@@ -2031,7 +2031,7 @@ objects:
     featureFlags: true
     inMemoryDb: true
     jobs:
-    - name: script-runner
+    - name: script-runner-${IMAGE_TAG}
       podSpec:
         args:
         - /bin/bash

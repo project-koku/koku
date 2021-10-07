@@ -45,7 +45,7 @@ objects:
     deployments:
     -
     jobs:
-    - name: script-runner
+    - name: script-runner-${IMAGE_TAG}
       podSpec:
         image: ${IMAGE}:${IMAGE_TAG}
         args:

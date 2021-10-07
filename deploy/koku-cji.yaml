@@ -19,7 +19,7 @@ objects:
   spec:
     envName: ${ENV_NAME}
     jobs:
-    - name: script-runner
+    - name: script-runner-${IMAGE_TAG}
       podSpec:
         args:
         - /bin/bash
