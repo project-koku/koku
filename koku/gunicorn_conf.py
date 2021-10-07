@@ -3,6 +3,7 @@ import multiprocessing
 
 import environ
 
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import BasicProbeServer
 from koku.probe_server import start_probe_server
 
@@ -27,6 +28,19 @@ if gunicorn_threads:
 
 # Server Hooks
 def on_starting(server):
-    """gunicorn server hook to start probe server before main process"""
+    """Called just before the main process is initialized."""
     httpd = start_probe_server(BasicProbeServer, server.log)
     httpd.RequestHandlerClass.ready = True
+
+
+def post_fork(server, worker):
+    """Called just after a worker has been forked."""
+    UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
+    worker.log.info("Initializing UNLEASH_CLIENT for gunicorn worker.")
+    UNLEASH_CLIENT.initialize_client()
+
+
+def worker_exit(server, worker):
+    """Called just after a worker has been exited, in the worker process."""
+    worker.log.info("Shutting down UNLEASH_CLIENT for gunicorn worker.")
+    UNLEASH_CLIENT.destroy()

@@ -47,7 +47,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
       - DEMO_ACCOUNTS
       - ACCOUNT_ENHANCED_METRICS=${ACCOUNT_ENHANCED_METRICS-False}
-      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - RUN_GUNICORN=${RUN_GUNICORN-}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - ENABLE_TRINO_SOURCES
@@ -103,7 +103,7 @@ services:
       - ENABLE_TRINO_SOURCES
       - ENABLE_TRINO_ACCOUNTS
       - ENABLE_TRINO_SOURCE_TYPE
-      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - RUN_GUNICORN=${RUN_GUNICORN-}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
@@ -287,7 +287,7 @@ services:
       - SOURCES_API_PREFIX=${SOURCES_API_PREFIX}
       - SOURCES_PSK=${SOURCES_PSK-thisMustBeEphemeralOrMinikube}
       - AUTO_DATA_INGEST=${AUTO_DATA_INGEST-True}
-      - RUN_GUNICORN=${RUN_GUNICORN-False}
+      - RUN_GUNICORN=${RUN_GUNICORN-}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
@@ -441,7 +441,7 @@ services:
     ports:
       - 3001:3000
     depends_on:
-        - db
+      - db
 
   koku-rabbit:
     container_name: koku_rabbit
@@ -471,3 +471,5 @@ services:
       - 4242:4242
     volumes:
       - './.unleash:/.unleash'
+    depends_on:
+      - db

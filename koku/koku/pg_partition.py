@@ -2,16 +2,27 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import datetime
 import json
 import logging
 import os
+import random
 import re
+import string
+import time
 import uuid
 
 import ciso8601
 from dateutil.relativedelta import relativedelta
 from django.db import connection as conn
 from django.db import transaction
+from tenant_schemas.utils import schema_context
+
+from koku.database import get_model
+
+
+random.seed(time.time())
+PartitionedTable = get_model("PartitionedTable")
 
 
 # If this is detected, the code will try to resolve this to a name
@@ -1668,3 +1679,193 @@ def repartition_default_data(schema_name=None, partitioned_table_name=None):
             default_partition=default_rec["default_partition"],
         )
         default_partitioner.repartition_default_data()
+
+
+def _get_or_create_default_partition(part_rec):
+    """
+    Use the specified record to return an existing or newly-created default partition
+
+    Params:
+        part_rec (dict) : A dict describing a partitioned_tables record.
+
+    Returns: (tuple)
+        (PartitionedTable instance, created boolean)
+    """
+    default_keys = ("schema_name", "table_name", "partition_of_table_name", "partition_type", "partition_col")
+    default_params = {k: v for k, v in part_rec.items() if k in default_keys}
+    default_params["table_name"] = f"{default_params['partition_of_table_name']}_default"
+    default_params["partition_parameters"] = {"default": True}
+    default_part, created = PartitionedTable.objects.get_or_create(
+        schema_name=default_params["schema_name"],
+        table_name=default_params["table_name"],
+        partition_of_table_name=default_params["partition_of_table_name"],
+        partition_parameters__default=True,
+        defaults=default_params,
+    )
+
+    LOG.info(f"{'Created' if created else 'Retrieved'} default partition {default_part.table_name}")
+
+    return default_part, created
+
+
+def _check_default_partition_data(default_partition, part_rec):
+    """
+    Use the specified record to check if the default partition contains data
+    for the parameters defined in the partition record. If it detects data, the partition parameters
+    will be altered to be some time in the future for a range or a ramdom array of letters for a list.
+    The original parameters will be returned if this is the case. Also returned will be the
+    SQL where clause needed to check the conditions. This will be re-used when moving data.
+
+    Params:
+        default_partition (PartitionedTable) : The tracking record for the default partition
+        part_rec (dict) : A dict describing a partitioned_tables record.
+
+    Returns: (tuple)
+        (dict, str):
+            dict : The original partition parameters or empty dict
+            str : The SQL where clause (minus "where") for the needed conditions when moving data
+    """
+    params = None
+    if default_partition.partition_type == default_partition.RANGE:
+        chk_where = f'"{default_partition.partition_col}" >= %s AND "{default_partition.partition_col}" < %s'
+        params = [part_rec["partition_parameters"]["from"], part_rec["partition_parameters"]["to"]]
+    else:
+        chk_where = f'"{default_partition.partition_col}" IN ( %s )'
+        params = [part_rec["partition_parameters"]["in"]]
+
+    with transaction.get_connection().cursor() as cur:
+        chk_where = cur.mogrify(chk_where, params).decode("utf-8")
+
+    chk_sql = f"""
+SELECT EXISTS (
+    SELECT 1
+      FROM "{default_partition.schema_name}"."{default_partition.table_name}"
+     WHERE {chk_where}
+);
+"""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(chk_sql)
+        res = cur.fetchone()
+
+    if res[0]:
+        LOG.info(f"Overlapping data found in the default partition for {chk_where}")
+        restore = part_rec["partition_parameters"].copy()
+        if default_partition.partition_type == default_partition.RANGE:
+            pp_from = ciso8601.parse_datetime(part_rec["partition_parameters"]["from"]).date()
+            pp_to = ciso8601.parse_datetime(part_rec["partition_parameters"]["to"]).date()
+            delta = relativedelta(years=random.randrange(100, 7000))
+            part_rec["partition_parameters"]["from"] = str(pp_from + delta)
+            part_rec["partition_parameters"]["to"] = str(pp_to + delta)
+        else:
+            pp_in = []
+            for _ in range(10):
+                pp_in.append(f"'{random.choice(string.ascii_letters)}'")
+            part_rec["partition_parameters"]["in"] = ",".join(pp_in)
+    else:
+        LOG.info("No overlapping data in the default partition")
+        restore = {}
+
+    return restore, chk_where
+
+
+def _move_partition_data(target_partition, source_partition, conditions):
+    """
+    Move data matching conditions from the source partition to the target partition.
+
+    Params:
+        target_partition (PartitionTable) : The target partition tracking record
+        source_partition (PartitionTable) : The source partition tracking record
+        conditions (str) : SQL where clause conditions
+
+    Returns: tuple(cp_recs int, dl_recs int)
+        cp_recs : number of records copied
+        dl_recs : number of records deleted
+    """
+    mv_sql = f"""
+INSERT INTO "{target_partition.schema_name}"."{target_partition.table_name}"
+SELECT *
+  FROM "{source_partition.schema_name}"."{source_partition.table_name}"
+ WHERE {conditions} ;
+"""
+    dl_sql = f"""
+DELETE
+  FROM "{source_partition.schema_name}"."{source_partition.table_name}"
+ WHERE {conditions} ;
+"""
+    cp_recs = dl_recs = 0
+    with transaction.get_connection().cursor() as cur:
+        LOG.info(f"Copy data from {source_partition.table_name} to {target_partition.table_name} where {conditions}")
+        cur.execute(mv_sql)
+        cp_recs = cur.rowcount
+        LOG.info(f"Copied {cp_recs} records")
+        LOG.info(f"Delete data from {source_partition.table_name} where {conditions}")
+        cur.execute(dl_sql)
+        dl_recs = cur.rowcount
+        LOG.info(f"Deleted {dl_recs} records")
+
+    return (cp_recs, dl_recs)
+
+
+def get_or_create_partition(part_rec):
+    """
+    Get or create an existing partition.
+    Creating:
+        1.  The default partition tracking record will be retrieved or created
+        2.  The default partition will be checked to see if it contains data that
+            overlaps with the constraint on the new partition. If so, the data
+            in the default partition will be moved to the new partition.
+
+    Params:
+        part_rec (dict) :   A dict desrribing a partition record.
+                            If the record needs to be created ALL fields to support that record
+                            MUST be provided.
+
+    Returns: tuple(partition, created)
+        partition (PartitionTable) : The tracking record for the found or created partition
+        created (boolean) : Flag indicating that the record was created (True) or retrieved (False).
+    """
+    if "id" in part_rec:
+        del part_rec["id"]
+    if isinstance(part_rec.get("partition_parameters", {}).get("from"), datetime.datetime):
+        part_rec["partition_parameters"]["from"] = str(part_rec["partition_parameters"]["from"].date())
+    elif isinstance(part_rec.get("partition_parameters", {}).get("from"), datetime.date):
+        part_rec["partition_parameters"]["from"] = str(part_rec["partition_parameters"]["from"])
+    if isinstance(part_rec.get("partition_parameters", {}).get("to"), datetime.datetime):
+        part_rec["partition_parameters"]["to"] = str(part_rec["partition_parameters"]["to"].date())
+    elif isinstance(part_rec.get("partition_parameters", {}).get("to"), datetime.date):
+        part_rec["partition_parameters"]["to"] = str(part_rec["partition_parameters"]["to"])
+
+    with schema_context(part_rec["schema_name"]):
+        # Find or create the default partition
+        default_partition, default_created = _get_or_create_default_partition(part_rec)
+        if part_rec.get("partition_parameters", {}).get("default") or "default" in part_rec.get("table_name"):
+            return default_partition, default_created
+
+        if not default_created:
+            restore_partition_parameters, conditions = _check_default_partition_data(default_partition, part_rec)
+        else:
+            restore_partition_parameters = {}
+
+        partition, created = PartitionedTable.objects.get_or_create(
+            schema_name=part_rec["schema_name"],
+            table_name=part_rec["table_name"],
+            partition_of_table_name=part_rec["partition_of_table_name"],
+            defaults=part_rec,
+        )
+        LOG.info(f'{"Created" if created else "Retrieved"} partition "{partition.table_name}"')
+
+        if created and restore_partition_parameters:
+            # Detach the partition (uses trigger)
+            LOG.info(f'Detaching partition "{partition.table_name}" for data move')
+            partition.active = False
+            partition.save()
+            # Move data from the default partition to the detached partition
+            LOG.info(f'Executing data move from default partition to "{partition.table_name}"')
+            _move_partition_data(partition, default_partition, conditions)
+            # Re-attach the partition with the original parameters (uses trigger)
+            LOG.info(f'Reattach partition "{partition.table_name}"')
+            partition.partition_parameters = restore_partition_parameters
+            partition.active = True
+            partition.save()
+
+    return partition, created

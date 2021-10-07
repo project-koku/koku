@@ -4,9 +4,7 @@
 #
 """Create Unleash Client."""
 import logging
-from unittest.mock import Mock
 
-import requests
 from django.conf import settings
 from UnleashClient import UnleashClient
 from UnleashClient.strategies import Strategy
@@ -14,11 +12,25 @@ from UnleashClient.strategies import Strategy
 from .env import ENVIRONMENT
 
 
+LOG = logging.getLogger(__name__)
+
+
 log_level = getattr(logging, "WARNING")
 if isinstance(getattr(logging, settings.UNLEASH_LOGGING_LEVEL), int):
     log_level = getattr(logging, settings.UNLEASH_LOGGING_LEVEL)
 else:
-    print(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
+    LOG.info(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
+
+
+class KokuUnleashClient(UnleashClient):
+    """Koku Unleash Client."""
+
+    def destroy(self):
+        """Override destroy so that cache is not deleted."""
+        self.fl_job.remove()
+        if self.metric_job:
+            self.metric_job.remove()
+        self.scheduler.shutdown()
 
 
 class SchemaStrategy(Strategy):
@@ -40,7 +52,7 @@ headers = {}
 if settings.UNLEASH_TOKEN:
     headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
 
-UNLEASH_CLIENT = UnleashClient(
+UNLEASH_CLIENT = KokuUnleashClient(
     settings.UNLEASH_URL,
     "Cost Management",
     environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
@@ -50,13 +62,3 @@ UNLEASH_CLIENT = UnleashClient(
     cache_directory=settings.UNLEASH_CACHE_DIR,
     verbose_log_level=log_level,
 )
-
-if not UNLEASH_CLIENT.is_initialized:
-    try:
-        print(f"Initializing Unleash Client. URL: {settings.UNLEASH_URL}")
-        requests.get(settings.UNLEASH_URL)
-        UNLEASH_CLIENT.initialize_client()
-    except requests.exceptions.ConnectionError:
-        print("Unleash Server is not reachable. Using Mock client.")
-        UNLEASH_CLIENT = Mock()
-        UNLEASH_CLIENT.is_enabled.return_value = False
