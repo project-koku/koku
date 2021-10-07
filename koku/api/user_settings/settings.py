@@ -10,7 +10,7 @@ CURRENCIES = [
         "code": "AUD",
         "name": "Australian Dollar",
         "symbol": "A$",
-        "description": "AUD (AU$) - Australian Dollar"
+        "description": "AUD (A$) - Australian Dollar"
     },
     {
         "code": "CAD",
