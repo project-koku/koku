@@ -262,13 +262,13 @@ class Settings:
                             updated[ix] = True
 
                     if len(remove_tags):
-                        LOG.info(f"Updating %d %s keys to DISABLED", len(remove_tags), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to DISABLED", len(remove_tags), provider_name)
                         for rm_tag in remove_tags:
                             rm_tag.delete()
                             updated[ix] = True
 
                     if len(enabled_tags_no_abbr):
-                        LOG.info(f"Updating %d %s keys to ENABLED", len(enabled_tags_no_abbr), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to ENABLED", len(enabled_tags_no_abbr), provider_name)
                         for new_tag in enabled_tags_no_abbr:
                             enabled_tag_keys.objects.create(key=new_tag)
                             updated[ix] = True
@@ -319,12 +319,20 @@ class Settings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
-        currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
-        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        tags_change = self._tag_key_handler(tg_mgmt_settings)
-        currency_change = self._currency_handler(currency_settings)
+        if settings.get("api", {}).get("settings", {}).get("currency", None):
+            currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
+            currency_change = self._currency_handler(currency_settings)
 
-        if tags_change or currency_change:
-            return True
+            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+            tags_change = self._tag_key_handler(tg_mgmt_settings)
+
+            if tags_change or currency_change:
+                return True
+        else:
+            tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+            tags_change = self._tag_key_handler(tg_mgmt_settings)
+
+            if tags_change:
+                return True
 
         return False
