@@ -4,9 +4,9 @@
 #
 from tenant_schemas.utils import schema_context
 
+from api.currency.currencies import CURRENCIES
 from api.settings.default_settings import DEFAULT_USER_SETTINGS
 from api.user_settings.settings import COST_TYPES
-from api.user_settings.settings import CURRENCIES
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
