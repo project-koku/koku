@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0193_gcptopology")]
+    dependencies = [("reporting", "0195_ocpall_add_source_fk")]
 
     operations = [
         migrations.CreateModel(
