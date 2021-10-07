@@ -15,7 +15,7 @@ CURRENCIES = [
     {
         "code": "CAD",
         "name": "Canadian Dollar",
-        "symbol": "C$",
+        "symbol": "CA$",
         "description": "CAD (C$) - Canadian Dollar"
     },
     {
