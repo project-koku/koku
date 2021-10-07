@@ -311,19 +311,24 @@ def get_daily_currency_rates():
     rates = get_daily_rates(url)
 
     def get_exchange_rates(rates):
-        for currency in ExchangeRates.SUPPORTED_CURRENCIES:
-            for target in rates.keys():
+        # for currency in ExchangeRates.SUPPORTED_CURRENCIES:
+        for target in rates.keys():
+            if target in currencyList:
                 try:  # step 2
-                    exchange = ExchangeRates.objects.get(base_currency=currency)
+                    exchange = ExchangeRates.objects.get(base_currency="USD", target_currency=target)
                 except ExchangeRates.DoesNotExist:
                     LOG.info("Creating the exchange rate")
-                    exchange = ExchangeRates(base_currency=currency, target_currency=target)
-                if target in currencyList:
-                    value = rates[target]
-                    LOG.info("new info here")
-                    exchange.exchange_rate = value
-                    exchange.save()
-                    # exchange2.exchangeRate = "usd"
+                    exchange = ExchangeRates(base_currency="USD", target_currency=target)
+                LOG.info(exchange)
+                value = rates[target]
+
+                LOG.info(target)
+                exchange.exchange_rate = value
+                LOG.info(value)
+                exchange.save()
+            else:
+                exchange.save()
+                # exchange2.exchangeRate = "usd"
 
     get_exchange_rates(rates)
 

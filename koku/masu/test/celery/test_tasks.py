@@ -124,7 +124,7 @@ class TestCeleryTasks(MasuTestCase):
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
 
     # Used for debugging to look at variables
-    def test_do_nothing(self):
+    def test_get_currency_conversion_rates(self):
         # reads the logs to make sure the endpoint was git
         tasks.get_daily_currency_rates()
         # with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
