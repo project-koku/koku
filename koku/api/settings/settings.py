@@ -270,14 +270,18 @@ class Settings:
         return any(updated)
 
     def _currency_handler(self, settings):
-        currency = settings
+        if settings is None:
+            return False
+        else:
+            currency = settings
+
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:
             LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
 
-        if currency is None or stored_currency == currency:
+        if stored_currency == currency:
             return False
 
         try:
@@ -310,11 +314,8 @@ class Settings:
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
-        # @TODO: only call currency settings in DEVELOPMENT mode
-        currency_change = False
-        if settings.get("api", {}).get("settings", {}).get("currency", None):
-            currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
-            currency_change = self._currency_handler(currency_settings)
+        currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
+        currency_change = self._currency_handler(currency_settings)
 
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
         tags_change = self._tag_key_handler(tg_mgmt_settings)
