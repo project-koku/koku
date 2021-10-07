@@ -66,5 +66,3 @@ from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
 from api.user_settings.views import get_cost_type
 from api.user_settings.views import get_currency
-
-# from api.currency.view import get_currency

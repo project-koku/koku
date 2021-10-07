@@ -86,7 +86,6 @@ ROUTER.register(r"dataexportrequests", DataExportRequestViewSet, basename="datae
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
-    # path("currency/", get_currency, name="currency"),
     path("user_settings/currency/", get_currency, name="currency"),
     path("user_settings/cost_type/", get_cost_type, name="cost_type"),
     path("status/", StatusView.as_view(), name="server-status"),
