@@ -9,22 +9,18 @@ from api.settings.utils import get_selected_cost_type_or_setup
 from api.settings.utils import get_selected_currency_or_setup
 from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
-from koku.reporting.user_settings.models import UserSettings
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from masu.test import MasuTestCase
-
-# from api.settings.utils import get_currency_options
-# from reporting.currency.models import CurrencySettings
+from reporting.user_settings.models import UserSettings
 
 
-class TestCurrencyCommon(MasuTestCase):
+class TestUserSettingCommon(MasuTestCase):
     """Test cases for currency utils."""
 
     def setUp(self):
         """Set up test suite."""
         with schema_context(self.schema):
-            # CurrencySettings.objects.all().delete()
             UserSettings.objects.all().delete()
 
     """Tests for cost_type utils."""
@@ -47,7 +43,7 @@ class TestCurrencyCommon(MasuTestCase):
     def test_set_currency_negative(self):
         """Test cost_type raises exception when providing a non-supported cost_type"""
         with self.assertRaises(ValueError):
-            set_currency(self.schema, cost_type_code="BOGUS")
+            set_currency(self.schema, currency_code="BOGUS")
 
     """Tests for cost_type utils."""
 
@@ -56,8 +52,8 @@ class TestCurrencyCommon(MasuTestCase):
         cost_type = get_selected_cost_type_or_setup(self.schema)
         self.assertEqual(cost_type, KOKU_DEFAULT_COST_TYPE)
 
-        new_cost_type = "Amortized Cost"
-        set_cost_type(self.schema, cost_type_name=new_cost_type)
+        new_cost_type = "savingsplan_effective_cost"
+        set_cost_type(self.schema, cost_type_code=new_cost_type)
         cost_type = get_selected_cost_type_or_setup(self.schema)
         self.assertEqual(cost_type, new_cost_type)
 
@@ -69,4 +65,4 @@ class TestCurrencyCommon(MasuTestCase):
     def test_set_cost_type_negative(self):
         """Test cost_type raises exception when providing a non-supported cost_type"""
         with self.assertRaises(ValueError):
-            set_cost_type(self.schema, cost_type_name="BOGUS")
+            set_cost_type(self.schema, cost_type_code="BOGUS")

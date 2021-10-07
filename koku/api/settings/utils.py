@@ -236,7 +236,7 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
         supported_cost_type_codes = [code.get("code") for code in COST_TYPES]
 
         if cost_type_code not in supported_cost_type_codes:
-            raise ValueError(cost_type_code + " is not a supported currency")
+            raise ValueError(cost_type_code + " is not a supported cost_type")
 
         if not account_current_setting:
             set_default_user_settings(schema)
