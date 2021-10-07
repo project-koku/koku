@@ -179,7 +179,7 @@ class Settings:
         # currency settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT:
             currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency to view Cost Information in."
+            currency_text_context = "Select the preferred currency view for your organizations."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
             currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
             currency_options = {
@@ -242,7 +242,12 @@ class Settings:
                 raise ValidationError(error_obj(key, message))
 
             if "aws" in provider_name:
-                updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
+                existing_enabled_tags = list(
+                    enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
+                )
+
+                if enabled_tags_no_abbr != existing_enabled_tags:
+                    updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
 
             else:
                 remove_tags = []
@@ -256,12 +261,17 @@ class Settings:
                             remove_tags.append(existing_tag)
                             updated[ix] = True
 
-                    for rm_tag in remove_tags:
-                        rm_tag.delete()
+                    if len(remove_tags):
+                        LOG.info(f"Updating %d %s keys to DISABLED", len(remove_tags), provider_name)
+                        for rm_tag in remove_tags:
+                            rm_tag.delete()
+                            updated[ix] = True
 
-                    for new_tag in enabled_tags_no_abbr:
-                        enabled_tag_keys.objects.create(key=new_tag)
-                        updated[ix] = True
+                    if len(enabled_tags_no_abbr):
+                        LOG.info(f"Updating %d %s keys to ENABLED", len(enabled_tags_no_abbr), provider_name)
+                        for new_tag in enabled_tags_no_abbr:
+                            enabled_tag_keys.objects.create(key=new_tag)
+                            updated[ix] = True
 
             if updated[ix]:
                 invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
@@ -280,10 +290,12 @@ class Settings:
             return False
 
         try:
+            LOG.info(f"Updating currency to: " + settings)
             set_currency(self.schema, settings)
         except Exception as exp:
             LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
             return False
+
         invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
         return True
 
@@ -309,8 +321,10 @@ class Settings:
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        tags_change = self._tag_key_handler(tg_mgmt_settings)
+        currency_change = self._currency_handler(currency_settings)
 
-        if self._tag_key_handler(tg_mgmt_settings) and self._currency_handler(currency_settings):
+        if tags_change or currency_change:
             return True
 
         return False

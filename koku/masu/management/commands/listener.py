@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand
 
 from kafka_utils.utils import check_kafka_connection
 from koku.database import check_migrations
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.probe_server import ProbeResponse
 from koku.probe_server import ProbeServer
 from koku.probe_server import start_probe_server
@@ -50,6 +51,9 @@ class Command(BaseCommand):
             time.sleep(5)
 
         httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
+
+        LOG.info("Initializing UNLEASH_CLIENT for masu-listener.")
+        UNLEASH_CLIENT.initialize_client()
 
         LOG.info("Starting Kafka handler")
         LOG.debug("handle args: %s, kwargs: %s", str(args), str(kwargs))

@@ -59,6 +59,8 @@
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -75,7 +77,7 @@
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
@@ -89,6 +91,8 @@
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness
@@ -120,10 +124,10 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
-      - name: prometheus-data
-        mountPath: ${PROMETHEUS_DIR}
+      - name: tmp-data
+        mountPath: ${TMP_DIR}
       volumes:
-      - name: prometheus-data
+      - name: tmp-data
         emptyDir: {}
       - name: gcp-credentials
         secret:
