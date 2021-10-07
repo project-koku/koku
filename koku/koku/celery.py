@@ -197,7 +197,7 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
-# Beat used to crawl the account hierarchy
+# Beat used to fetch daily rates
 app.conf.beat_schedule["get_daily_currency_rates"] = {
     "task": "masu.celery.tasks.get_daily_currency_rates",
     "schedule": crontab(hour=0, minute=0),
