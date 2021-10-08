@@ -442,7 +442,7 @@ services:
     ports:
       - 3001:3000
     depends_on:
-        - db
+      - db
 
   koku-rabbit:
     container_name: koku_rabbit
@@ -472,3 +472,5 @@ services:
       - 4242:4242
     volumes:
       - './.unleash:/.unleash'
+    depends_on:
+      - db

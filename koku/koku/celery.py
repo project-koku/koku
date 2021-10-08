@@ -9,7 +9,7 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
-from celery.signals import worker_ready
+from celery.signals import worker_process_init
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -233,13 +233,10 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     httpd.RequestHandlerClass._collector = collect_queue_metrics
 
 
-@worker_ready.connect
+@worker_process_init.connect
 def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    worker = kwargs.get("sender")
-
-    UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
     LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
 

@@ -209,15 +209,6 @@ class Settings:
         return sub_form
 
     def _tag_key_handler(self, settings):
-        """
-        Handle setting results
-
-        Args:
-            (String) name - unique name for switch.
-
-        Returns:
-            (Bool) - True, if a setting had an effect, False otherwise
-        """
         tag_delimiter = "-"
         updated = [False] * len(obtainTagKeysProvidersParams)
 
@@ -232,7 +223,7 @@ class Settings:
             # build a list of enabled tags for a given provider, removing the provider name prefix
             for enabled_tag in settings.get("enabled", []):
                 if enabled_tag.startswith(provider_name + tag_delimiter):
-                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter)[1])
+                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
 
             invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
 
@@ -262,13 +253,13 @@ class Settings:
                             updated[ix] = True
 
                     if len(remove_tags):
-                        LOG.info(f"Updating %d %s keys to DISABLED", len(remove_tags), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to DISABLED", len(remove_tags), provider_name)
                         for rm_tag in remove_tags:
                             rm_tag.delete()
                             updated[ix] = True
 
                     if len(enabled_tags_no_abbr):
-                        LOG.info(f"Updating %d %s keys to ENABLED", len(enabled_tags_no_abbr), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to ENABLED", len(enabled_tags_no_abbr), provider_name)
                         for new_tag in enabled_tags_no_abbr:
                             enabled_tag_keys.objects.create(key=new_tag)
                             updated[ix] = True
@@ -279,14 +270,18 @@ class Settings:
         return any(updated)
 
     def _currency_handler(self, settings):
-        currency = settings
+        if settings is None:
+            return False
+        else:
+            currency = settings
+
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:
             LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
 
-        if currency is None or stored_currency == currency:
+        if stored_currency == currency:
             return False
 
         try:
@@ -320,9 +315,10 @@ class Settings:
             (Bool) - True, if a setting had an effect, False otherwise
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
+        currency_change = self._currency_handler(currency_settings)
+
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
         tags_change = self._tag_key_handler(tg_mgmt_settings)
-        currency_change = self._currency_handler(currency_settings)
 
         if tags_change or currency_change:
             return True
