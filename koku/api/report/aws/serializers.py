@@ -73,7 +73,7 @@ class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"), ("testing", "testing"))
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
     COST_TYPE_CHOICE = (
         ("blended_cost", "blended_cost"),
         ("unblended_cost", "unblended_cost"),
