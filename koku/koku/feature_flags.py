@@ -22,17 +22,6 @@ else:
     LOG.info(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
 
 
-class KokuUnleashClient(UnleashClient):
-    """Koku Unleash Client."""
-
-    def destroy(self):
-        """Override destroy so that cache is not deleted."""
-        self.fl_job.remove()
-        if self.metric_job:
-            self.metric_job.remove()
-        self.scheduler.shutdown()
-
-
 class SchemaStrategy(Strategy):
     def load_provisioning(self) -> list:
         return self.parameters["schema-name"]
@@ -52,7 +41,7 @@ headers = {}
 if settings.UNLEASH_TOKEN:
     headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
 
-UNLEASH_CLIENT = KokuUnleashClient(
+UNLEASH_CLIENT = UnleashClient(
     settings.UNLEASH_URL,
     "Cost Management",
     environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
