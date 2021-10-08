@@ -49,7 +49,3 @@ parameters:
 - displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "8000"
-  - description: Image tag
-    name: IMAGE_TAG
-    required: true
-    value: latest
