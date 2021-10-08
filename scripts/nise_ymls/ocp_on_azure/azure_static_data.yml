@@ -9,7 +9,6 @@ generators:
       instance_id: '/subscriptions/99999999-9999-9999-9999-999999999999/resourceGroups/koku-99hqd-rg/providers/Microsoft.Compute/virtualMachines/azure_compute1'
       tags:
         version: Mars
-        dashed-key-on-azure: dashed-value
   - VMGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -20,7 +19,6 @@ generators:
       tags:
         environment: Jupiter
         version: MilkyWay
-        dashed-key-on-azure: dashed-value
   - VMGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}
@@ -31,7 +29,6 @@ generators:
       tags:
         environment: Jupiter
         version: Andromeda
-        dashed-key-on-azure: dashed-value
   - VMGenerator:
       start_date: {{start_date}}
       end_date: {{end_date}}

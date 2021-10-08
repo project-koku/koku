@@ -211,8 +211,10 @@ class Settings:
     def _tag_key_handler(self, settings):
         """
         Handle setting results
+
         Args:
             (String) name - unique name for switch.
+
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
         """
@@ -278,7 +280,6 @@ class Settings:
 
     def _currency_handler(self, settings):
         currency = settings
-
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:

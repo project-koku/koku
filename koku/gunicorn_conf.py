@@ -38,9 +38,3 @@ def post_fork(server, worker):
     UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
     worker.log.info("Initializing UNLEASH_CLIENT for gunicorn worker.")
     UNLEASH_CLIENT.initialize_client()
-
-
-def worker_exit(server, worker):
-    """Called just after a worker has been exited, in the worker process."""
-    worker.log.info("Shutting down UNLEASH_CLIENT for gunicorn worker.")
-    UNLEASH_CLIENT.destroy()
