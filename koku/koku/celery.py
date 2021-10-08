@@ -228,13 +228,10 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
     httpd.RequestHandlerClass._collector = collect_queue_metrics
 
 
-@worker_ready.connect
+@worker_process_init.connect
 def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
-    worker = kwargs.get("sender")
-
-    UNLEASH_CLIENT.unleash_instance_id += f"_pid_{worker.pid}"
     LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
     UNLEASH_CLIENT.initialize_client()
 
