@@ -54,6 +54,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -68,7 +70,7 @@ objects:
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -107,6 +109,8 @@ objects:
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -146,11 +150,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - name: gcp-credentials
           secret:
             items:
@@ -198,9 +202,11 @@ objects:
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -242,6 +248,8 @@ objects:
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -271,16 +279,16 @@ objects:
             cpu: ${LISTENER_CPU_REQUEST}
             memory: ${LISTENER_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
         - mountPath: /var/tmp/masu/
           name: koku-listener-data
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-listener-data
         - name: gcp-credentials
@@ -340,6 +348,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${MASU_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -354,7 +364,7 @@ objects:
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -385,6 +395,8 @@ objects:
           value: ${KAFKA_CONNECT}
         - name: PROMETHEUS_PUSHGATEWAY
           value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -417,11 +429,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - name: gcp-credentials
           secret:
             items:
@@ -470,7 +482,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -558,7 +572,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
+        - emptyDir: {}
+          name: tmp-data
         - name: gcp-credentials
           secret:
             items:
@@ -622,6 +640,8 @@ objects:
           value: ${GUNICORN_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_CLIENT_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -638,7 +658,7 @@ objects:
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
@@ -652,6 +672,8 @@ objects:
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -684,11 +706,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - name: gcp-credentials
           secret:
             items:
@@ -752,6 +774,8 @@ objects:
           value: ${DEVELOPMENT}
         - name: KOKU_LOG_LEVEL
           value: ${SOURCES_LISTENER_KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
         - name: DJANGO_LOG_LEVEL
           value: ${DJANGO_LOG_LEVEL}
         - name: DJANGO_LOG_FORMATTER
@@ -768,7 +792,7 @@ objects:
           value: ${RBAC_SERVICE_PATH}
         - name: RBAC_CACHE_TTL
           value: ${RBAC_CACHE_TTL}
-        - name: prometheus_multiproc_dir
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: KOKU_API_ENABLE_SENTRY
           value: ${ENABLE_API_SENTRY}
@@ -782,6 +806,8 @@ objects:
               optional: true
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -814,11 +840,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - name: gcp-credentials
           secret:
             items:
@@ -867,7 +893,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -941,6 +969,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -975,11 +1005,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1030,7 +1060,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1104,6 +1136,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1138,11 +1172,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1193,7 +1227,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1267,6 +1303,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1301,11 +1339,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1356,7 +1394,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1430,6 +1470,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1464,11 +1506,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1519,7 +1561,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1593,6 +1637,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1627,11 +1673,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1682,7 +1728,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1756,6 +1804,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1790,11 +1840,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1845,7 +1895,9 @@ objects:
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
           value: ${KOKU_LOG_LEVEL}
-        - name: prometheus_multiproc_dir
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
         - name: REQUESTED_BUCKET
           value: ${S3_BUCKET_NAME}
@@ -1919,6 +1971,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: SOURCES_API_PREFIX
           value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1953,11 +2007,11 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
-        - mountPath: ${PROMETHEUS_DIR}
-          name: prometheus-data
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
         volumes:
         - emptyDir: {}
-          name: prometheus-data
+          name: tmp-data
         - emptyDir: {}
           name: koku-worker-data
         - name: gcp-credentials
@@ -1974,6 +2028,7 @@ objects:
         public:
           enabled: false
     envName: ${ENV_NAME}
+    featureFlags: true
     inMemoryDb: true
     kafkaTopics:
     - topicName: platform.sources.event-stream
@@ -2054,6 +2109,9 @@ parameters:
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
   value: INFO
+- displayName: Unleash log level
+  name: UNLEASH_LOG_LEVEL
+  value: WARNING
 - displayName: Django log level
   name: DJANGO_LOG_LEVEL
   value: INFO
@@ -2069,9 +2127,6 @@ parameters:
 - displayName: Django logging file
   name: DJANGO_LOG_FILE
   required: false
-- displayName: Prometheus multiproc dir
-  name: PROMETHEUS_DIR
-  value: /tmp
 - description: Koku Sentry Env
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
@@ -2200,10 +2255,10 @@ parameters:
 - displayName: Rbac cache ttl
   name: RBAC_CACHE_TTL
   value: "30"
-- displayName: Presto host
+- displayName: Presto/Trino host
   name: PRESTO_HOST
-  value: presto-coordinator
-- displayName: Presto port
+  value: trino-coordinator
+- displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "8000"
 - displayName: Prometheus Pushgateway
@@ -2215,6 +2270,15 @@ parameters:
 - description: Sources PSK secret name
   name: SOURCES_PSK_SECRET_NAME
   value: sources-psk
+- displayName: Temporary directory
+  name: TMP_DIR
+  value: /tmp
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- description: Unleash cache directory
+  name: UNLEASH_CACHE_DIR
+  value: /tmp/unleash
 - displayName: Secret Key (Ephemeral)
   from: '[a-f0-9]{20}'
   generate: expression

@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryByNode
@@ -27,7 +28,7 @@ class OCPNodesView(generics.ListAPIView):
         .filter(node__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [OpenShiftNodePermission]
+    permission_classes = [OpenShiftNodePermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
@@ -36,8 +37,8 @@ class OCPNodesView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift nodes and displays values that the user has access too
         supported_query_params = ["search", "limit"]
-        user_access = []
         error_message = {}
+        query_holder = None
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -46,9 +47,17 @@ class OCPNodesView(generics.ListAPIView):
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
-        elif request.user.access:
-            user_access = request.user.access.get("openshift.node", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(node__in=user_access)
+        if request.user.access:
+            ocp_node_access = request.user.access.get("openshift.node", {}).get("read", [])
+            ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
+            # checks if the access exists, and the user has wildcard access
+            if ocp_node_access and ocp_node_access[0] == "*" or ocp_cluster_access and ocp_cluster_access[0] == "*":
+                return super().list(request)
+            query_holder = self.queryset
+            if ocp_node_access:
+                query_holder = query_holder.filter(node__in=ocp_node_access)
+            if ocp_cluster_access:
+                query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
+        # if query_holder does not exist we return an empty queryset
+        self.queryset = query_holder
         return super().list(request)

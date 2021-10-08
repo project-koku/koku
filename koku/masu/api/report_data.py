@@ -9,6 +9,7 @@ import logging
 
 import ciso8601
 import pytz
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -102,6 +103,11 @@ def report_data(request):
                 ).apply_async(queue=queue_name or PRIORITY_QUEUE)
                 async_results.append({str(month): str(async_result)})
         else:
+            # TODO: when DEVELOPMENT=False, disable resummarization for all providers to prevent burning the db.
+            # this query could be re-enabled if we need it, but we should consider limiting its use to a schema.
+            if not settings.DEVELOPMENT:
+                errmsg = "?provider_uuid=* is invalid query."
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             for month in months:
                 async_result = update_all_summary_tables.delay(month[0], month[1])
                 async_results.append({str(month): str(async_result)})
