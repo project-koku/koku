@@ -10,13 +10,13 @@ CURRENCIES = [
         "code": "AUD",
         "name": "Australian Dollar",
         "symbol": "AU$",
-        "description": "AUD (AU$) - Australian Dollar",
+        "description": "AUD (AU$) - Australian Dollar"
     },
     {
         "code": "CAD",
         "name": "Canadian Dollar",
         "symbol": "C$",
-        "description": "CAD (C$) - Canadian Dollar",
+        "description": "CAD (C$) - Canadian Dollar"
     },
     {
         "code": "CHF",
@@ -64,7 +64,7 @@ CURRENCIES = [
         "code": "NOK",
         "name": "Norwegian Krone",
         "symbol": "Nkr",
-        "description": "NOK (Nkr) - Norwegian Krone",
+        "description": "NOK (Nkr) - Norwegian Krone"
     },
     {
         "code": "NZD",
