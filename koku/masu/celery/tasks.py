@@ -285,6 +285,7 @@ def get_daily_currency_rates():
     """Task to get latest daily conversion rates."""
     # Create list of supported currencies
     supported_currencies = []
+    rate_metrics = {}
     for curr_object in CURRENCIES:
         supported_currencies.append(curr_object.get("code"))
 
@@ -307,8 +308,10 @@ def get_daily_currency_rates():
             except ExchangeRates.DoesNotExist:
                 LOG.info(f"Creating the exchange rate {curr_type} to {value}")
                 exchange = ExchangeRates(currency_type=curr_type.lower())
+            rate_metrics[curr_type] = value
             exchange.exchange_rate = value
             exchange.save()
+    return rate_metrics
 
 
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
