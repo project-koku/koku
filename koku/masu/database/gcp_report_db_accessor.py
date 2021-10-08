@@ -386,6 +386,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         start_date,
         end_date,
         openshift_provider_uuid,
+        cluster_id,
         gcp_provider_uuid,
         report_period_id,
         bill_id,
@@ -424,6 +425,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "markup": markup_value,
             "node_column": node_column,
             "cluster_column": cluster_column,
+            "cluster_id": cluster_id,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 

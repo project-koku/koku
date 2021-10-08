@@ -52,12 +52,10 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
         NULL as tags,
         max(gcp.currency) as currency,
-        max(gcp.ocp_matched) as ocp_matched,
         max(gcp.cost_type) as line_item_type,
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
-        UUID '{{source_uuid | sqlsafe}}' as source_uuid,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -92,7 +90,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         AND gcp.month = '{{month | sqlsafe}}'
         AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND cast(gcp.ocp_matched AS BOOLEAN)
+        AND ocp.cluster_id = '{{cluster_id | sqlsafe}}'
         AND ocp.report_period_id = {{report_period_id | sqlsafe}}
         AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
@@ -116,12 +114,10 @@ cte_ocp_on_gcp_tag_joined AS (
         cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
         max(gcp.labels) as tags,
         max(gcp.currency) as currency,
-        max(gcp.ocp_matched) as ocp_matched,
         max(gcp.cost_type) as line_item_type,
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
-        UUID '{{source_uuid | sqlsafe}}' as source_uuid,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -151,6 +147,13 @@ cte_ocp_on_gcp_tag_joined AS (
     FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
     JOIN postgres.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON gcp.usage_start_time = ocp.usage_start
+            AND (
+                json_extract_scalar(json_parse(gcp.labels), '$.openshift_project') = lower(ocp.namespace)
+                    OR json_extract_scalar(json_parse(gcp.labels), '$.openshift_node') = lower(ocp.node)
+                    OR json_extract_scalar(json_parse(gcp.labels), '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
+                    OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0))
+                    OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0))
+                )
     WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
         AND gcp.year = '{{year | sqlsafe}}'
         AND gcp.month = '{{month | sqlsafe}}'

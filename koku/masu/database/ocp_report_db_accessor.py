@@ -470,7 +470,6 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
             # and the tuple contains
             # (Infrastructure Provider UUID, Infrastructure Provider Type)
             db_results[entry[0]] = (entry[1], entry[2])
-
         return db_results
 
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
