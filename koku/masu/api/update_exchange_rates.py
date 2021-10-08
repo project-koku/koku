@@ -19,8 +19,6 @@ from masu.celery.tasks import get_daily_currency_rates
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def update_exchange_rates(request):
     """Return updated exchange rates."""
-    # TODO Return te results instead of the async
-    # TODO Add this to openapi spec
     # TODO Write unit tests
-    async_exchange_result = get_daily_currency_rates.delay()
-    return Response({"Update exchange rates": str(async_exchange_result)})
+    exchange_result = get_daily_currency_rates()
+    return Response({"updated_exchange_rates": exchange_result})
