@@ -178,6 +178,11 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 delete-test-sources:
 	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
 
+delete-cost-models:
+	$(PYTHON) $(TOPDIR)/scripts/delete_cost_models.py
+
+delete-test-customer-data: delete-test-sources delete-cost-models
+
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
 	make load-aws-org-unit-tree
