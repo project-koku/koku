@@ -44,6 +44,19 @@ objects:
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
+    jobs:
+    - name: script-runner
+      podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        args:
+          - /bin/bash
+          - -c
+          - $HOME/scripts/job_script.sh
+        env:
+          - name: PRESTO_HOST
+            value: ${PRESTO_HOST}
+          - name: PRESTO_PORT
+            value: ${PRESTO_PORT}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only

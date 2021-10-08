@@ -13,7 +13,7 @@ objects:
     jobs:
       - script-runner
 parameters:
-- description: Image tag
+  - description: Image tag
     name: IMAGE_TAG
     required: true
     value: latest
