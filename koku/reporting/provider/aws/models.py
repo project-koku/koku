@@ -386,6 +386,8 @@ class AWSCostSummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -426,6 +428,8 @@ class AWSCostSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -461,6 +465,8 @@ class AWSCostSummaryByAccount(models.Model):
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -502,6 +508,8 @@ class AWSCostSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -541,6 +549,8 @@ class AWSComputeSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -592,6 +602,8 @@ class AWSComputeSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -637,6 +649,8 @@ class AWSComputeSummaryByAccount(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -688,6 +702,8 @@ class AWSComputeSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -723,6 +739,8 @@ class AWSStorageSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -768,6 +786,8 @@ class AWSStorageSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -809,6 +829,8 @@ class AWSStorageSummaryByAccount(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -856,6 +878,8 @@ class AWSStorageSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -898,6 +922,8 @@ class AWSNetworkSummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -939,6 +965,8 @@ class AWSDatabaseSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 

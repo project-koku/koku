@@ -221,7 +221,7 @@ class QueryParamSerializer(ParamSerializer):
 
     def validate_cost_type(self, value):
         """Validate incoming cost_type value based on path."""
-        valid_cost_type = ["unblended_cost", "savingsplan_effective_cost"]
+        valid_cost_type = [choice[0] for choice in self.COST_TYPE_CHOICE]
         if value not in valid_cost_type:
             error = {"cost_type": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
