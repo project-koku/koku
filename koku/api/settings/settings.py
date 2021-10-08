@@ -19,8 +19,11 @@ from api.settings.utils import create_plain_text_with_doc
 from api.settings.utils import create_select
 from api.settings.utils import create_subform
 from api.settings.utils import generate_doc_link
+from api.settings.utils import get_cost_type_options
 from api.settings.utils import get_currency_options
+from api.settings.utils import get_selected_cost_type_or_setup
 from api.settings.utils import get_selected_currency_or_setup
+from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from api.tags.aws.queries import AWSTagQueryHandler
@@ -179,7 +182,7 @@ class Settings:
         # currency settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT:
             currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency view for your organizations."
+            currency_text_context = "Select the preferred currency view for your organization."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
             currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
             currency_options = {
@@ -190,10 +193,26 @@ class Settings:
             }
             currency = create_select(currency_select_name, **currency_options)
 
+            # cost_type plan settings TODO: only show in dev mode right now
+            cost_type_select_name = f'{"api.settings.cost_types"}'
+            cost_type_text_context = "Select the preferred Cost Type view for your organizations.(AWS Only)"
+            cost_type_title = create_plain_text(cost_type_select_name, "Cost Type", "h2")
+            cost_type_select_text = create_plain_text(cost_type_select_name, cost_type_text_context, "h4")
+            cost_type_options = {
+                "label": "Cost Type",
+                "options": get_cost_type_options(),
+                "initialValue": get_selected_cost_type_or_setup(self.schema),
+                "FormGroupProps": {"style": {"width": "400px"}},
+            }
+            cost_type = create_select(cost_type_select_name, **cost_type_options)
+
             sub_form_fields = [
                 currency_title,
                 currency_select_text,
                 currency,
+                cost_type_title,
+                cost_type_select_text,
+                cost_type,
                 enable_tags_title,
                 tag_key_text,
                 tags_and_labels,
@@ -294,6 +313,31 @@ class Settings:
         invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
         return True
 
+    def _cost_type_handler(self, settings):
+        if settings is None:
+            return False
+        else:
+            cost_type = settings
+
+        try:
+            stored_cost_type = get_selected_cost_type_or_setup(self.schema)
+        except Exception as exp:
+            LOG.warning(f"Failed to retrieve cost_type for schema {self.schema}. Reason: {exp}")
+            return False
+
+        if stored_cost_type == cost_type:
+            return False
+
+        try:
+            LOG.info(f"Updating cost_type to: " + settings)
+            set_currency(self.schema, settings)
+        except Exception as exp:
+            LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
+            return False
+
+        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        return True
+
     def build_settings(self):
         """
         Generate tag management settings
@@ -317,10 +361,13 @@ class Settings:
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         currency_change = self._currency_handler(currency_settings)
 
+        cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
+        cost_type_change = self._currency_handler(cost_type_settings)
+
         tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
         tags_change = self._tag_key_handler(tg_mgmt_settings)
 
-        if tags_change or currency_change:
+        if tags_change or currency_change or cost_type_change:
             return True
 
         return False
