@@ -73,9 +73,16 @@ class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
     # Tuples are (key, display_name)
-    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"))
+    DELTA_CHOICES = (("usage", "usage"), ("cost", "cost"), ("cost_total", "cost_total"), ("testing", "testing"))
+    COST_TYPE_CHOICE = (
+        ("blended_cost", "blended_cost"),
+        ("unblended_cost", "unblended_cost"),
+        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
+    )
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    # ToDo need to set default from user settings table for the cost_type
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, default="unblended_cost")
     units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
@@ -209,5 +216,13 @@ class QueryParamSerializer(ParamSerializer):
                 return valid_delta
         if value != valid_delta:
             error = {"delta": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
+
+    def validate_cost_type(self, value):
+        """Validate incoming cost_type value based on path."""
+        valid_cost_type = ["unblended_cost", "savingsplan_effective_cost"]
+        if value not in valid_cost_type:
+            error = {"cost_type": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value
