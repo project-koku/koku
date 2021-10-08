@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Models for AWS cost entry tables."""
 # from uuid import uuid4
 # from env import currency endpoimy
 from django.db import models

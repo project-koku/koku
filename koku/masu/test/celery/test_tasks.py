@@ -123,12 +123,18 @@ class TestCeleryTasks(MasuTestCase):
         tasks.sync_data_to_customer(data_export_object.uuid)
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
 
-    # Used for debugging to look at variables
+    # Check to see if exchange rates are being created or updated
     def test_get_currency_conversion_rates(self):
-        # reads the logs to make sure the endpoint was git
-        tasks.get_daily_currency_rates()
-        # with self.assertLogs("masu.celery.tasks", "WARNING") as captured_logs:
-        # self.assertIsNotNone(tasks.do_nothing(self))
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.get_daily_currency_rates()
+            self.assertIn("Creating the exchange rate" or "Updating currency", str(captured_logs))
+
+    # Check to see if Error is raised on wrong URL
+    @override_settings(CURRENCY_URL="https://google.com")
+    def test_error_get_currency_conversion_rates(self):
+        with self.assertRaises(Exception) as e:
+            tasks.get_daily_currency_rates()
+            self.assertIn("Couldn't pull latest conversion rates", str(e.exception))
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
@@ -173,14 +179,14 @@ class TestCeleryTasks(MasuTestCase):
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
-    def test_delete_archived_data_success(self, mock_delete):
+    def test_delete_archived_data_success(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = "00000000-0000-0000-0000-000000000001"
 
         tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-        mock_delete.assert_called()
+        self.assert_called()
 
     @override_settings(ENABLE_S3_ARCHIVING=False)
     def test_delete_archived_data_archiving_false(self):
