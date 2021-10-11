@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
                 ("currency", models.TextField(null=True)),
-                ("unit_of_measure", models.TextField(null=True)),
+                ("unit", models.TextField(null=True)),
                 ("shared_projects", models.IntegerField(default=1)),
                 ("project_costs", models.JSONField(null=True)),
                 ("source_uuid", models.UUIDField(null=True)),

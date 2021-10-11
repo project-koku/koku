@@ -465,5 +465,19 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def back_populate_ocp_on_gcp_daily_summary_trino(self, gcp_bill_ids, start_date, end_date):
-        pass
+    def back_populate_ocp_on_gcp_daily_summary_trino(self, start_date, end_date, report_period_id):
+        """Populate the OCP on GCP and OCP daily summary tables. after populating the project table."""
+        table_name = GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"]
+
+        sql = pkgutil.get_data(
+            "masu.database", "presto_sql/reporting_ocpgcpcostentrylineitem_daily_summary_back_populate.sql"
+        )
+        sql = sql.decode("utf-8")
+        sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "report_period_id": report_period_id,
+        }
+        sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
+        self._execute_raw_sql_query(table_name, sql, bind_params=list(sql_params))

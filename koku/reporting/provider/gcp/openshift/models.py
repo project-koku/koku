@@ -87,7 +87,7 @@ class OCPGCPCostLineItemDailySummary(models.Model):
 
     currency = models.TextField(null=True)
 
-    unit_of_measure = models.TextField(null=True)
+    unit = models.TextField(null=True)
 
     # This is a count of the number of projects that share a GCP resource
     # It is used to divide cost evenly among projects

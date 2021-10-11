@@ -249,3 +249,44 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_populate_ocp_on_gcp_cost_daily_summary_presto(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution
+
+        self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
+            start_date,
+            end_date,
+            self.ocp_provider_uuid,
+            self.ocp_cluster_id,
+            self.gcp_provider_uuid,
+            self.ocp_cluster_id,
+            current_bill_id,
+            markup_value,
+            distribution,
+        )
+        mock_presto.assert_called()
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        self.accessor.get_openshift_on_cloud_matched_tags_trino(
+            self.gcp_provider_uuid, self.ocp_on_gcp_ocp_provider.uuid, start_date, end_date
+        )
+        mock_presto.assert_called()
