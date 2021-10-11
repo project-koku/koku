@@ -239,15 +239,15 @@ Set the following environment variables ::
 
 To spin up the minimum targets for Trino use ::
 
-    make docker-up-min-presto
+    make docker-up-min-trino
 
 To skip building the koku image base ::
 
-    make docker-up-min-presto-no-build
+    make docker-up-min-trino-no-build
 
 To tear down containers ::
 
-    make docker-presto-down-all
+    make docker-trino-down-all
 
 With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
 
