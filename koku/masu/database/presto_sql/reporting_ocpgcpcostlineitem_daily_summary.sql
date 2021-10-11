@@ -50,7 +50,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
         max(gcp.usage_pricing_unit) as unit,
         cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-        NULL as tags,
+        max(json_format(json_parse(labels))) as tags,
         max(gcp.currency) as currency,
         max(gcp.cost_type) as line_item_type,
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,

@@ -213,6 +213,7 @@ class OCPGCPTagsValues(models.Model):
     value = models.TextField()
     account_ids = ArrayField(models.TextField())
     project_ids = ArrayField(models.TextField())
+    project_names = ArrayField(models.TextField())
     cluster_ids = ArrayField(models.TextField())
     cluster_aliases = ArrayField(models.TextField())
     namespaces = ArrayField(models.TextField())
@@ -226,7 +227,16 @@ class OCPGCPTagsSummary(models.Model):
         """Meta for GCPTagsSummary."""
 
         db_table = "reporting_ocpgcptags_summary"
-        unique_together = ("key", "cost_entry_bill", "report_period", "namespace", "node")
+        unique_together = (
+            "key",
+            "cost_entry_bill",
+            "account_id",
+            "project_id",
+            "project_name",
+            "report_period",
+            "namespace",
+            "node",
+        )
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -236,5 +246,6 @@ class OCPGCPTagsSummary(models.Model):
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE)
     account_id = models.TextField()
     project_id = models.TextField()
+    project_name = models.TextField()
     namespace = models.TextField()
     node = models.TextField(null=True)
