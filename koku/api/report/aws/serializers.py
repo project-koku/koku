@@ -15,6 +15,8 @@ from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import UnitConverter
 
+# from reporting.user_settings.models import UserSettings
+
 
 class GroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
@@ -79,6 +81,10 @@ class QueryParamSerializer(ParamSerializer):
         ("unblended_cost", "unblended_cost"),
         ("savingsplan_effective_cost", "savingsplan_effective_cost"),
     )
+
+    # default_cost_type = UserSettings.objects.all().first().settings['cost_type']
+    # if not default_cost_type:
+    #     default_cost_type = "unblended_cost"
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
     # ToDo need to set default from user settings table for the cost_type
