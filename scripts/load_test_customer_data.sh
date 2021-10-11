@@ -169,7 +169,7 @@ add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json
 add_cost_models 'Test AWS Source' aws_cost_model.json
 add_cost_models 'Test Azure Source' azure_cost_model.json
 
-debug_echo "enabling tags..."
+debug_echo "enabling OCP tags..."
 curl --header "Content-Type: application/json" \
   --request POST \
   --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass"]}' \
