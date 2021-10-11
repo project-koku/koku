@@ -296,8 +296,8 @@ def get_daily_currency_rates():
     except Exception as e:
         LOG.error(f"Couldn't pull latest conversion rates from {url}")
         LOG.error(e)
+        return rate_metrics
     rates = data["rates"]
-
     # Update conversion rates in database
     for curr_type in rates.keys():
         if curr_type.upper() in supported_currencies:
