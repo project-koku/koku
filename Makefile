@@ -66,6 +66,8 @@ help:
 	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
 	@echo "  delete-test-sources                   Call the source DELETE API for each source in the database"
+	@echo "  delete-cost-models                    Call the cost-model DELETE API for each cost-model in the database"
+	@echo "  delete-test-customer-data             Delete all sources and cost-models in the database"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
@@ -177,6 +179,11 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 
 delete-test-sources:
 	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
+
+delete-cost-models:
+	$(PYTHON) $(TOPDIR)/scripts/delete_cost_models.py
+
+delete-test-customer-data: delete-test-sources delete-cost-models
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
