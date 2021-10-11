@@ -69,8 +69,6 @@ class ReportSummaryUpdater:
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_provider()
 
-        LOG.warning(f"self._provider_uuid = {self._provider_uuid}")
-        LOG.warning(f"bool(self._provider) = {bool(self._provider)}")
         if not self._provider:
             raise ReportSummaryUpdaterProviderNotFoundError(
                 f"Provider data for uuid '{self._provider_uuid}' not found."
