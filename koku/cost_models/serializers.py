@@ -446,7 +446,11 @@ class CostModelSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
-        if data.get("currency") is None:
+        if self.instance and data.get("currency") and self.instance.currency != data.get("currency"):
+            raise serializers.ValidationError(
+                f"{self.instance.currency} currency can not be updated to {data.get('currency')}."
+            )
+        if data.get("currency") is None and self.instance is None:
             data["currency"] = self.context["default_currency"]
         source_type = data.get("source_type")
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):

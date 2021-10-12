@@ -76,6 +76,7 @@ class CostModelSerializerTest(IamTestCase):
             "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
             "markup": {"value": 10, "unit": "percent"},
             "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
+            "currency": "USD",
         }
         self.basic_model = {
             "name": "Test Cost Model",
@@ -702,3 +703,20 @@ class CostModelSerializerTest(IamTestCase):
                 serializer = CostModelSerializer(data=self.ocp_data, context=self.serializer_ctx)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.validate_distribution(bad_input)
+
+    def test_error_on_currency_update(self):
+        """Test error when trying to create an invalid rate input."""
+        with tenant_context(self.tenant):
+            new_ocp_data = CostModel(
+                name=self.ocp_data["name"],
+                description=self.ocp_data["description"],
+                source_type=self.ocp_data["source_type"],
+                rates=self.ocp_data["rates"],
+                markup=self.ocp_data["markup"],
+                currency="EUR",
+            )
+            new_ocp_data.save()
+            serializer = CostModelSerializer(instance=new_ocp_data, data=self.ocp_data, context=self.serializer_ctx)
+            with self.assertRaises(serializers.ValidationError):
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
