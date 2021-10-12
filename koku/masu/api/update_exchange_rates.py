@@ -19,6 +19,5 @@ from masu.celery.tasks import get_daily_currency_rates
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def update_exchange_rates(request):
     """Return updated exchange rates."""
-    # TODO Write unit tests
     exchange_result = get_daily_currency_rates()
     return Response({"updated_exchange_rates": exchange_result})
