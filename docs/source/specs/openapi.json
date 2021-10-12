@@ -34,6 +34,10 @@
             "description": "Operations about cost model interactions"
         },
         {
+            "name": "Cost Type",
+            "description": "Operations about cost types"
+          },
+        {
             "name": "Metrics",
             "description": "Operations about cost model metrics"
         },
@@ -111,6 +115,27 @@
                         }
                     }
                 }
+            }
+        },
+        "/cost_type/": {
+            "get": {
+              "tags": [
+                "Cost Type"
+              ],
+              "summary": "Obtain the supported cost types",
+              "operationId": "getCostType",
+              "responses": {
+                "200": {
+                  "description": "An object describing the supported cost types",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/CostTypePagination"
+                      }
+                    }
+                  }
+                }
+              }
             }
         },
         "/cost-models/": {
@@ -4601,6 +4626,45 @@
                         }
                     }
                 ]
+            },
+            "CostTypePagination": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "data"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/CostType"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+            "CostType": {
+            "required": [
+                "code",
+                "name",
+                "description"
+            ],
+            "properties": {
+                "code": {
+                "type": "string"
+                },
+                "name": {
+                "type": "string"
+                },
+                "description": {
+                "type": "string"
+                }
+            }
             },
             "Currency": {
                 "allOf": [{
