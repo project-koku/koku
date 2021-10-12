@@ -111,15 +111,9 @@ def create_select(name, **kwargs):
 """Common utilities and helpers for general user settings."""
 
 
-def set_default_user_settings(schema):
+def set_default_user_settings():
     """
     sets the default user settings.
-
-    Args:
-        (schema) - user settings schema.
-
-    Returns:
-        (schema) - user settings.
     """
     default_settings = DEFAULT_USER_SETTINGS
 
