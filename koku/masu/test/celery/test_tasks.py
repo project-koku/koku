@@ -204,14 +204,14 @@ class TestCeleryTasks(MasuTestCase):
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
-    def test_delete_archived_data_success(self):
+    def test_delete_archived_data_success(self, mock_delete):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = "00000000-0000-0000-0000-000000000001"
 
         tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
-        self.assert_called()
+        mock_delete.assert_called()
 
     @override_settings(ENABLE_S3_ARCHIVING=False)
     def test_delete_archived_data_archiving_false(self):
