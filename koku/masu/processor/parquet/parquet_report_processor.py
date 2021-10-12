@@ -355,7 +355,9 @@ class ParquetReportProcessor:
                 continue
 
             parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
-            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
+            # NOTE: CORDEY it seems after the initial upload, it seems like they do another
+            # upload for openshift raw data with the create_daily_parquet function.
+            if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
                 failed_conversion.append(csv_filename)
@@ -410,7 +412,6 @@ class ParquetReportProcessor:
                             LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
                             unique_keys.update(data_frame_tag_keys)
                             LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                    LOG.info(daily_data_frames)
                     if self.daily_data_processor is not None:
                         daily_data_frames.append(self.daily_data_processor(data_frame))
 
@@ -455,6 +456,9 @@ class ParquetReportProcessor:
         if file_type == DAILY_FILE_TYPE:
             report_type = self.report_type
             if report_type is None:
+                # TODO: CORDEY This is where the raw is coming from.
+                # Since this is specifically for gcp we can change this
+                # to openshift if we want
                 report_type = "raw"
             return get_path_prefix(
                 self.account,
