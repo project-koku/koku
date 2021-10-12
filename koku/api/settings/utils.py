@@ -175,7 +175,7 @@ def set_currency(schema, currency_code=KOKU_DEFAULT_CURRENCY):
             raise ValueError(currency_code + " is not a supported currency")
 
         if not account_currency_setting:
-            set_default_user_settings(schema)
+            set_default_user_settings()
         else:
             account_currency_setting.settings["currency"] = currency_code
             account_currency_setting.save()
@@ -196,7 +196,7 @@ def get_selected_cost_type_or_setup(schema):
     """
     with schema_context(schema):
         if not UserSettings.objects.exists():
-            set_default_user_settings(schema)
+            set_default_user_settings()
         cost_type = UserSettings.objects.all().first().settings["cost_type"]
         return cost_type
 
@@ -233,7 +233,7 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
             raise ValueError(cost_type_code + " is not a supported cost_type")
 
         if not account_current_setting:
-            set_default_user_settings(schema)
+            set_default_user_settings()
         else:
             account_current_setting.settings["cost_type"] = cost_type_code
             account_current_setting.save()
