@@ -66,6 +66,10 @@ function run_smoke_tests() {
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
+        --set-parameter host-inventory/REPLICAS_PMIN=0 \
+        --set-parameter host-inventory/REPLICAS_P1=0 \
+        --set-parameter host-inventory/REPLICAS_SP=0 \
+        --set-parameter host-inventory/REPLICAS_SVC=0 \
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh
