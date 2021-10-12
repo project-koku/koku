@@ -150,7 +150,7 @@ class TestCeleryTasks(MasuTestCase):
         self.assertEqual(afterRows, 3)
 
     @patch("masu.celery.tasks.requests")
-    def test_get_currency_conversion_rates_unsuccessful(self, mock_requests):
+    def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
         beforeRows = ExchangeRates.objects.count()
         self.assertEqual(beforeRows, 0)
         mock_requests.get.return_value = Mock(
