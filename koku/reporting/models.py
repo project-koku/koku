@@ -123,6 +123,7 @@ from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
+from reporting.user_settings.models import UserSettings
 
 AWS_MATERIALIZED_VIEWS = (
     AWSComputeSummary,
