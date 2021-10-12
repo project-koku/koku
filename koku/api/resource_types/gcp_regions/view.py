@@ -13,21 +13,19 @@ from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.gcp_access import GcpAccessPermission
+from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.gcp.models import GCPCostSummaryByRegion
+from reporting.provider.gcp.models import GCPTopology
 
 
 class GCPRegionView(generics.ListAPIView):
     """API GET list view for GCP Regions."""
 
     queryset = (
-        GCPCostSummaryByRegion.objects.annotate(**{"value": F("region")})
-        .values("value")
-        .distinct()
-        .filter(region__isnull=False)
+        GCPTopology.objects.annotate(**{"value": F("region")}).values("value").distinct().filter(region__isnull=False)
     )
     serializer_class = ResourceTypeSerializer
-    permission_classes = [GcpAccessPermission]
+    permission_classes = [GcpAccessPermission | GcpProjectPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["$value"]
@@ -36,8 +34,8 @@ class GCPRegionView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for GCP account id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
-        user_access = []
         error_message = {}
+        query_holder = None
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -46,9 +44,20 @@ class GCPRegionView(generics.ListAPIView):
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
         if request.user.admin:
             return super().list(request)
-        elif request.user.access:
-            user_access = request.user.access.get("gcp.account", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(account_id__in=user_access)
+        if request.user.access:
+            gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
+            gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
+            query_holder = self.queryset
+            if gcp_project_access:
+                query_holder = query_holder.filter(project_id__in=gcp_project_access)
+            if gcp_account_access:
+                query_holder = query_holder.filter(account_id__in=gcp_account_access)
+            if (
+                gcp_account_access
+                and gcp_account_access[0] == "*"
+                or gcp_project_access
+                and gcp_project_access[0] == "*"
+            ):
+                return super().list(request)
+            self.queryset = query_holder
         return super().list(request)

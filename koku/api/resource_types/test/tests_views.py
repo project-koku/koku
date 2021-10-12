@@ -132,6 +132,17 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
 
+    @RbacPermissions({"aws.account": {"read": ["*"]}})
+    def test_aws_accounts_ocp_view(self):
+        """Test endpoint runs with a customer owner."""
+        qs = "?openshift=true"
+        url = reverse("aws-accounts") + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
     @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_azure_endpoints_view(self):
         """Test endpoint runs with a customer owner."""
@@ -143,17 +154,6 @@ class ResourceTypesViewTest(IamTestCase):
                 json_result = response.json()
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
-    def test_aws_accounts_ocp_view(self):
-        """Test endpoint runs with a customer owner."""
-        qs = "?openshift=true"
-        url = reverse("aws-accounts") + qs
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
 
     @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_azure_subscriptions_guids_ocp_view(self):
@@ -262,7 +262,7 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertEqual(json_result.get("data"), [])
 
     @RbacPermissions({"gcp.account": {"read": ["1234"]}, "gcp.project": {"read": ["1234"]}})
-    def test_rbacpermissions_aws_account_data_wildcard(self):
+    def test_rbacpermissions_gcp_returns_empty_list(self):
         """Test that OpenShift endpoints accept valid OpenShift permissions."""
         for endpoint in self.ENDPOINTS_GCP:
             with self.subTest(endpoint=endpoint):
@@ -292,3 +292,58 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
                 self.assertEqual(json_result.get("data"), [])
+
+    @RbacPermissions(
+        {
+            "openshift.not.cluster": {"read": ["1234"]},
+            "openshift.not.project": {"read": ["1234"]},
+            "openshift.not.node": {"read": ["1234"]},
+        }
+    )
+    def test_wrong_rbacpermissions_openshift_data_returns_403(self):
+        """Test that OpenShift endpoints accept valid OpenShift permissions."""
+        for endpoint in self.ENDPOINTS_OPENSHIFT:
+            with self.subTest(endpoint=endpoint):
+                url = reverse(endpoint)
+                response = self.client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    @RbacPermissions({"openshift.project": {"read": ["1234"]}})
+    def test_openshift_project_with_project_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-projects")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}})
+    def test_openshift_project_with_cluster_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-projects")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.node": {"read": ["1234"]}})
+    def test_openshift_node_with_node_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-nodes")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+
+    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}})
+    def test_openshift_node_with_cluster_access_view(self):
+        """Test endpoint runs with a customer owner."""
+        url = reverse("openshift-nodes")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)

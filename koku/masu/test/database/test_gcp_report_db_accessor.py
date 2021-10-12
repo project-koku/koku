@@ -5,6 +5,7 @@
 """Test the GCPReportDBAccessor utility object."""
 import decimal
 from unittest.mock import patch
+from uuid import uuid4
 
 from dateutil import relativedelta
 from django.db.models import F
@@ -24,6 +25,7 @@ from masu.test import MasuTestCase
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.gcp.models import GCPTagsSummary
+from reporting.provider.gcp.models import GCPTopology
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -290,3 +292,41 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date
         )
         mock_presto.assert_called()
+        
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
+    def test_populate_gcp_topology_information_tables(self, mock_get_topo):
+        """Test that GCP Topology table is populated."""
+        source_uuid = uuid4()
+        mock_topo_record = [
+            (
+                source_uuid,
+                "account_12345",
+                "project_one",
+                "The Best Project",
+                "Service_1",
+                "The Best Service",
+                "US East",
+            )
+        ]
+        mock_get_topo.return_value = mock_topo_record
+
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
+
+        with schema_context(self.schema):
+            records = GCPTopology.objects.all()
+            self.assertEqual(records.count(), len(mock_topo_record))
+            record = records.first()
+            self.assertEqual(record.source_uuid, source_uuid)
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_gcp_topology_trino(self, mock_trino):
+        """Test that we call Trino to get topology."""
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date)
+
+        mock_trino.assert_called()

@@ -144,3 +144,6 @@ certs/
 # Bonfire configs
 dev/*.yaml
 dev/*.yml
+
+# unleash cache
+.unleash/cache/

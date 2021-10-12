@@ -26,6 +26,7 @@ class ManifestSerializer(serializers.Serializer):
     s3_csv_cleared = serializers.BooleanField()
     s3_parquet_cleared = serializers.BooleanField()
     operator_version = serializers.CharField()
+    export_time = serializers.DateTimeField()
 
 
 class UsageReportStatusSerializer(serializers.Serializer):
