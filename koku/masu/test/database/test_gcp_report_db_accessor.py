@@ -279,7 +279,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
@@ -287,6 +287,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end.date()
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.gcp_provider_uuid, self.ocp_on_gcp_ocp_provider.uuid, start_date, end_date
+            self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date
         )
         mock_presto.assert_called()
