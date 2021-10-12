@@ -302,7 +302,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self):
+    def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -347,6 +347,8 @@ class ParquetReportProcessor:
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         failed_conversion = []
+        if self.provider_type == Provider.PROVIDER_GCP:
+            daily_gcp_frames = []
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = f"Could not establish report type for {csv_filename}."
@@ -357,14 +359,18 @@ class ParquetReportProcessor:
             parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
             # NOTE: CORDEY it seems after the initial upload, it seems like they do another
             # upload for openshift raw data with the create_daily_parquet function.
-            if self.provider_type not in (Provider.PROVIDER_AZURE):
+            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
                 failed_conversion.append(csv_filename)
+            if self.provider_type == Provider.PROVIDER_GCP:
+                daily_gcp_frames.extend(daily_data_frames)
 
         if failed_conversion:
             msg = f"Failed to convert the following files to parquet:{','.join(failed_conversion)}."
             LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+        if self.provider_type == Provider.PROVIDER_GCP:
+            return parquet_base_filename, daily_gcp_frames
         return parquet_base_filename, daily_data_frames
 
     def create_parquet_table(self, parquet_file, daily=False):
