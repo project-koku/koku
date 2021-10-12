@@ -292,7 +292,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date
         )
         mock_presto.assert_called()
-        
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
     def test_populate_gcp_topology_information_tables(self, mock_get_topo):
         """Test that GCP Topology table is populated."""
