@@ -310,9 +310,9 @@ class Settings:
 
         Args:
             (String) name - unique name for switch.
+
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
-
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         currency_change = self._currency_handler(currency_settings)
