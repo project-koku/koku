@@ -205,7 +205,7 @@ else:
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "tenant_schemas.cache.make_key",
             "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
-            "TIMEOUT": 3600,  # 1 hour default
+            "TIMEOUT": 1,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,

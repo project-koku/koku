@@ -298,7 +298,11 @@ urlpatterns = [
         ),
         name="reports-openshift-azure-instance-type",
     ),
-    path("settings/", SettingsView.as_view(), name="settings"),
+    path(
+        "settings/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=AWS_CACHE_PREFIX)(SettingsView.as_view()),
+        name="settings",
+    ),
     path("settings", RedirectView.as_view(pattern_name="settings"), name="settings-redirect"),
     path("organizations/aws/", AWSOrgView.as_view(), name="aws-org-unit"),
     path("resource-types/", ResourceTypeView.as_view(), name="resource-types"),

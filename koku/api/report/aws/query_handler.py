@@ -75,7 +75,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         """
         # do not override mapper if its already set
-
         try:
             getattr(self, "_mapper")
         except AttributeError:

@@ -6,6 +6,7 @@
 from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
+from tenant_schemas.utils import schema_context
 
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -14,8 +15,8 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import UnitConverter
-
-# from reporting.user_settings.models import UserSettings
+from koku.settings import KOKU_DEFAULT_COST_TYPE
+from reporting.user_settings.models import UserSettings
 
 
 class GroupBySerializer(GroupSerializer):
@@ -82,13 +83,8 @@ class QueryParamSerializer(ParamSerializer):
         ("savingsplan_effective_cost", "savingsplan_effective_cost"),
     )
 
-    # default_cost_type = UserSettings.objects.all().first().settings['cost_type']
-    # if not default_cost_type:
-    #     default_cost_type = "unblended_cost"
-
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
-    # ToDo need to set default from user settings table for the cost_type
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, default="unblended_cost")
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
     units = serializers.CharField(required=False)
     compute_count = serializers.NullBooleanField(required=False, default=False)
     check_tags = serializers.BooleanField(required=False, default=False)
@@ -110,6 +106,8 @@ class QueryParamSerializer(ParamSerializer):
 
         """
         super().validate(data)
+        if not data.get("cost_type"):
+            data["cost_type"] = self.get_cost_type()
         error = {}
         if "delta" in data.get("order_by", {}) and "delta" not in data:
             error["order_by"] = _("Cannot order by delta without a delta param")
@@ -225,8 +223,23 @@ class QueryParamSerializer(ParamSerializer):
             raise serializers.ValidationError(error)
         return value
 
+    def get_cost_type(self):
+        """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
+
+        request = self.context.get("request")
+
+        with schema_context(request.user.customer.schema_name):
+            objects = UserSettings.objects.all()
+            print(objects)
+            try:
+                default_cost_type = UserSettings.objects.all().first().settings["cost_type"]
+            except Exception:
+                default_cost_type = KOKU_DEFAULT_COST_TYPE
+        return default_cost_type
+
     def validate_cost_type(self, value):
         """Validate incoming cost_type value based on path."""
+
         valid_cost_type = [choice[0] for choice in self.COST_TYPE_CHOICE]
         if value not in valid_cost_type:
             error = {"cost_type": f'"{value}" is not a valid choice.'}
