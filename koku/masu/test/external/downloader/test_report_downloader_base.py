@@ -14,6 +14,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportStatus
 
@@ -104,9 +105,9 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_process_manifest_db_record_race_no_provider(self, mock_get_manifest):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         mock_get_manifest.side_effect = [None, None]
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
+        with patch.object(ReportManifestDBAccessor, "add", side_effect=ReportDownloaderError):
             downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
-            with self.assertRaises(IntegrityError):
+            with self.assertRaises(ReportDownloaderError):
                 downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
 
     def test_process_manifest_db_record_file_num_changed(self):
