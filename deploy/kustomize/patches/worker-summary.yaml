@@ -183,28 +183,28 @@
     displayName: Memory Request
     name: WORKER_SUMMARY_MEMORY_REQUEST
     required: true
-    value: 128Mi
+    value: 200Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_SUMMARY_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 400Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
     name: WORKER_SUMMARY_CPU_REQUEST
     required: true
-    value: 100m
+    value: 50m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_SUMMARY_CPU_LIMIT
     required: true
-    value: 200m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
