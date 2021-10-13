@@ -206,8 +206,7 @@ class Settings:
             cost_type_select_name = f'{"api.settings.cost_type"}'
             cost_type_text_context = (
                 "Select the preferred way of calculating upfront costs, either through savings "
-                "plans or subscription fees. This feature is only available fro Amazon Web "
-                "Services cost only."
+                "plans or subscription fees. This feature is available for Amazon Web Services cost only."
             )
             cost_type_title = create_plain_text(cost_type_select_name, "Show cost as (Amazon Web Services Only)", "h2")
             cost_type_select_text = create_plain_text(cost_type_select_name, cost_type_text_context, "p")
