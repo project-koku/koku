@@ -2405,11 +2405,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 150Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 300Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true
@@ -2429,11 +2429,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 150Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 300Mi
 - displayName: CPU Request
   name: SOURCES_LISTENER_CPU_REQUEST
   required: true
