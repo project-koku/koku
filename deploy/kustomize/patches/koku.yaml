@@ -171,28 +171,28 @@
     displayName: Memory Request
     name: KOKU_MEMORY_REQUEST
     required: true
-    value: 128Mi
+    value: 512Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: KOKU_MEMORY_LIMIT
     required: true
-    value: 768Mi
+    value: 1Gi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
     name: KOKU_CPU_REQUEST
     required: true
-    value: 100m
+    value: 300m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: KOKU_CPU_LIMIT
     required: true
-    value: 300m
+    value: 600m
 - op: add
   path: /parameters/-
   value:

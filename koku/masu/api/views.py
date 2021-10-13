@@ -16,3 +16,4 @@ from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup
 from masu.api.status import get_status
 from masu.api.update_cost_model_costs import update_cost_model_costs
+from masu.api.update_exchange_rates import update_exchange_rates

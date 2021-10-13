@@ -198,6 +198,12 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used to fetch daily rates
+app.conf.beat_schedule["get_daily_currency_rates"] = {
+    "task": "masu.celery.tasks.get_daily_currency_rates",
+    "schedule": crontab(hour=0, minute=0),
+}
+
 # Beat used to remove stale tenant data
 app.conf.beat_schedule["remove_stale_tenants"] = {
     "task": "masu.processor.tasks.remove_stale_tenants",
