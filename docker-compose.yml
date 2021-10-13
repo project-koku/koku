@@ -180,7 +180,6 @@ services:
     privileged: true
     ports:
       - 6001-6020:9000
-      - 5678:5678
     volumes:
       - '.:/koku'
       - './testing:/testing'
