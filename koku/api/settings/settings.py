@@ -214,7 +214,7 @@ class Settings:
             cost_type_options = {
                 "options": get_cost_type_options(),
                 "initialValue": get_selected_cost_type_or_setup(self.schema),
-                "FormGroupProps": {"style": {"width": "650px"}},
+                "FormGroupProps": {"style": {"width": "400px"}},
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
 
