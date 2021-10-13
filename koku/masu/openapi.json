@@ -45,6 +45,10 @@
     {
       "name": "Celery Queue Lengths",
       "description": "Returns a list of celery queues with their lengths."
+    },
+    {
+      "name": "Update exchange rates",
+      "description": "Updates and returns the list of exchange rates"
     }
   ],
   "paths": {
@@ -589,6 +593,29 @@
         ]
       }
     },
+    "/update_exchange_rates/": {
+      "get": {
+        "summary": "Update exchange rates",
+        "operationId": "getUpdatedEchangeRates",
+        "description": "Update and return list of exchange rates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary of exchange rates after update",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateExchangeRates"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Update Exchange Rates"
+        ]
+      }
+    },
     "/manifests/": {
       "get": {
         "tags": [
@@ -1056,6 +1083,17 @@
                 "type": "number",
                 "example": 204.51
               }
+            }
+          }
+        }
+      },
+      "UpdateExchangeRates": {
+        "type": "object",
+        "properties": {
+          "updated_exchange_rates": {
+            "type": "object",
+              "example": {
+                "USD": 1.23
             }
           }
         }
