@@ -47,6 +47,7 @@ class Migration(migrations.Migration):
                 ("shared_projects", models.IntegerField(default=1)),
                 ("project_costs", models.JSONField(null=True)),
                 ("source_uuid", models.UUIDField(null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
             ],
             options={"db_table": "reporting_ocpgcpcostlineitem_daily_summary"},
         ),

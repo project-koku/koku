@@ -99,6 +99,8 @@ class OCPGCPCostLineItemDailySummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+
 
 class OCPGCPCostLineItemProjectDailySummary(models.Model):
     """A summarized view of OCP on GCP cost by OpenShift project."""

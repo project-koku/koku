@@ -32,7 +32,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary (
     currency,
     unit,
     shared_projects,
-    source_uuid
+    source_uuid,
+    credit_amount
 )
     SELECT uuid_generate_v4(),
         report_period_id,
@@ -58,7 +59,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary (
         max(currency) as currency,
         max(unit) as unit,
         count(DISTINCT namespace) as shared_projects,
-        source_uuid
+        source_uuid,
+        sum(credit_amount) as credit_amount
     FROM reporting_ocpgcpcostlineitem_project_daily_summary
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date({{start_date}})
