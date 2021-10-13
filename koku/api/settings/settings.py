@@ -95,6 +95,7 @@ class Settings:
     def _obtain_tag_keys(self, tag_view_kls, tag_handler_kls, tag_keys_kls):
         """
         Collect the available tag keys for the customer.
+
         Returns:
             (List) - List of available tag keys objects
             (List) - List of enabled tag keys strings
@@ -296,6 +297,7 @@ class Settings:
     def build_settings(self):
         """
         Generate tag management settings
+
         Returns:
             (List) - List of setting items
         """
@@ -305,10 +307,12 @@ class Settings:
     def handle_settings(self, settings):
         """
         Handle setting results
+
         Args:
             (String) name - unique name for switch.
         Returns:
             (Bool) - True, if a setting had an effect, False otherwise
+
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
         currency_change = self._currency_handler(currency_settings)
