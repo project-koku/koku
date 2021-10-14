@@ -15,6 +15,7 @@ from celery.exceptions import MaxRetriesExceededError
 from celery.exceptions import Retry
 from django.test import override_settings
 
+from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest as APIExportRequest
 from api.dataexport.syncer import SyncedFileInColdStorageError
 from api.models import Provider
@@ -122,6 +123,43 @@ class TestCeleryTasks(MasuTestCase):
 
         tasks.sync_data_to_customer(data_export_object.uuid)
         self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
+
+    # Check to see if exchange rates are being created or updated
+    def test_get_currency_conversion_rates(self):
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.get_daily_currency_rates()
+            self.assertIn("Creating the exchange rate" or "Updating currency", str(captured_logs))
+
+    # Check to see if Error is raised on wrong URL
+    @patch("masu.celery.tasks.requests")
+    def test_error_get_currency_conversion_rates(self, mock_requests):
+        mock_requests.get.side_effect = Exception("error")
+        with self.assertRaises(Exception) as e:
+            tasks.get_daily_currency_rates()
+            self.assertIn("Couldn't pull latest conversion rates", str(e.exception))
+
+    @patch("masu.celery.tasks.requests")
+    def test_get_currency_conversion_rates_successful(self, mock_requests):
+        beforeRows = ExchangeRates.objects.count()
+        self.assertEqual(beforeRows, 0)
+        mock_requests.get.return_value = Mock(
+            status_code=201, json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
+        )
+        tasks.get_daily_currency_rates()
+        afterRows = ExchangeRates.objects.count()
+        self.assertEqual(afterRows, 3)
+
+    @patch("masu.celery.tasks.requests")
+    def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
+        beforeRows = ExchangeRates.objects.count()
+        self.assertEqual(beforeRows, 0)
+        mock_requests.get.return_value = Mock(
+            status_code=201,
+            json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34}},
+        )
+        tasks.get_daily_currency_rates()
+        afterRows = ExchangeRates.objects.count()
+        self.assertEqual(afterRows, 3)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):
