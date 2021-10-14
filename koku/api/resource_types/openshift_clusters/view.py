@@ -54,6 +54,6 @@ class OCPClustersView(generics.ListAPIView):
             if user_access and user_access[0] == "*":
                 return super().list(request)
             self.queryset = self.queryset.filter(cluster_id__in=user_access)
-        elif not user_access:
+        else:
             self.queryset = self.queryset.none()
         return super().list(request)
