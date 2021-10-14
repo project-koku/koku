@@ -2142,6 +2142,26 @@ class AWSQueryHandlerTest(IamTestCase):
                     for value_item in service_item["values"]:
                         self.assertTrue("tags_exist" in value_item)
 
+    def test_query_cost_type_default(self):
+        """Test "cost_type" is defaulted when not passed in."""
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"
+        )  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        cost_type = query_output.get("cost_type")
+        self.assertEqual(cost_type, "unblended_cost")
+
+    def test_query_cost_type_passed_in(self):
+        """Test "cost_type" is recognized when passed in."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        cost_type = query_output.get("cost_type")
+        self.assertEqual(cost_type, "blended_cost")
+
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         with tenant_context(self.tenant):
