@@ -234,6 +234,8 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     cluster_id = models.CharField(max_length=50, null=True)
 
+    currency = models.CharField(max_length=50, null=True)
+
     cluster_alias = models.CharField(max_length=256, null=True)
 
     # Whether the data comes from a pod or volume report
@@ -632,6 +634,7 @@ class OCPCostSummary(models.Model):
     id = models.IntegerField(primary_key=True)
 
     cluster_id = models.TextField()
+    currency = models.TextField()
 
     cluster_alias = models.TextField(null=True)
 
@@ -762,6 +765,8 @@ class OCPPodSummary(models.Model):
 
     cluster_alias = models.TextField(null=True)
 
+    currency = models.TextField()
+
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
 
     resource_count = models.IntegerField(null=True)
@@ -891,6 +896,8 @@ class OCPVolumeSummary(models.Model):
     cluster_id = models.TextField()
 
     cluster_alias = models.TextField(null=True)
+
+    currency = models.TextField()
 
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
 

@@ -15,8 +15,11 @@ from django.db.models.expressions import OrderBy
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRates
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilterCollection
+from api.report.ocp.query_handler import CurrencyIsNotSupportedException
+from api.report.ocp.query_handler import get_conversion_rate
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
@@ -647,3 +650,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
+
+
+class ConversionRateTest(IamTestCase):
+    def setUp(self):
+        self.usd_xch_rt = dict(usd=1, aud=1.33, cad=1.23, zar=14.79, jpy=114.07)
+        for currency in self.usd_xch_rt:
+            row = ExchangeRates(currency_type=currency, exchange_rate=self.usd_xch_rt[currency])
+            row.save()
+
+    def tearDown(self):
+        ExchangeRates.objects.all().delete()
+
+    def test_same_currency(self):
+        self.assertEqual(get_conversion_rate("zar", "zar"), 1)
+
+    def test_convert_from_usd_to_cad(self):
+        expected = Decimal(self.usd_xch_rt["cad"] / self.usd_xch_rt["usd"])
+        self.assertAlmostEqual(get_conversion_rate("usd", "cad"), expected, places=2)
+
+    def test_convert_not_exists_exception(self):
+        with self.assertRaises(CurrencyIsNotSupportedException):
+            get_conversion_rate("usd1", "cad")

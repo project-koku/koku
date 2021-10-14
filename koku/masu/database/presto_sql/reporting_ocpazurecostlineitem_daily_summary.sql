@@ -54,7 +54,7 @@ WITH cte_ocp_on_azure_resource_id_joined AS (
 
         max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
         max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-        max(coalesce(billingcurrencycode, currency)) as currency,
+        max(coalesce(billingcurrencycode, azure.currency)) as currency,
         max(azure.resource_id_matched) as resource_id_matched,
         max(azure.tags) as tags,
         max(azure.servicename) as service_name,
@@ -127,7 +127,7 @@ cte_ocp_on_azure_tag_joined AS (
 
         max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
         max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-        max(coalesce(billingcurrencycode, currency)) as currency,
+        max(coalesce(billingcurrencycode, azure.currency)) as currency,
         max(azure.resource_id_matched) as resource_id_matched,
         max(azure.tags) as tags,
         max(azure.servicename) as service_name,

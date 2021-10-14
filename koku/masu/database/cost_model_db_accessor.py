@@ -305,3 +305,10 @@ class CostModelDBAccessor(KokuDBAccess):
                     tag_dict[tag_key] = {"default_value": default_value, "defined_keys": tag_keys_to_ignore}
                     results_dict[key] = tag_dict
         return results_dict
+
+    @property
+    def currency(self):
+        """Returns currency choice in the cost model."""
+        if self.cost_model:
+            return self.cost_model.currency
+        return None

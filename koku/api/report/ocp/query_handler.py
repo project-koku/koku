@@ -14,12 +14,31 @@ from decimal import InvalidOperation
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
+
+
+class CurrencyIsNotSupportedException(Exception):
+    pass
+
+
+def get_conversion_rate(base, to):
+    exchanges = dict()
+    for currncy in [base, to]:
+        try:
+            exchanges[currncy] = ExchangeRates.objects.get(currency_type=currncy.lower())
+        except ExchangeRates.DoesNotExist:
+            raise CurrencyIsNotSupportedException(f"exchange rates does not have {currncy}")
+
+    exchange_rate = Decimal(1)
+    if base != to:
+        exchange_rate = Decimal(exchanges[to].exchange_rate / exchanges[base].exchange_rate)
+    return exchange_rate
 
 
 class OCPReportQueryHandler(ReportQueryHandler):
@@ -38,6 +57,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
+        self._currency = parameters.get("currency")
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -110,6 +130,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             output["delta"] = self.query_delta
 
         return output
+
+    def _get_group_by(self):
+        if self._report_type in ["costs", "memory", "cpu", "volume"]:
+            return ["currency"]
+        return super()._get_group_by()
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -213,8 +238,56 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_sum = ordered_total
-        self.query_data = data
+        self.query_data = self._currency_calc(data)
+        # self.query_data = data
         return self._format_query_response()
+
+    def _generate_default_report_dict(self, units):
+        return dict(
+            raw=dict(value=0, units=units),
+            markup=dict(value=0, units=units),
+            usage=dict(value=0, units=units),
+            distributed=dict(value=0, units=units),
+            total=dict(value=0, units=units),
+        )
+
+    def _currency_calc(self, data):
+        dd = []
+        for item in data:
+            if "currencys" in item.keys():
+                currencys = item.get("currencys")
+                clusters = set()
+                source_uuid = set()
+                infra = self._generate_default_report_dict(self._currency)
+                suppl = self._generate_default_report_dict(self._currency)
+                cost = self._generate_default_report_dict(self._currency)
+                for currencys_item in currencys:
+                    exchange_rate = get_conversion_rate(currencys_item.get("currency"), self._currency)
+                    currencys_values = currencys_item.get("values")
+                    for citem in currencys_values:
+                        clusters.update(citem.get("clusters"))
+                        source_uuid.update(citem.get("source_uuid"))
+                        infra_cost = citem.get("infrastructure")
+                        for infra_key in infra_cost.keys():
+                            infra[infra_key]["value"] += Decimal(infra_cost[infra_key].get("value")) * exchange_rate
+                        suppl_cost = citem.get("supplementary")
+                        for suppl_key in suppl_cost.keys():
+                            infra[suppl_key]["value"] += Decimal(suppl_cost[suppl_key].get("value")) * exchange_rate
+                        cost_cost = citem.get("cost")
+                        for cost_key in cost_cost.keys():
+                            cost[cost_key]["value"] += Decimal(cost_cost[cost_key].get("value")) * exchange_rate
+
+                    dd.append(
+                        dict(
+                            date=item.get("date"),
+                            infrastructure=infra,
+                            supplementary=suppl,
+                            cost=cost,
+                            clusters=clusters,
+                            source_uuid=source_uuid,
+                        )
+                    )
+        return dd
 
     def get_cluster_capacity(self, query_data):  # noqa: C901
         """Calculate cluster capacity for all nodes over the date range."""

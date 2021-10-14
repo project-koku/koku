@@ -7,6 +7,7 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.currency.currencies import CURRENCIES
 from api.models import Provider
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
@@ -15,6 +16,8 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import UnitConverter
+
+CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
 
 
 class GroupBySerializer(GroupSerializer):
@@ -167,6 +170,8 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
 
     delta = serializers.CharField(required=False)
 
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False, default="USD")
+
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
@@ -216,6 +221,7 @@ class OCPCostQueryParamSerializer(OCPQueryParamSerializer):
     DELTA_CHOICES = (("cost", "cost"), ("cost_total", "cost_total"))
 
     delta = serializers.ChoiceField(choices=DELTA_CHOICES, required=False)
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False, default="USD")
 
     def validate_order_by(self, value):
         """Validate incoming order_by data.

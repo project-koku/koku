@@ -22,6 +22,7 @@ FROM (
         FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids,
             jsonb_each_text(lids.supplementary_usage_cost) supplementary_usage_cost
         WHERE lids.cluster_id = {{cluster_id}}
+            AND lids.currency = {{currency}}
             AND lids.usage_start >= {{start_date}}
             AND lids.usage_start <= {{end_date}}
             AND lids.{{labels_field | sqlsafe}} ? {{tag_key}}

@@ -46,6 +46,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._tag_supplementary_rates = cost_model_accessor.tag_supplementary_rates
             self._tag_default_supplementary_rates = cost_model_accessor.tag_default_supplementary_rates
             self._distribution = cost_model_accessor.distribution
+            self._currency = cost_model_accessor.currency
 
     @staticmethod
     def _normalize_tier(input_tier):
@@ -164,7 +165,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 start_date,
                 end_date,
             )
-            accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id)
+            accessor.populate_markup_cost(markup, start_date, end_date, self._cluster_id, self._currency)
         LOG.info("Finished updating markup.")
 
     def _update_monthly_cost(self, start_date, end_date):
@@ -206,6 +207,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         self._cluster_id,
                         self._cluster_alias,
                         self._distribution,
+                        self._currency,
                     )
 
         except OCPCostModelCostUpdaterError as error:
@@ -254,6 +256,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             self._cluster_id,
                             self._cluster_alias,
                             self._distribution,
+                            self._currency,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -302,6 +305,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             self._cluster_id,
                             self._cluster_alias,
                             self._distribution,
+                            self._currency,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -311,14 +315,19 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Update infrastructure and supplementary usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.populate_usage_costs(
-                self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id
+                self._infra_rates, self._supplementary_rates, start_date, end_date, self._cluster_id, self._currency
             )
 
     def _update_tag_usage_costs(self, start_date, end_date):
         """Update infrastructure and supplementary tag based usage costs."""
         with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.populate_tag_usage_costs(
-                self._tag_infra_rates, self._tag_supplementary_rates, start_date, end_date, self._cluster_id
+                self._tag_infra_rates,
+                self._tag_supplementary_rates,
+                start_date,
+                end_date,
+                self._cluster_id,
+                self._currency,
             )
 
     def _update_tag_usage_default_costs(self, start_date, end_date):
@@ -330,6 +339,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 start_date,
                 end_date,
                 self._cluster_id,
+                self._currency,
             )
 
     def update_summary_cost_model_costs(self, start_date, end_date):

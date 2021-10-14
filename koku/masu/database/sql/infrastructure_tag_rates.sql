@@ -23,6 +23,7 @@ FROM (
             jsonb_each_text(lids.infrastructure_usage_cost) infrastructure_usage_cost
         WHERE lids.{{labels_field | sqlsafe}} @> {{k_v_pair}}
             AND lids.cluster_id = {{cluster_id}}
+            AND lids.currency = {{currency}}
             AND lids.usage_start >= {{start_date}}
             AND lids.usage_start <= {{end_date}}
     ) AS sub
