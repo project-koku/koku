@@ -39,7 +39,7 @@ class OCPClustersView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift cluster id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
-        user_access = []
+        user_access = None
         error_message = {}
         # Test for only supported query_params
         if self.request.query_params:
@@ -47,11 +47,13 @@ class OCPClustersView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        if request.user.admin:
-            return super().list(request)
+        # if request.user.admin:
+        #    return super().list(request)
         if request.user.access:
             user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
-        self.queryset = self.queryset.filter(cluster_id__in=user_access)
+            if user_access and user_access[0] == "*":
+                return super().list(request)
+            self.queryset = self.queryset.filter(cluster_id__in=user_access)
+        elif not user_access:
+            self.queryset = self.queryset.none()
         return super().list(request)

@@ -60,10 +60,12 @@ class OCPProjectsView(generics.ListAPIView):
             ):
                 return super().list(request)
             if ocp_project_access:
-
                 query_holder = query_holder.filter(namespace__in=ocp_project_access)
             if ocp_cluster_access:
                 # We hold a copy of the filtered queryset just incase the user has a wildcard for user access
                 query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
+            else:
+                # If user has user access but not to project or cluster return empty set
+                query_holder = query_holder.none()
         self.queryset = query_holder
         return super().list(request)
