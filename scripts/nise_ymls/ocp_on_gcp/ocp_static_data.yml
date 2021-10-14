@@ -9,6 +9,7 @@ generators:
           node_labels: label_nodeclass:compute
           cpu_cores: 4
           memory_gig: 16
+          resource_id: 77777775
           namespaces:
             fall:
               pods:
@@ -75,7 +76,7 @@ generators:
           node_labels: label_nodeclass:compute
           cpu_cores: 4
           memory_gig: 16
-          resource_id: 55555556
+          resource_id: 77777776
           namespaces:
             cost-management:
               pods:
@@ -111,7 +112,7 @@ generators:
           node_name: gcp_compute3
           cpu_cores: 4
           memory_gig: 16
-          resource_id: 55555557
+          resource_id: 77777777
           namespaces:
             analytics:
               pods:
@@ -148,7 +149,7 @@ generators:
           node_labels: label_nodeclass:master
           cpu_cores: 2
           memory_gig: 8
-          resource_id: 55555558
+          resource_id: 77777778
           namespaces:
             kube-system:
               pods:
