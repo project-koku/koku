@@ -346,6 +346,7 @@ class ParquetReportProcessor:
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         failed_conversion = []
+        daily_data_frames = []
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = f"Could not establish report type for {csv_filename}."
@@ -353,7 +354,8 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
+            parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
+            daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
