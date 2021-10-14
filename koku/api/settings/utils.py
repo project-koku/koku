@@ -209,7 +209,11 @@ def get_cost_type_options():
         (dict) - options.
     """
     return [
-        dict(value=cost_type.get("code"), label=f"{cost_type.get('name')} ({cost_type.get('description')})")
+        dict(
+            value=cost_type.get("code"),
+            label=f"{cost_type.get('name')}",
+            description=f"{cost_type.get('description')}",
+        )
         for cost_type in COST_TYPES
     ]
 
