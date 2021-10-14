@@ -37,6 +37,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -149,7 +150,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -189,7 +189,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
