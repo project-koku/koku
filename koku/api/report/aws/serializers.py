@@ -229,8 +229,6 @@ class QueryParamSerializer(ParamSerializer):
         request = self.context.get("request")
 
         with schema_context(request.user.customer.schema_name):
-            objects = UserSettings.objects.all()
-            print(objects)
             try:
                 default_cost_type = UserSettings.objects.all().first().settings["cost_type"]
             except Exception:
