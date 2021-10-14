@@ -18,7 +18,7 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            self.create_mock_customer_data(), self.user_data, create_tenant=True
+            self.create_mock_customer_data(), self.user_data, create_tenant=True, path=""
         )
 
     def test_parse_query_params_success(self):
