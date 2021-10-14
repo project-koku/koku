@@ -293,6 +293,17 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_back_populate_ocp_on_gcp_daily_summary_trino(self, mock_presto):
+        """Test that ocp on gcp back populate runs"""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        report_period_id = 4
+        self.accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, report_period_id)
+
+        mock_presto.assert_called()
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
     def test_populate_gcp_topology_information_tables(self, mock_get_topo):
         """Test that GCP Topology table is populated."""

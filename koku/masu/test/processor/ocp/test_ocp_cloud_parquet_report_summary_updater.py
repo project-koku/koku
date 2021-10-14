@@ -173,9 +173,14 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_presto"  # noqa: E501
     )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.back_populate_ocp_on_gcp_daily_summary_trino"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.gcp_get_bills_from_provider")
-    def test_update_gcp_summary_tables(self, mock_utility, mock_ocp_on_gcp, mock_tag_summary, mock_map):
-        """Test that summary tables are properly run for an OCP provider."""
+    def test_update_gcp_summary_tables(
+        self, mock_utility, mock_back_populate, mock_ocp_on_gcp, mock_tag_summary, mock_map
+    ):
+        """Test that summary tables are properly run for a gcp provider."""
         fake_bills = MagicMock()
         fake_bills.__iter__.return_value = [Mock(), Mock()]
         first = Mock()
