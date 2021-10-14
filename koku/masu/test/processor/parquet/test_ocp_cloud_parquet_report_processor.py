@@ -18,6 +18,7 @@ from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYP
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
+from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -160,3 +161,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_topology.assert_called()
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
+
+    def test_ocp_on_gcp_data_processor(self):
+        """Test that the processor is properly set."""
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+        )
+        self.assertEqual(report_processor.ocp_on_cloud_data_processor, gcp_match_openshift_resources_and_labels)

@@ -208,3 +208,9 @@ class TestGCPUtils(MasuTestCase):
 
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    def test_gcp_generate_daily_data(self):
+        """Test that we return the original data frame."""
+        df = pd.DataFrame([{"key": "value"}])
+        result = utils.gcp_generate_daily_data(df)
+        self.assertEqual(id(df), id(result))
