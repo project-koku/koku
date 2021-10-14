@@ -17,10 +17,12 @@ from masu.api.views import get_status
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
+from masu.api.views import update_exchange_rates
 
 urlpatterns = [
     path("status/", get_status, name="server-status"),
     path("download/", download_report, name="report_download"),
+    path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("enabled_tags/", enabled_tags, name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
     path("report_data/", report_data, name="report_data"),

@@ -158,7 +158,7 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 128Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
@@ -172,14 +172,14 @@
     displayName: CPU Request
     name: MASU_CPU_REQUEST
     required: true
-    value: 100m
+    value: 50m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: MASU_CPU_LIMIT
     required: true
-    value: 200m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
