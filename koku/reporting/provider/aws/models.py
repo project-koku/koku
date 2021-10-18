@@ -511,6 +511,49 @@ class AWSCostSummaryByRegion(models.Model):
     source_uuid = models.UUIDField(unique=False, null=True)
 
 
+class AWSCostSummaryByRegionP(models.Model):
+    """A MATERIALIZED VIEW specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSCostSummaryByRegion."""
+
+        db_table = "reporting_aws_cost_summary_by_region_p"
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+
+
 class AWSComputeSummary(models.Model):
     """A MATERIALIZED VIEW specifically for UI API queries.
 

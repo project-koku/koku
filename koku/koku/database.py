@@ -54,6 +54,7 @@ PARTITIONED_MODEL_NAMES = [
     "OCPAllDatabaseSummaryPT",
     "OCPAllNetworkSummaryPT",
     "OCPAllStorageSummaryPT",
+    "AWSCostSummaryByRegionP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
