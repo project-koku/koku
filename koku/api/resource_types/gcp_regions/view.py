@@ -35,7 +35,6 @@ class GCPRegionView(generics.ListAPIView):
         # Reads the users values for GCP account id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
         error_message = {}
-        query_holder = None
         # Test for only supported query_params
         if self.request.query_params:
             for key in self.request.query_params:
@@ -47,11 +46,6 @@ class GCPRegionView(generics.ListAPIView):
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
             gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
-            query_holder = self.queryset
-            if gcp_project_access:
-                query_holder = query_holder.filter(project_id__in=gcp_project_access)
-            if gcp_account_access:
-                query_holder = query_holder.filter(account_id__in=gcp_account_access)
             if (
                 gcp_account_access
                 and gcp_account_access[0] == "*"
@@ -59,5 +53,11 @@ class GCPRegionView(generics.ListAPIView):
                 and gcp_project_access[0] == "*"
             ):
                 return super().list(request)
-            self.queryset = query_holder
+            if gcp_project_access:
+                self.queryset = self.queryset.filter(project_id__in=gcp_project_access)
+            if gcp_account_access:
+                self.queryset = self.queryset.filter(account_id__in=gcp_account_access)
+            else:
+                # If query_holder does not exist we return an empty queryset
+                self.queryset = self.queryset.none()
         return super().list(request)
