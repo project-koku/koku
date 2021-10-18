@@ -58,7 +58,7 @@ class OCPNodesView(generics.ListAPIView):
                 query_holder = query_holder.filter(node__in=ocp_node_access)
             if ocp_cluster_access:
                 query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
-            else:
+            if not ocp_cluster_access and not ocp_node_access:
                 # If user has user access but not to node or cluster return empty set
                 query_holder = query_holder.none()
         self.queryset = query_holder
