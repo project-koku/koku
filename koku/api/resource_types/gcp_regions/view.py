@@ -61,4 +61,6 @@ class GCPRegionView(generics.ListAPIView):
             else:
                 # If query_holder does not exist we return an empty queryset
                 self.queryset = self.queryset.none()
+        else:
+            self.queryset = self.queryset.none()
         return super().list(request)
