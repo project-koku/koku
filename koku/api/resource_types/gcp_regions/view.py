@@ -46,6 +46,7 @@ class GCPRegionView(generics.ListAPIView):
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
             gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
+            # Checks if the access exists, and the user has wildcard access
             if (
                 gcp_account_access
                 and gcp_account_access[0] == "*"
