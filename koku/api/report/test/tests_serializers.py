@@ -438,7 +438,7 @@ class QueryParamSerializerTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_cost_type(self):
-        """Test failure while handling invalid delta for different requests."""
+        """Test failure while handling invalid cost_type."""
         query_params = {"cost_tpye": "invalid_cost"}
         req = Mock(path="/api/cost-management/v1/reports/aws/costs/")
         serializer = QueryParamSerializer(data=query_params, context={"request": req})
