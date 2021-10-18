@@ -34,8 +34,14 @@ class ReportSummaryUpdaterError(Exception):
     pass
 
 
-class ReportSummaryUpdaterCloudError(Exception):
+class ReportSummaryUpdaterCloudError(ReportSummaryUpdaterError):
     """Report Summary Updater Cloud Error."""
+
+    pass
+
+
+class ReportSummaryUpdaterProviderNotFoundError(ReportSummaryUpdaterError):
+    """Provider not found error"""
 
     pass
 
@@ -64,7 +70,9 @@ class ReportSummaryUpdater:
             self._provider = provider_accessor.get_provider()
 
         if not self._provider:
-            raise ReportSummaryUpdaterError("Provider not found.")
+            raise ReportSummaryUpdaterProviderNotFoundError(
+                f"Provider data for uuid '{self._provider_uuid}' not found."
+            )
 
         try:
             self._updater, self._ocp_cloud_updater = self._set_updater()
