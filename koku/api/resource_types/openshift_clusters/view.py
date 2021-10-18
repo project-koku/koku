@@ -51,6 +51,7 @@ class OCPClustersView(generics.ListAPIView):
             return super().list(request)
         if request.user.access:
             user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
+            # checks if the access exists, and the user has wildcard access
             if user_access and user_access[0] == "*":
                 return super().list(request)
             self.queryset = self.queryset.filter(cluster_id__in=user_access)
