@@ -1321,6 +1321,10 @@ class AWSComputeSummaryByRegionP(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for AWSComputeSummaryByRegionP."""
 

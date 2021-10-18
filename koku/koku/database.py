@@ -65,7 +65,7 @@ PARTITIONED_MODEL_NAMES = [
     "AWSStorageSummaryP",
     "AWSStorageSummaryByServiceP",
     "AWSStorageSummaryByAccountP",
-    "WSStorageSummaryByRegionP",
+    "AWSStorageSummaryByRegionP",
     "AWSNetworkSummaryP",
     "AWSDatabaseSummaryP",
 ]
