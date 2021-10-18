@@ -58,7 +58,7 @@ class GCPRegionView(generics.ListAPIView):
                 self.queryset = self.queryset.filter(project_id__in=gcp_project_access)
             if gcp_account_access:
                 self.queryset = self.queryset.filter(account_id__in=gcp_account_access)
-            else:
+            if not gcp_account_access and not gcp_project_access:
                 # If query_holder does not exist we return an empty queryset
                 self.queryset = self.queryset.none()
         else:
