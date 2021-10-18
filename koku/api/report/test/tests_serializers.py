@@ -439,7 +439,7 @@ class QueryParamSerializerTest(IamTestCase):
 
     def test_invalid_cost_type(self):
         """Test failure while handling invalid cost_type."""
-        query_params = {"cost_tpye": "invalid_cost"}
+        query_params = {"cost_type": "invalid_cost"}
         req = Mock(path="/api/cost-management/v1/reports/aws/costs/")
         serializer = QueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
