@@ -92,3 +92,16 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
         req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/")
         serializer = OCPAllQueryParamSerializer(data=query_params, context={"request": req})
         serializer.is_valid(raise_exception=True)
+
+    def test_query_params_valid_cost_type(self):
+        """Test parse of valid cost_type param."""
+        query_params = {"cost_type": "blended_cost"}
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=self.alt_request_context)
+        serializer.is_valid(raise_exception=True)
+
+    def test_query_params_invalid_cost_type(self):
+        """Test parse of invalid cost_type param."""
+        query_params = {"cost_type": "invalid_cost"}
+        serializer = OCPAllQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
