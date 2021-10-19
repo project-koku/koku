@@ -40,6 +40,7 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -381,6 +382,17 @@ def update_summary_tables(  # noqa: C901
                 f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}",
             )
         )
+    except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                f"{str(pnf_ex)} Possible source/provider delete during processing. "
+                + "Processing for this provier will halt.",
+            )
+        )
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        return
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
