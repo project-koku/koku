@@ -32,7 +32,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_d
     pod_cost,
     tags,
     source_uuid,
-    credit_amount
+    credit_amount,
+    invoice_month
 )
 WITH cte_ocp_on_gcp_resource_id_joined AS(
     SELECT gcp.uuid as gcp_id,
@@ -56,6 +57,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
+        sum(gcp.invoice_month) as invoice_month,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -118,6 +120,7 @@ cte_ocp_on_gcp_tag_joined AS (
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
+        sum(gcp.invoice_month) as invoice_month,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -222,7 +225,8 @@ SELECT uuid(),
     ocp_gcp.unblended_cost / pc.project_count / dsc.data_source_count as pod_cost,
     json_parse(ocp_gcp.tags) as tags,
     UUID '{{gcp_source_uuid | sqlsafe}}' as source_uuid,
-    ocp_gcp.credit_amount as credit_amount
+    ocp_gcp.credit_amount as credit_amount,
+    ocp_gcp.invoice_month as invoice_month
 FROM cte_ocp_on_gcp_joined as ocp_gcp
 JOIN cte_project_counts AS pc
     ON ocp_gcp.gcp_id = pc.gcp_id

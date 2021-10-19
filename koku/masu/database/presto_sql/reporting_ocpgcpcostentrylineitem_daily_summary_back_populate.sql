@@ -33,7 +33,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
     unit,
     shared_projects,
     source_uuid,
-    credit_amount
+    credit_amount,
+    invoice_month
 )
     SELECT uuid(),
         report_period_id,
@@ -60,7 +61,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         max(unit) as unit,
         count(DISTINCT namespace) as shared_projects,
         source_uuid,
-        sum(credit_amount) as credit_amount
+        sum(credit_amount) as credit_amount,
+        invoice_month,
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date('{{start_date | sqlsafe}}')
@@ -81,7 +83,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         service_alias,
         region,
         tags,
-        source_uuid
+        source_uuid,
+        invoice_month
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
