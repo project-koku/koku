@@ -43,7 +43,7 @@ jobs:
           fetch-depth: 0
 
       - name: run db
-        run: docker-compose run db
+        run: docker-compose up -d db
 
       - name: Display build environment
         run: printenv
