@@ -34,6 +34,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_storage_summary_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_storage_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSStorageSummaryByServiceP",
             fields=[
@@ -67,6 +71,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_aws_storage_summary_by_service_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_storage_summary_by_service_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="AWSStorageSummaryByRegionP",
@@ -103,6 +111,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_storage_summary_by_region_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_storage_summary_by_region_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSStorageSummaryByAccountP",
             fields=[
@@ -135,6 +147,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_aws_storage_summary_by_account_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_storage_summary_by_account_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="AWSNetworkSummaryP",
@@ -169,6 +185,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_network_summary_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_network_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSDatabaseSummaryP",
             fields=[
@@ -202,6 +222,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_database_summary_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_database_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSCostSummaryP",
             fields=[
@@ -218,6 +242,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_aws_cost_summary_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_cost_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="AWSCostSummaryByServiceP",
@@ -251,6 +279,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_cost_summary_by_service_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_cost_summary_by_service_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSCostSummaryByRegionP",
             fields=[
@@ -283,6 +315,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_cost_summary_by_region_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_cost_summary_by_region_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSCostSummaryByAccountP",
             fields=[
@@ -313,6 +349,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_cost_summary_by_account_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_cost_summary_by_account_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSComputeSummaryP",
             fields=[
@@ -339,6 +379,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_aws_compute_summary_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_compute_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="AWSComputeSummaryByServiceP",
@@ -382,6 +426,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_compute_summary_by_service_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_compute_summary_by_service_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSComputeSummaryByRegionP",
             fields=[
@@ -424,6 +472,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_aws_compute_summary_by_region_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_compute_summary_by_region_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="AWSComputeSummaryByAccountP",
             fields=[
@@ -463,6 +515,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_aws_compute_summary_by_account_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_aws_compute_summary_by_account_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
     ]
