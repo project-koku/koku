@@ -22,6 +22,7 @@ from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdate
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.test import MasuTestCase
 
 
@@ -166,8 +167,8 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         mock_update.assert_called_with(self.today, self.tomorrow)
         mock_cloud.assert_called_with(mock_start, mock_end)
 
-    def test_bad_provider(self):
-        """Test that an unimplemented provider throws an error."""
+    def test_bad_provider_type(self):
+        """Test that an unimplemented provider type throws an error."""
         credentials = {"credentials": {"role_arn": "unknown"}}
         self.unknown_auth = ProviderAuthentication.objects.create(credentials=credentials)
         self.unknown_auth.save()
@@ -190,6 +191,11 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         with self.assertRaises(ReportSummaryUpdaterError):
             _ = ReportSummaryUpdater(self.schema, self.unkown_test_provider_uuid)
+
+    def test_bad_provider(self):
+        """Test that an unknown provider uuid throws an error."""
+        with self.assertRaises(ReportSummaryUpdaterProviderNotFoundError):
+            _ = ReportSummaryUpdater(self.schema, uuid4())
 
     def test_no_provider_on_create(self):
         """Test that an error is raised when no provider exists."""
