@@ -57,7 +57,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
-        sum(gcp.invoice_month) as invoice_month,
+        gcp.invoice_month as invoice_month,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -96,7 +96,7 @@ WITH cte_ocp_on_gcp_resource_id_joined AS(
         AND ocp.report_period_id = {{report_period_id | sqlsafe}}
         AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-    GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
+    GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ),
 cte_ocp_on_gcp_tag_joined AS (
     SELECT gcp.uuid as gcp_id,
@@ -120,7 +120,7 @@ cte_ocp_on_gcp_tag_joined AS (
         cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
         cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
         sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
-        sum(gcp.invoice_month) as invoice_month,
+        gcp.invoice_month as invoice_month,
         max(ocp.report_period_id) as report_period_id,
         max(ocp.cluster_id) as cluster_id,
         max(ocp.cluster_alias) as cluster_alias,
@@ -165,7 +165,7 @@ cte_ocp_on_gcp_tag_joined AS (
         AND ocp.report_period_id = {{report_period_id | sqlsafe}}
         AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
         AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-    GROUP BY gcp.uuid, ocp.namespace, ocp.data_source
+    GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ),
 cte_ocp_on_gcp_joined AS (
     SELECT *
