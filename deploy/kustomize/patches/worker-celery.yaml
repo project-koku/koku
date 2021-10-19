@@ -197,14 +197,14 @@
     displayName: CPU Request
     name: WORKER_CELERY_CPU_REQUEST
     required: true
-    value: 50m
+    value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_CELERY_CPU_LIMIT
     required: true
-    value: 100m
+    value: 200m
 - op: add
   path: /parameters/-
   value:
