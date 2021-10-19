@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: [3.8]
     env:
-      COMPOSE_FILE: .github/postgres/docker-compose.yml
+      COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
 
     # services:
