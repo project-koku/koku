@@ -33,7 +33,7 @@ jobs:
         ports:
           - 5432:5432
         volumes:
-          - /home/runner/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
+          - /home/runner/work/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
 
     steps:
       - name: Checkout repository
