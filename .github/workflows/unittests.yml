@@ -15,27 +15,41 @@ jobs:
       matrix:
         python-version: [3.8]
 
-    services:
-      postgres:
-        # Docker Hub image
-        image: postgres:12.1
-        # Provide the password for postgres
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-        volumes:
-          - /home/runner/work/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
+    # services:
+    #   postgres:
+    #     # Docker Hub image
+    #     image: postgres:12.1
+    #     # Provide the password for postgres
+    #     env:
+    #       POSTGRES_USER: postgres
+    #       POSTGRES_PASSWORD: postgres
+    #       POSTGRES_DB: postgres
+    #     # Set health checks to wait until postgres has started
+    #     options: >-
+    #       --health-cmd pg_isready
+    #       --health-interval 10s
+    #       --health-timeout 5s
+    #       --health-retries 5
+    #     ports:
+    #       - 5432:5432
+    #     volumes:
+    #       - /home/runner/work/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
 
     steps:
+
+      - name: Start PostgreSQL on Ubuntu
+        run: |
+          sudo cp .github/configs/postgresql.config /var/lib/postgresql/data/postgresql.conf
+          sudo systemctl start postgresql.service
+          pg_isready
+      - name: Create postgres user
+        run: |
+          sudo -u postgres psql --command="CREATE USER postgres PASSWORD 'postgres'" --command="\du"
+      - name: Create postgres database
+        run: |
+          sudo -u postgres createdb --owner=postgres postgres
+          PGPASSWORD=postgres psql --username=postgres --host=localhost --list postgres
+
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
