@@ -670,7 +670,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             tag_count = (
                 AzureCostEntryLineItemDailySummary.objects.filter(
-                    resource_location=location, usage_start__gte=self.dh.this_month_start
+                    resource_location__icontains=location, usage_start__gte=self.dh.this_month_start
                 )
                 .values(handler._mapper.tag_column)
                 .distinct()
