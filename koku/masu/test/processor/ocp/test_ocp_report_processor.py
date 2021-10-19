@@ -560,6 +560,16 @@ class OCPReportProcessorTest(MasuTestCase):
 
         self.assertEqual(result, expected)
 
+    def test_process_openshift_labels_NA(self):
+        """Test that our report label string format is parsed."""
+        test_label_str = "N/A"
+
+        expected = json.dumps({})
+
+        result = self.ocp_processor._processor._process_openshift_labels(test_label_str)
+
+        self.assertEqual(result, expected)
+
     def test_process_openshift_labels_bad_label_str(self):
         """Test that a bad string is handled."""
         test_label_str = "label_onefirst|label_twonext|label_threefinal"
