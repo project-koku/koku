@@ -375,6 +375,8 @@ services:
       - -c
       - autovacuum_vacuum_cost_delay=10
       - -c
+      - max_locks_per_transaction=72
+      - -c
       - pg_stat_statements.max=2000
       - -c
       - pg_stat_statements.save=off
