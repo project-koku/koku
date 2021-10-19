@@ -54,7 +54,5 @@ class OCPClustersView(generics.ListAPIView):
             # checks if the access exists, and the user has wildcard access
             if user_access and user_access[0] == "*":
                 return super().list(request)
-            self.queryset = self.queryset.filter(cluster_id__in=user_access)
-        else:
-            self.queryset = self.queryset.none()
+        self.queryset = self.queryset.filter(cluster_id__in=user_access)
         return super().list(request)
