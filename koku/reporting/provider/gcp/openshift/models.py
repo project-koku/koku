@@ -87,6 +87,8 @@ class OCPGCPCostLineItemDailySummary(models.Model):
 
     currency = models.TextField(null=True)
 
+    invoice_month = models.CharField(max_length=256, null=True, blank=True)
+
     unit = models.TextField(null=True)
 
     # This is a count of the number of projects that share a GCP resource
