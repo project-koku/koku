@@ -201,11 +201,11 @@ class Settings:
                 sub_form_fields.insert(idx, field)
                 idx += 1
 
-        # cost_type plan settings TODO: only show in dev mode right now
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
         providers_types = [provider.type for provider in customer_specific_providers if "AWS" in provider.type]
 
+        # cost_type plan settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT and len(providers_types):
             cost_type_select_name = f'{"api.settings.cost_type"}'
             cost_type_text_context = (
