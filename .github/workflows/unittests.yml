@@ -14,6 +14,9 @@ jobs:
       max-parallel: 4
       matrix:
         python-version: [3.8]
+    env:
+      COMPOSE_FILE: .github/postgres/docker-compose.yml
+
 
     # services:
     #   postgres:
@@ -32,8 +35,6 @@ jobs:
     #       --health-retries 5
     #     ports:
     #       - 5432:5432
-    #     volumes:
-    #       - /home/runner/work/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
 
     steps:
       - name: Checkout repository
@@ -41,18 +42,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Start PostgreSQL on Ubuntu
-        run: |
-          sudo cp .github/configs/postgresql.config /var/lib/postgresql/data/postgresql.conf
-          sudo systemctl start postgresql.service
-          pg_isready
-      - name: Create postgres user
-        run: |
-          sudo -u postgres psql --command="CREATE USER postgres PASSWORD 'postgres'" --command="\du"
-      - name: Create postgres database
-        run: |
-          sudo -u postgres createdb --owner=postgres postgres
-          PGPASSWORD=postgres psql --username=postgres --host=localhost --list postgres
+      - name: run db
+        run: docker-compose run db
 
       - name: Display build environment
         run: printenv
