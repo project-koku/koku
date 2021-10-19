@@ -564,7 +564,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that our report label string format is parsed."""
         test_label_str = "N/A"
 
-        expected = {}
+        expected = json.dumps({})
 
         result = self.ocp_processor._processor._process_openshift_labels(test_label_str)
 
