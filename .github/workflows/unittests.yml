@@ -36,6 +36,10 @@ jobs:
     #       - /home/runner/work/koku/.github/configs/postgresql.config:/var/lib/postgresql/data/postgresql.conf
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Start PostgreSQL on Ubuntu
         run: |
@@ -49,11 +53,6 @@ jobs:
         run: |
           sudo -u postgres createdb --owner=postgres postgres
           PGPASSWORD=postgres psql --username=postgres --host=localhost --list postgres
-
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
       - name: Display build environment
         run: printenv
