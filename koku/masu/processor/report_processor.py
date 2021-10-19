@@ -10,6 +10,7 @@ from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
 from psycopg2 import InterfaceError
 from requests.exceptions import ConnectTimeout
+from requests.exceptions import InvalidURL
 
 from api.common import log_json
 from api.models import Provider
@@ -177,7 +178,7 @@ class ReportProcessor:
             if self._secondary_processor:
                 try:
                     self._secondary_processor.process()
-                except ConnectTimeout:
+                except (ConnectTimeout, InvalidURL):
                     pass
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
