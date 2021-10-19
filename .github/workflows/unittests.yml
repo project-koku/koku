@@ -24,7 +24,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: postgres
-          PGOPTIONS: "-c ssl=on -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key -c max_connections=1710 -c shared_preload_libraries=pg_stat_statements -c autovacuum_max_workers=8 -c autovacuum_vacuum_cost_limit=4800 -c autovacuum_vacuum_cost_delay=10 -c max_locks_per_transaction=72 -c pg_stat_statements.max=2000 -c pg_stat_statements.save=off -c pg_stat_statements.track_utility=off -c track_activity_query_size=2048 -c track_functions=pl -c log_min_error_statement=error -c log_min_duration_statement=2000 -c logging_collector=on -c 'log_line_prefix=%t:%r:%u@%d:[%p]:' -c log_statement=mod"
+          PGOPTIONS: "-c ssl=on -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key -c max_connections=1710 -c shared_preload_libraries=pg_stat_statements -c autovacuum_max_workers=8 -c autovacuum_vacuum_cost_limit=4800 -c autovacuum_vacuum_cost_delay=10 -c max_locks_per_transaction=128 -c pg_stat_statements.max=2000 -c pg_stat_statements.save=off -c pg_stat_statements.track_utility=off -c track_activity_query_size=2048 -c track_functions=pl -c log_min_error_statement=error -c log_min_duration_statement=2000 -c logging_collector=on -c 'log_line_prefix=%t:%r:%u@%d:[%p]:' -c log_statement=mod"
         # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
