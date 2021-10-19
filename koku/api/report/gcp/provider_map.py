@@ -307,6 +307,9 @@ class GCPProviderMap(ProviderMap):
                 ("account", "project"): GCPCostSummaryByProject,
                 ("gcp_project",): GCPCostSummaryByProject,
                 ("account", "gcp_project"): GCPCostSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPCostSummaryByProject,
+                ("account", "gcp_project", "project"): GCPCostSummaryByProject,
             },
             "instance-type": {
                 "default": GCPComputeSummary,
@@ -319,6 +322,9 @@ class GCPProviderMap(ProviderMap):
                 ("account", "project"): GCPComputeSummaryByProject,
                 ("gcp_project",): GCPComputeSummaryByProject,
                 ("account", "gcp_project"): GCPComputeSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPComputeSummaryByProject,
+                ("account", "gcp_project", "project"): GCPComputeSummaryByProject,
             },
             "storage": {
                 "default": GCPStorageSummary,
@@ -331,6 +337,9 @@ class GCPProviderMap(ProviderMap):
                 ("account", "project"): GCPStorageSummaryByProject,
                 ("gcp_project",): GCPStorageSummaryByProject,
                 ("account", "gcp_project"): GCPStorageSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPStorageSummaryByProject,
+                ("account", "gcp_project", "project"): GCPStorageSummaryByProject,
             },
             "database": {
                 "default": GCPDatabaseSummary,
