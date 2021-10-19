@@ -203,10 +203,10 @@ class Settings:
 
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
-        providers_types = [provider.type for provider in customer_specific_providers if "AWS" in provider.type]
+        has_aws_providers = customer_specific_providers.filter(type__icontains=Provider.PROVIDER_AWS).exists()
 
         # cost_type plan settings TODO: only show in dev mode right now
-        if settings.DEVELOPMENT and len(providers_types):
+        if settings.DEVELOPMENT and has_aws_providers:
             cost_type_select_name = f'{"api.settings.cost_type"}'
             cost_type_text_context = (
                 "Select the preferred way of calculating upfront costs, either through savings "
