@@ -43,6 +43,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import normalize_table_options
@@ -1216,6 +1217,42 @@ class TestWorkerCacheThrottling(MasuTestCase):
             for log in logger.output:
                 if expected in log:
                     statement_found = True
+            self.assertTrue(statement_found)
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_provider_not_found_error(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the update_summary_table provider not found exception is caught."""
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
+        expected = "Processing for this provier will halt."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, uuid4(), start_date, end_date)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+                    break
             self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.update_cost_model_costs.s")
