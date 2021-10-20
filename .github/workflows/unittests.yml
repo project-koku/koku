@@ -14,29 +14,17 @@ jobs:
       max-parallel: 4
       matrix:
         python-version: [3.8]
+    env:
+      COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
-    services:
-      postgres:
-        # Docker Hub image
-        image: postgres:12.1
-        # Provide the password for postgres
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Start the postgres DB
+        run: docker-compose up -d db
 
       - name: Display build environment
         run: printenv

@@ -343,9 +343,10 @@ services:
     container_name: koku_db
     image: postgres:12
     environment:
-    - POSTGRES_MULTIPLE_DATABASES=${DATABASE_NAME-postgres},unleash
+    - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}
     - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+    - _PG_CREATE_DATABASES=${DATABASE_NAME-postgres}|${DATABASE_USER-postgres},unleash|${DATABASE_USER-postgres}
     ports:
       - 15432:5432
     volumes:
@@ -374,6 +375,8 @@ services:
       - autovacuum_vacuum_cost_limit=4800
       - -c
       - autovacuum_vacuum_cost_delay=10
+      - -c
+      - max_locks_per_transaction=72
       - -c
       - pg_stat_statements.max=2000
       - -c
