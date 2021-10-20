@@ -29,6 +29,7 @@ from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
@@ -251,6 +252,22 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in UI_SUMMARY_TABLES:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": source_uuid,
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            self._execute_raw_sql_query(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+            )
 
     def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
