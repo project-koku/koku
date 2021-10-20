@@ -2,6 +2,22 @@
     "version": 1,
     "features": [
         {
+            "name": "cost-aws-materialized-views",
+            "description": "",
+            "type": "release",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "default",
+                    "parameters": {}
+                }
+            ],
+            "variants": [],
+            "createdAt": "2021-10-20T15:17:41.252Z"
+        },
+        {
             "name": "cost-trino-processor",
             "description": "Toggle to enable trino processing",
             "type": "permission",
