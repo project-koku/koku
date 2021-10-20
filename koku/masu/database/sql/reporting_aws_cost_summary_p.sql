@@ -1,8 +1,11 @@
-DROP INDEX IF EXISTS aws_cost_summary;
-DROP MATERIALIZED VIEW IF EXISTS reporting_aws_cost_summary;
+DELETE FROM {{schema | sqlsafe}}.reporting_aws_cost_summary_p
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid_id = {{source_uuid}}
+;
 
-CREATE MATERIALIZED VIEW reporting_aws_cost_summary AS(
-    SELECT row_number() OVER(ORDER BY usage_start, source_uuid) as id,
+INSERT INTO {{schema | sqlsafe}}.reporting_aws_cost_summary_p
+    SELECT uuid_generate_v4() as id,
         usage_start,
         usage_start as usage_end,
         sum(unblended_cost) as unblended_cost,
@@ -11,13 +14,6 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary AS(
         max(currency_code) as currency_code,
         source_uuid
     FROM reporting_awscostentrylineitem_daily_summary
-    -- Get data for this month or last month
     WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
     GROUP BY usage_start, source_uuid
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX aws_cost_summary
-ON reporting_aws_cost_summary (usage_start, source_uuid)
 ;
