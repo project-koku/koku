@@ -212,11 +212,6 @@ class TestParquetReportProcessor(MasuTestCase):
         """Test the convert_to_parquet task."""
         logging.disable(logging.NOTSET)
 
-        expected = "Skipping convert_to_parquet. Parquet processing is disabled."
-        with self.assertLogs("masu.processor.parquet.parquet_report_processor", level="INFO") as logger:
-            self.report_processor.convert_to_parquet()
-            self.assertIn(expected, " ".join(logger.output))
-
         with patch.object(ParquetReportProcessor, "csv_path_s3", new_callable=PropertyMock) as mock_csv_path:
             mock_csv_path.return_value = None
             file_name, data_frame = self.report_processor.convert_to_parquet()
