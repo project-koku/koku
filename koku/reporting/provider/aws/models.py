@@ -27,6 +27,23 @@ VIEWS = (
     "reporting_aws_network_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_aws_compute_summary_p",
+    "reporting_aws_compute_summary_by_account_p",
+    "reporting_aws_compute_summary_by_region_p",
+    "reporting_aws_compute_summary_by_service_p",
+    "reporting_aws_cost_summary_p",
+    "reporting_aws_cost_summary_by_account_p",
+    "reporting_aws_cost_summary_by_region_p",
+    "reporting_aws_cost_summary_by_service_p",
+    "reporting_aws_storage_summary_p",
+    "reporting_aws_storage_summary_by_account_p",
+    "reporting_aws_storage_summary_by_region_p",
+    "reporting_aws_storage_summary_by_service_p",
+    "reporting_aws_database_summary_p",
+    "reporting_aws_network_summary_p",
+)
+
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
