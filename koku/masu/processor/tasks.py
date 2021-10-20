@@ -518,7 +518,9 @@ def update_cost_model_costs(
     stmt = (
         f"update_cost_model_costs called with args:\n"
         f" schema_name: {schema_name},\n"
-        f" provider_uuid: {provider_uuid}"
+        f" provider_uuid: {provider_uuid},\n"
+        f" start_date: {start_date},\n"
+        f" start_date: {end_date},\n"
         f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
