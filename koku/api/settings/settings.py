@@ -334,7 +334,7 @@ class Settings:
             LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
             return False
 
-        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_AWS)
         return True
 
     def build_settings(self):
