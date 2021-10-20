@@ -11,6 +11,7 @@ from tenant_schemas.utils import schema_context
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from koku.database import get_model
+from koku.reporting.models import UI_SUMMARY_TABLES
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from reporting.models import PartitionedTable
 
@@ -106,6 +107,7 @@ class AWSReportDBCleaner:
                 accessor.ocpall_line_item_daily_summary_table._meta.db_table,
                 accessor.ocpall_line_item_project_daily_summary_table._meta.db_table,
             ]
+            table_names.extend(UI_SUMMARY_TABLES)
             table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
