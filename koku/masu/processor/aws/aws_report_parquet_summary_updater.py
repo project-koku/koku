@@ -11,6 +11,7 @@ from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
+from koku.reporting.provider.aws.models import UI_SUMMARY_TABLES
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -87,15 +88,7 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
         with schema_context(self._schema):
-            self._handle_partitions(
-                self._schema,
-                (
-                    # COST-1978
-                    # aws perspective partitioned tables go here!
-                ),
-                start_date,
-                end_date,
-            )
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
@@ -124,9 +117,6 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
                 # accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-
-            # COST-1978
-            # Perspective post-processing goes here
 
             # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
