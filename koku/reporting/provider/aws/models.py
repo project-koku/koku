@@ -1025,6 +1025,10 @@ class AWSCostSummaryP(models.Model):
         """Meta for AWSCostSummaryP."""
 
         db_table = "reporting_aws_cost_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_usage_start"),
+            models.Index(fields=["source_uuid"], name="awscostsumm_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1040,7 +1044,9 @@ class AWSCostSummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSCostSummaryByServiceP(models.Model):
@@ -1058,6 +1064,13 @@ class AWSCostSummaryByServiceP(models.Model):
         """Meta for AWSCostSummaryByServiceP."""
 
         db_table = "reporting_aws_cost_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_svc_usage_start"),
+            models.Index(fields=["account_alias"], name="awscostsumm_svc_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscostsumm_svc_org_unit"),
+            models.Index(fields=["product_code"], name="awscostsumm_svc_prod_cd"),
+            models.Index(fields=["source_uuid"], name="awscostsumm_svc_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1083,7 +1096,9 @@ class AWSCostSummaryByServiceP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSCostSummaryByAccountP(models.Model):
@@ -1101,6 +1116,12 @@ class AWSCostSummaryByAccountP(models.Model):
         """Meta for AWSCostSummaryByAccountP."""
 
         db_table = "reporting_aws_cost_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_acct_usage_start"),
+            models.Index(fields=["account_alias"], name="awscostsumm_acct_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscostsumm_acct_org_unit"),
+            models.Index(fields=["source_uuid"], name="awscostsumm_acct_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1122,7 +1143,9 @@ class AWSCostSummaryByAccountP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 # EXAMPLE FROM HAP
@@ -1141,6 +1164,14 @@ class AWSCostSummaryByRegionP(models.Model):
         """Meta for AWSCostSummaryByRegionP."""
 
         db_table = "reporting_aws_cost_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_reg_usage_start"),
+            models.Index(fields=["account_alias"], name="awscostsumm_reg_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscostsumm_reg_org_unit"),
+            models.Index(fields=["region"], name="awscostsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awscostsumm_reg_zone"),
+            models.Index(fields=["source_uuid"], name="awscostsumm_reg_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1166,7 +1197,9 @@ class AWSCostSummaryByRegionP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSComputeSummaryP(models.Model):
@@ -1184,6 +1217,11 @@ class AWSComputeSummaryP(models.Model):
         """Meta for AWSComputeSummaryP."""
 
         db_table = "reporting_aws_compute_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_usage_start"),
+            models.Index(fields=["instance_type"], name="awscompsumm_insttyp"),
+            models.Index(fields=["source_uuid"], name="awscompsumm_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1209,7 +1247,9 @@ class AWSComputeSummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSComputeSummaryByServiceP(models.Model):
@@ -1227,6 +1267,13 @@ class AWSComputeSummaryByServiceP(models.Model):
         """Meta for AWSComputeSummaryByServiceP."""
 
         db_table = "reporting_aws_compute_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_svc_usage_start"),
+            models.Index(fields=["account_alias"], name="awscompsumm_svc_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscompsumm_svc_org_unit"),
+            models.Index(fields=["instance_type"], name="awscompsumm_svc_insttyp"),
+            models.Index(fields=["source_uuid"], name="awscompsumm_svc_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1262,7 +1309,9 @@ class AWSComputeSummaryByServiceP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSComputeSummaryByAccountP(models.Model):
@@ -1280,6 +1329,13 @@ class AWSComputeSummaryByAccountP(models.Model):
         """Meta for AWSComputeSummaryByAccountP."""
 
         db_table = "reporting_aws_compute_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_acct_usage_start"),
+            models.Index(fields=["account_alias"], name="awscompsumm_acct_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscompsumm_acct_org_unit"),
+            models.Index(fields=["instance_type"], name="awscompsumm_acct_insttyp"),
+            models.Index(fields=["source_uuid"], name="awscompsumm_acct_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1311,7 +1367,9 @@ class AWSComputeSummaryByAccountP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSComputeSummaryByRegionP(models.Model):
@@ -1329,6 +1387,15 @@ class AWSComputeSummaryByRegionP(models.Model):
         """Meta for AWSComputeSummaryByRegionP."""
 
         db_table = "reporting_aws_compute_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_reg_usage_start"),
+            models.Index(fields=["account_alias"], name="awscompsumm_reg_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awscompsumm_reg_org_unit"),
+            models.Index(fields=["region"], name="awscompsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awscompsumm_reg_zone"),
+            models.Index(fields=["instance_type"], name="awscompsumm_reg_insttyp"),
+            models.Index(fields=["source_uuid"], name="awscompsumm_reg_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1364,7 +1431,9 @@ class AWSComputeSummaryByRegionP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSStorageSummaryP(models.Model):
@@ -1382,6 +1451,11 @@ class AWSStorageSummaryP(models.Model):
         """Meta for AWSStorageSummaryP."""
 
         db_table = "reporting_aws_storage_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_usage_start"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_fam"),
+            models.Index(fields=["source_uuid"], name="awsstorsumm_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1403,7 +1477,9 @@ class AWSStorageSummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSStorageSummaryByServiceP(models.Model):
@@ -1421,6 +1497,13 @@ class AWSStorageSummaryByServiceP(models.Model):
         """Meta for AWSStorageSummaryP."""
 
         db_table = "reporting_aws_storage_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_svc_usage_start"),
+            models.Index(fields=["account_alias"], name="awsstorsumm_svc_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awsstorsumm_svc_org_unit"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_svc_fam"),
+            models.Index(fields=["source_uuid"], name="awsstorsumm_svc_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1450,7 +1533,9 @@ class AWSStorageSummaryByServiceP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSStorageSummaryByAccountP(models.Model):
@@ -1468,6 +1553,13 @@ class AWSStorageSummaryByAccountP(models.Model):
         """Meta for AWSStorageSummaryByAccountP."""
 
         db_table = "reporting_aws_storage_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_acct_usage_start"),
+            models.Index(fields=["account_alias"], name="awsstorsumm_acct_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awsstorsumm_acct_org_unit"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_acct_fam"),
+            models.Index(fields=["source_uuid"], name="awsstorsumm_acct_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1495,7 +1587,9 @@ class AWSStorageSummaryByAccountP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSStorageSummaryByRegionP(models.Model):
@@ -1513,6 +1607,15 @@ class AWSStorageSummaryByRegionP(models.Model):
         """Meta for AWSStorageSummaryByRegionP."""
 
         db_table = "reporting_aws_storage_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_reg_usage_start"),
+            models.Index(fields=["account_alias"], name="awsstorsumm_reg_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awsstorsumm_reg_org_unit"),
+            models.Index(fields=["region"], name="awsstorsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awsstorsumm_reg_zone"),
+            models.Index(fields=["product_family"], name="awsstorsumm_reg_product_fam"),
+            models.Index(fields=["source_uuid"], name="awsstorsumm_reg_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1544,7 +1647,9 @@ class AWSStorageSummaryByRegionP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSNetworkSummaryP(models.Model):
@@ -1562,6 +1667,13 @@ class AWSNetworkSummaryP(models.Model):
         """Meta for AWSNetworkSummaryP."""
 
         db_table = "reporting_aws_network_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsnetsumm_usage_start"),
+            models.Index(fields=["account_alias"], name="awsnetsumm_acct_alias"),
+            models.Index(fields=["organizational_unit"], name="awsnetsumm_org_unit"),
+            models.Index(fields=["product_code"], name="awsnetsumm_product_cd"),
+            models.Index(fields=["source_uuid"], name="awsnetsumm_source_id"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1589,7 +1701,9 @@ class AWSNetworkSummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
 
 class AWSDatabaseSummaryP(models.Model):
@@ -1607,6 +1721,13 @@ class AWSDatabaseSummaryP(models.Model):
         """Meta for AWSDatabaseSummaryP."""
 
         db_table = "reporting_aws_database_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsdbsumm_usage_start"),
+            models.Index(fields=["organizational_unit"], name="awsdbsumm_org_unit"),
+            models.Index(fields=["source_uuid"], name="awsdbsumm_source_id"),
+            models.Index(fields=["account_alias"], name="awsdbsumm_acct_alias"),
+            models.Index(fields=["product_code"], name="awsdbsumm_product_cd"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1634,4 +1755,6 @@ class AWSDatabaseSummaryP(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.ForeignKey("api.Provider", on_delete=models.CASCADE, unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
