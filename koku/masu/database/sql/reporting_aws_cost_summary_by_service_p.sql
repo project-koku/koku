@@ -34,7 +34,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_cost_summary_by_service_p (
         {{source_uuid}} as source_uuid
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND source_uuid = {{source_uuid}}
+        AND usage_start <= {{end_date}}::date
+        AND source_uuid = {{source_uuid}}
     GROUP BY usage_start, usage_account_id, product_code, product_family
 ;
