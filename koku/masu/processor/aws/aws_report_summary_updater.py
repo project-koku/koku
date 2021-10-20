@@ -9,6 +9,7 @@ import logging
 
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -18,7 +19,7 @@ from masu.util.common import date_range_pair
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportSummaryUpdater:
+class AWSReportSummaryUpdater(PartitionHandlerMixin):
     """Class to update AWS report summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -80,6 +81,17 @@ class AWSReportSummaryUpdater:
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        with schema_context(self._schema):
+            self._handle_partitions(
+                self._schema,
+                (
+                    # COST-1978
+                    # aws perspective partitioned tables go here!
+                ),
+                start_date,
+                end_date,
+            )
+
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
@@ -103,6 +115,10 @@ class AWSReportSummaryUpdater:
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
+
+            # COST-1978
+            # Perspective post-processing should go here
+
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
