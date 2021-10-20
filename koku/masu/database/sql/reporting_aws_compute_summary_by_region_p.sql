@@ -1,8 +1,30 @@
-DROP INDEX IF EXISTS aws_compute_summary_region;
-DROP MATERIALIZED VIEW IF EXISTS reporting_aws_compute_summary_by_region;
+DELETE FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_by_region_p
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid_id = {{source_uuid}}
+;
 
-CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS (
-    SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.usage_account_id, c.region, c.availability_zone, c.instance_type) AS id,
+INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_by_region_p (
+    id,
+    usage_start,
+    usage_end,
+    usage_account_id,
+    account_alias_id,
+    organizational_unit_id,
+    region,
+    availability_zone,
+    instance_type,
+    resource_ids,
+    resource_count,
+    usage_amount,
+    unit,
+    unblended_cost,
+    savingsplan_effective_cost,
+    markup_cost,
+    currency_code,
+    source_uuid_id
+)
+    SELECT uuid_generate_v4() as id,
         c.usage_start,
         c.usage_start AS usage_end,
         c.usage_account_id,
@@ -35,10 +57,12 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS (
             SUM(markup_cost) AS markup_cost,
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             MAX(currency_code) AS currency_code,
-            MAX(source_uuid::text)::uuid as source_uuid
-        FROM reporting_awscostentrylineitem_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '1 month'::interval)::date
+            {{source_uuid}} as source_uuid
+        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+        WHERE usage_start >= {{start_date}}::date
+            AND usage_start <= {{end_date}}::date
             AND instance_type IS NOT NULL
+            AND source_uuid = {{source_uuid}}
         GROUP BY usage_start, usage_account_id, region, availability_zone, instance_type
     ) AS c
     JOIN (
@@ -58,9 +82,11 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS (
                 availability_zone,
                 instance_type,
                 UNNEST(resource_ids) AS resource_id
-            FROM reporting_awscostentrylineitem_daily_summary
-            WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+            WHERE usage_start >= {{start_date}}::date
+                AND usage_start <= {{end_date}}::date
                 AND instance_type IS NOT NULL
+                AND source_uuid = {{source_uuid}}
         ) AS x
         GROUP BY usage_start, usage_account_id, region, availability_zone, instance_type
     ) AS r
@@ -69,10 +95,4 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_region AS (
             AND c.availability_zone = r.availability_zone
             AND c.instance_type = r.instance_type
             AND c.usage_account_id = r.usage_account_id
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX aws_compute_summary_region
-    ON reporting_aws_compute_summary_by_region (usage_start, usage_account_id, region, availability_zone, instance_type)
 ;
