@@ -359,7 +359,7 @@ CREATE TEMPORARY TABLE reporting_ocpawsusagelineitem_daily_{{uuid | sqlsafe}} AS
         GROUP BY aws_id
     )
     SELECT rm.*,
-        (rm.pod_usage_cpu_core_hours / rm.node_capacity_cpu_core_hours) * rm.unblended_cost as project_cost,
+        (rm.pod_usage_cpu_core_hours / rm.cluster_capacity_cpu_core_hours) * rm.unblended_cost as project_cost,
         shared.shared_projects
     FROM cte_resource_id_matched AS rm
     JOIN cte_number_of_shared AS shared
