@@ -22,6 +22,10 @@ else:
     LOG.info(f"invalid UNLEASH_LOG_LEVEL: {settings.UNLEASH_LOGGING_LEVEL}. using default: `WARNING`")
 
 
+def fallback_true(feature_name: str, context: dict) -> bool:
+    return True
+
+
 class KokuUnleashClient(UnleashClient):
     """Koku Unleash Client."""
 
