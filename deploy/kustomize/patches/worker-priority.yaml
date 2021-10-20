@@ -183,7 +183,7 @@
     displayName: Memory Request
     name: WORKER_PRIORITY_MEMORY_REQUEST
     required: true
-    value: 128Mi
+    value: 256Mi
 - op: add
   path: /parameters/-
   value:
@@ -197,14 +197,14 @@
     displayName: CPU Request
     name: WORKER_PRIORITY_CPU_REQUEST
     required: true
-    value: 100m
+    value: 150m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
     name: WORKER_PRIORITY_CPU_LIMIT
     required: true
-    value: 200m
+    value: 300m
 - op: add
   path: /parameters/-
   value:

@@ -57,6 +57,7 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - CURRENCY_URL=${CURRENCY_URL}
     privileged: true
     ports:
       - 8000:8000
@@ -179,7 +180,6 @@ services:
     privileged: true
     ports:
       - 6001-6020:9000
-      - 5678:5678
     volumes:
       - '.:/koku'
       - './testing:/testing'

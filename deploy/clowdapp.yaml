@@ -2165,7 +2165,7 @@ parameters:
 - description: Flag to use account enhanced prometheus metrics
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
-  value: "True"
+  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
@@ -2303,19 +2303,19 @@ parameters:
 - displayName: Memory Request
   name: KOKU_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 512Mi
 - displayName: Memory Limit
   name: KOKU_MEMORY_LIMIT
   required: true
-  value: 768Mi
+  value: 1Gi
 - displayName: CPU Request
   name: KOKU_CPU_REQUEST
   required: true
-  value: 100m
+  value: 300m
 - displayName: CPU Limit
   name: KOKU_CPU_LIMIT
   required: true
-  value: 300m
+  value: 600m
 - displayName: Log Level for koku-api
   name: KOKU_KOKU_LOG_LEVEL
   required: true
@@ -2327,7 +2327,7 @@ parameters:
 - displayName: Memory Request
   name: LISTENER_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: LISTENER_MEMORY_LIMIT
   required: true
@@ -2335,11 +2335,11 @@ parameters:
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
-  value: 100m
+  value: 150m
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Log Level for listener
   name: LISTENER_KOKU_LOG_LEVEL
   required: true
@@ -2351,7 +2351,7 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
@@ -2359,11 +2359,11 @@ parameters:
 - displayName: CPU Request
   name: MASU_CPU_REQUEST
   required: true
-  value: 100m
+  value: 50m
 - displayName: CPU Limit
   name: MASU_CPU_LIMIT
   required: true
-  value: 200m
+  value: 100m
 - displayName: Log Level for masu
   name: MASU_KOKU_LOG_LEVEL
   required: true
@@ -2383,11 +2383,11 @@ parameters:
 - displayName: CPU Request
   name: SCHEDULER_CPU_REQUEST
   required: true
-  value: 100m
+  value: 50m
 - displayName: CPU Limit
   name: SCHEDULER_CPU_LIMIT
   required: true
-  value: 200m
+  value: 100m
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
@@ -2405,19 +2405,19 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 150Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 300Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true
-  value: 100m
+  value: 50m
 - displayName: CPU Limit
   name: SOURCES_CLIENT_CPU_LIMIT
   required: true
-  value: 200m
+  value: 100m
 - displayName: Log Level for sources client
   name: SOURCES_CLIENT_KOKU_LOG_LEVEL
   required: true
@@ -2429,11 +2429,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 150Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 300Mi
 - displayName: CPU Request
   name: SOURCES_LISTENER_CPU_REQUEST
   required: true
@@ -2453,7 +2453,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_CELERY_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_CELERY_MEMORY_LIMIT
   required: true
@@ -2477,11 +2477,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_COST_MODEL_CPU_REQUEST
   required: true
@@ -2501,7 +2501,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_DOWNLOAD_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: Memory Limit
   name: WORKER_DOWNLOAD_MEMORY_LIMIT
   required: true
@@ -2509,11 +2509,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
-  value: 100m
+  value: 200m
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 500m
+  value: 400m
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2525,11 +2525,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_OCP_CPU_REQUEST
   required: true
@@ -2549,7 +2549,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
@@ -2557,11 +2557,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 100m
+  value: 150m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -2573,11 +2573,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_REFRESH_CPU_REQUEST
   required: true
@@ -2597,7 +2597,7 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true

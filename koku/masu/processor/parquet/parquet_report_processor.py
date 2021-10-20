@@ -311,10 +311,6 @@ class ParquetReportProcessor:
         for us to convert the archived data.
         """
         parquet_base_filename = ""
-        if not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
-            msg = "Skipping convert_to_parquet. Parquet processing is disabled."
-            LOG.info(log_json(self.tracing_id, msg, self.error_context))
-            return "", pd.DataFrame()
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
             msg = (
@@ -346,6 +342,7 @@ class ParquetReportProcessor:
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         failed_conversion = []
+        daily_data_frames = []
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = f"Could not establish report type for {csv_filename}."
@@ -353,7 +350,8 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
+            parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
+            daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
@@ -503,16 +501,20 @@ class ParquetReportProcessor:
         parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
-        for f in self.file_list:
-            if os.path.exists(f):
-                os.remove(f)
+        if (
+            self.provider_type != Provider.PROVIDER_OCP
+            and not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name)
+        ) or enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
+            for f in self.file_list:
+                if os.path.exists(f):
+                    os.remove(f)
 
-        for f in self.files_to_remove:
-            if os.path.exists(f):
-                os.remove(f)
+            for f in self.files_to_remove:
+                if os.path.exists(f):
+                    os.remove(f)
 
-        if os.path.exists(self.report_file):
-            os.remove(self.report_file)
+            if os.path.exists(self.report_file):
+                os.remove(self.report_file)
 
         return parquet_base_filename, daily_data_frames
 
