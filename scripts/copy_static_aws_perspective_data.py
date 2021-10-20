@@ -89,7 +89,7 @@ select schema_name
  where schema_name ~ '^acct';
 """
     LOG.info("Getting all customer schemata...")
-    return _execute(conn, sql).fetchall()
+    return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
 
 
 def get_or_create_partitions(conn, schema_name, partitioned_table, start_date):
@@ -155,11 +155,11 @@ returning id;
 
 def get_partable_min(conn, schema_name, partable_name):
     sql = f"""
-select date_trunc('month', coakesce(min(usage_start), current_date)::date as "min_start"
+select min(usage_start)::date as "min_start"
   from {schema_name}.{partable_name};
 """
     LOG.info(f"Getting the minimum partition start from {schema_name}.{partable_name}")
-    min_start = _execute(conn, sql).fetchone()["min_start"]
+    min_start = _execute(conn, sql).fetchone()["min_start"] or datetime.date.today().replace(day=1)
     return min_start
 
 
@@ -237,14 +237,13 @@ def process_aws_matviews(conn, schemata, matviews):
 
 
 def main():
-    conn = connect()
-
-    try:
+    with connect() as conn:
         matviews = get_aws_matviews(conn)
         schemata = get_customer_schemata(conn)
         conn.rollback()  # close any open tx from selects
 
         process_aws_matviews(conn, schemata, matviews)
-    finally:
-        conn.rollback()
-        conn.close()
+
+
+if __name__ == "__main__":
+    main()
