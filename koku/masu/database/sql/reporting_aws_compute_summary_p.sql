@@ -48,7 +48,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             AND usage_start <= {{end_date}}::date
             AND instance_type IS NOT NULL
             AND source_uuid = {{source_uuid}}
-        GROUP BY usage_start, instance_type, source_uuid
+        GROUP BY usage_start, instance_type
     ) AS c
     JOIN (
         -- this group by gets the distinct resources running by day
