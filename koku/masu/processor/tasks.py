@@ -22,6 +22,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import fallback_true
 from koku.feature_flags import UNLEASH_CLIENT
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -566,7 +567,7 @@ def refresh_materialized_views(  # noqa: C901
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
-        if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", default_value=True):
+        if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", fallback_function=fallback_true):
             materialized_views = (
                 AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
             )
