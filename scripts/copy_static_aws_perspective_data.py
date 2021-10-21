@@ -9,6 +9,7 @@ import psycopg2
 from app_common_python import LoadedConfig
 from dateutil.relativedelta import relativedelta
 from psycopg2 import ProgrammingError
+from psycopg2.errors import ForeignKeyViolation
 from psycopg2.extras import RealDictCursor
 
 
@@ -85,9 +86,12 @@ select mi.matview_name,
 
 def get_customer_schemata(conn):
     sql = """
-select schema_name
-  from public.api_tenant
- where schema_name ~ '^acct';
+select t.schema_name
+  from public.api_tenant t
+  join public.api_customer c
+    on c.schema_name = t.schema_name
+ where t.schema_name ~ '^acct'
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^AWS');
 """
     LOG.info("Getting all customer schemata...")
     return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
@@ -218,8 +222,11 @@ def process_aws_matviews(conn, schemata, matviews):
     LOG.info("This script is part of Jira ticket COST-1976 https://issues.redhat.com/browse/COST-1976")
     LOG.info("This script is speficically for sub-task COST-1979 https://issues.redhat.com/browse/COST-1979")
 
+    i = 0
+    tot = len(schemata)
     for schema in schemata:
-        LOG.info(f"***** Running copy against schema {schema} *****")
+        i += 1
+        LOG.info(f"***** Running copy against schema {schema} ({i} / {tot}) *****")
         _execute(conn, f"set search_path = {schema}, public;")
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
@@ -235,8 +242,9 @@ def process_aws_matviews(conn, schemata, matviews):
                 conn.rollback()
                 continue
             except Exception as e:
+                conn.rollback()
                 LOG.error(f"{e.__class__.__name__} :: {e}")
-                raise e
+                continue
             else:
                 conn.commit()
 
@@ -249,15 +257,15 @@ def process_aws_matviews(conn, schemata, matviews):
                     matview_info["partable_cols"],
                     matview_info["matview_name"],
                 )
-            except ProgrammingError as p:
+            except (ProgrammingError, ForeignKeyViolation) as p:
                 LOG.warning(
                     f"{p.__class__.__name__} :: {p}{os.linesep}Rolling back copy transaction "
                     + f"for {schema}.{matview_info['matview_name']}."
                 )
                 conn.rollback()
             except Exception as e:
+                conn.rollback()
                 LOG.error(f"{e.__class__.__name__} :: {e}")
-                raise e
             else:
                 conn.commit()
 
