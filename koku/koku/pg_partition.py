@@ -1872,11 +1872,15 @@ def get_or_create_partition(part_rec):
 
 
 class PartitionHandlerMixin:
-    def _handle_partitions(self, schema_name, table_names, start_date, end_date):
+    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqas: C901
         if isinstance(start_date, datetime.datetime):
             start_date = start_date.date()
+        elif isinstance(start_date, str):
+            start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, datetime.datetime):
             end_date = end_date.date()
+        elif isinstance(end_date, str):
+            end_date = ciso8601.parse_datetime(end_date).date()
         if isinstance(table_names, str):
             table_names = [table_names]
 
