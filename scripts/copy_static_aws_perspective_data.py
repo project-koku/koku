@@ -28,7 +28,7 @@ def connect():
     port = LoadedConfig.database.port
     db = LoadedConfig.database.name
     app = os.path.basename(sys.argv[0])
-    url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=require&application_name={app}"
+    url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=prefer&application_name={app}"
 
     LOG.info(f"Connecting to {db} at {host}:{port} as {user}")
 
