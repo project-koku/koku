@@ -11,6 +11,13 @@ from psycopg2 import ProgrammingError
 from psycopg2.extras import RealDictCursor
 
 
+my_dir = os.path.dirname(os.path.abspath(__file__))
+app_dir = os.path.sep.join(my_dir.split(os.path.sep)[:-1] + ["koku"])
+sys.path.append(app_dir)
+
+from koku.configurator import EnvConfigurator  # noqa
+
+
 logging.basicConfig(
     format="%(asctime)s: %(message)s",
     datefmt="%m/%d/%Y %I:%M:%S %p",
@@ -20,12 +27,12 @@ LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_aws_matview_data_c
 
 
 def connect():
-    engine = os.environ.get("DATABASE_ENGINE", "postgresql")
-    user = os.environ.get("DATABASE_USER", "postgres")
-    passed = os.environ.get("DATABASE_PASSWORD", "postgres")
-    host = os.environ.get("POSTGRES_SQL_SERVICE_HOST", "db")
-    port = os.environ.get("POSTGRES_SQL_SERVICE_PORT", "5432")
-    db = os.environ.get("DATABASE_NAME", "postgres")
+    engine = "postgresql"
+    user = EnvConfigurator.get_database_user()
+    passed = EnvConfigurator.get_database_password()
+    host = EnvConfigurator.get_database_host()
+    port = EnvConfigurator.get_database_port()
+    db = EnvConfigurator.get_database_name()
     app = os.path.basename(sys.argv[0])
     url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=require&application_name={app}"
 
