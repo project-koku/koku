@@ -66,7 +66,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date('{{start_date | sqlsafe}}')
-        AND usage_start <= date('{{start_date | sqlsafe}}')
+        AND usage_start <= date('{{end_date | sqlsafe}}')
     GROUP BY report_period_id,
         cluster_id,
         cluster_alias,
