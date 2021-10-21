@@ -223,12 +223,12 @@ def process_aws_matviews(conn, schemata, matviews):
         _execute(conn, f"set search_path = {schema}, public;")
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
-            partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
             try:
+                partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
                 drop_partitions(conn, schema, matview_info["partable_name"])
                 get_or_create_partitions(conn, schema, matview_info["partable_name"], partable_min_date)
             except ProgrammingError as p:
-                LOG.error(
+                LOG.warning(
                     f"{p.__class__.__name__} :: {p}{os.linesep}Skip processing "
                     + f"for {schema}.{matview_info['matview_name']}."
                 )
@@ -250,7 +250,7 @@ def process_aws_matviews(conn, schemata, matviews):
                     matview_info["matview_name"],
                 )
             except ProgrammingError as p:
-                LOG.error(
+                LOG.warning(
                     f"{p.__class__.__name__} :: {p}{os.linesep}Rolling back copy transaction "
                     + f"for {schema}.{matview_info['matview_name']}."
                 )
