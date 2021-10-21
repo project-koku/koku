@@ -26,7 +26,7 @@ def connect():
     passed = LoadedConfig.database.password
     host = LoadedConfig.database.hostname
     port = LoadedConfig.database.port
-    db = LoadedConfig.database.namev
+    db = LoadedConfig.database.name
     app = os.path.basename(sys.argv[0])
     url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=require&application_name={app}"
 
