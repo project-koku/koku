@@ -9,6 +9,10 @@ objects:
   metadata:
     name: koku-cji
   spec:
+    database:
+      sharedDbAppName: koku
+    dependencies:
+      - koku
     envName: ${ENV_NAME}
     jobs:
     - name: script-runner-${IMAGE_TAG}
