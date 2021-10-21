@@ -13,6 +13,7 @@ import django
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
+from django.db import IntegrityError
 from django.db import models
 from django.db import OperationalError
 from django.db import transaction
@@ -54,6 +55,20 @@ PARTITIONED_MODEL_NAMES = [
     "OCPAllDatabaseSummaryPT",
     "OCPAllNetworkSummaryPT",
     "OCPAllStorageSummaryPT",
+    "AWSCostSummaryP",
+    "AWSCostSummaryByServiceP",
+    "AWSCostSummaryByAccountP",
+    "AWSCostSummaryByRegionP",
+    "AWSComputeSummaryP",
+    "AWSComputeSummaryByServiceP",
+    "AWSComputeSummaryByAccountP",
+    "AWSComputeSummaryByRegionP",
+    "AWSStorageSummaryP",
+    "AWSStorageSummaryByServiceP",
+    "AWSStorageSummaryByAccountP",
+    "AWSStorageSummaryByRegionP",
+    "AWSNetworkSummaryP",
+    "AWSDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
@@ -162,7 +177,7 @@ def check_migrations():
             verify_migrations_dbfunc(connection)
             res = check_migrations_dbfunc(connection, targets)
         return res
-    except OperationalError:
+    except (IntegrityError, OperationalError):
         return False
 
 

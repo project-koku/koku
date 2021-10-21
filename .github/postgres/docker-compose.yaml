@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  db:
+    image: postgres:12
+    environment:
+    - DATABASE_NAME=${DATABASE_NAME-postgres}
+    - POSTGRES_USER=${DATABASE_USER-postgres}
+    - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
+    ports:
+      - 5432:5432
+    command:
+      - postgres
+      - -c
+      - max_connections=1710
+      - -c
+      - autovacuum_max_workers=8
+      - -c
+      - autovacuum_vacuum_cost_limit=4800
+      - -c
+      - autovacuum_vacuum_cost_delay=10
+      - -c
+      - max_locks_per_transaction=72
