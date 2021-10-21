@@ -99,6 +99,18 @@ select schema_name
     return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
 
 
+def drop_partitions(conn, schema_name, partitioned_table):
+    drop_sql = f"""
+delete
+  from {schema_name}.partitioned_tables
+ where schema_name = %s
+   and partition_of_table_name = %s
+   and partition_parameters->>'default' = 'false';
+"""
+    LOG.info(f"Dropping partitions for {schema_name}.{partitioned_table}")
+    _execute(conn, drop_sql, (schema_name, partitioned_table))
+
+
 def get_or_create_partitions(conn, schema_name, partitioned_table, start_date):
     get_sql = f"""
 select id
@@ -182,13 +194,13 @@ select min(usage_start)::date as "min_start"
     return min_start
 
 
-def copy_data(conn, schema_name, dest_table, dest_cols, source_view, min_start):
+def copy_data(conn, schema_name, dest_table, dest_cols, source_view):
     copy_sql = """
 insert
   into {schema_name}.{partable_name} ({ins_cols})
 select uuid_generate_v4(), {sel_cols}
   from {schema_name}.{matview_name} mv
- where mv.usage_start < coalesce(%(min_start)s, date_trunc('month', current_date)::date);
+;
 """
 
     ins_cols = ", ".join(dest_cols)
@@ -200,8 +212,8 @@ select uuid_generate_v4(), {sel_cols}
         sel_cols=sel_cols,
         matview_name=source_view,
     )
-    LOG.info(f"Copying data earlier than {min_start} from {schema_name}.{source_view} to {schema_name}.{dest_table}")
-    cur = _execute(conn, sql, {"min_start": min_start})
+    LOG.info(f"Copying data from {schema_name}.{source_view} to {schema_name}.{dest_table}")
+    cur = _execute(conn, sql)
     records_copied = cur.rowcount
     LOG.info(f"Copied {records_copied} records")
 
@@ -214,11 +226,12 @@ def process_aws_matviews(conn, schemata, matviews):
 
     for schema in schemata:
         LOG.info(f"***** Running copy against schema {schema} *****")
+        _execute(conn, f"set search_path = {schema}, public;")
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
-            copy_threshold_date = get_partable_min(conn, schema, matview_info["partable_name"])
             partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
             try:
+                drop_partitions(conn, schema, matview_info["partable_name"])
                 get_or_create_partitions(conn, schema, matview_info["partable_name"], partable_min_date)
             except ProgrammingError as p:
                 LOG.error(
@@ -241,7 +254,6 @@ def process_aws_matviews(conn, schemata, matviews):
                     matview_info["partable_name"],
                     matview_info["partable_cols"],
                     matview_info["matview_name"],
-                    copy_threshold_date,
                 )
             except ProgrammingError as p:
                 LOG.error(
