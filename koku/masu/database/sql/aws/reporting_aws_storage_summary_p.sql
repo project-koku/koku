@@ -29,7 +29,7 @@ SELECT uuid_generate_v4() as id,
     sum(savingsplan_effective_cost) as savingsplan_effective_cost,
     sum(markup_cost) as markup_cost,
     max(currency_code) as currency_code,
-    {{source_uuid}}
+    {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
 -- Get data for this month or last month
 WHERE product_family LIKE '%Storage%'

@@ -54,7 +54,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_by_account_p (
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency_code) AS currency_code,
-            {{source_uuid}} as source_uuid
+            {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
             AND usage_start <= {{end_date}}::date
