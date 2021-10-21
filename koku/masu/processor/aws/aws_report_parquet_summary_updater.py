@@ -11,12 +11,12 @@ from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
-from koku.reporting.provider.aws.models import UI_SUMMARY_TABLES
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 

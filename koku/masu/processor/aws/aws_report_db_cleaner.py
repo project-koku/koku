@@ -11,9 +11,9 @@ from tenant_schemas.utils import schema_context
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
 from koku.database import get_model
-from koku.reporting.models import UI_SUMMARY_TABLES
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from reporting.models import PartitionedTable
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 
 LOG = logging.getLogger(__name__)

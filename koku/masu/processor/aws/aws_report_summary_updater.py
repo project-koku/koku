@@ -10,12 +10,12 @@ import logging
 from tenant_schemas.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
-from koku.reporting.provider.aws.models import UI_SUMMARY_TABLES
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
 from masu.util.common import date_range_pair
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
