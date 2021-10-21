@@ -519,7 +519,3 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
 
         return [json.loads(result[0]) for result in results]
-
-    # COST-1978
-    # Add post-processing sql execution methods here. Please use the "_execute_processing_script" method
-    # See koku/koku/masu/database/ocp_report_db_accessor.py for a reference
