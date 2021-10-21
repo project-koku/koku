@@ -1,7 +1,7 @@
 DELETE FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
-    AND source_uuid_id = {{source_uuid}}
+    AND source_uuid = {{source_uuid}}
 ;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
@@ -14,10 +14,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
     usage_amount,
     unit,
     unblended_cost,
+    blended_cost,
     savingsplan_effective_cost,
     markup_cost,
     currency_code,
-    source_uuid_id
+    source_uuid
 )
     SELECT uuid_generate_v4() as id,
         c.usage_start,
@@ -28,6 +29,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
         c.usage_amount,
         c.unit,
         c.unblended_cost,
+        c.blended_cost,
         c.savingsplan_effective_cost,
         c.markup_cost,
         c.currency_code,
@@ -39,6 +41,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SUM(usage_amount) AS usage_amount,
             MAX(unit) AS unit,
             SUM(unblended_cost) AS unblended_cost,
+            SUM(blended_cost) AS blended_cost,
             SUM(markup_cost) AS markup_cost,
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             MAX(currency_code) AS currency_code,

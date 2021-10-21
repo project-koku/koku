@@ -1,7 +1,7 @@
 DELETE FROM {{schema | sqlsafe}}.reporting_aws_storage_summary_by_region_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
-    AND source_uuid_id = {{source_uuid}}
+    AND source_uuid = {{source_uuid}}
 ;
 
 INSERT INTO {{schema | sqlsafe}}.reporting_aws_storage_summary_by_region_p (
@@ -17,6 +17,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_storage_summary_by_region_p (
     usage_amount,
     unit,
     unblended_cost,
+    blended_cost,
     savingsplan_effective_cost,
     markup_cost,
     currency_code,
@@ -34,6 +35,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_storage_summary_by_region_p (
         sum(usage_amount) as usage_amount,
         max(unit) as unit,
         sum(unblended_cost) as unblended_cost,
+        sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,
