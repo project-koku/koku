@@ -38,7 +38,7 @@ SELECT uuid_generate_v4() as id,
     {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
 -- Get data for this month or last month
-WHERE product_family LIKE '%Storage%'
+WHERE product_family LIKE '%%Storage%%'
     AND unit = 'GB-Mo'
     AND usage_start >= {{start_date}}::date
     AND usage_end <= {{end_date}}::date
