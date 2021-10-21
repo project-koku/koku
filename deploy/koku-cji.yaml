@@ -24,6 +24,8 @@ objects:
           value: ${PRESTO_PORT}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
         image: ${IMAGE}:${IMAGE_TAG}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
@@ -54,3 +56,6 @@ parameters:
 - displayName: Prometheus multiproc dir
   name: PROMETHEUS_DIR
   value: /tmp
+- name: CLOWDER_ENABLED
+  required: true
+  value: "True"
