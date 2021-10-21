@@ -147,10 +147,22 @@ returning id;
         else:
             LOG.info(f"Creating partition {partition_name}")
             table_partition_rec["table_name"] = partition_name
-            partition_parameters["from"] = partition_start
-            partition_parameters["to"] = partition_end
+            partition_parameters["from"] = str(partition_start)
+            partition_parameters["to"] = str(partition_end)
             table_partition_rec["partition_parameters"] = json.dumps(partition_parameters)
             _execute(conn, ins_sql, table_partition_rec)
+
+        partition_start = partition_end
+
+
+def get_matview_min(conn, schema_name, matview_name):
+    sql = f"""
+select min(usage_start)::date as "min_start"
+  from {schema_name}.{matview_name};
+"""
+    LOG.info(f"Getting the minimum matview start from {schema_name}.{matview_name}")
+    min_start = _execute(conn, sql).fetchone()["min_start"] or datetime.date.today().replace(day=1)
+    return min_start
 
 
 def get_partable_min(conn, schema_name, partable_name):
@@ -167,27 +179,28 @@ def copy_data(conn, schema_name, dest_table, dest_cols, source_view, min_start):
     copy_sql = """
 insert
   into {schema_name}.{partable_name} ({ins_cols})
-select generate_uuid_v4(), {sel_cols}
-  from {matview_name} mv
- cross
-  join month_bounds mb
+select uuid_generate_v4(), {sel_cols}
+  from {schema_name}.{matview_name} mv
  where mv.usage_start < coalesce(%(min_start)s, date_trunc('month', current_date)::date);
 """
 
-    ins_cols = dest_cols[:]
-    sel_cols = [c for c in dest_cols if c != "id"]
+    ins_cols = ", ".join(dest_cols)
+    sel_cols = ", ".join(c if c != "blended_cost" else "null" for c in dest_cols if c != "id")
     sql = copy_sql.format(
-        {
-            "schema_name": schema_name,
-            "partable_name": dest_table,
-            "ins_cols": ins_cols,
-            "sel_cols": sel_cols,
-            "matview_name": source_view,
-        }
+        schema_name=schema_name,
+        partable_name=dest_table,
+        ins_cols=ins_cols,
+        sel_cols=sel_cols,
+        matview_name=source_view,
     )
-    LOG.info(f"Copying data from {schema_name}.{source_view} to {schema_name}.{dest_table}...")
+    LOG.info(
+        f"Copying data from {schema_name}.{source_view} to {schema_name}.{dest_table} "
+        + f"from {min_start} to {datetime.date.today()}"
+    )
     cur = _execute(conn, sql, {"min_start": min_start})
     records_copied = cur.rowcount
+    LOG.info(f"Copied {records_copied} records")
+
     return records_copied
 
 
@@ -196,11 +209,13 @@ def process_aws_matviews(conn, schemata, matviews):
     LOG.info("This script is speficically for sub-task COST-1979 https://issues.redhat.com/browse/COST-1979")
 
     for schema in schemata:
+        LOG.info(f"***** Running copy against schema {schema} *****")
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
-            partable_min = get_partable_min(conn, schema, matview_info["partable_name"])
+            copy_threshold_date = get_partable_min(conn, schema, matview_info["partable_name"])
+            partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
             try:
-                get_or_create_partitions(conn, schema, matview_info["partable_name"], partable_min)
+                get_or_create_partitions(conn, schema, matview_info["partable_name"], partable_min_date)
             except ProgrammingError as p:
                 LOG.error(
                     f"{p.__class__.__name__} :: {p}{os.linesep}Skip processing "
@@ -215,13 +230,14 @@ def process_aws_matviews(conn, schemata, matviews):
                 conn.commit()
 
             try:
+                # copy data earlier than the threshold since it should be static.
                 copy_data(
                     conn,
                     schema,
                     matview_info["partable_name"],
                     matview_info["partable_cols"],
                     matview_info["matview_name"],
-                    partable_min,
+                    copy_threshold_date,
                 )
             except ProgrammingError as p:
                 LOG.error(
