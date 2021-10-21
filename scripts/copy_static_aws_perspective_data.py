@@ -193,10 +193,7 @@ select uuid_generate_v4(), {sel_cols}
         sel_cols=sel_cols,
         matview_name=source_view,
     )
-    LOG.info(
-        f"Copying data from {schema_name}.{source_view} to {schema_name}.{dest_table} "
-        + f"from {min_start} to {datetime.date.today()}"
-    )
+    LOG.info(f"Copying data earlier than {min_start} from {schema_name}.{source_view} to {schema_name}.{dest_table}")
     cur = _execute(conn, sql, {"min_start": min_start})
     records_copied = cur.rowcount
     LOG.info(f"Copied {records_copied} records")
