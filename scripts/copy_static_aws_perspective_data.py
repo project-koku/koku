@@ -23,14 +23,14 @@ LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_aws_matview_data_c
 
 def connect():
     engine = "postgresql"
+    app = os.path.basename(sys.argv[0])
     user = LoadedConfig.database.username
     passed = LoadedConfig.database.password
     host = LoadedConfig.database.hostname
     port = LoadedConfig.database.port
     db = LoadedConfig.database.name
-    app = os.path.basename(sys.argv[0])
-    url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=prefer&application_name={app}"
 
+    url = f"{engine}://{user}:{passed}@{host}:{port}/{db}?sslmode=prefer&application_name={app}"
     LOG.info(f"Connecting to {db} at {host}:{port} as {user}")
 
     return psycopg2.connect(url, cursor_factory=RealDictCursor)
@@ -218,7 +218,14 @@ select uuid_generate_v4(), {sel_cols}
     return records_copied
 
 
-def process_aws_matviews(conn, schemata, matviews):
+def data_exists(conn, schema_name, partable_name):
+    res = _execute(
+        conn, f"select exists(select 1 from {schema_name}.{partable_name})::boolean as data_exists;"
+    ).fetchone()
+    return res["data_exists"]
+
+
+def process_aws_matviews(conn, schemata, matviews):  # noqa
     LOG.info("This script is part of Jira ticket COST-1976 https://issues.redhat.com/browse/COST-1976")
     LOG.info("This script is speficically for sub-task COST-1979 https://issues.redhat.com/browse/COST-1979")
 
@@ -231,8 +238,11 @@ def process_aws_matviews(conn, schemata, matviews):
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
             try:
+                if data_exists(conn, schema, matview_info["partable_name"]):
+                    LOG.info(f"Materialized view {schema}.{matview_info['matview_name']} has already been processed.")
+                    continue
                 partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
-                drop_partitions(conn, schema, matview_info["partable_name"])
+                # drop_partitions(conn, schema, matview_info["partable_name"])
                 get_or_create_partitions(conn, schema, matview_info["partable_name"], partable_min_date)
             except ProgrammingError as p:
                 LOG.warning(
@@ -243,10 +253,18 @@ def process_aws_matviews(conn, schemata, matviews):
                 continue
             except Exception as e:
                 conn.rollback()
-                LOG.error(f"{e.__class__.__name__} :: {e}")
+                LOG.warning(f"VERY WARNING :: {e.__class__.__name__} :: {e}")
                 continue
             else:
-                conn.commit()
+                try:
+                    conn.commit()
+                except Exception as x1:
+                    LOG.warning(
+                        f"{x1.__class__.__name__} :: {x1}{os.linesep}Skip processing "
+                        + f"for {schema}.{matview_info['matview_name']}."
+                    )
+                    conn.rollback()
+                    continue
 
             try:
                 # copy data earlier than the threshold since it should be static.
@@ -265,9 +283,16 @@ def process_aws_matviews(conn, schemata, matviews):
                 conn.rollback()
             except Exception as e:
                 conn.rollback()
-                LOG.error(f"{e.__class__.__name__} :: {e}")
+                LOG.warning(f"VERY WARNING :: {e.__class__.__name__} :: {e}")
             else:
-                conn.commit()
+                try:
+                    conn.commit()
+                except Exception as x1:
+                    LOG.warning(
+                        f"{x1.__class__.__name__} :: {x1}{os.linesep}Rollback copy transaction on COMMIT exception "
+                        + f"for {schema}.{matview_info['matview_name']}."
+                    )
+                    conn.rollback()
 
 
 def main():
