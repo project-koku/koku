@@ -218,9 +218,11 @@ select uuid_generate_v4(), {sel_cols}
     return records_copied
 
 
-def get_table_count(conn, schema_name, partable_name):
-    res = _execute(conn, f"select count(*) as ct from {schema_name}.{partable_name};").fetchone()
-    return res["ct"]
+def data_exists(conn, schema_name, partable_name):
+    res = _execute(
+        conn, f"select exists(select 1 from {schema_name}.{partable_name})::boolean as data_exists;"
+    ).fetchone()
+    return res["data_exists"]
 
 
 def process_aws_matviews(conn, schemata, matviews):  # noqa
@@ -236,7 +238,7 @@ def process_aws_matviews(conn, schemata, matviews):  # noqa
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
             try:
-                if get_table_count(conn, schema, matview_info["partable_name"]) > 0:
+                if data_exists(conn, schema, matview_info["partable_name"]):
                     LOG.info(f"Materialized view {schema}.{matview_info['matview_name']} has already been processed.")
                     continue
                 partable_min_date = get_matview_min(conn, schema, matview_info["matview_name"])
