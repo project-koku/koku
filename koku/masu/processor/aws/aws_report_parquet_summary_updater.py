@@ -10,16 +10,18 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportParquetSummaryUpdater:
+class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update AWS report parquet summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -85,6 +87,9 @@ class AWSReportParquetSummaryUpdater:
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
 
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
         with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
@@ -109,8 +114,10 @@ class AWSReportParquetSummaryUpdater:
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
                 # accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
+
             # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
