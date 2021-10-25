@@ -6,8 +6,8 @@
 import json
 import logging
 import os
-import re
 import pkgutil
+import re
 import threading
 import types
 
