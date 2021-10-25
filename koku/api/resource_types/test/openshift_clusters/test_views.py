@@ -15,7 +15,7 @@ from api.iam.test.iam_test_case import RbacPermissions
 from reporting.provider.ocp.models import OCPCostSummary
 
 
-class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
+class ResourceTypesViewTestOpenshiftClusters(IamTestCase):
     """Tests the resource types views."""
 
     def setUp(self):
@@ -24,7 +24,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         self.client = APIClient()
 
     @RbacPermissions({"openshift.cluster": {"read": ["OCP-on-AWS"]}})
-    def test_openshift_project_with_cluster_access_view(self):
+    def test_openshift_cluster_with_cluster_access_view(self):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
@@ -33,7 +33,6 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
                 )
                 .values("value", "ocp_cluster_alias")
                 .distinct()
-                .filter(cluster_id__isnull=False)
                 .filter(cluster_id__in=["OCP-on-AWS"])
                 .count()
             )
