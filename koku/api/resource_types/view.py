@@ -13,7 +13,7 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.query_params import get_tenant
 from cost_models.models import CostModel
-from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
@@ -34,7 +34,7 @@ class ResourceTypeView(APIView):
         tenant = get_tenant(request.user)
         with tenant_context(tenant):
 
-            aws_account_count = AWSCostSummaryByAccount.objects.values("usage_account_id").distinct().count()
+            aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccount.objects.values("account_id").distinct().count()
             gcp_project_count = GCPCostSummaryByProject.objects.values("project_id").distinct().count()
             aws_org_unit_count = (

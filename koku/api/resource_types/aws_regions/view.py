@@ -14,14 +14,14 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostSummaryByRegion
+from reporting.provider.aws.models import AWSCostSummaryByRegionP
 
 
 class AWSAccountRegionView(generics.ListAPIView):
     """API GET list view for AWS by region"""
 
     queryset = (
-        AWSCostSummaryByRegion.objects.annotate(**{"value": F("region")})
+        AWSCostSummaryByRegionP.objects.annotate(**{"value": F("region")})
         .values("value")
         .distinct()
         .filter(region__isnull=False)

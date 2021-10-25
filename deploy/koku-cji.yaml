@@ -9,6 +9,10 @@ objects:
   metadata:
     name: koku-cji
   spec:
+    database:
+      sharedDbAppName: koku
+    dependencies:
+      - koku
     envName: ${ENV_NAME}
     jobs:
     - name: script-runner-${IMAGE_TAG}
@@ -22,6 +26,10 @@ objects:
           value: ${PRESTO_HOST}
         - name: PRESTO_PORT
           value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
         image: ${IMAGE}:${IMAGE_TAG}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
@@ -49,3 +57,9 @@ parameters:
 - displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "8000"
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- name: CLOWDER_ENABLED
+  required: true
+  value: "True"
