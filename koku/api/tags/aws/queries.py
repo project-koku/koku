@@ -40,7 +40,11 @@ class AWSTagQueryHandler(TagQueryHandler):
         """
         self._parameters = parameters
         if not hasattr(self, "_mapper"):
-            self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = AWSProviderMap(
+                provider=self.provider,
+                report_type=parameters.report_type,
+                cost_type=parameters.parameters.get("cost_type"),
+            )
 
         if parameters.get_filter("enabled") is None:
             parameters.set_filter(**{"enabled": True})
