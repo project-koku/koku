@@ -1,6 +1,6 @@
--- OCP ON ALL COST SUMMARY PROCESSING (AWS DATA)
+-- OCP ON ALL COST SUMMARY PROCESSING
 -- CLEAR DATA FROM reporting_ocpall_cost_summary_pt
--- FOR {{start_date}} - {{end_date}}; source_type {{source_type_upper}}; source {{source_uuid}}; cluster {{cluster_id}}
+-- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
 DELETE
   FROM {{schema_name | sqlsafe}}.reporting_ocpall_cost_summary_pt
  WHERE usage_start >= {{start_date}}::date
@@ -11,11 +11,11 @@ DELETE
 
 
 -- INSERT NEW DATA INTO reporting_ocpall_cost_summary_pt
--- FOR {{start_date}} - {{end_date}}; source_type {{source_type_upper}}; source {{source_uuid}}; cluster {{cluster_id}}
+-- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
 INSERT
   INTO {{schema_name | sqlsafe}}.reporting_ocpall_cost_summary_pt
        (
-           data_source,
+           source_type,
            usage_start,
            usage_end,
            cluster_id,
@@ -33,7 +33,7 @@ SELECT {{source_type}},
        sum(unblended_cost),
        sum(markup_cost),
        max(currency_code),
-       {{source_uuid}}
+       {{source_uuid}}::uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date

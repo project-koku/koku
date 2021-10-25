@@ -698,6 +698,8 @@ class OCPAllCostSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllCostSummaryByAccountPT(models.Model):
     """A PARTITIONED TABLE specifically for UI API queries.
@@ -738,6 +740,8 @@ class OCPAllCostSummaryByAccountPT(models.Model):
     currency_code = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllCostSummaryByServicePT(models.Model):
@@ -786,6 +790,8 @@ class OCPAllCostSummaryByServicePT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllCostSummaryByRegionPT(models.Model):
     """A PARTITIONED TABLE specifically for UI API queries.
@@ -832,6 +838,8 @@ class OCPAllCostSummaryByRegionPT(models.Model):
     currency_code = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllComputeSummaryPT(models.Model):
@@ -885,6 +893,8 @@ class OCPAllComputeSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllDatabaseSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
@@ -932,6 +942,8 @@ class OCPAllDatabaseSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllNetworkSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the network service category."""
@@ -977,6 +989,8 @@ class OCPAllNetworkSummaryPT(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllStorageSummaryPT(models.Model):
@@ -1027,6 +1041,8 @@ class OCPAllStorageSummaryPT(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 # ======================================================

@@ -2288,34 +2288,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_all_perspectives(self, sql_params):
         for perspective in OCP_ON_ALL_PERSPECTIVES:
-            LOG.info(f"Populating {perspective} data using {sql_params}...")
+            LOG.info(f"Populating {perspective} data using {sql_params}")
             script_file_path = f"sql/{perspective}.sql"
             self._execute_processing_script("masu.database", script_file_path, sql_params)
-
-    # def populate_ocp_on_all_cost_summary(self, sql_params):
-    #     LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_cost_summary")
-    #     script_file_path = f"sql/reporting_ocpall_cost_summary_pt.sql"
-    #     self._execute_processing_script("masu.database", script_file_path, sql_params)
-
-    # def populate_ocp_on_all_cost_by_account_summary(self):
-    #     pass
-
-    # def populate_ocp_on_all_cost_by_region_summary(self):
-    #     pass
-
-    # def populate_ocp_on_all_cost_by_service_summary(self):
-    #     pass
-
-    # def populate_ocp_on_all_compute_summary(self, sql_params):
-    #     LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_compute_summary")
-    #     script_file_path = f"sql/reporting_ocpall_compute_summary_pt.sql"
-    #     self._execute_processing_script(script_file_path, sql_params)
-
-    # def populate_ocp_on_all_database_summary(self):
-    #     pass
-
-    # def populate_ocp_on_all_network_summary(self):
-    #     pass
-
-    # def populate_ocp_on_all_storage_summary(self):
-    #     pass
