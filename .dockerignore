@@ -11,4 +11,4 @@
 !db_functions/
 !scripts/run_migrations.sh
 !scripts/job_script.sh
-!scripts/migrate_trino.py
+!scripts/copy_static_aws_perspective_data.py
