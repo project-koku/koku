@@ -19,8 +19,11 @@ from api.settings.utils import create_plain_text_with_doc
 from api.settings.utils import create_select
 from api.settings.utils import create_subform
 from api.settings.utils import generate_doc_link
+from api.settings.utils import get_cost_type_options
 from api.settings.utils import get_currency_options
+from api.settings.utils import get_selected_cost_type_or_setup
 from api.settings.utils import get_selected_currency_or_setup
+from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.settings.utils import SETTINGS_PREFIX
 from api.tags.aws.queries import AWSTagQueryHandler
@@ -145,6 +148,7 @@ class Settings:
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
 
+        sub_form_fields = []
         avail_objs = []
         enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
@@ -176,31 +180,45 @@ class Settings:
         dual_list_name = f'{"api.settings.tag-management.enabled"}'
         tags_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
+        for field in enable_tags_title, tag_key_text, tags_and_labels:
+            sub_form_fields.append(field)
+
         # currency settings TODO: only show in dev mode right now
         if settings.DEVELOPMENT:
             currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency view for your organizations."
+            currency_text_context = "Select the preferred currency view for your organization."
             currency_title = create_plain_text(currency_select_name, "Currency", "h2")
-            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "h4")
+            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
             currency_options = {
-                "label": "Currency",
                 "options": get_currency_options(),
                 "initialValue": get_selected_currency_or_setup(self.schema),
                 "FormGroupProps": {"style": {"width": "400px"}},
             }
             currency = create_select(currency_select_name, **currency_options)
 
-            sub_form_fields = [
-                currency_title,
-                currency_select_text,
-                currency,
-                enable_tags_title,
-                tag_key_text,
-                tags_and_labels,
-            ]
+            idx = 0
+            for field in currency_title, currency_select_text, currency:
+                sub_form_fields.insert(idx, field)
+                idx += 1
 
-        else:
-            sub_form_fields = [enable_tags_title, tag_key_text, tags_and_labels]
+        # cost_type plan settings TODO: only show in dev mode right now
+        if settings.DEVELOPMENT:
+            cost_type_select_name = f'{"api.settings.cost_type"}'
+            cost_type_text_context = (
+                "Select the preferred way of calculating upfront costs, either through savings "
+                "plans or subscription fees. This feature is available for Amazon Web Services cost only."
+            )
+            cost_type_title = create_plain_text(cost_type_select_name, "Show cost as (Amazon Web Services Only)", "h2")
+            cost_type_select_text = create_plain_text(cost_type_select_name, cost_type_text_context, "p")
+            cost_type_options = {
+                "options": get_cost_type_options(),
+                "initialValue": get_selected_cost_type_or_setup(self.schema),
+                "FormGroupProps": {"style": {"width": "400px"}},
+            }
+            cost_type = create_select(cost_type_select_name, **cost_type_options)
+
+            for field in cost_type_title, cost_type_select_text, cost_type:
+                sub_form_fields.append(field)
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
@@ -209,15 +227,6 @@ class Settings:
         return sub_form
 
     def _tag_key_handler(self, settings):
-        """
-        Handle setting results
-
-        Args:
-            (String) name - unique name for switch.
-
-        Returns:
-            (Bool) - True, if a setting had an effect, False otherwise
-        """
         tag_delimiter = "-"
         updated = [False] * len(obtainTagKeysProvidersParams)
 
@@ -232,7 +241,7 @@ class Settings:
             # build a list of enabled tags for a given provider, removing the provider name prefix
             for enabled_tag in settings.get("enabled", []):
                 if enabled_tag.startswith(provider_name + tag_delimiter):
-                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter)[1])
+                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
 
             invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
 
@@ -262,13 +271,13 @@ class Settings:
                             updated[ix] = True
 
                     if len(remove_tags):
-                        LOG.info(f"Updating %d %s keys to DISABLED", len(remove_tags), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to DISABLED", len(remove_tags), provider_name)
                         for rm_tag in remove_tags:
                             rm_tag.delete()
                             updated[ix] = True
 
                     if len(enabled_tags_no_abbr):
-                        LOG.info(f"Updating %d %s keys to ENABLED", len(enabled_tags_no_abbr), provider_name)
+                        LOG.info(f"Updating %d %s key(s) to ENABLED", len(enabled_tags_no_abbr), provider_name)
                         for new_tag in enabled_tags_no_abbr:
                             enabled_tag_keys.objects.create(key=new_tag)
                             updated[ix] = True
@@ -279,14 +288,18 @@ class Settings:
         return any(updated)
 
     def _currency_handler(self, settings):
-        currency = settings
+        if settings is None:
+            return False
+        else:
+            currency = settings
+
         try:
             stored_currency = get_selected_currency_or_setup(self.schema)
         except Exception as exp:
             LOG.warning(f"Failed to retrieve currency for schema {self.schema}. Reason: {exp}")
             return False
 
-        if currency is None or stored_currency == currency:
+        if stored_currency == currency:
             return False
 
         try:
@@ -294,6 +307,31 @@ class Settings:
             set_currency(self.schema, settings)
         except Exception as exp:
             LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
+            return False
+
+        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        return True
+
+    def _cost_type_handler(self, settings):
+        if settings is None:
+            return False
+        else:
+            cost_type = settings
+
+        try:
+            stored_cost_type = get_selected_cost_type_or_setup(self.schema)
+        except Exception as exp:
+            LOG.warning(f"Failed to retrieve cost_type for schema {self.schema}. Reason: {exp}")
+            return False
+
+        if stored_cost_type == cost_type:
+            return False
+
+        try:
+            LOG.info(f"Updating cost_type to: " + settings)
+            set_cost_type(self.schema, settings)
+        except Exception as exp:
+            LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
             return False
 
         invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
@@ -320,11 +358,15 @@ class Settings:
             (Bool) - True, if a setting had an effect, False otherwise
         """
         currency_settings = settings.get("api", {}).get("settings", {}).get("currency", None)
-        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
-        tags_change = self._tag_key_handler(tg_mgmt_settings)
         currency_change = self._currency_handler(currency_settings)
 
-        if tags_change or currency_change:
+        cost_type_settings = settings.get("api", {}).get("settings", {}).get("cost_type", None)
+        cost_type_change = self._cost_type_handler(cost_type_settings)
+
+        tg_mgmt_settings = settings.get("api", {}).get("settings", {}).get("tag-management", {})
+        tags_change = self._tag_key_handler(tg_mgmt_settings)
+
+        if tags_change or currency_change or cost_type_change:
             return True
 
         return False

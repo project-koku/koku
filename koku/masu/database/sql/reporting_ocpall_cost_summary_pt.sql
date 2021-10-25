@@ -2,7 +2,7 @@
 -- CLEAR DATA FROM reporting_ocpall_cost_summary_pt
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type_upper}}; source {{source_uuid}}; cluster {{cluster_id}}
 DELETE
-  FROM reporting_ocpall_cost_summary_pt
+  FROM {{schema_name | sqlsafe}}.reporting_ocpall_cost_summary_pt
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
@@ -13,7 +13,7 @@ DELETE
 -- INSERT NEW DATA INTO reporting_ocpall_cost_summary_pt
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type_upper}}; source {{source_uuid}}; cluster {{cluster_id}}
 INSERT
-  INTO reporting_ocpall_cost_summary_pt
+  INTO {{schema_name | sqlsafe}}.reporting_ocpall_cost_summary_pt
        (
            data_source,
            usage_start,
@@ -34,6 +34,7 @@ SELECT {{source_type}},
        sum(markup_cost),
        max(currency_code),
        {{source_uuid}}
+  FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid

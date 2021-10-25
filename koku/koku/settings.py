@@ -144,6 +144,9 @@ UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
 UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
 UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
 
+### Currency URL
+CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+
 ### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]
@@ -400,6 +403,7 @@ if "watchtower" in LOGGING_HANDLERS:
     print("CloudWatch configured.")
 
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value("KOKU_DEFAULT_CURRENCY", default="USD")
+KOKU_DEFAULT_COST_TYPE = ENVIRONMENT.get_value("KOKU_DEFAULT_COST_TYPE", default="unblended_cost")
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
 KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_US.UTF-8")
 

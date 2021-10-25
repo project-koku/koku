@@ -22,6 +22,8 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import fallback_true
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -40,6 +42,7 @@ from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
@@ -381,6 +384,17 @@ def update_summary_tables(  # noqa: C901
                 f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}",
             )
         )
+    except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
+        LOG.warning(
+            log_json(
+                tracing_id,
+                f"{str(pnf_ex)} Possible source/provider delete during processing. "
+                + "Processing for this provier will halt.",
+            )
+        )
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
+        return
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -552,9 +566,11 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        materialized_views = (
-            AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-        )
+        materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
+        if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", fallback_function=fallback_true):
+            materialized_views = (
+                AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            )
     elif provider_type in (Provider.PROVIDER_OCP):
         materialized_views = (
             OCP_MATERIALIZED_VIEWS

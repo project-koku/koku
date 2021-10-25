@@ -7,7 +7,6 @@ import copy
 import datetime
 import json
 import logging
-import os
 import pkgutil
 import uuid
 from decimal import Decimal
@@ -22,20 +21,20 @@ from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
-from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
-from sqlparse import split as sql_split
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from koku.database import JSONBBuildObject
+from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
@@ -62,7 +61,7 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     return filters
 
 
-class OCPReportDBAccessor(ReportDBAccessorBase):
+class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema):
@@ -2277,59 +2276,46 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
 
-    def _execute_processing_script(self, script_file_path, sql_params):
-        sql = pkgutil.get_data("masu.database", script_file_path).decode("utf-8")
-        for sql_stmt in sql_split(sql):
-            sql_stmt = sql_stmt.strip()
-            if sql_stmt:
-                sql_stmt, params = self.jinja_sql.prepare_query(sql_stmt, sql_params)
-                with connection.cursor() as cur:
-                    try:
-                        cur.execute(sql_stmt, params)
-                    except ProgrammingError as exc:
-                        msg = [
-                            f"ERROR in SQL statement '{exc}'",
-                            f"STATEMENT: {sql_stmt}",
-                            f"PARAMS: {params}",
-                            f"INPUT_PARAMS: {sql_params}",
-                        ]
-                        LOG.error(os.linesep.join(msg))
-                        raise
-
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+        self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+        self._execute_processing_script("masu.database", script_file_path, sql_params)
 
-    def populate_ocp_on_all_cost_summary(self, sql_params):
-        LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_cost_summary")
-        script_file_path = f"sql/reporting_ocpall_cost_summary_pt.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+    def populate_ocp_on_all_perspectives(self, sql_params):
+        for perspective in OCP_ON_ALL_PERSPECTIVES:
+            LOG.info(f"Populating {perspective} data using {sql_params}...")
+            script_file_path = f"sql/{perspective}.sql"
+            self._execute_processing_script("masu.database", script_file_path, sql_params)
 
-    def populate_ocp_on_all_cost_by_account_summary(self):
-        pass
+    # def populate_ocp_on_all_cost_summary(self, sql_params):
+    #     LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_cost_summary")
+    #     script_file_path = f"sql/reporting_ocpall_cost_summary_pt.sql"
+    #     self._execute_processing_script("masu.database", script_file_path, sql_params)
 
-    def populate_ocp_on_all_cost_by_region_summary(self):
-        pass
+    # def populate_ocp_on_all_cost_by_account_summary(self):
+    #     pass
 
-    def populate_ocp_on_all_cost_by_service_summary(self):
-        pass
+    # def populate_ocp_on_all_cost_by_region_summary(self):
+    #     pass
 
-    def populate_ocp_on_all_compute_summary(self, sql_params):
-        LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_compute_summary")
-        script_file_path = f"sql/reporting_ocpall_compute_summary_pt.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+    # def populate_ocp_on_all_cost_by_service_summary(self):
+    #     pass
 
-    def populate_ocp_on_all_database_summary(self):
-        pass
+    # def populate_ocp_on_all_compute_summary(self, sql_params):
+    #     LOG.info(f"Populating {sql_params['source_type'].upper()} records for ocpallcostlineitem_compute_summary")
+    #     script_file_path = f"sql/reporting_ocpall_compute_summary_pt.sql"
+    #     self._execute_processing_script(script_file_path, sql_params)
 
-    def populate_ocp_on_all_network_summary(self):
-        pass
+    # def populate_ocp_on_all_database_summary(self):
+    #     pass
 
-    def populate_ocp_on_all_storage_summary(self):
-        pass
+    # def populate_ocp_on_all_network_summary(self):
+    #     pass
+
+    # def populate_ocp_on_all_storage_summary(self):
+    #     pass

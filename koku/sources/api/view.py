@@ -76,7 +76,7 @@ class SourceFilter(FilterSet):
     """Source custom filters."""
 
     name = CharListFilter(field_name="name", lookup_expr="name__icontains")
-    type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
+    type = CharListFilter(field_name="source_type", lookup_expr="source_type__icontains")
 
     class Meta:
         model = Sources

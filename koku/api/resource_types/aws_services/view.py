@@ -14,14 +14,14 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostSummaryByService
+from reporting.provider.aws.models import AWSCostSummaryByServiceP
 
 
 class AWSServiceView(generics.ListAPIView):
     """API GET list view for AWS Services."""
 
     queryset = (
-        AWSCostSummaryByService.objects.annotate(**{"value": F("product_code")})
+        AWSCostSummaryByServiceP.objects.annotate(**{"value": F("product_code")})
         .values("value")
         .distinct()
         .filter(product_code__isnull=False)
