@@ -1167,4 +1167,4 @@ class AWSReportDBAccessorTest(MasuTestCase):
         script_file_path = "sql/reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
-                accessor._execute_processing_script(script_file_path, {})
+                accessor._execute_processing_script("masu.database", script_file_path, {})
