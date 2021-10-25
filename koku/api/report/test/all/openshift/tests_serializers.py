@@ -3,16 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on Cloud Report serializers."""
-from unittest import TestCase
 from unittest.mock import Mock
 
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.all.openshift.serializers import OCPAllQueryParamSerializer
 
 
-class OCPAllQueryParamSerializerTest(TestCase):
+class OCPAllQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
+
+    def setUp(self):
+        """setting up a user to test with."""
+        self.user_data = self._create_user_data()
+        self.alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(), self.user_data, create_tenant=True, path=""
+        )
 
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
@@ -27,7 +34,7 @@ class OCPAllQueryParamSerializerTest(TestCase):
             },
             "units": "byte",
         }
-        serializer = OCPAllQueryParamSerializer(data=query_params)
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_delta(self):
@@ -62,7 +69,7 @@ class OCPAllQueryParamSerializerTest(TestCase):
             },
             "delta": "usage",
         }
-        serializer = OCPAllQueryParamSerializer(data=query_params)
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=self.alt_request_context)
         serializer.is_valid(raise_exception=True)
 
     def test_query_params_valid_cost_delta(self):
@@ -85,3 +92,16 @@ class OCPAllQueryParamSerializerTest(TestCase):
         req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/")
         serializer = OCPAllQueryParamSerializer(data=query_params, context={"request": req})
         serializer.is_valid(raise_exception=True)
+
+    def test_query_params_valid_cost_type(self):
+        """Test parse of valid cost_type param."""
+        query_params = {"cost_type": "blended_cost"}
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=self.alt_request_context)
+        serializer.is_valid(raise_exception=True)
+
+    def test_query_params_invalid_cost_type(self):
+        """Test parse of invalid cost_type param."""
+        query_params = {"cost_type": "invalid_cost"}
+        serializer = OCPAllQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
