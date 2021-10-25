@@ -47,6 +47,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         aws_bills = aws_get_bills_from_provider(aws_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
+                self._schema,
                 (
                     "reporting_ocpawscostlineitem_daily_summary",
                     "reporting_ocpawscostlineitem_project_daily_summary",
@@ -128,6 +129,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         azure_bills = azure_get_bills_from_provider(azure_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
+                self._schema,
                 (
                     "reporting_ocpazurecostlineitem_daily_summary",
                     "reporting_ocpazurecostlineitem_project_daily_summary",
