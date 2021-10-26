@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPVolumeSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 (
@@ -69,7 +69,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPVolumeSummaryByProjectP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
@@ -122,7 +122,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPPodSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 (
@@ -173,7 +173,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPPodSummaryByProjectP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253, null=True)),
@@ -225,7 +225,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPCostSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 ("usage_start", models.DateField()),
@@ -257,7 +257,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPCostSummaryByProjectP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 ("namespace", models.CharField(max_length=253)),
@@ -293,7 +293,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPCostSummaryByNodeP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("cluster_id", models.TextField()),
                 ("cluster_alias", models.TextField(null=True)),
                 ("node", models.CharField(max_length=253)),

@@ -1005,7 +1005,7 @@ class OCPCostSummaryP(models.Model):
         db_table = "reporting_ocp_cost_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpcostsumm_usage_start")]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1056,7 +1056,7 @@ class OCPCostSummaryByProjectP(models.Model):
             models.Index(fields=["namespace"], name="ocpcostsumm_proj_namespace"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1110,7 +1110,7 @@ class OCPCostSummaryByNodeP(models.Model):
             models.Index(fields=["node"], name="ocpcostsumm_node_node"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1160,7 +1160,7 @@ class OCPPodSummaryP(models.Model):
         db_table = "reporting_ocp_pod_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocppodsumm_usage_start")]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1233,7 +1233,7 @@ class OCPPodSummaryByProjectP(models.Model):
             models.Index(fields=["namespace"], name="ocppodsumm_proj_namespace"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1305,7 +1305,7 @@ class OCPVolumeSummaryP(models.Model):
         db_table = "reporting_ocp_volume_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpvolsumm_usage_start")]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
@@ -1368,7 +1368,7 @@ class OCPVolumeSummaryByProjectP(models.Model):
             models.Index(fields=["namespace"], name="ocpvolsumm_proj_namespace"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     cluster_id = models.TextField()
 
