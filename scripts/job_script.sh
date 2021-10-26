@@ -1,3 +1,5 @@
 #!/bin/bash
 
-python3.8 scripts/migrate_trino.py --noinput
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+${SCRIPT_DIR}/copy_static_aws_perspective_data.py
