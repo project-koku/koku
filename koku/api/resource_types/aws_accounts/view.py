@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
 
 
@@ -23,7 +23,7 @@ class AWSAccountView(generics.ListAPIView):
     """API GET list view for AWS accounts."""
 
     queryset = (
-        AWSCostSummaryByAccount.objects.annotate(
+        AWSCostSummaryByAccountP.objects.annotate(
             **(
                 {
                     "value": F("usage_account_id"),

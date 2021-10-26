@@ -274,7 +274,7 @@ create table {self.schema}._eek_pt0 (usage_start date not null, id int) partitio
             num_eek = partable.objects.filter(schema_name=self.schema, partition_of_table_name="_eek_pt0").count()
             self.assertEqual(num_eek, 1)
 
-            ocrsu._handle_partitions("_eek_pt0", datetime.date(1970, 10, 1), datetime.date(1970, 12, 1))
+            ocrsu._handle_partitions(self.schema, "_eek_pt0", datetime.date(1970, 10, 1), datetime.date(1970, 12, 1))
             eek_p = partable.objects.filter(
                 schema_name=self.schema, partition_of_table_name="_eek_pt0", partition_parameters__default=False
             ).all()

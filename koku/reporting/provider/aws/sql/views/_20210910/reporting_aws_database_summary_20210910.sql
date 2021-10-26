@@ -12,6 +12,7 @@ CREATE MATERIALIZED VIEW reporting_aws_database_summary AS(
         sum(usage_amount) as usage_amount,
         max(unit) as unit,
         sum(unblended_cost) as unblended_cost,
+        sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,

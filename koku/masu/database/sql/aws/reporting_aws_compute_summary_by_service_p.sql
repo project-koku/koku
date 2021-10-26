@@ -1,8 +1,31 @@
-DROP INDEX IF EXISTS aws_compute_summary_service;
-DROP MATERIALIZED VIEW IF EXISTS reporting_aws_compute_summary_by_service;
+DELETE FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_by_service_p
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND source_uuid = {{source_uuid}}
+;
 
-CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
-    SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.usage_account_id, c.product_code, c.product_family, c.instance_type) AS id,
+INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_by_service_p (
+    id,
+    usage_start,
+    usage_end,
+    usage_account_id,
+    account_alias_id,
+    organizational_unit_id,
+    product_code,
+    product_family,
+    instance_type,
+    resource_ids,
+    resource_count,
+    usage_amount,
+    unit,
+    unblended_cost,
+    blended_cost,
+    savingsplan_effective_cost,
+    markup_cost,
+    currency_code,
+    source_uuid
+)
+    SELECT uuid_generate_v4() as id,
         c.usage_start,
         c.usage_start as usage_end,
         c.usage_account_id,
@@ -37,10 +60,12 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency_code) AS currency_code,
-            MAX(source_uuid::text)::uuid as source_uuid
-        FROM reporting_awscostentrylineitem_daily_summary
-        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
+            {{source_uuid}}::uuid as source_uuid
+        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+        WHERE usage_start >= {{start_date}}::date
+            AND usage_start <= {{end_date}}::date
             AND instance_type IS NOT NULL
+            AND source_uuid = {{source_uuid}}
         GROUP BY usage_start, usage_account_id, product_code, product_family, instance_type
     ) AS c
     JOIN (
@@ -60,9 +85,11 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
                 product_family,
                 instance_type,
                 UNNEST(resource_ids) AS resource_id
-            FROM reporting_awscostentrylineitem_daily_summary
-            WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
+            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
+            WHERE usage_start >= {{start_date}}::date
+                AND usage_start <= {{end_date}}::date
                 AND instance_type IS NOT NULL
+                AND source_uuid = {{source_uuid}}
         ) AS x
         GROUP BY usage_start, usage_account_id, product_code, product_family, instance_type
     ) AS r
@@ -71,10 +98,4 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary_by_service AS (
             AND c.product_family = r.product_family
             AND c.instance_type = r.instance_type
             AND c.usage_account_id = r.usage_account_id
-)
-WITH DATA
-;
-
-CREATE UNIQUE INDEX aws_compute_summary_service
-    ON reporting_aws_compute_summary_by_service (usage_start, usage_account_id, product_code, product_family, instance_type)
 ;
