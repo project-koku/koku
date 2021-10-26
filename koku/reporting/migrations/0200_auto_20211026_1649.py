@@ -4,12 +4,16 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
+from koku.database import set_partition_mode
+from koku.database import unset_partition_mode
+
 
 class Migration(migrations.Migration):
 
     dependencies = [("api", "0050_exchangerates"), ("reporting", "0199_aws_perspective_colname_idx")]
 
     operations = [
+        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
         migrations.CreateModel(
             name="OCPVolumeSummaryP",
             fields=[
@@ -57,6 +61,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocp_volume_summary_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_volume_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="OCPVolumeSummaryByProjectP",
@@ -107,6 +115,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocp_volume_summary_by_project_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_volume_summary_by_project_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="OCPPodSummaryP",
             fields=[
@@ -153,6 +165,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocp_pod_summary_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_pod_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="OCPPodSummaryByProjectP",
@@ -202,6 +218,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocp_pod_summary_by_project_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_pod_summary_by_project_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="OCPCostSummaryP",
             fields=[
@@ -229,6 +249,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocp_cost_summary_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_cost_summary_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="OCPCostSummaryByProjectP",
@@ -262,6 +286,10 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocp_cost_summary_by_project_p"},
         ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_cost_summary_by_project_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
+        ),
         migrations.CreateModel(
             name="OCPCostSummaryByNodeP",
             fields=[
@@ -290,6 +318,10 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocp_cost_summary_by_node_p"},
+        ),
+        migrations.RunSQL(
+            sql="ALTER TABLE reporting_ocp_cost_summary_by_node_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            reverse_sql="select 1",
         ),
         migrations.AddIndex(
             model_name="ocpvolumesummaryp", index=models.Index(fields=["usage_start"], name="ocpvolsumm_usage_start")
@@ -331,4 +363,5 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="ocpcostsummarybynodep", index=models.Index(fields=["node"], name="ocpcostsumm_node_node")
         ),
+        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
     ]
