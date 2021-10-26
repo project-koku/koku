@@ -18,6 +18,25 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
         migrations.CreateModel(
+            name="OCPGCPComputeSummaryP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("instance_type", models.CharField(max_length=50, null=True)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_compute_summary_p"},
+        ),
+        migrations.CreateModel(
             name="OCPGCPCostLineItemDailySummaryP",
             fields=[
                 ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
@@ -51,10 +70,6 @@ class Migration(migrations.Migration):
                 ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
             ],
             options={"db_table": "reporting_ocpgcpcostlineitem_daily_summary_p"},
-        ),
-        migrations.RunSQL(
-            sql="ALTER TABLE reporting_ocpgcpcostlineitem_daily_summary_p ALTER COLUMN uuid SET DEFAULT uuid_generate_v4()",
-            reverse_sql="select 1",
         ),
         migrations.CreateModel(
             name="OCPGCPCostLineItemProjectDailySummaryP",
@@ -95,9 +110,166 @@ class Migration(migrations.Migration):
             ],
             options={"db_table": "reporting_ocpgcpcostlineitem_project_daily_summary_p"},
         ),
-        migrations.RunSQL(
-            sql="ALTER TABLE reporting_ocpgcpcostlineitem_project_daily_summary_p ALTER COLUMN uuid SET DEFAULT uuid_generate_v4()",
-            reverse_sql="select 1",
+        migrations.CreateModel(
+            name="OCPGCPCostSummaryByAccountP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("account_id", models.CharField(max_length=20)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_cost_summary_by_account_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPCostSummaryByGCPProjectP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("project_id", models.CharField(max_length=256)),
+                ("project_name", models.CharField(max_length=256)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_cost_summary_by_gcp_project_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPCostSummaryByRegionP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("account_id", models.CharField(max_length=50)),
+                ("region", models.TextField(null=True)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_cost_summary_by_region_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPCostSummaryByServiceP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("account_id", models.CharField(max_length=50)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("service_id", models.CharField(max_length=256, null=True)),
+                ("service_alias", models.CharField(blank=True, max_length=256, null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_cost_summary_by_service_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPCostSummaryP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_cost_summary_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPDatabaseSummaryP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("account_id", models.CharField(max_length=50)),
+                ("service_id", models.CharField(max_length=256, null=True)),
+                ("service_alias", models.CharField(blank=True, max_length=256, null=True)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_database_summary_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPNetworkSummaryP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("account_id", models.CharField(max_length=50)),
+                ("service_id", models.CharField(max_length=256, null=True)),
+                ("service_alias", models.CharField(blank=True, max_length=256, null=True)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_network_summary_p"},
+        ),
+        migrations.CreateModel(
+            name="OCPGCPStorageSummaryP",
+            fields=[
+                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
+                ("cluster_id", models.CharField(max_length=50, null=True)),
+                ("cluster_alias", models.CharField(max_length=256, null=True)),
+                ("node", models.CharField(max_length=253, null=True)),
+                ("usage_start", models.DateField()),
+                ("usage_end", models.DateField()),
+                ("account_id", models.CharField(max_length=50)),
+                ("service_id", models.CharField(max_length=256, null=True)),
+                ("service_alias", models.CharField(blank=True, max_length=256, null=True)),
+                ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
+                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
+                ("currency", models.TextField(null=True)),
+                ("source_uuid", models.UUIDField(null=True)),
+                ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
+                ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+            ],
+            options={"db_table": "reporting_ocpgcp_storage_summary_p"},
         ),
         migrations.CreateModel(
             name="OCPGCPTagsSummary",
@@ -150,6 +322,62 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"),
         ),
         migrations.AddField(
+            model_name="ocpgcpstoragesummaryp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpnetworksummaryp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpdatabasesummaryp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummaryp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyservicep",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyregionp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybygcpprojectp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcostsummarybyaccountp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
             model_name="ocpgcpcostlineitemprojectdailysummaryp",
             name="cost_entry_bill",
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.gcpcostentrybill"),
@@ -168,6 +396,13 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpgcpcostlineitemdailysummaryp",
+            name="report_period",
+            field=models.ForeignKey(
+                null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
+            ),
+        ),
+        migrations.AddField(
+            model_name="ocpgcpcomputesummaryp",
             name="report_period",
             field=models.ForeignKey(
                 null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
@@ -260,5 +495,4 @@ class Migration(migrations.Migration):
             model_name="ocpgcpcostlineitemdailysummaryp",
             index=models.Index(fields=["service_alias"], name="ocpgcp_service_alias_idx"),
         ),
-        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
     ]
