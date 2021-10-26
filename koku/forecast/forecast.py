@@ -50,6 +50,9 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
+    # ToDo: potentially make the cost_type variable in forecast to the setting chosen in DB
+    COST_TYPE = "unblended_cost"
+
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -96,6 +99,9 @@ class Forecast:
     @property
     def provider_map(self):
         """Return the provider map instance."""
+        current_provider = self
+        if current_provider.provider is Provider.PROVIDER_AWS:
+            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.COST_TYPE)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
