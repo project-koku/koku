@@ -123,7 +123,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            LOG.info(self.query_table)
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
