@@ -9,6 +9,8 @@ from functools import cached_property
 from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
 from psycopg2 import InterfaceError
+from requests.exceptions import ConnectTimeout
+from requests.exceptions import InvalidURL
 
 from api.common import log_json
 from api.models import Provider
@@ -45,7 +47,7 @@ class ReportProcessor:
         self.context = context
         self.tracing_id = context.get("tracing_id") if context else None
         try:
-            self._processor = self._set_processor()
+            self._processor, self._secondary_processor = self._set_processor()
         except NotImplementedError as err:
             raise err
         except Exception as err:
@@ -87,48 +89,70 @@ class ReportProcessor:
 
         """
         if self.trino_enabled:
-            return ParquetReportProcessor(
-                schema_name=self.schema_name,
-                report_path=self.report_path,
-                provider_uuid=self.provider_uuid,
-                provider_type=self.provider_type,
-                manifest_id=self.manifest_id,
-                context=self.context,
+            return (
+                ParquetReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    provider_uuid=self.provider_uuid,
+                    provider_type=self.provider_type,
+                    manifest_id=self.manifest_id,
+                    context=self.context,
+                ),
+                None,
             )
         if self.provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-            return AWSReportProcessor(
-                schema_name=self.schema_name,
-                report_path=self.report_path,
-                compression=self.compression,
-                provider_uuid=self.provider_uuid,
-                manifest_id=self.manifest_id,
+            return (
+                AWSReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    compression=self.compression,
+                    provider_uuid=self.provider_uuid,
+                    manifest_id=self.manifest_id,
+                ),
+                None,
             )
 
         if self.provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-            return AzureReportProcessor(
-                schema_name=self.schema_name,
-                report_path=self.report_path,
-                compression=self.compression,
-                provider_uuid=self.provider_uuid,
-                manifest_id=self.manifest_id,
+            return (
+                AzureReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    compression=self.compression,
+                    provider_uuid=self.provider_uuid,
+                    manifest_id=self.manifest_id,
+                ),
+                None,
             )
 
         if self.provider_type in (Provider.PROVIDER_OCP,):
-            return OCPReportProcessor(
-                schema_name=self.schema_name,
-                report_path=self.report_path,
-                compression=self.compression,
-                provider_uuid=self.provider_uuid,
+            return (
+                OCPReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    compression=self.compression,
+                    provider_uuid=self.provider_uuid,
+                ),
+                ParquetReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    provider_uuid=self.provider_uuid,
+                    provider_type=self.provider_type,
+                    manifest_id=self.manifest_id,
+                    context=self.context,
+                ),
             )
         if self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-            return GCPReportProcessor(
-                schema_name=self.schema_name,
-                report_path=self.report_path,
-                compression=self.compression,
-                provider_uuid=self.provider_uuid,
-                manifest_id=self.manifest_id,
+            return (
+                GCPReportProcessor(
+                    schema_name=self.schema_name,
+                    report_path=self.report_path,
+                    compression=self.compression,
+                    provider_uuid=self.provider_uuid,
+                    manifest_id=self.manifest_id,
+                ),
+                None,
             )
-        return None
+        return None, None
 
     def process(self):
         """
@@ -151,6 +175,11 @@ class ReportProcessor:
                 return
             msg = f"Report processing completed for {self.report_path}"
             LOG.info(log_json(self.tracing_id, msg))
+            if self._secondary_processor:
+                try:
+                    self._secondary_processor.process()
+                except (ConnectTimeout, InvalidURL):
+                    pass
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
             raise ReportProcessorDBError(str(err))

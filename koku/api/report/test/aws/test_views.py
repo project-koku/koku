@@ -135,6 +135,25 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
+    def test_execute_query_w_valid_cost_type(self):
+        """Test that delta=total returns deltas."""
+        qs = "cost_type=unblended_cost"
+        url = reverse("reports-aws-costs") + "?" + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_execute_query_w_invalid_cost_type(self):
+        """Test invalid delta value."""
+        invalid_cost_type = "Invalid"
+        expected = f'"{invalid_cost_type}" is not a valid choice.'
+        qs = f"group_by[account]=*&filter[limit]=2&cost_type={invalid_cost_type}"
+        url = reverse("reports-aws-costs") + "?" + qs
+
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get("cost_type")[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)
+
     def test_convert_units_success(self):
         """Test unit conversion succeeds."""
         converter = UnitConverter()
