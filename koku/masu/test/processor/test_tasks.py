@@ -102,7 +102,6 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
-            cache_key=self.fake.word(),
             report_context={},
         )
 
@@ -126,7 +125,6 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
             statement_found = False
@@ -155,7 +153,6 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
             statement_found = False
@@ -179,7 +176,6 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=uuid4(),
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
 
