@@ -73,6 +73,8 @@ PARTITIONED_MODEL_NAMES = [
     "AWSStorageSummaryByRegionP",
     "AWSNetworkSummaryP",
     "AWSDatabaseSummaryP",
+    "OCPGCPCostLineItemDailySummaryP",
+    "OCPGCPCostLineItemProjectDailySummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
