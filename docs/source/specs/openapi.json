@@ -893,6 +893,9 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryEndDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/CostType"
                     }
                 ],
                 "responses": {
@@ -4318,6 +4321,21 @@
     ],
     "components": {
         "parameters": {
+            "CostType": {
+                "name": "cost_type",
+                "required": false,
+                "in": "query",
+                "description": "String to indicate cost type in report",
+                "schema": {
+                  "type": "string",
+                  "default": "unblended_cost",
+                  "enum": [
+                    "unblended_cost",
+                    "blended_cost",
+                    "savingsplan_effective_cost"
+                  ]
+                }
+            },
             "QueryComputeCount": {
                 "name": "compute_count",
                 "required": false,

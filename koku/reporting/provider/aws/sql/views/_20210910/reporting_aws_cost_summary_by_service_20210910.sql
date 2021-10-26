@@ -11,6 +11,7 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_service AS(
         product_code,
         product_family,
         sum(unblended_cost) as unblended_cost,
+        sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,

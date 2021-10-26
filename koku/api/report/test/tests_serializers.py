@@ -10,6 +10,7 @@ from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
 from api.report.aws.serializers import OrderBySerializer
@@ -356,8 +357,15 @@ class OrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class QueryParamSerializerTest(TestCase):
+class QueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
+
+    def setUp(self):
+        """setting up a user to test with."""
+        self.user_data = self._create_user_data()
+        self.alt_request_context = self._create_request_context(
+            self.create_mock_customer_data(), self.user_data, create_tenant=True
+        )
 
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
@@ -372,7 +380,7 @@ class QueryParamSerializerTest(TestCase):
             },
             "units": "byte",
         }
-        serializer = QueryParamSerializer(data=query_params)
+        serializer = QueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -429,6 +437,20 @@ class QueryParamSerializerTest(TestCase):
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
+    def test_invalid_cost_type(self):
+        """Test failure while handling invalid cost_type."""
+        query_params = {"cost_type": "invalid_cost"}
+        serializer = QueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.validate_cost_type("invalid_cost")
+
+    def test_valid_cost_type_no_exception(self):
+        """Test that a valid cost type doesn't raise an exception."""
+        query_params = {"cost_type": "blended_cost"}
+        req = Mock(path="/api/cost-management/v1/reports/aws/costs/")
+        serializer = QueryParamSerializer(data=query_params, context={"request": req})
+        serializer.validate_cost_type("blended_cost")
+
     def test_multiple_group_by(self):
         """Test parse of query params with multiple group_bys."""
         query_params = {
@@ -457,7 +479,7 @@ class QueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = QueryParamSerializer(data=query_params)
+        serializer = QueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_multiple_group_by_with_matching_sort(self):
@@ -472,7 +494,7 @@ class QueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = QueryParamSerializer(data=query_params)
+        serializer = QueryParamSerializer(data=query_params, context=self.alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_multiple_group_by_error_invalid_or_key(self):
@@ -558,7 +580,7 @@ class QueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params)
+                serializer = QueryParamSerializer(data=params, context=self.alt_request_context)
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid_resolution(self):
