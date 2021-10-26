@@ -61,14 +61,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ocp_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         ocp_pack_definitions["cost_groups"]["keys"] = ocp_pack_keys
 
-        # super() needs to be called after _mapper and _limit is set
-        super().__init__(parameters)
-        # super() needs to be called before _get_group_by is called
-
         # Update which field is used to calculate cost by group by param.
         if is_grouped_by_project(parameters) and parameters.report_type == "costs":
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPProviderMap(provider=self.provider, report_type=self._report_type)
+
+        # super() needs to be called after _mapper and _limit is set
+        super().__init__(parameters)
+        # super() needs to be called before _get_group_by is called
+
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
     @property
@@ -122,6 +123,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+            LOG.info(self.query_table)
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
