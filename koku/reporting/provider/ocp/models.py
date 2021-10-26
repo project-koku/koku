@@ -1002,7 +1002,7 @@ class OCPCostSummaryP(models.Model):
     class Meta:
         """Meta for OCPCostSummaryP."""
 
-        db_table = "reporting_ocp_cost_summary"
+        db_table = "reporting_ocp_cost_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpcostsumm_usage_start")]
 
     id = models.IntegerField(primary_key=True)
@@ -1048,9 +1048,9 @@ class OCPCostSummaryByProjectP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPCostSummaryByProject."""
+        """Meta for OCPCostSummaryByProjectP."""
 
-        db_table = "reporting_ocp_cost_summary_by_project"
+        db_table = "reporting_ocp_cost_summary_by_project_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocpcostsumm_proj_usage_start"),
             models.Index(fields=["namespace"], name="ocpcostsumm_proj_namespace"),
@@ -1102,9 +1102,9 @@ class OCPCostSummaryByNodeP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPCostSummary."""
+        """Meta for OCPCostSummaryByNodeP."""
 
-        db_table = "reporting_ocp_cost_summary_by_node"
+        db_table = "reporting_ocp_cost_summary_by_node_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocpcostsumm_node_usage_start"),
             models.Index(fields=["node"], name="ocpcostsumm_node_node"),
@@ -1155,9 +1155,9 @@ class OCPPodSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPPodSummary."""
+        """Meta for OCPPodSummaryP."""
 
-        db_table = "reporting_ocp_pod_summary"
+        db_table = "reporting_ocp_pod_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocppodsumm_usage_start")]
 
     id = models.IntegerField(primary_key=True)
@@ -1225,9 +1225,9 @@ class OCPPodSummaryByProjectP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPPodSummaryByProject."""
+        """Meta for OCPPodSummaryByProjectP."""
 
-        db_table = "reporting_ocp_pod_summary_by_project"
+        db_table = "reporting_ocp_pod_summary_by_project_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocppodsumm_proj_usage_start"),
             models.Index(fields=["namespace"], name="ocppodsumm_proj_namespace"),
@@ -1300,9 +1300,9 @@ class OCPVolumeSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPVolumeSummary."""
+        """Meta for OCPVolumeSummaryP."""
 
-        db_table = "reporting_ocp_volume_summary"
+        db_table = "reporting_ocp_volume_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpvolsumm_usage_start")]
 
     id = models.IntegerField(primary_key=True)
@@ -1360,9 +1360,9 @@ class OCPVolumeSummaryByProjectP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPVolumeSummaryByProject."""
+        """Meta for OCPVolumeSummaryByProjectP."""
 
-        db_table = "reporting_ocp_volume_summary_by_project"
+        db_table = "reporting_ocp_volume_summary_by_project_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocpvolsumm_proj_usage_start"),
             models.Index(fields=["namespace"], name="ocpvolsumm_proj_namespace"),
