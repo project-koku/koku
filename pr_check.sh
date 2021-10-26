@@ -17,14 +17,15 @@ export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
+export GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 export GIT_COMMIT=$(git rev-parse HEAD)
 
 set -ex
 
 mkdir -p $ARTIFACTS_DIR
 exit_code=0
-task_arr=([1]="Build" [2]="Smoke Tests")
-error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests")
+task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
+error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This branch is out of date with main")
 
 function check_for_labels() {
     if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
@@ -92,6 +93,15 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 </testsuite>
 EOF
 }
+
+# check if this branch is out of date with main
+latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$(git rev-parse --abbrev-ref HEAD) | jq '.sha')
+if latest_commit != $GIT_COMMIT
+then
+    exit_code=3
+    make_results_xml
+    exit $exit_code
+fi
 
 # Save PR labels into a file
 curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
