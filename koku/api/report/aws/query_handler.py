@@ -46,6 +46,7 @@ EXPORT_COLUMNS = [
     "currency_code",
     "unblended_rate",
     "unblended_cost",
+    "savingsplan_effective_cost",
     "blended_rate",
     "blended_cost",
     "tax_type",
@@ -77,12 +78,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = AWSProviderMap(
+                provider=self.provider,
+                report_type=parameters.report_type,
+                cost_type=parameters.parameters.get("cost_type"),
+            )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
@@ -725,3 +729,11 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
             )
         return super()._group_by_ranks(query, data)
+
+    # def set_default_cost_type(parameters):
+    #     """
+    #     Sets default value for cost_type
+    #     Temporarily set up to be the string unblended_cost
+    #     To do: grab default value from the user_settings DB table once its added
+    #     """
+    #     parameters["cost_type"] = "unblended_cost"

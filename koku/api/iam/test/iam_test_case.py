@@ -137,6 +137,7 @@ class IamTestCase(TestCase):
         create_tenant=False,
         is_admin=True,
         is_cost_management=True,
+        path=None,
     ):
         """Create the request context for a user."""
         customer = customer_data
@@ -158,7 +159,7 @@ class IamTestCase(TestCase):
         }
         json_identity = json_dumps(identity)
         mock_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
-        request = Mock()
+        request = Mock(path=path)
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
             tempUser = User(username=user_data["username"], email=user_data["email"], customer=cls.customer)

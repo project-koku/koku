@@ -2335,11 +2335,11 @@ parameters:
 - displayName: CPU Request
   name: LISTENER_CPU_REQUEST
   required: true
-  value: 100m
+  value: 150m
 - displayName: CPU Limit
   name: LISTENER_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Log Level for listener
   name: LISTENER_KOKU_LOG_LEVEL
   required: true
@@ -2437,11 +2437,11 @@ parameters:
 - displayName: CPU Request
   name: SOURCES_LISTENER_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: SOURCES_LISTENER_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Log Level for sources listener
   name: SOURCES_LISTENER_KOKU_LOG_LEVEL
   required: true
@@ -2461,11 +2461,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_CELERY_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_CELERY_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_CELERY_WORKER_QUEUE
   required: true
@@ -2477,19 +2477,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_COST_MODEL_MEMORY_REQUEST
   required: true
-  value: 200Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_COST_MODEL_MEMORY_LIMIT
   required: true
-  value: 400Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_COST_MODEL_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_COST_MODEL_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_COST_MODEL_WORKER_QUEUE
   required: true
@@ -2509,11 +2509,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_DOWNLOAD_CPU_REQUEST
   required: true
-  value: 100m
+  value: 200m
 - displayName: CPU Limit
   name: WORKER_DOWNLOAD_CPU_LIMIT
   required: true
-  value: 250m
+  value: 400m
 - displayName: Worker Queue
   name: WORKER_DOWNLOAD_WORKER_QUEUE
   required: true
@@ -2525,19 +2525,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_OCP_MEMORY_REQUEST
   required: true
-  value: 200Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_OCP_MEMORY_LIMIT
   required: true
-  value: 400Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_OCP_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_OCP_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_OCP_WORKER_QUEUE
   required: true
@@ -2557,11 +2557,11 @@ parameters:
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true
-  value: 100m
+  value: 150m
 - displayName: CPU Limit
   name: WORKER_PRIORITY_CPU_LIMIT
   required: true
-  value: 200m
+  value: 300m
 - displayName: Worker Queue
   name: WORKER_PRIORITY_WORKER_QUEUE
   required: true
@@ -2573,19 +2573,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_REFRESH_MEMORY_REQUEST
   required: true
-  value: 200Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_REFRESH_MEMORY_LIMIT
   required: true
-  value: 400Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_REFRESH_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_REFRESH_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_REFRESH_WORKER_QUEUE
   required: true
@@ -2597,19 +2597,19 @@ parameters:
 - displayName: Memory Request
   name: WORKER_SUMMARY_MEMORY_REQUEST
   required: true
-  value: 200Mi
+  value: 256Mi
 - displayName: Memory Limit
   name: WORKER_SUMMARY_MEMORY_LIMIT
   required: true
-  value: 400Mi
+  value: 512Mi
 - displayName: CPU Request
   name: WORKER_SUMMARY_CPU_REQUEST
   required: true
-  value: 50m
+  value: 100m
 - displayName: CPU Limit
   name: WORKER_SUMMARY_CPU_LIMIT
   required: true
-  value: 100m
+  value: 200m
 - displayName: Worker Queue
   name: WORKER_SUMMARY_WORKER_QUEUE
   required: true

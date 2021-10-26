@@ -1869,3 +1869,57 @@ def get_or_create_partition(part_rec):
             partition.save()
 
     return partition, created
+
+
+class PartitionHandlerMixin:
+    def _handle_partitions(self, schema_name, table_names, start_date, end_date):  # noqas: C901
+        if isinstance(start_date, datetime.datetime):
+            start_date = start_date.date()
+        elif isinstance(start_date, str):
+            start_date = ciso8601.parse_datetime(start_date).date()
+        if isinstance(end_date, datetime.datetime):
+            end_date = end_date.date()
+        elif isinstance(end_date, str):
+            end_date = ciso8601.parse_datetime(end_date).date()
+        if isinstance(table_names, str):
+            table_names = [table_names]
+
+        for table_name in table_names:
+            tmplpart = PartitionedTable.objects.filter(
+                schema_name=schema_name, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
+            ).first()
+            if tmplpart:
+                partition_start = start_date.replace(day=1)
+                month_interval = relativedelta(months=1)
+                needed_partition = None
+                partition_col = tmplpart.partition_col
+                newpart_vals = dict(
+                    schema_name=schema_name,
+                    table_name=None,
+                    partition_of_table_name=table_name,
+                    partition_type=PartitionedTable.RANGE,
+                    partition_col=partition_col,
+                    partition_parameters={"default": False, "from": None, "to": None},
+                    active=True,
+                )
+                for _ in range(relativedelta(end_date.replace(day=1), partition_start).months + 1):
+                    if needed_partition is None:
+                        needed_partition = partition_start
+                    else:
+                        needed_partition = needed_partition + month_interval
+
+                    partition_name = f"{table_name}_{needed_partition.strftime('%Y_%m')}"
+                    newpart_vals["table_name"] = partition_name
+                    newpart_vals["partition_parameters"]["from"] = str(needed_partition)
+                    newpart_vals["partition_parameters"]["to"] = str(needed_partition + month_interval)
+                    # Successfully creating a new record will also create the partition
+                    newpart, created = PartitionedTable.objects.get_or_create(
+                        defaults=newpart_vals,
+                        schema_name=schema_name,
+                        partition_of_table_name=table_name,
+                        table_name=partition_name,
+                    )
+                    LOG.debug(f"partition = {newpart}")
+                    LOG.debug(f"created = {created}")
+                    if created:
+                        LOG.info(f"Created partition {newpart.schema_name}.{newpart.table_name}")

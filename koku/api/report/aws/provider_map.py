@@ -16,21 +16,21 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.provider.aws.models import AWSComputeSummary
-from reporting.provider.aws.models import AWSComputeSummaryByAccount
-from reporting.provider.aws.models import AWSComputeSummaryByRegion
-from reporting.provider.aws.models import AWSComputeSummaryByService
+from reporting.provider.aws.models import AWSComputeSummaryByAccountP
+from reporting.provider.aws.models import AWSComputeSummaryByRegionP
+from reporting.provider.aws.models import AWSComputeSummaryByServiceP
+from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostSummary
-from reporting.provider.aws.models import AWSCostSummaryByAccount
-from reporting.provider.aws.models import AWSCostSummaryByRegion
-from reporting.provider.aws.models import AWSCostSummaryByService
-from reporting.provider.aws.models import AWSDatabaseSummary
-from reporting.provider.aws.models import AWSNetworkSummary
-from reporting.provider.aws.models import AWSStorageSummary
-from reporting.provider.aws.models import AWSStorageSummaryByAccount
-from reporting.provider.aws.models import AWSStorageSummaryByRegion
-from reporting.provider.aws.models import AWSStorageSummaryByService
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
+from reporting.provider.aws.models import AWSCostSummaryByRegionP
+from reporting.provider.aws.models import AWSCostSummaryByServiceP
+from reporting.provider.aws.models import AWSCostSummaryP
+from reporting.provider.aws.models import AWSDatabaseSummaryP
+from reporting.provider.aws.models import AWSNetworkSummaryP
+from reporting.provider.aws.models import AWSStorageSummaryByAccountP
+from reporting.provider.aws.models import AWSStorageSummaryByRegionP
+from reporting.provider.aws.models import AWSStorageSummaryByServiceP
+from reporting.provider.aws.models import AWSStorageSummaryP
 
 
 CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
@@ -39,7 +39,7 @@ CSV_FIELD_MAP = {"account": "id", "account_alias": "alias"}
 class AWSProviderMap(ProviderMap):
     """AWS Provider Map."""
 
-    def __init__(self, provider, report_type):
+    def __init__(self, provider, report_type, cost_type):
         """Constructor."""
         self._mapping = [
             {
@@ -76,10 +76,10 @@ class AWSProviderMap(ProviderMap):
                     "costs": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -87,31 +87,31 @@ class AWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(cost_type),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                         },
-                        "aggregate_key": "unblended_cost",
+                        "aggregate_key": cost_type,
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_raw": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -122,7 +122,7 @@ class AWSProviderMap(ProviderMap):
                         "delta_key": {
                             # cost goes to cost_total
                             "cost_total": Sum(
-                                ExpressionWrapper(F("unblended_cost") + F("markup_cost"), output_field=DecimalField())
+                                ExpressionWrapper(F(cost_type) + F("markup_cost"), output_field=DecimalField())
                             )
                         },
                         "filter": [{}],
@@ -133,11 +133,11 @@ class AWSProviderMap(ProviderMap):
                     },
                     "instance_type": {
                         "aggregates": {
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -145,10 +145,10 @@ class AWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(cost_type),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "count": Sum(Value(0, output_field=DecimalField())),
@@ -156,22 +156,22 @@ class AWSProviderMap(ProviderMap):
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_raw": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -197,10 +197,10 @@ class AWSProviderMap(ProviderMap):
                     "storage": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -208,32 +208,32 @@ class AWSProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(cost_type),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(cost_type),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_raw": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -264,48 +264,48 @@ class AWSProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": AWSCostSummary,
-                ("account",): AWSCostSummaryByAccount,
-                ("region",): AWSCostSummaryByRegion,
-                ("account", "region"): AWSCostSummaryByRegion,
-                ("service",): AWSCostSummaryByService,
-                ("account", "service"): AWSCostSummaryByService,
-                ("product_family",): AWSCostSummaryByService,
-                ("account", "product_family"): AWSCostSummaryByService,
+                "default": AWSCostSummaryP,
+                ("account",): AWSCostSummaryByAccountP,
+                ("region",): AWSCostSummaryByRegionP,
+                ("account", "region"): AWSCostSummaryByRegionP,
+                ("service",): AWSCostSummaryByServiceP,
+                ("account", "service"): AWSCostSummaryByServiceP,
+                ("product_family",): AWSCostSummaryByServiceP,
+                ("account", "product_family"): AWSCostSummaryByServiceP,
             },
             "instance_type": {
-                "default": AWSComputeSummary,
-                ("account",): AWSComputeSummaryByAccount,
-                ("region",): AWSComputeSummaryByRegion,
-                ("account", "region"): AWSComputeSummaryByRegion,
-                ("service",): AWSComputeSummaryByService,
-                ("account", "service"): AWSComputeSummaryByService,
-                ("product_family",): AWSComputeSummaryByService,
-                ("account", "product_family"): AWSComputeSummaryByService,
-                ("instance_type",): AWSComputeSummary,
-                ("account", "instance_type"): AWSComputeSummary,
+                "default": AWSComputeSummaryP,
+                ("account",): AWSComputeSummaryByAccountP,
+                ("region",): AWSComputeSummaryByRegionP,
+                ("account", "region"): AWSComputeSummaryByRegionP,
+                ("service",): AWSComputeSummaryByServiceP,
+                ("account", "service"): AWSComputeSummaryByServiceP,
+                ("product_family",): AWSComputeSummaryByServiceP,
+                ("account", "product_family"): AWSComputeSummaryByServiceP,
+                ("instance_type",): AWSComputeSummaryP,
+                ("account", "instance_type"): AWSComputeSummaryP,
             },
             "storage": {
-                "default": AWSStorageSummary,
-                ("account",): AWSStorageSummaryByAccount,
-                ("region",): AWSStorageSummaryByRegion,
-                ("account", "region"): AWSStorageSummaryByRegion,
-                ("service",): AWSStorageSummaryByService,
-                ("account", "service"): AWSStorageSummaryByService,
-                ("product_family",): AWSStorageSummaryByService,
-                ("account", "product_family"): AWSStorageSummaryByService,
+                "default": AWSStorageSummaryP,
+                ("account",): AWSStorageSummaryByAccountP,
+                ("region",): AWSStorageSummaryByRegionP,
+                ("account", "region"): AWSStorageSummaryByRegionP,
+                ("service",): AWSStorageSummaryByServiceP,
+                ("account", "service"): AWSStorageSummaryByServiceP,
+                ("product_family",): AWSStorageSummaryByServiceP,
+                ("account", "product_family"): AWSStorageSummaryByServiceP,
             },
             "database": {
-                "default": AWSDatabaseSummary,
-                ("service",): AWSDatabaseSummary,
-                ("account", "service"): AWSDatabaseSummary,
-                ("account",): AWSDatabaseSummary,
+                "default": AWSDatabaseSummaryP,
+                ("service",): AWSDatabaseSummaryP,
+                ("account", "service"): AWSDatabaseSummaryP,
+                ("account",): AWSDatabaseSummaryP,
             },
             "network": {
-                "default": AWSNetworkSummary,
-                ("service",): AWSNetworkSummary,
-                ("account", "service"): AWSNetworkSummary,
-                ("account",): AWSNetworkSummary,
+                "default": AWSNetworkSummaryP,
+                ("service",): AWSNetworkSummaryP,
+                ("account", "service"): AWSNetworkSummaryP,
+                ("account",): AWSNetworkSummaryP,
             },
         }
         super().__init__(provider, report_type)

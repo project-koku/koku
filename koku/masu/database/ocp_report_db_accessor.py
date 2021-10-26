@@ -7,7 +7,6 @@ import copy
 import datetime
 import json
 import logging
-import os
 import pkgutil
 import uuid
 from decimal import Decimal
@@ -22,15 +21,14 @@ from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
-from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
-from sqlparse import split as sql_split
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from koku.database import JSONBBuildObject
+from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -63,7 +61,7 @@ def create_filter(data_source, start_date, end_date, cluster_id):
     return filters
 
 
-class OCPReportDBAccessor(ReportDBAccessorBase):
+class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema):
@@ -1032,10 +1030,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
+                    LOG.debug("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
                     line_item.infrastructure_monthly_cost_json = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
+                    LOG.debug("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
             # How are we gonna handle distributing the node cost to the projects.
@@ -1135,7 +1133,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     )
                                 node_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
+                                    LOG.debug("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
                                     if line_item.infrastructure_monthly_cost_json:
                                         node_cost = (
                                             line_item.infrastructure_monthly_cost_json.get(distribution, 0)
@@ -1144,7 +1142,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
+                                    LOG.debug("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
                                     if line_item.supplementary_monthly_cost_json:
                                         node_cost = (
                                             line_item.supplementary_monthly_cost_json.get(distribution, 0) + rate_value
@@ -1562,7 +1560,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     )
                                 pvc_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
+                                    LOG.debug("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
                                     if line_item.infrastructure_monthly_cost_json:
                                         pvc_cost = (
                                             line_item.infrastructure_monthly_cost_json.get(distribution, 0)
@@ -1571,7 +1569,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
+                                    LOG.debug("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
                                     if line_item.supplementary_monthly_cost_json:
                                         pvc_cost = (
                                             line_item.supplementary_monthly_cost_json.get(distribution, 0) + rate_value
@@ -1616,10 +1614,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
                     line_item.infrastructure_monthly_cost_json = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
                 # PVC to project Distribution
@@ -1653,10 +1651,10 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly project infrastructure cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly project infrastructure cost of %s.", pvc, pvc_cost)
                     project_line_item.infrastructure_project_monthly_cost = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
                     project_line_item.supplementary_project_monthly_cost = monthly_cost
                 project_line_item.save()
 
@@ -1709,7 +1707,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     )
                                 cluster_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info(
+                                    LOG.debug(
                                         "Cluster (%s) has a monthly infrastructure cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
@@ -1722,7 +1720,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info(
+                                    LOG.debug(
                                         "Cluster (%s) has a monthly supplemenarty cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
@@ -1791,7 +1789,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                             )
                         cluster_cost = tag_default
                         if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                            LOG.info(
+                            LOG.debug(
                                 "Cluster (%s) has a default monthly infrastructure cost of %s.",
                                 cluster_id,
                                 tag_default,
@@ -1803,7 +1801,7 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
                             monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
                             line_item.infrastructure_monthly_cost_json = monthly_cost
                         elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                            LOG.info(
+                            LOG.debug(
                                 "Cluster (%s) has a default monthly supplemenarty cost of %s.", cluster_id, tag_default
                             )
                             if line_item.supplementary_monthly_cost_json:
@@ -2280,31 +2278,12 @@ class OCPReportDBAccessor(ReportDBAccessorBase):
 
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
 
-    def _execute_processing_script(self, script_file_path, sql_params):
-        sql = pkgutil.get_data("masu.database", script_file_path).decode("utf-8")
-        for sql_stmt in sql_split(sql):
-            sql_stmt = sql_stmt.strip()
-            if sql_stmt:
-                sql_stmt, params = self.jinja_sql.prepare_query(sql_stmt, sql_params)
-                with connection.cursor() as cur:
-                    try:
-                        cur.execute(sql_stmt, params)
-                    except ProgrammingError as exc:
-                        msg = [
-                            f"ERROR in SQL statement '{exc}'",
-                            f"STATEMENT: {sql_stmt}",
-                            f"PARAMS: {params}",
-                            f"INPUT_PARAMS: {sql_params}",
-                        ]
-                        LOG.error(os.linesep.join(msg))
-                        raise
-
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+        self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
-        self._execute_processing_script(script_file_path, sql_params)
+        self._execute_processing_script("masu.database", script_file_path, sql_params)
