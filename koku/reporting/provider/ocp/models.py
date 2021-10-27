@@ -35,6 +35,16 @@ VIEWS = (
     "reporting_ocp_volume_summary_by_project",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_ocp_cost_summary_p",
+    "reporting_ocp_cost_summary_by_node_p",
+    "reporting_ocp_cost_summary_by_project_p",
+    "reporting_ocp_pod_summary_p",
+    "reporting_ocp_pod_summary_by_project_p",
+    "reporting_ocp_volume_summary_p",
+    "reporting_ocp_volume_summary_by_project_p",
+)
+
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.
