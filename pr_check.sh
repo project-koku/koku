@@ -95,7 +95,7 @@ EOF
 
 # check if this branch is out of date with main
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$(git rev-parse --abbrev-ref HEAD) | jq '.sha')
-if latest_commit != $GIT_COMMIT
+if $latest_commit != $GIT_COMMIT
 then
     exit_code=3
     make_results_xml
