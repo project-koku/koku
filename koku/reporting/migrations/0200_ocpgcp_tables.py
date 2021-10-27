@@ -495,4 +495,5 @@ class Migration(migrations.Migration):
             model_name="ocpgcpcostlineitemdailysummaryp",
             index=models.Index(fields=["service_alias"], name="ocpgcp_service_alias_idx"),
         ),
+        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
     ]
