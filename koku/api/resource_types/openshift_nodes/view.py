@@ -50,14 +50,10 @@ class OCPNodesView(generics.ListAPIView):
         if request.user.access:
             ocp_node_access = request.user.access.get("openshift.node", {}).get("read", [])
             ocp_cluster_access = request.user.access.get("openshift.cluster", {}).get("read", [])
-            # checks if the access exists, and the user has wildcard access
-            if ocp_node_access and ocp_node_access[0] == "*" or ocp_cluster_access and ocp_cluster_access[0] == "*":
-                return super().list(request)
             query_holder = self.queryset
-            if ocp_node_access:
+            if ocp_node_access and ocp_node_access[0] != "*":
                 query_holder = query_holder.filter(node__in=ocp_node_access)
-            if ocp_cluster_access:
+            if ocp_cluster_access and ocp_cluster_access[0] != "*":
                 query_holder = query_holder.filter(cluster_id__in=ocp_cluster_access)
-        # if query_holder does not exist we return an empty queryset
         self.queryset = query_holder
         return super().list(request)
