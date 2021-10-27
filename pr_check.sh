@@ -93,7 +93,7 @@ EOF
 }
 
 # check if this commit is out of date with the branch
-latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$(git rev-parse --abbrev-ref HEAD) | jq -r '.sha')
+latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/${GHPRBSOURCEBRANCH} | jq -r '.sha')
 if [[ $latest_commit != $GIT_COMMIT ]]
 then
     exit_code=3
