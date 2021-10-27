@@ -16,7 +16,6 @@ export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
-export GIT_COMMIT=$(git rev-parse HEAD)
 
 set -ex
 
@@ -42,7 +41,7 @@ function run_unit_tests() {
 function run_smoke_tests() {
     run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 4)
+    export NAMESPACE=$(bonfire namespace reserve --duration 2)
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
@@ -55,7 +54,7 @@ function run_smoke_tests() {
         ${APP_NAME} \
         --source=appsre \
         --ref-env insights-stage \
-        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
+        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -94,7 +93,7 @@ EOF
 
 # check if this commit is out of date with the branch
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$ghprbSourceBranch | jq -r '.sha')
-if [[ $latest_commit != $GIT_COMMIT ]]
+if [[ $latest_commit != $ghprbActualCommit ]]
 then
     exit_code=3
     make_results_xml
@@ -103,7 +102,7 @@ fi
 
 
 # Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/search/issues?q=sha:$GIT_COMMIT" | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
+curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $ARTIFACTS_DIR/github_labels.txt
 
 
 # check if this PR is labeled to build the test image
