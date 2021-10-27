@@ -128,6 +128,9 @@ class OCPReportParquetSummaryUpdater:
             )
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, [report_period_id])
 
+            for start, end in date_range_pair(start_date, end_date):
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
+
             LOG.info("Updating OpenShift report periods")
             if report_period.summary_data_creation_datetime is None:
                 report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")

@@ -98,6 +98,9 @@ class OCPReportSummaryUpdater:
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)
 
+            for start, end in date_range_pair(start_date, end_date):
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
+
             if report_period.summary_data_creation_datetime is None:
                 report_period.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
