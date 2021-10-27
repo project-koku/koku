@@ -92,7 +92,7 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 EOF
 }
 
-# check if this branch is out of date with main
+# check if this commit is out of date with the branch
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$(git rev-parse --abbrev-ref HEAD) | jq -r '.sha')
 if [[ $latest_commit != $GIT_COMMIT ]]
 then
@@ -101,9 +101,12 @@ then
     exit $exit_code
 fi
 
+
 # Save PR labels into a file
 curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
 
+
+# check if this PR is labeled to build the test image
 if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
 then
     echo "PR check skipped"
@@ -116,7 +119,9 @@ else
     build_image
 fi
 
+
 if [[ $exit_code == 0 ]]; then
+    # check if this PR is labeled to run smoke tests
     if ! check_for_labels "lgtm|smoke-tests"
     then
         echo "PR smoke tests skipped"
