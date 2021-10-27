@@ -92,8 +92,6 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 EOF
 }
 
-# printenv
-
 # check if this commit is out of date with the branch
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$ghprbSourceBranch | jq -r '.sha')
 if [[ $latest_commit != $GIT_COMMIT ]]
