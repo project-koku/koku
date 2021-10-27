@@ -1077,7 +1077,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
                     project_line_item.save()
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
 
     def tag_upsert_monthly_node_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
@@ -1416,8 +1416,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             with schema_context(self.schema):
                 # NOTE: I implemented a logic change here, now instead of one entry per cluster cost
                 # We now have multiple cluster cost entries for each node.
-                LOG.info("Cluster (%s) has a monthly cost of %s.", cluster_id, cluster_cost)
-                LOG.info("Distributing the cluster cost to nodes using %s distribution.", distribution)
+                LOG.debug("Cluster (%s) has a monthly cost of %s.", cluster_id, cluster_cost)
+                LOG.debug("Distributing the cluster cost to nodes using %s distribution.", distribution)
                 for node_dikt in distribution_list:
                     node = node_dikt.get("node")
                     distributed_cost = node_dikt.get("distributed_cost", Decimal(0))
@@ -1455,7 +1455,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         line_item.infrastructure_monthly_cost_json = monthly_cost
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         line_item.supplementary_monthly_cost_json = monthly_cost
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
                     line_item.save()
             # Project Distribution
             project_distribution_list = self.get_cluster_to_project_distribution(
@@ -1499,7 +1499,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
                     project_line_item.save()
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
 
     def tag_upsert_monthly_pvc_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict

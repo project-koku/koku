@@ -2,7 +2,7 @@
 Koku README
 ===========
 
-|license| |Unittests| |codecov| |Updates| |Python 3| |Docs|
+|license| |Unittests| |codecov| |Docs|
 
 About
 =====

@@ -39,7 +39,7 @@ class OCPClustersView(generics.ListAPIView):
     def list(self, request):
         # Reads the users values for Openshift cluster id and displays values related to what the user has access to
         supported_query_params = ["search", "limit"]
-        user_access = []
+        user_access = None
         error_message = {}
         # Test for only supported query_params
         if self.request.query_params:
@@ -51,7 +51,8 @@ class OCPClustersView(generics.ListAPIView):
             return super().list(request)
         if request.user.access:
             user_access = request.user.access.get("openshift.cluster", {}).get("read", [])
-        if user_access and user_access[0] == "*":
-            return super().list(request)
+            # checks if the access exists, and the user has wildcard access
+            if user_access and user_access[0] == "*":
+                return super().list(request)
         self.queryset = self.queryset.filter(cluster_id__in=user_access)
         return super().list(request)
