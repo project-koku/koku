@@ -73,3 +73,20 @@ JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
+
+WITH cte_expired_tag_keys AS (
+    SELECT DISTINCT tv.key
+    FROM {{schema | sqlsafe}}.reporting_ocptags_values AS tv
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary AS pls
+        ON tv.key = pls.key
+    LEFT JOIN {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary vls
+        ON tv.key = vls.key
+    WHERE pls.key IS NULL
+        AND vls.key IS NULL
+
+
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_ocptags_values tv
+    USING cte_expired_tag_keys etk
+    WHERE tv.key = etk.key
+;

@@ -62,3 +62,16 @@ FROM cte_tag_value AS tv
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET subscription_guids=EXCLUDED.subscription_guids
 ;
+
+WITH cte_expired_tag_keys AS (
+    SELECT DISTINCT tv.key
+    FROM {{schema | sqlsafe}}.reporting_azuretags_values AS tv
+    LEFT JOIN {{schema | sqlsafe}}.reporting_azuretags_summary AS ts
+        ON tv.key = ts.key
+    WHERE ts.key IS NULL
+
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_azuretags_values tv
+    USING cte_expired_tag_keys etk
+    WHERE tv.key = etk.key
+;
