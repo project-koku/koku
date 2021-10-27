@@ -73,6 +73,17 @@ PARTITIONED_MODEL_NAMES = [
     "AWSStorageSummaryByRegionP",
     "AWSNetworkSummaryP",
     "AWSDatabaseSummaryP",
+    "OCPGCPCostLineItemDailySummaryP",
+    "OCPGCPCostLineItemProjectDailySummaryP",
+    "OCPGCPCostSummaryByAccountP",
+    "OCPGCPCostSummaryByGCPProjectP",
+    "OCPGCPCostSummaryByRegionP",
+    "OCPGCPCostSummaryByServiceP",
+    "OCPGCPCostSummaryP",
+    "OCPGCPComputeSummaryP",
+    "OCPGCPDatabaseSummaryP",
+    "OCPGCPNetworkSummaryP",
+    "OCPGCPStorageSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
@@ -229,7 +240,11 @@ def execute_compiled_sql(sql, params=None):
 def execute_delete_sql(query):
     """Execute sql directly, returns cursor."""
     sql, params = get_delete_sql(query)
-    return execute_compiled_sql(sql, params=params)
+    try:
+        return execute_compiled_sql(sql, params=params)
+    except Exception as e:
+        LOG.debug(f"The following exception occurred {e}")
+        return 0
 
 
 def execute_update_sql(query, **updatespec):
