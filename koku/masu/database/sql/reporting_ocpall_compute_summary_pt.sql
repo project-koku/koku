@@ -7,11 +7,13 @@ DELETE
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = {{source_type}};
+   AND source_type = {{source_type}}
+;
 
 
 -- INSERT NEW DATA INTO reporting_ocpall_compute_summary_pt
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
+-- TESTING!!
 INSERT
   INTO {{schema_name | sqlsafe}}.reporting_ocpall_compute_summary_pt
        (
@@ -35,7 +37,7 @@ INSERT
 SELECT {{source_type}},
        usage_start,
        usage_start,
-       cluster_id,
+       {{cluster_id}},
        {{cluster_alias}},
        usage_account_id,
        max(account_alias_id),
@@ -51,13 +53,12 @@ SELECT {{source_type}},
   FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}
    AND usage_end <= {{end_date}}
-   AND source_type = {{source_type}};
+   AND source_type = {{source_type}}
    AND cluster_id = {{cluster_id}}
    AND source_uuid = {{source_uuid}}::uuid
    AND instance_type IS NOT NULL
  GROUP
     BY usage_start,
-       cluster_id,
        usage_account_id,
        product_code,
        instance_type,

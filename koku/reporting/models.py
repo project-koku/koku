@@ -183,6 +183,7 @@ OCP_MATERIALIZED_VIEWS = (
     OCPCostSummaryByNode,
 )
 
+# These are partitioned tables
 OCP_ON_ALL_PERSPECTIVES = (
     OCPAllCostSummaryPT,
     OCPAllCostSummaryByAccountPT,
@@ -216,19 +217,7 @@ OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureDatabaseSummary,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
-    OCPAllCostSummaryP,
-    OCPAllCostSummaryByAccountP,
-    OCPAllCostSummaryByServiceP,
-    OCPAllCostSummaryByRegionP,
-    OCPAllComputeSummaryP,
-    OCPAllDatabaseSummaryP,
-    OCPAllNetworkSummaryP,
-    OCPAllStorageSummaryP,
-    OCPCostSummary,
-    OCPCostSummaryByProject,
-    OCPCostSummaryByNode,
-)
+OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPCostSummary, OCPCostSummaryByProject, OCPCostSummaryByNode)
 
 GCP_MATERIALIZED_VIEWS = (
     GCPCostSummary,

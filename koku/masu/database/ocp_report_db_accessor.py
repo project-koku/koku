@@ -2288,6 +2288,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_all_perspectives(self, sql_params):
         for perspective in OCP_ON_ALL_PERSPECTIVES:
-            LOG.info(f"Populating {perspective} data using {sql_params}")
-            script_file_path = f"sql/{perspective}.sql"
+            LOG.info(f"Populating {perspective._meta.db_table} data using {sql_params}")
+            script_file_path = f"sql/{perspective._meta.db_table}.sql"
             self._execute_processing_script("masu.database", script_file_path, sql_params)

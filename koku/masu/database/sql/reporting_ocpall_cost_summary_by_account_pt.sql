@@ -14,7 +14,7 @@ DELETE
 -- FOR {{start_date}} - {{end_date}}; source_type {{source_type}}; source {{source_uuid}}; cluster {{cluster_id}}
 INSERT
   INTO {{schema_name | sqlsafe}}.reporting_ocpall_cost_summary_by_account_pt (
-           data_source,
+           source_type,
            usage_start,
            usage_end,
            cluster_id,
@@ -43,4 +43,7 @@ SELECT {{source_type}},
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
    AND source_type = {{source_type}}
-:
+ GROUP
+    BY usage_start,
+       usage_account_id
+;

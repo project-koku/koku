@@ -40,10 +40,10 @@ SELECT {{source_type}},
        product_code,
        product_family,
        sum(usage_amount),
-       'GB-Mo',                   -- unit
+       'GB-Mo',
        sum(unblended_cost),
        sum(markup_cost),
-       max(currency_code)
+       max(currency_code),
        {{source_uuid}}::uuid
   FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
@@ -51,8 +51,8 @@ SELECT {{source_type}},
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
    AND source_type = {{source_type}}
-   AND (product_family LIKE '%Storage%' OR
-        product_code LIKE '%Storage%')
+   AND (product_family LIKE '%%Storage%%' OR
+        product_code LIKE '%%Storage%%')
    AND unit = 'GB-Mo'
  GROUP
     BY usage_start,

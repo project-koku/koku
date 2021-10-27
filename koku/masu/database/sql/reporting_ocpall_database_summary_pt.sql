@@ -50,7 +50,7 @@ SELECT {{source_type}},
    AND cluster_id = {{cluster_id}}
    AND source_type = {{source_type}}
    AND (
-           product_code LIKE '%Database%' OR
+           product_code LIKE '%%Database%%' OR
            product_code IN (
                                'AmazonRDS',
                                'AmazonDynamoDB',

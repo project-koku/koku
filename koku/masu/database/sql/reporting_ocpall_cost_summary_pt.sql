@@ -20,15 +20,15 @@ INSERT
            usage_end,
            cluster_id,
            cluster_alias,
-           sum(unblended_cost),
-           sum(markup_cost),
-           max(currency_code),
-           {{source_uuid}}
+           unblended_cost,
+           markup_cost,
+           currency_code,
+           source_uuid
        )
 SELECT {{source_type}},
        usage_start,
        usage_start,
-       cluster_id,
+       {{cluster_id}},
        {{cluster_alias}},
        sum(unblended_cost),
        sum(markup_cost),

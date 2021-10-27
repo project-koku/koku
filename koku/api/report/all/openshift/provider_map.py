@@ -16,16 +16,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import OCPAllComputeSummaryP
+from reporting.models import OCPAllComputeSummaryPT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAllCostSummaryByAccountP
-from reporting.models import OCPAllCostSummaryByRegionP
-from reporting.models import OCPAllCostSummaryByServiceP
-from reporting.models import OCPAllCostSummaryP
-from reporting.models import OCPAllDatabaseSummaryP
-from reporting.models import OCPAllNetworkSummaryP
-from reporting.models import OCPAllStorageSummaryP
+from reporting.models import OCPAllCostSummaryByAccountPT
+from reporting.models import OCPAllCostSummaryByRegionPT
+from reporting.models import OCPAllCostSummaryByServicePT
+from reporting.models import OCPAllCostSummaryPT
+from reporting.models import OCPAllDatabaseSummaryPT
+from reporting.models import OCPAllNetworkSummaryPT
+from reporting.models import OCPAllStorageSummaryPT
 
 
 class OCPAllProviderMap(ProviderMap):
@@ -548,40 +548,40 @@ class OCPAllProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": OCPAllCostSummaryP,
-                ("account",): OCPAllCostSummaryByAccountP,
-                ("region",): OCPAllCostSummaryByRegionP,
-                ("account", "region"): OCPAllCostSummaryByRegionP,
-                ("service",): OCPAllCostSummaryByServiceP,
-                ("account", "service"): OCPAllCostSummaryByServiceP,
-                ("product_family",): OCPAllCostSummaryByServiceP,
-                ("account", "product_family"): OCPAllCostSummaryByServiceP,
+                "default": OCPAllCostSummaryPT,
+                ("account",): OCPAllCostSummaryByAccountPT,
+                ("region",): OCPAllCostSummaryByRegionPT,
+                ("account", "region"): OCPAllCostSummaryByRegionPT,
+                ("service",): OCPAllCostSummaryByServicePT,
+                ("account", "service"): OCPAllCostSummaryByServicePT,
+                ("product_family",): OCPAllCostSummaryByServicePT,
+                ("account", "product_family"): OCPAllCostSummaryByServicePT,
             },
             "instance_type": {
-                "default": OCPAllComputeSummaryP,
-                ("account",): OCPAllComputeSummaryP,
-                ("instance_type",): OCPAllComputeSummaryP,
-                ("account", "instance_type"): OCPAllComputeSummaryP,
-                ("service",): OCPAllComputeSummaryP,
-                ("account", "service"): OCPAllComputeSummaryP,
+                "default": OCPAllComputeSummaryPT,
+                ("account",): OCPAllComputeSummaryPT,
+                ("instance_type",): OCPAllComputeSummaryPT,
+                ("account", "instance_type"): OCPAllComputeSummaryPT,
+                ("service",): OCPAllComputeSummaryPT,
+                ("account", "service"): OCPAllComputeSummaryPT,
             },
             "storage": {
-                "default": OCPAllStorageSummaryP,
-                ("account",): OCPAllStorageSummaryP,
-                ("product_family",): OCPAllStorageSummaryP,
-                ("account", "product_family"): OCPAllStorageSummaryP,
+                "default": OCPAllStorageSummaryPT,
+                ("account",): OCPAllStorageSummaryPT,
+                ("product_family",): OCPAllStorageSummaryPT,
+                ("account", "product_family"): OCPAllStorageSummaryPT,
             },
             "database": {
-                "default": OCPAllDatabaseSummaryP,
-                ("account",): OCPAllDatabaseSummaryP,
-                ("service",): OCPAllDatabaseSummaryP,
-                ("account", "service"): OCPAllDatabaseSummaryP,
+                "default": OCPAllDatabaseSummaryPT,
+                ("account",): OCPAllDatabaseSummaryPT,
+                ("service",): OCPAllDatabaseSummaryPT,
+                ("account", "service"): OCPAllDatabaseSummaryPT,
             },
             "network": {
-                "default": OCPAllNetworkSummaryP,
-                ("account",): OCPAllNetworkSummaryP,
-                ("service",): OCPAllNetworkSummaryP,
-                ("account", "service"): OCPAllNetworkSummaryP,
+                "default": OCPAllNetworkSummaryPT,
+                ("account",): OCPAllNetworkSummaryPT,
+                ("service",): OCPAllNetworkSummaryPT,
+                ("account", "service"): OCPAllNetworkSummaryPT,
             },
         }
         super().__init__(provider, report_type)

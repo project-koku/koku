@@ -62,4 +62,8 @@ SELECT {{source_type}},
                            'Load Balancer',
                            'Application Gateway'
                        )
+ GROUP
+    BY usage_start,
+       usage_account_id,
+       product_code
 ;
