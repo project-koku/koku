@@ -16,6 +16,7 @@ export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
+export GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 export GIT_COMMIT=$(git rev-parse HEAD)
 
 set -ex
@@ -93,7 +94,7 @@ EOF
 }
 
 # check if this commit is out of date with the branch
-latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/${GHPRBSOURCEBRANCH} | jq -r '.sha')
+latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$GIT_BRANCH | jq -r '.sha')
 if [[ $latest_commit != $GIT_COMMIT ]]
 then
     exit_code=3
