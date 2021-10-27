@@ -22,7 +22,7 @@ set -ex
 mkdir -p $ARTIFACTS_DIR
 exit_code=0
 task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
-error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This branch is out of date with main")
+error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
 function check_for_labels() {
     if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
