@@ -211,6 +211,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
+                self._schema,
                 ("reporting_ocpgcpcostlineitem_daily_summary", "reporting_ocpgcpcostlineitem_project_daily_summary"),
                 start_date,
                 end_date,

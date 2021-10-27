@@ -13,7 +13,7 @@ from koku.database import unset_partition_mode
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0197_usersettings")]
+    dependencies = [("reporting", "0199_aws_perspective_colname_idx")]
 
     operations = [
         migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
