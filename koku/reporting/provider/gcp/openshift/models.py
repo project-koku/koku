@@ -214,7 +214,7 @@ class OCPGCPCostSummaryByAccountP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_account_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -227,7 +227,9 @@ class OCPGCPCostSummaryByAccountP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -244,7 +246,7 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_gcp_project_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -258,7 +260,9 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -275,7 +279,7 @@ class OCPGCPCostSummaryByRegionP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_region_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -289,7 +293,9 @@ class OCPGCPCostSummaryByRegionP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -306,7 +312,7 @@ class OCPGCPCostSummaryByServiceP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_service_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -319,7 +325,9 @@ class OCPGCPCostSummaryByServiceP(models.Model):
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     account_id = models.CharField(max_length=50, null=False)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
@@ -338,7 +346,7 @@ class OCPGCPCostSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -350,7 +358,9 @@ class OCPGCPCostSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -367,7 +377,7 @@ class OCPGCPComputeSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_compute_summary_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -380,7 +390,9 @@ class OCPGCPComputeSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -397,7 +409,7 @@ class OCPGCPDatabaseSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_database_summary_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -412,7 +424,9 @@ class OCPGCPDatabaseSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -429,7 +443,7 @@ class OCPGCPNetworkSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_network_summary_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -444,7 +458,9 @@ class OCPGCPNetworkSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
@@ -461,7 +477,7 @@ class OCPGCPStorageSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_storage_summary_p"
 
-    uuid = models.UUIDField(primary_key=True, default=uuid4)
+    id = models.UUIDField(primary_key=True)
     # OCP Fields
     report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
@@ -476,7 +492,9 @@ class OCPGCPStorageSummaryP(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
     currency = models.TextField(null=True)
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
