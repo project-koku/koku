@@ -115,8 +115,6 @@ from reporting.provider.gcp.models import GCPStorageSummaryByProject
 from reporting.provider.gcp.models import GCPStorageSummaryByRegion
 from reporting.provider.gcp.models import GCPStorageSummaryByService
 from reporting.provider.gcp.models import GCPTagsSummary
-from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemDailySummary
-from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode

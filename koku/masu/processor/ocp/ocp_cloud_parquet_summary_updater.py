@@ -212,7 +212,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         with schema_context(self._schema):
             self._handle_partitions(
                 self._schema,
-                ("reporting_ocpgcpcostlineitem_daily_summary", "reporting_ocpgcpcostlineitem_project_daily_summary"),
+                (
+                    "reporting_ocpgcpcostlineitem_daily_summary_p",
+                    "reporting_ocpgcpcostlineitem_project_daily_summary_p",
+                ),
                 start_date,
                 end_date,
             )

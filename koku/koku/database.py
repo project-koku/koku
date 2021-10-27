@@ -51,8 +51,6 @@ PARTITIONED_MODEL_NAMES = [
     "OCPUsageLineItemDailySummary",
     "OCPAllCostLineItemDailySummaryP",
     "OCPAllCostLineItemProjectDailySummaryP",
-    "OCPGCPCostLineItemDailySummary",
-    "OCPGCPCostLineItemProjectDailySummary",
     "OCPAllCostSummaryPT",
     "OCPAllCostSummaryByAccountPT",
     "OCPAllCostSummaryByServicePT",

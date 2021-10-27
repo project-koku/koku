@@ -1,5 +1,5 @@
 -- Clear out old entries first
-DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary
+DELETE FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
 WHERE usage_start >= date('{{start_date | sqlsafe}}')
     AND usage_start <= date('{{end_date | sqlsafe}}')
     AND report_period_id = {{report_period_id | sqlsafe}}
@@ -7,7 +7,7 @@ WHERE usage_start >= date('{{start_date | sqlsafe}}')
 
 
 -- Populate the daily aggregate line item data
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p (
     uuid,
     report_period_id,
     cluster_id,
@@ -63,7 +63,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_sum
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date('{{start_date | sqlsafe}}')
         AND usage_start <= date('{{end_date | sqlsafe}}')
@@ -167,7 +167,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary AS ocp_gcp
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id
             AND DATE_TRUNC('month', ocp_gcp.usage_start)  = date(rp.report_period_start)
