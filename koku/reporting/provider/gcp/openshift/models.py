@@ -216,11 +216,8 @@ class OCPGCPCostSummaryByAccountP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=20)
@@ -248,11 +245,8 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     project_id = models.CharField(max_length=256)
@@ -281,11 +275,8 @@ class OCPGCPCostSummaryByRegionP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=50, null=False)
@@ -314,11 +305,8 @@ class OCPGCPCostSummaryByServiceP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -348,11 +336,8 @@ class OCPGCPCostSummaryP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -379,11 +364,8 @@ class OCPGCPComputeSummaryP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     instance_type = models.CharField(max_length=50, null=True)
@@ -411,11 +393,8 @@ class OCPGCPDatabaseSummaryP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=50, null=False)
@@ -445,11 +424,8 @@ class OCPGCPNetworkSummaryP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=50, null=False)
@@ -479,11 +455,8 @@ class OCPGCPStorageSummaryP(models.Model):
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
-    report_period = models.ForeignKey("OCPUsageReportPeriod", on_delete=models.CASCADE, null=True)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    # Kubernetes objects by convention have a max name length of 253 chars
-    node = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=50, null=False)
