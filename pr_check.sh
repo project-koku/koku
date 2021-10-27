@@ -93,6 +93,8 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 EOF
 }
 
+printenv
+
 # check if this commit is out of date with the branch
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$GIT_BRANCH | jq -r '.sha')
 if [[ $latest_commit != $GIT_COMMIT ]]
@@ -104,7 +106,7 @@ fi
 
 
 # Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
+curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/search/issues?q=sha:$GIT_COMMIT" | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
 
 
 # check if this PR is labeled to build the test image
