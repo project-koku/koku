@@ -1188,7 +1188,7 @@ class OCPPodSummaryP(models.Model):
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
-    supplementary_monthly_cost = JSONField(null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_monthly_cost_json = JSONField(null=True)
 
