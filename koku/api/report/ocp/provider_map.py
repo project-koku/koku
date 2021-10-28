@@ -71,7 +71,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
@@ -113,7 +112,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
                                 Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
@@ -131,7 +129,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
@@ -177,7 +174,6 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(
                                 Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
@@ -207,8 +203,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
@@ -290,8 +284,6 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                         },
                         "default_ordering": {"cost_total": "desc"},
@@ -310,7 +302,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
@@ -352,7 +343,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
                                 Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
@@ -370,7 +360,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
@@ -416,7 +405,6 @@ class OCPProviderMap(ProviderMap):
                                     Value(0, output_field=DecimalField()),
                                 )
                                 + Coalesce(F("infrastructure_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             # Cost =  Supplementary[field] + Infrastructure[filed]
                             # Note: if a value was currently zero it was left out, unless both sup & infra are zero
@@ -448,8 +436,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
@@ -531,8 +517,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -593,8 +577,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
@@ -618,7 +600,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
@@ -660,7 +641,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
                                 Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
@@ -678,7 +658,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
@@ -728,7 +707,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             # Cost =  Supplementary[field] + Infrastructure[filed]
                             # Note: if a value was currently zero it was left out, unless both sup & infra are zero
@@ -760,8 +738,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
@@ -847,8 +823,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                         },
                         "default_ordering": {"cost_total": "desc"},
@@ -867,7 +841,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "supplementary_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "sup_distributed": Sum(
                                 Coalesce(
@@ -909,7 +882,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum(
                                 Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField()))
@@ -927,7 +899,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_distributed": Sum(
                                 Coalesce(
@@ -977,7 +948,6 @@ class OCPProviderMap(ProviderMap):
                                 + Coalesce(
                                     F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField())
                                 )
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             # Cost =  Supplementary[field] + Infrastructure[filed]
                             # Note: if a value was currently zero it was left out, unless both sup & infra are zero
@@ -1009,8 +979,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("storage", "infrastructure_usage_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_distributed": Sum(
                                 Coalesce(
@@ -1096,8 +1064,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
@@ -1161,8 +1127,6 @@ class OCPProviderMap(ProviderMap):
                                     KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                                     Value(0, output_field=DecimalField()),
                                 )
-                                + Coalesce(F("supplementary_monthly_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("infrastructure_monthly_cost"), Value(0, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
