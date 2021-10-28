@@ -257,4 +257,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     distribution,
                 )
             accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, current_ocp_report_period_id)
+            accessor.populate_ui_summary_tables(
+                start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, current_ocp_report_period_id
+            )
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)

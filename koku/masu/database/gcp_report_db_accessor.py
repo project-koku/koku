@@ -29,6 +29,7 @@ from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
@@ -460,7 +461,9 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             node_column = "node_capacity_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcpcostlineitem_daily_summary.sql")
+        summary_sql = pkgutil.get_data(
+            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary.sql"
+        )
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
@@ -479,6 +482,23 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
+    def populate_ui_summary_tables(self, start_date, end_date, ocp_provider_uuid, gcp_provider_uuid, report_period_id):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in UI_SUMMARY_TABLES:
+            summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "gcp_source_uuid": gcp_provider_uuid,
+                "ocp_source_uuid": ocp_provider_uuid,
+                "year": start_date.strftime("%Y"),
+                "month": start_date.strftime("%m"),
+                "report_period_id": report_period_id,
+            }
+            self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
@@ -493,7 +513,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags_trino(self, gcp_source_uuid, ocp_source_uuid, start_date, end_date):
         """Return a list of matched tags."""
-        sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcp_matched_tags.sql")
+        sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
 
         sql_params = {
@@ -513,7 +533,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["ocp_on_gcp_tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpgcptags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
             "schema": self.schema,
@@ -529,7 +549,8 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         # table_name = GCP_REPORT_TABLE_MAP["ocp_on_gcp_daily_summary"]
 
         sql = pkgutil.get_data(
-            "masu.database", "presto_sql/reporting_ocpgcpcostentrylineitem_daily_summary_back_populate.sql"
+            "masu.database",
+            "presto_sql/gcp/openshift/reporting_ocpgcpcostentrylineitem_daily_summary_back_populate.sql",
         )
         sql = sql.decode("utf-8")
         sql_params = {

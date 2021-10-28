@@ -341,3 +341,16 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date)
 
         mock_trino.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_populate_ui_summary_tables(self, mock_presto):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        report_period_id = 4
+
+        self.accessor.populate_ui_summary_tables(
+            start_date, end_date, self.ocp_provider_uuid, self.gcp_provider_uuid, report_period_id
+        )
+        mock_presto.assert_called()
