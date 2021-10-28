@@ -69,6 +69,7 @@ class Provider(models.Model):
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
     OCP_AZURE = "OCP_Azure"
+    OCP_GCP = "OCP_GCP"
 
     PROVIDER_CASE_MAPPING = {
         "aws": PROVIDER_AWS,
