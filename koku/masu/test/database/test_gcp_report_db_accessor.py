@@ -4,6 +4,7 @@
 #
 """Test the GCPReportDBAccessor utility object."""
 import decimal
+from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -353,4 +354,15 @@ class GCPReportDBAccessorTest(MasuTestCase):
         self.accessor.populate_ui_summary_tables(
             start_date, end_date, self.ocp_provider_uuid, self.gcp_provider_uuid, report_period_id
         )
+        mock_presto.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
+    def test_populate_ocp_on_gcp_tags_summary_table(self, mock_presto):
+        """Test that we construst our SQL and execute our query."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        mock_gcp_bills = [Mock(), Mock()]
+        self.accessor.populate_ocp_on_gcp_tags_summary_table(mock_gcp_bills, start_date, end_date)
         mock_presto.assert_called()

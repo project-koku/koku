@@ -11,6 +11,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
@@ -103,6 +104,16 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
         )
         self.assertIsInstance(report_processor.db_accessor, AzureReportDBAccessor)
+
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        self.assertIsInstance(report_processor.db_accessor, GCPReportDBAccessor)
 
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,

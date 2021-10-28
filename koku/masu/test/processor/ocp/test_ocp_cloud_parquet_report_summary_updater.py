@@ -235,3 +235,73 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         )
 
         mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
+
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ui_summary_tables")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_presto"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.back_populate_ocp_on_gcp_daily_summary_trino"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+    )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.gcp_get_bills_from_provider")
+    def test_update_gcp_summary_tables_with_string_dates(
+        self,
+        mock_utility,
+        mock_delete,
+        mock_back_populate,
+        mock_ocp_on_gcp,
+        mock_ui_tables,
+        mock_tag_summary,
+        mock_map,
+    ):
+        """Test that summary tables are properly run for a gcp provider."""
+        fake_bills = MagicMock()
+        fake_bills.__iter__.return_value = [Mock(), Mock()]
+        first = Mock()
+        bill_id = 1
+        first.return_value.id = bill_id
+        fake_bills.first = first
+        mock_utility.return_value = fake_bills
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+
+        with ProviderDBAccessor(self.gcp_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+        with schema_context(self.schema_name):
+            current_ocp_report_period_id = report_period.id
+        mock_map.return_value = {self.ocp_test_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
+        updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+        updater.update_gcp_summary_tables(
+            self.ocp_test_provider_uuid, self.gcp_test_provider_uuid, str(start_date), str(end_date)
+        )
+        cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        distribution = None
+        mock_ocp_on_gcp.assert_called_with(
+            start_date,
+            end_date,
+            self.ocp_test_provider_uuid,
+            cluster_id,
+            self.gcp_test_provider_uuid,
+            current_ocp_report_period_id,
+            bill_id,
+            decimal.Decimal(0),
+            distribution,
+        )
+        mock_ui_tables.assert_called_with(
+            start_date,
+            end_date,
+            self.ocp_test_provider_uuid,
+            self.gcp_test_provider_uuid,
+            current_ocp_report_period_id,
+        )
+
+        mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
