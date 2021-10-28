@@ -7,7 +7,7 @@ WHERE usage_start >= date('{{start_date | sqlsafe}}')
 
 -- Populate the daily aggregate line item data
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_database_summary_p (
-    uuid,
+    id,
     cluster_id,
     cluster_alias,
     usage_start,
@@ -36,7 +36,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_database_summary_p (
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     -- Get data for this month or last month
     WHERE service_alias LIKE '%%SQL%%'
         OR service_alias LIKE '%%Spanner%%'

@@ -170,15 +170,26 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ui_summary_tables")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_cost_daily_summary_presto"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.back_populate_ocp_on_gcp_daily_summary_trino"  # noqa: E501
     )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.gcp_get_bills_from_provider")
     def test_update_gcp_summary_tables(
-        self, mock_utility, mock_back_populate, mock_ocp_on_gcp, mock_tag_summary, mock_map
+        self,
+        mock_utility,
+        mock_delete,
+        mock_back_populate,
+        mock_ocp_on_gcp,
+        mock_ui_tables,
+        mock_tag_summary,
+        mock_map,
     ):
         """Test that summary tables are properly run for a gcp provider."""
         fake_bills = MagicMock()
@@ -215,3 +226,12 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             distribution,
         )
+        mock_ui_tables.assert_called_with(
+            start_date,
+            end_date,
+            self.ocp_test_provider_uuid,
+            self.gcp_test_provider_uuid,
+            current_ocp_report_period_id,
+        )
+
+        mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)

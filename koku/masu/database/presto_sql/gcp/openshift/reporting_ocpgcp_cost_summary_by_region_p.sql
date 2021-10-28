@@ -7,7 +7,7 @@ WHERE usage_start >= date('{{start_date | sqlsafe}}')
 
 -- Populate the daily aggregate line item data
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_region_p (
-    uuid,
+    id,
     cluster_id,
     cluster_alias,
     usage_start,
@@ -34,7 +34,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_cost_summary_by_regio
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     WHERE usage_start >= date('{{start_date | sqlsafe}}')
         AND usage_start <= date('{{end_date | sqlsafe}}')
         AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
