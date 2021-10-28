@@ -1021,13 +1021,9 @@ class OCPCostSummaryP(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     supplementary_monthly_cost_json = JSONField(null=True)
 
@@ -1077,10 +1073,6 @@ class OCPCostSummaryByProjectP(models.Model):
 
     supplementary_usage_cost = JSONField(null=True)
 
-    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     infrastructure_project_monthly_cost = JSONField(null=True)
 
     supplementary_project_monthly_cost = JSONField(null=True)
@@ -1128,13 +1120,9 @@ class OCPCostSummaryByNodeP(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    infrastructure_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_usage_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     supplementary_monthly_cost_json = JSONField(null=True)
 
@@ -1199,10 +1187,6 @@ class OCPPodSummaryP(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = JSONField(null=True)
 
     infrastructure_monthly_cost_json = JSONField(null=True)
 
@@ -1275,10 +1259,6 @@ class OCPPodSummaryByProjectP(models.Model):
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
-    infrastructure_monthly_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = JSONField(null=True)
-
     infrastructure_monthly_cost_json = JSONField(null=True)
 
     supplementary_monthly_cost_json = JSONField(null=True)
@@ -1334,10 +1314,6 @@ class OCPVolumeSummaryP(models.Model):
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = JSONField(null=True)
 
     infrastructure_monthly_cost_json = JSONField(null=True)
 
@@ -1399,10 +1375,6 @@ class OCPVolumeSummaryByProjectP(models.Model):
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost = JSONField(null=True)
-
-    supplementary_monthly_cost = JSONField(null=True)
 
     infrastructure_monthly_cost_json = JSONField(null=True)
 
