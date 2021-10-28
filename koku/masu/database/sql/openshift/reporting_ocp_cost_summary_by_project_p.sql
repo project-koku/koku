@@ -11,12 +11,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     usage_start,
     usage_end,
     infrastructure_usage_cost,
-    infrastructure_monthly_cost,
     infrastructure_project_raw_cost,
     infrastructure_project_markup_cost,
     infrastructure_project_monthly_cost,
     supplementary_usage_cost,
-    supplementary_monthly_cost,
     supplementary_project_monthly_cost,
     source_uuid
 )
