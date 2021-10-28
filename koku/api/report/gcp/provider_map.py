@@ -40,6 +40,8 @@ class GCPProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type):
         """Constructor."""
+        # TODO: COST-1986
+        # group_by_annotations, filters, group_by_options, self.views
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_GCP,
@@ -47,6 +49,7 @@ class GCPProviderMap(ProviderMap):
                 "group_by_annotations": {
                     "account": {"account": "account_id"},
                     "project": {"project": "project_id"},
+                    "gcp_project": {"gcp_project": "project_id"},
                     "service": {"service": "service_alias"},
                 },  # Annotations that should happen depending on group_by values
                 "end_date": "usage_end",
@@ -61,9 +64,13 @@ class GCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "gcp_project": [
+                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
+                    ],
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["account", "region", "service", "project"],
+                "group_by_options": ["account", "region", "service", "project", "gcp_project"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -298,6 +305,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPCostSummaryByService,
                 ("project",): GCPCostSummaryByProject,
                 ("account", "project"): GCPCostSummaryByProject,
+                ("gcp_project",): GCPCostSummaryByProject,
+                ("account", "gcp_project"): GCPCostSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPCostSummaryByProject,
+                ("account", "gcp_project", "project"): GCPCostSummaryByProject,
             },
             "instance-type": {
                 "default": GCPComputeSummary,
@@ -308,6 +320,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPComputeSummaryByService,
                 ("project",): GCPComputeSummaryByProject,
                 ("account", "project"): GCPComputeSummaryByProject,
+                ("gcp_project",): GCPComputeSummaryByProject,
+                ("account", "gcp_project"): GCPComputeSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPComputeSummaryByProject,
+                ("account", "gcp_project", "project"): GCPComputeSummaryByProject,
             },
             "storage": {
                 "default": GCPStorageSummary,
@@ -318,6 +335,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPStorageSummaryByService,
                 ("project",): GCPStorageSummaryByProject,
                 ("account", "project"): GCPStorageSummaryByProject,
+                ("gcp_project",): GCPStorageSummaryByProject,
+                ("account", "gcp_project"): GCPStorageSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPStorageSummaryByProject,
+                ("account", "gcp_project", "project"): GCPStorageSummaryByProject,
             },
             "database": {
                 "default": GCPDatabaseSummary,

@@ -28,7 +28,7 @@ class GCPFilterSerializerTest(TestCase):
             "time_scope_units": "day",
             "region": FAKE.word(),
             "account": FAKE.uuid4(),
-            "project": FAKE.word(),
+            "gcp_project": FAKE.word(),
             "service": FAKE.word(),
         }
         serializer = GCPFilterSerializer(data=filter_params)
@@ -114,7 +114,7 @@ class GCPGroupBySerializerTest(TestCase):
 
     def test_parse_group_by_params_success(self):
         """Test parse of a group_by param successfully."""
-        group_by_options = ["account", "region", "service", "project"]
+        group_by_options = ["account", "region", "service", "gcp_project"]
         for group_by in group_by_options:
             group_params = {group_by: [FAKE.uuid4()]}
             serializer = GCPGroupBySerializer(data=group_params)
@@ -129,11 +129,11 @@ class GCPGroupBySerializerTest(TestCase):
 
     def test_group_by_params_string_list_fields(self):
         """Test group_by params for handling string to list fields."""
-        group_params = {"project": FAKE.word()}
+        group_params = {"gcp_project": FAKE.word()}
         serializer = GCPGroupBySerializer(data=group_params)
         validation = serializer.is_valid()
         self.assertTrue(validation)
-        result = serializer.data.get("project")
+        result = serializer.data.get("gcp_project")
         self.assertIsInstance(result, list)
 
     def test_tag_keys_dynamic_field_validation_success(self):
@@ -188,7 +188,7 @@ class GCPQueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {
-            "group_by": {"project": [FAKE.word()]},
+            "group_by": {"gcp_project": [FAKE.word()]},
             "filter": {
                 "resolution": "daily",
                 "time_scope_value": "-10",
