@@ -123,6 +123,17 @@ from reporting.provider.gcp.models import GCPStorageSummaryByProject
 from reporting.provider.gcp.models import GCPStorageSummaryByRegion
 from reporting.provider.gcp.models import GCPStorageSummaryByService
 from reporting.provider.gcp.models import GCPTagsSummary
+from reporting.provider.gcp.openshift.models import OCPGCPComputeSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByAccountP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByGCPProjectP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByRegionP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByServiceP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode
