@@ -377,6 +377,7 @@ class OCPGCPComputeSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    account_id = models.CharField(max_length=50, null=False)
 
 
 class OCPGCPDatabaseSummaryP(models.Model):

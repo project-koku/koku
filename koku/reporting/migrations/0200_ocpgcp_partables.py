@@ -31,6 +31,7 @@ class Migration(migrations.Migration):
                 ("currency", models.TextField(null=True)),
                 ("invoice_month", models.CharField(blank=True, max_length=256, null=True)),
                 ("credit_amount", models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True)),
+                ("account_id", models.CharField(max_length=50)),
             ],
             options={"db_table": "reporting_ocpgcp_compute_summary_p"},
         ),
