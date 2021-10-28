@@ -10,7 +10,7 @@ r_sql = "select 1;"
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0199_aws_perspective_colname_idx")]
+    dependencies = [("reporting", "0200_ocpgcp_partables")]
 
     operations = [
         migrations.AddField(
