@@ -214,6 +214,11 @@ class OCPGCPCostSummaryByAccountP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_account_p"
 
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpgcpcostsum_acct_usgstrt_idx"),
+            models.Index(fields=["account_id"], name="ocpgcpcostsum_acct_idx"),
+        ]
+
     id = models.UUIDField(primary_key=True)
     # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
@@ -242,6 +247,12 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
         """Meta for OCPGCPCostSummaryByGCPProjectP."""
 
         db_table = "reporting_ocpgcp_cost_summary_by_gcp_project_p"
+
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpgcpcostsum_gcpp_usgstrt_idx"),
+            models.Index(fields=["project_id"], name="ocpgcpcostsum_gcpp_projid_idx"),
+            models.Index(fields=["project_name"], name="ocpgcpcostsum_gcpp_projn_idx"),
+        ]
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
@@ -273,6 +284,11 @@ class OCPGCPCostSummaryByRegionP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_by_region_p"
 
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpgcpcostsum_reg_usgstrt_idx"),
+            models.Index(fields=["region"], name="ocpgcpcostsum_reg_idx"),
+        ]
+
     id = models.UUIDField(primary_key=True)
     # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
@@ -302,6 +318,12 @@ class OCPGCPCostSummaryByServiceP(models.Model):
         """Meta for OCPGCPCostSummaryByServiceP."""
 
         db_table = "reporting_ocpgcp_cost_summary_by_service_p"
+
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpgcpcostsum_serv_usgstrt_idx"),
+            models.Index(fields=["service_id"], name="ocpgcpcostsum_servid_idx"),
+            models.Index(fields=["service_alias"], name="ocpgcpcostsum_servalias_idx"),
+        ]
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
@@ -334,6 +356,8 @@ class OCPGCPCostSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_cost_summary_p"
 
+        indexes = [models.Index(fields=["usage_start"], name="ocpgcpcostsum_usgstrt_idx")]
+
     id = models.UUIDField(primary_key=True)
     # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
@@ -362,6 +386,8 @@ class OCPGCPComputeSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_compute_summary_p"
 
+        indexes = [models.Index(fields=["usage_start"], name="ocpgcpcompute_usgstrt_idx")]
+
     id = models.UUIDField(primary_key=True)
     # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
@@ -377,6 +403,7 @@ class OCPGCPComputeSummaryP(models.Model):
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    account_id = models.CharField(max_length=50, null=False)
 
 
 class OCPGCPDatabaseSummaryP(models.Model):
@@ -390,6 +417,8 @@ class OCPGCPDatabaseSummaryP(models.Model):
         """Meta for OCPGCPCostSummaryByServiceP."""
 
         db_table = "reporting_ocpgcp_database_summary_p"
+
+        indexes = [models.Index(fields=["usage_start"], name="ocpgcpdb_usgstrt_idx")]
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
@@ -422,6 +451,8 @@ class OCPGCPNetworkSummaryP(models.Model):
 
         db_table = "reporting_ocpgcp_network_summary_p"
 
+        indexes = [models.Index(fields=["usage_start"], name="ocpgcpnetwork_usgstrt_idx")]
+
     id = models.UUIDField(primary_key=True)
     # OCP Fields
     cluster_id = models.CharField(max_length=50, null=True)
@@ -452,6 +483,8 @@ class OCPGCPStorageSummaryP(models.Model):
         """Meta for OCPGCPCostSummaryByServiceP."""
 
         db_table = "reporting_ocpgcp_storage_summary_p"
+
+        indexes = [models.Index(fields=["usage_start"], name="ocpgcpstorage_usgstrt_idx")]
 
     id = models.UUIDField(primary_key=True)
     # OCP Fields
