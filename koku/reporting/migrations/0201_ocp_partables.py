@@ -46,8 +46,6 @@ class Migration(migrations.Migration):
                     "persistentvolumeclaim_capacity_gigabyte_months",
                     models.DecimalField(decimal_places=6, max_digits=12, null=True),
                 ),
-                ("infrastructure_monthly_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.JSONField(null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
@@ -99,8 +97,6 @@ class Migration(migrations.Migration):
                     "persistentvolumeclaim_capacity_gigabyte_months",
                     models.DecimalField(decimal_places=6, max_digits=12, null=True),
                 ),
-                ("infrastructure_monthly_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.JSONField(null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
@@ -150,8 +146,6 @@ class Migration(migrations.Migration):
                     "cluster_capacity_memory_gigabyte_hours",
                     models.DecimalField(decimal_places=6, max_digits=12, null=True),
                 ),
-                ("infrastructure_monthly_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.JSONField(null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
@@ -202,8 +196,6 @@ class Migration(migrations.Migration):
                     "cluster_capacity_memory_gigabyte_hours",
                     models.DecimalField(decimal_places=6, max_digits=12, null=True),
                 ),
-                ("infrastructure_monthly_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.JSONField(null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
@@ -233,10 +225,8 @@ class Migration(migrations.Migration):
                 ("infrastructure_raw_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("infrastructure_usage_cost", models.JSONField(null=True)),
                 ("infrastructure_markup_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("infrastructure_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_usage_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
                     "source_uuid",
@@ -270,8 +260,6 @@ class Migration(migrations.Migration):
                     models.DecimalField(decimal_places=15, max_digits=33, null=True),
                 ),
                 ("supplementary_usage_cost", models.JSONField(null=True)),
-                ("infrastructure_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("supplementary_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("infrastructure_project_monthly_cost", models.JSONField(null=True)),
                 ("supplementary_project_monthly_cost", models.JSONField(null=True)),
                 (
@@ -302,10 +290,8 @@ class Migration(migrations.Migration):
                 ("infrastructure_raw_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("infrastructure_usage_cost", models.JSONField(null=True)),
                 ("infrastructure_markup_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
-                ("infrastructure_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("infrastructure_monthly_cost_json", models.JSONField(null=True)),
                 ("supplementary_usage_cost", models.JSONField(null=True)),
-                ("supplementary_monthly_cost", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("supplementary_monthly_cost_json", models.JSONField(null=True)),
                 (
                     "source_uuid",
