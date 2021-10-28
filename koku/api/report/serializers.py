@@ -9,8 +9,12 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
+from api.currency.currencies import CURRENCIES
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from koku.settings import KOKU_DEFAULT_CURRENCY
+
+CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
 
 
 def handle_invalid_fields(this, data):
@@ -281,6 +285,7 @@ class ParamSerializer(BaseSerializer):
     # DateField defaults: format='iso-8601', input_formats=['iso-8601']
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False, default=KOKU_DEFAULT_CURRENCY)
 
     order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
