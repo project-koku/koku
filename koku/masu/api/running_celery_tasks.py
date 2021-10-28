@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""View for update_cost_model_costs endpoint."""
+"""View for running_celery_tasks endpoint."""
 import logging
 
 from django.views.decorators.cache import never_cache
