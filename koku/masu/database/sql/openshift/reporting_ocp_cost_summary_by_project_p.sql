@@ -31,7 +31,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
             'memory', sum((infrastructure_usage_cost->>'memory')::decimal),
             'storage', sum((infrastructure_usage_cost->>'storage')::decimal)
         ) as infrastructure_usage_cost,
-        sum(infrastructure_monthly_cost) as infrastructure_monthly_cost,
         sum(infrastructure_project_raw_cost) as infrastructure_project_raw_cost,
         sum(infrastructure_project_markup_cost) as infrastructure_project_markup_cost,
         json_build_object(
@@ -44,7 +43,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
             'memory', sum((supplementary_usage_cost->>'memory')::decimal),
             'storage', sum((supplementary_usage_cost->>'storage')::decimal)
         ) as supplementary_usage_cost,
-        sum(supplementary_monthly_cost) as supplementary_monthly_cost,
         json_build_object(
             'cpu', sum(((coalesce(supplementary_project_monthly_cost, '{"cpu": 0}'::jsonb))->>'cpu')::decimal),
             'memory', sum(((coalesce(supplementary_project_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
