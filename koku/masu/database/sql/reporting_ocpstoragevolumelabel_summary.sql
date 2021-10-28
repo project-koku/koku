@@ -73,8 +73,9 @@ JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET namespaces=EXCLUDED.namespaces, nodes=EXCLUDED.nodes, cluster_ids=EXCLUDED.cluster_ids, cluster_aliases=EXCLUDED.cluster_aliases
 ;
+
 -- We run this SQL in the volume label summary SQL as it is run after
--- the pod summary SQL and we want to make sure we consider both 
+-- the pod summary SQL and we want to make sure we consider both
 -- source tables before deleting from the values table.
 WITH cte_expired_tag_keys AS (
     SELECT DISTINCT tv.key
