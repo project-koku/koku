@@ -522,5 +522,65 @@ class Migration(migrations.Migration):
             model_name="ocpgcpcostlineitemdailysummaryp",
             index=models.Index(fields=["service_alias"], name="ocpgcp_service_alias_idx"),
         ),
+        migrations.AddIndex(
+            model_name="ocpgcpcomputesummaryp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcompute_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyaccountp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcostsum_acct_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyaccountp",
+            index=models.Index(fields=["account_id"], name="ocpgcpcostsum_acct_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybygcpprojectp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcostsum_gcpp_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybygcpprojectp",
+            index=models.Index(fields=["project_id"], name="ocpgcpcostsum_gcpp_projid_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybygcpprojectp",
+            index=models.Index(fields=["project_name"], name="ocpgcpcostsum_gcpp_projn_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyregionp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcostsum_reg_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyregionp",
+            index=models.Index(fields=["region"], name="ocpgcpcostsum_reg_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyservicep",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcostsum_serv_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyservicep",
+            index=models.Index(fields=["service_id"], name="ocpgcpcostsum_servid_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummarybyservicep",
+            index=models.Index(fields=["service_alias"], name="ocpgcpcostsum_servalias_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpcostsummaryp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpcostsum_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpdatabasesummaryp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpdb_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpnetworksummaryp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpnetwork_usgstrt_idx"),
+        ),
+        migrations.AddIndex(
+            model_name="ocpgcpstoragesummaryp",
+            index=models.Index(fields=["usage_start"], name="ocpgcpstorage_usgstrt_idx"),
+        ),
         migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
     ]
