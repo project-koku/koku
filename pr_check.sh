@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # --------------------------------------------
 # Options that must be configured by app owner
 # --------------------------------------------
@@ -17,14 +16,13 @@ export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
 export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
-export GIT_COMMIT=$(git rev-parse HEAD)
 
 set -ex
 
 mkdir -p $ARTIFACTS_DIR
 exit_code=0
-task_arr=([1]="Build" [2]="Smoke Tests")
-error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests")
+task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
+error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
 function check_for_labels() {
     if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
@@ -43,7 +41,7 @@ function run_unit_tests() {
 function run_smoke_tests() {
     run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 4)
+    export NAMESPACE=$(bonfire namespace reserve --duration 2)
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
@@ -56,7 +54,7 @@ function run_smoke_tests() {
         ${APP_NAME} \
         --source=appsre \
         --ref-env insights-stage \
-        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${GIT_COMMIT} \
+        --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
@@ -93,9 +91,21 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 EOF
 }
 
-# Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/search/issues\?q\=sha:$GIT_COMMIT | jq '.items[].labels[].name' > $ARTIFACTS_DIR/github_labels.txt
+# check if this commit is out of date with the branch
+latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$ghprbSourceBranch | jq -r '.sha')
+if [[ $latest_commit != $ghprbActualCommit ]]
+then
+    exit_code=3
+    make_results_xml
+    exit $exit_code
+fi
 
+
+# Save PR labels into a file
+curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $ARTIFACTS_DIR/github_labels.txt
+
+
+# check if this PR is labeled to build the test image
 if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
 then
     echo "PR check skipped"
@@ -108,7 +118,9 @@ else
     build_image
 fi
 
+
 if [[ $exit_code == 0 ]]; then
+    # check if this PR is labeled to run smoke tests
     if ! check_for_labels "lgtm|smoke-tests"
     then
         echo "PR smoke tests skipped"
