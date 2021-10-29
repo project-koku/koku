@@ -133,8 +133,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         ordered_total.update(query_sum)
         self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
 
-        self.query_sum = ordered_total
         self.query_data = data
+        self.query_sum = self._apply_total_exchange(ordered_total)
         return self._format_query_response()
 
 
