@@ -59,6 +59,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportParquetSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
     )
     @patch(
@@ -75,7 +78,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
         "OCPReportDBAccessor.populate_line_item_daily_summary_table_presto"
     )
-    def test_update_summary_tables(self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete, mock_cluster_populate):
+    def test_update_summary_tables(
+        self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete, mock_cluster_populate, mock_date_check
+    ):
         """Test that summary tables are run for a full month when no report period is found."""
         start_date = self.dh.today
         end_date = start_date
@@ -83,11 +88,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
 
+        mock_date_check.return_value = (start_date, end_date)
+
         self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_delete.assert_called_with(self.ocp_provider.uuid, start_date.date(), end_date.date())
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()
+        mock_date_check.assert_called()
 
     def test_update_daily_tables(self):
         start_date = self.dh.today
@@ -101,3 +109,20 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="INFO") as _logger:
             self.updater.update_daily_tables(start_date_str, end_date_str)
             self.assertIn(expected, _logger.output)
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor."
+        "get_max_min_timestamp_from_parquet"  # noqa: E501
+    )
+    def test_check_parquet_date_range(self, mock_get_timestamps):
+        """Check that we modify start date when needed."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        parquet_start_date = self.dh.today.replace(tzinfo=None)
+        parquet_end_date = self.dh.today.replace(tzinfo=None)
+        mock_get_timestamps.return_value = (parquet_start_date, parquet_end_date)
+
+        result_start, result_end = self.updater._check_parquet_date_range(start_date, end_date)
+        self.assertNotEqual(start_date, result_start)
+        self.assertEqual(parquet_start_date.date(), result_start)

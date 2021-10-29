@@ -58,7 +58,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
-        self.group_by_alias = {"service": "service_alias", "project": "project_name"}
+        # TODO: COST-1986
+        self.group_by_alias = {"service": "service_alias", "project": "project_name", "gcp_project": "project_name"}
 
         # We need to overwrite the pack keys here to include the credit
         # dictionary in the endpoint returns.

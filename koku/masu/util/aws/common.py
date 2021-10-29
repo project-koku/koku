@@ -12,6 +12,7 @@ import uuid
 import boto3
 import ciso8601
 import pandas as pd
+from botocore.config import Config
 from botocore.exceptions import ClientError
 from botocore.exceptions import EndpointConnectionError
 from dateutil.relativedelta import relativedelta
@@ -271,12 +272,13 @@ def get_s3_resource():  # pragma: no cover
     """
     Obtain the s3 session client
     """
+    config = Config(connect_timeout=settings.S3_TIMEOUT)
     aws_session = boto3.Session(
         aws_access_key_id=settings.S3_ACCESS_KEY,
         aws_secret_access_key=settings.S3_SECRET,
         region_name=settings.S3_REGION,
     )
-    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT)
+    s3_resource = aws_session.resource("s3", endpoint_url=settings.S3_ENDPOINT, config=config)
     return s3_resource
 
 
