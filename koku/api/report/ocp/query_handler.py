@@ -111,6 +111,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
+    def _apply_total_exchange(self, data):
+        """Overwrite this function because the structure is different for ocp."""
+        exchange_rate = self._get_exchange_rate()
+        for key, value in data.items():
+            if (
+                key.endswith("raw")
+                or key.endswith("usage")
+                or key.endswith("distributed")
+                or key.endswith("markup")
+                or key.endswith("total")
+            ):
+                data[key] = Decimal(value) * Decimal(exchange_rate)
+            elif key.endswith("units"):
+                data[key] = self.currency
+        return data
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -212,8 +228,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         ordered_total.update(query_sum)
 
-        self.query_sum = ordered_total
         self.query_data = data
+        self.query_sum = self._apply_total_exchange(ordered_total)
         return self._format_query_response()
 
     def get_cluster_capacity(self, query_data):  # noqa: C901

@@ -209,8 +209,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
         ordered_total.update(query_sum)
 
-        self.query_sum = ordered_total
         self.query_data = data
+        self.query_sum = self._apply_total_exchange(ordered_total)
         return self._format_query_response()
 
     def calculate_total(self, **units):

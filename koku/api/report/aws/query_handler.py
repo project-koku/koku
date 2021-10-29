@@ -326,8 +326,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         # Add each of the sub_org sums to the query_sum
         self.query_data = query_data
-        self.query_sum = query_sum
-
+        # right here you need to apply currency exchange
+        self.query_sum = self._apply_total_exchange(query_sum)
         # reset to the original query filters
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
