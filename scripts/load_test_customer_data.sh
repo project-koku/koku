@@ -174,6 +174,7 @@ add_cost_models 'Test OCP on Premises' openshift_on_prem_cost_model.json
 add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json
 add_cost_models 'Test AWS Source' aws_cost_model.json
 add_cost_models 'Test Azure Source' azure_cost_model.json
+add_cost_models 'Test GCP Source' gcp_cost_model.json
 
 debug_echo "enabling OCP tags..."
 curl --header "Content-Type: application/json" \

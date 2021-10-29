@@ -2287,3 +2287,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
+
+    def get_max_min_timestamp_from_parquet(self, source_uuid, start_date, end_date):
+        """Get the max and min timestamps for parquet data given a date range"""
+        sql = f"""
+            SELECT min(interval_start) as min_timestamp,
+                max(interval_start) as max_timestamp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        timestamps = self._execute_presto_raw_sql_query(self.schema, sql)
+        max, min = timestamps[0]
+        return parse(max), parse(min)
