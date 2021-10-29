@@ -607,6 +607,38 @@ class ReportQueryHandler(QueryHandler):
             LOG.error(Exception)
         return exchange_rate.exchange_rate
 
+    def _helper_function(self, exchange_rate, values):
+        new_list = []
+        for each in values:
+            for key, value in each.items(): 
+                if key in ["infra_raw", "infra_usage", "infra_markup", "infra_total", "sup_raw", "sup_usage", "sup_markup", "sup_total", "cost_raw", "cost_markup", "cost_usage", "cost_total"]:
+                    new_value = Decimal(value) * Decimal(exchange_rate)
+                    each[key] = new_value
+                    print("\n\n\n\nNEW VALUE")
+                    print(new_value)
+                new_list.append(each)
+        return new_list
+
+    def _apply_exchange_rate(self, exchange_rate, data):
+        """Apply the exchange rate to the data."""
+        for dictionary in data:
+            for _, values in dictionary.items(): 
+                for day in values:
+                    if type(day) == dict:
+                        for key, value in day.items(): 
+                            if key in ["infrastructure", "supplementary", "cost"]: 
+                                for in_key, in_value in value.items():
+                                    for this_key, this_value in in_value.items():
+                                        if this_key in ["units"]:
+                                            # change to currency code 
+                                            in_value[this_key] = self.currency
+                                        elif this_key in ["value"]:
+                                            in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
+                                            # multiply and override
+                                        value[in_key] = in_value
+                                
+        return data
+
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         exchange_rate = self._get_exchange_rate()
@@ -640,6 +672,7 @@ class ReportQueryHandler(QueryHandler):
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
 
+        out_data = self._apply_exchange_rate(exchange_rate, out_data)
         return out_data
 
     def order_by(self, data, order_fields):
