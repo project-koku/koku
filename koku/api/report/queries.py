@@ -625,23 +625,14 @@ class ReportQueryHandler(QueryHandler):
 
     def _apply_exchange_rate(self, data):
         """Apply the exchange rate to the data."""
-        exchange_rate = self._get_exchange_rate()
         for dictionary in data:
-            for _, values in dictionary.items():
+            new_values = []
+            for key, values in dictionary.items():
                 for day in values:
                     if type(day) == dict:
-                        for key, value in day.items():
-                            if key in ["infrastructure", "supplementary", "cost"]:
-                                for in_key, in_value in value.items():
-                                    for this_key, this_value in in_value.items():
-                                        if this_key in ["units"]:
-                                            # change to currency code
-                                            in_value[this_key] = self.currency
-                                        elif this_key in ["value"]:
-                                            in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
-                                            # multiply and override
-                                        value[in_key] = in_value
-
+                        day = self._apply_total_exchange(day)
+                    new_values.append(day)
+                dictionary[key] = new_values
         return data
 
     def _transform_data(self, groups, group_index, data):
