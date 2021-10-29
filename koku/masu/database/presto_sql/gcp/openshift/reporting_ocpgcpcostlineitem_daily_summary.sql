@@ -149,7 +149,7 @@ cte_ocp_on_gcp_tag_joined AS (
         sum(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months
     FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
     JOIN postgres.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON gcp.usage_start_time = ocp.usage_start
+        ON date(gcp.usage_start_time) = ocp.usage_start
             AND (
                 json_extract_scalar(json_parse(gcp.labels), '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(json_parse(gcp.labels), '$.openshift_node') = lower(ocp.node)
