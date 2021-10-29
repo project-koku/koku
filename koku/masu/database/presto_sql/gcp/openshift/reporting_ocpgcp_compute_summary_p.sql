@@ -8,6 +8,7 @@ WHERE usage_start >= date('{{start_date | sqlsafe}}')
 -- Populate the daily aggregate line item data
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_compute_summary_p (
     id,
+    account_id,
     cluster_id,
     cluster_alias,
     usage_start,
@@ -21,6 +22,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_compute_summary_p (
     invoice_month
 )
     SELECT uuid(),
+        account_id,
         cluster_id,
         cluster_alias,
         usage_start,
@@ -37,6 +39,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpgcp_compute_summary_p (
         AND usage_start <= date('{{end_date | sqlsafe}}')
         AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
     GROUP BY cluster_id,
+        account_id,
         cluster_alias,
         usage_start,
         usage_end,
