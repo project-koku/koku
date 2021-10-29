@@ -9,6 +9,7 @@ from functools import cached_property
 from django.db import InterfaceError as DjangoInterfaceError
 from django.db import OperationalError
 from psycopg2 import InterfaceError
+from requests.exceptions import ConnectionError
 from requests.exceptions import ConnectTimeout
 from requests.exceptions import InvalidURL
 
@@ -178,7 +179,7 @@ class ReportProcessor:
             if self._secondary_processor:
                 try:
                     self._secondary_processor.process()
-                except (ConnectTimeout, InvalidURL):
+                except (ConnectTimeout, InvalidURL, ConnectionError):
                     pass
             return self._processor.process()
         except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
