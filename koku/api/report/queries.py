@@ -24,6 +24,7 @@ from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Rank
 
+from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -77,6 +78,7 @@ class ReportQueryHandler(QueryHandler):
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
+        self.currency = parameters.parameters.get('currency')
 
         self.query_filter = self._get_filter()
 
@@ -596,8 +598,20 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
+    def _get_exchange_rate(self):
+        """Look up the exchange rate for the target currency."""
+        # Since we store everything in USD we only need the exchange rate for the target
+        try: 
+            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower())
+        except Exception as e: 
+            LOG.error(Exception)
+        return exchange_rate.exchange_rate
+
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
+        exchange_rate = self._get_exchange_rate()
+        LOG.info(f"The exchange rate is {exchange_rate}")
+        # data = self._apply_exchange_rate(exchange_rate, data)
         tag_prefix = self._mapper.tag_column + "__"
         groups_len = len(groups)
         if not groups or group_index >= groups_len:
