@@ -126,6 +126,7 @@ from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPTagsSummary
 from reporting.provider.ocp.costs.models import CostSummary
 from reporting.provider.ocp.models import OCPCostSummary
 from reporting.provider.ocp.models import OCPCostSummaryByNode

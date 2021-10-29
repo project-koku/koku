@@ -58,5 +58,9 @@ class OCPAzureCostForecastParamSerializer(ForecastParamSerializer):
     """OCP+Azure Cost Forecast Serializer."""
 
 
+class OCPGCPCostForecastParamSerializer(ForecastParamSerializer):
+    """OCP+GCP Cost Forecast Serializer."""
+
+
 class OCPAllCostForecastParamSerializer(ForecastParamSerializer):
     """OCP+All Cost Forecast Serializer."""

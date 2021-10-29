@@ -25,6 +25,7 @@ from api.forecast.serializers import OCPAllCostForecastParamSerializer
 from api.forecast.serializers import OCPAWSCostForecastParamSerializer
 from api.forecast.serializers import OCPAzureCostForecastParamSerializer
 from api.forecast.serializers import OCPCostForecastParamSerializer
+from api.forecast.serializers import OCPGCPCostForecastParamSerializer
 from api.query_params import QueryParameters
 from forecast import AWSForecast
 from forecast import AzureForecast
@@ -33,10 +34,12 @@ from forecast import OCPAllForecast
 from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
+from forecast import OCPGCPForecast
 from reporting.models import AzureTagsSummary
 from reporting.models import GCPTagsSummary
 from reporting.models import OCPAWSTagsSummary
 from reporting.models import OCPAzureTagsSummary
+from reporting.models import OCPGCPTagsSummary
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.aws.models import AWSTagsSummary
@@ -111,6 +114,15 @@ class OCPAzureCostForecastView(ForecastView):
     query_handler = OCPAzureForecast
     serializer = OCPAzureCostForecastParamSerializer
     tag_handler = [OCPAzureTagsSummary]
+
+
+class OCPGCPCostForecastView(ForecastView):
+    """OCP+GCP Cost Forecast View."""
+
+    permission_classes = (GcpAccessPermission, OpenShiftAccessPermission)
+    query_handler = OCPGCPForecast
+    serializer = OCPGCPCostForecastParamSerializer
+    tag_handler = [OCPGCPTagsSummary]
 
 
 class OCPAllCostForecastView(ForecastView):

@@ -61,9 +61,11 @@ from api.views import OCPClustersView
 from api.views import OCPCostForecastView
 from api.views import OCPCostView
 from api.views import OCPCpuView
+from api.views import OCPGCPCostForecastView
 from api.views import OCPGCPCostView
 from api.views import OCPGCPInstanceTypeView
 from api.views import OCPGCPStorageView
+from api.views import OCPGCPTagView
 from api.views import OCPMemoryView
 from api.views import OCPNodesView
 from api.views import OCPProjectsView
@@ -135,6 +137,13 @@ urlpatterns = [
             OCPAzureTagView.as_view()
         ),
         name="openshift-azure-tags",
+    ),
+    path(
+        "tags/openshift/infrastructures/gcp/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OPENSHIFT_GCP_CACHE_PREFIX)(
+            OCPGCPTagView.as_view()
+        ),
+        name="openshift-gcp-tags",
     ),
     path(
         "tags/aws/<key>/",
@@ -343,6 +352,11 @@ urlpatterns = [
         "forecasts/openshift/infrastructures/azure/costs/",
         OCPAzureCostForecastView.as_view(),
         name="openshift-azure-cost-forecasts",
+    ),
+    path(
+        "forecasts/openshift/infrastructures/gcp/costs/",
+        OCPGCPCostForecastView.as_view(),
+        name="openshift-gcp-cost-forecasts",
     ),
     path(
         "forecasts/openshift/infrastructures/all/costs/",

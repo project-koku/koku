@@ -153,6 +153,15 @@ class GCPFilterSerializer(FilterSerializer):
         add_operator_specified_fields(self.fields, GCP_FILTER_OP_FIELDS)
 
 
+class OCPGCPFilterSerializer(GCPFilterSerializer, OCPFilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the GCPFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, GCP_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
+
+
 class TagsQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -295,3 +304,9 @@ class GCPTagsQueryParamSerializer(TagsQueryParamSerializer):
         """
         validate_field(self, "filter", GCPFilterSerializer, value)
         return value
+
+
+class OCPGCPTagsQueryParamSerializer(GCPTagsQueryParamSerializer, OCPTagsQueryParamSerializer):
+    """Serializer for handling OCP-on-GCP tag query parameters."""
+
+    filter = OCPGCPFilterSerializer(required=False)

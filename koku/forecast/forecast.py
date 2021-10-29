@@ -26,6 +26,7 @@ from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.provider_map import AzureProviderMap
+from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
@@ -550,6 +551,13 @@ class OCPAzureForecast(Forecast):
 
     provider = Provider.OCP_AZURE
     provider_map_class = OCPAzureProviderMap
+
+
+class OCPGCPForecast(Forecast):
+    """OCP+GCP forecasting class."""
+
+    provider = Provider.OCP_GCP
+    provider_map_class = OCPGCPProviderMap
 
 
 class OCPAllForecast(Forecast):
