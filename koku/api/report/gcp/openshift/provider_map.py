@@ -42,7 +42,7 @@ class OCPGCPProviderMap(ProviderMap):
                     "gcp_project": {"gcp_project": "project_id"},
                     "service": {"service": "service_alias"},
                     "cluster": {"cluster": "cluster_id"},
-                    "project": {"field": "namespace", "operation": "icontains"},
+                    "project": {"project": "namespace"},
                 },  # Annotations that should happen depending on group_by values
                 "end_date": "usage_end",
                 "filters": {
