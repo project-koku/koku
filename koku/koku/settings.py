@@ -428,6 +428,7 @@ RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
+S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")
