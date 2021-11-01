@@ -13,6 +13,7 @@ from collections import OrderedDict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote_plus
@@ -73,24 +74,25 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
-        self._report_type = parameters.report_type
+        if not hasattr(self, "_report_type"):
+            self._report_type = parameters.report_type
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
 
         self.query_filter = self._get_filter()
 
-    @property
+    @cached_property
     def query_table_access_keys(self):
         """Return the access keys specific for selecting the query table."""
         return set(self.parameters.get("access", {}).keys())
 
-    @property
+    @cached_property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
         return set(self.parameters.get("group_by", {}).keys())
 
-    @property
+    @cached_property
     def query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
@@ -102,7 +104,7 @@ class ReportQueryHandler(QueryHandler):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
 
-    @property
+    @cached_property
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table

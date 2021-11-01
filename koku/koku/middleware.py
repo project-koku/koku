@@ -266,7 +266,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             LOG.warning("Could not obtain identity on request.")
             return
         except binascii.Error as error:
-            LOG.error("Error decoding authentication header: %s", str(error))
+            LOG.warning(f"Error decoding authentication header: {error}")
             raise PermissionDenied()
 
         is_cost_management = json_rh_auth.get("entitlements", {}).get("cost_management", {}).get("is_entitled", False)
