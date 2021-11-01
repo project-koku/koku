@@ -119,7 +119,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.dh.this_month_start.date()
         end_date = self.dh.this_month_end.date()
 
-        parquet_start_date = self.dh.today.replace(tzinfo=None)
+        parquet_start_date = self.dh.this_month_start.replace(tzinfo=None) + datetime.timedelta(days=1)
         parquet_end_date = self.dh.today.replace(tzinfo=None)
         mock_get_timestamps.return_value = (parquet_start_date, parquet_end_date)
 
