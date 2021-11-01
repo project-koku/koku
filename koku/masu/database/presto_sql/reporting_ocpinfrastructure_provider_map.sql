@@ -53,6 +53,7 @@
 {% if gcp_provider_uuid %}
     WITH cte_openshift_cluster_info AS (
     SELECT DISTINCT cluster_id,
+        cluster_alias,
         provider_id
     FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
     ),
@@ -72,5 +73,5 @@
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e like 'kubernetes-io-cluster-' || ocp.cluster_id)
-            OR element_at(gcp.parsed_labels, 'openshift_cluster')  = ocp.cluster_id
+            OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
 {% endif %}
