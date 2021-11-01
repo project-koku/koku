@@ -11,17 +11,19 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class OCPReportParquetSummaryUpdater:
+class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update OCP report summary data from Presto/Parquet data."""
 
     def __init__(self, schema, provider, manifest):
@@ -103,6 +105,9 @@ class OCPReportParquetSummaryUpdater:
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         start_date, end_date = self._check_parquet_date_range(start_date, end_date)
+
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
