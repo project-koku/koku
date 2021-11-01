@@ -62,7 +62,7 @@
     FROM hive.{{schema | sqlsafe}}.gcp_line_items
     ),
     cte_label_keys AS (
-    SELECT map_keys(cast(json_parse(labels) as map(varchar, varchar))) as keys,
+    SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
         source
     FROM cte_distinct_gcp_labels
     )
@@ -71,5 +71,6 @@
         'GCP' as type
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
-        ON any_match(gcp.keys, e -> e like 'kubernetes-io-cluster-' || ocp.cluster_id)
+        ON any_match(map_keys(gcp.parsed_labels), e -> e like 'kubernetes-io-cluster-' || ocp.cluster_id)
+            OR element_at(gcp.parsed_labels, 'openshift_cluster')  = ocp.cluster_id
 {% endif %}
