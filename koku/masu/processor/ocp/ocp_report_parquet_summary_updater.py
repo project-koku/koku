@@ -5,6 +5,7 @@
 """Updates report summary tables in the database."""
 import calendar
 import logging
+from datetime import datetime
 
 import ciso8601
 from django.conf import settings
@@ -64,6 +65,15 @@ class OCPReportParquetSummaryUpdater:
 
         return start_date, end_date
 
+    def _check_parquet_date_range(self, start_date, end_date):
+        """Make sure we don't summarize for a date range we don't have data for."""
+        start_datetime = datetime(start_date.year, start_date.month, start_date.day)
+        with OCPReportDBAccessor(self._schema) as accessor:
+            min_timestamp, __ = accessor.get_max_min_timestamp_from_parquet(self._provider.uuid, start_date, end_date)
+            if min_timestamp > start_datetime:
+                start_date = min_timestamp.date()
+        return start_date, end_date
+
     def update_daily_tables(self, start_date, end_date):
         """Populate the daily tables for reporting.
 
@@ -92,6 +102,7 @@ class OCPReportParquetSummaryUpdater:
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        start_date, end_date = self._check_parquet_date_range(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):

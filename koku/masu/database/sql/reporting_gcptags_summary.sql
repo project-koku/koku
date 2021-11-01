@@ -75,3 +75,16 @@ FROM cte_tag_value AS tv
 GROUP BY tv.key, tv.value
 ON CONFLICT (key, value) DO UPDATE SET account_ids=EXCLUDED.account_ids, project_ids=EXCLUDED.project_ids, project_names=EXCLUDED.project_names
 ;
+
+WITH cte_expired_tag_keys AS (
+    SELECT DISTINCT tv.key
+    FROM {{schema | sqlsafe}}.reporting_gcptags_values AS tv
+    LEFT JOIN {{schema | sqlsafe}}.reporting_gcptags_summary AS ts
+        ON tv.key = ts.key
+    WHERE ts.key IS NULL
+
+)
+DELETE FROM {{schema | sqlsafe}}.reporting_gcptags_values tv
+    USING cte_expired_tag_keys etk
+    WHERE tv.key = etk.key
+;
