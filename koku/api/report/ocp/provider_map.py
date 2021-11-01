@@ -18,13 +18,13 @@ from api.report.provider_map import ProviderMap
 from koku.database import KeyDecimalTransform
 from providers.provider_access import ProviderAccessor
 from reporting.models import OCPUsageLineItemDailySummary
-from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByNode
-from reporting.provider.ocp.models import OCPCostSummaryByProject
-from reporting.provider.ocp.models import OCPPodSummary
-from reporting.provider.ocp.models import OCPPodSummaryByProject
-from reporting.provider.ocp.models import OCPVolumeSummary
-from reporting.provider.ocp.models import OCPVolumeSummaryByProject
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostSummaryP
+from reporting.provider.ocp.models import OCPPodSummaryByProjectP
+from reporting.provider.ocp.models import OCPPodSummaryP
+from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
+from reporting.provider.ocp.models import OCPVolumeSummaryP
 
 
 class OCPProviderMap(ProviderMap):
@@ -1880,33 +1880,33 @@ class OCPProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": OCPCostSummary,
-                ("cluster",): OCPCostSummary,
-                ("node",): OCPCostSummaryByNode,
-                ("cluster", "node"): OCPCostSummaryByNode,
+                "default": OCPCostSummaryP,
+                ("cluster",): OCPCostSummaryP,
+                ("node",): OCPCostSummaryByNodeP,
+                ("cluster", "node"): OCPCostSummaryByNodeP,
             },
             "costs_by_project": {
-                "default": OCPCostSummaryByProject,
-                ("project",): OCPCostSummaryByProject,
-                ("cluster", "project"): OCPCostSummaryByProject,
+                "default": OCPCostSummaryByProjectP,
+                ("project",): OCPCostSummaryByProjectP,
+                ("cluster", "project"): OCPCostSummaryByProjectP,
             },
             "cpu": {
-                "default": OCPPodSummary,
-                ("cluster",): OCPPodSummary,
-                ("project",): OCPPodSummaryByProject,
-                ("cluster", "project"): OCPPodSummaryByProject,
+                "default": OCPPodSummaryP,
+                ("cluster",): OCPPodSummaryP,
+                ("project",): OCPPodSummaryByProjectP,
+                ("cluster", "project"): OCPPodSummaryByProjectP,
             },
             "memory": {
-                "default": OCPPodSummary,
-                ("cluster",): OCPPodSummary,
-                ("project",): OCPPodSummaryByProject,
-                ("cluster", "project"): OCPPodSummaryByProject,
+                "default": OCPPodSummaryP,
+                ("cluster",): OCPPodSummaryP,
+                ("project",): OCPPodSummaryByProjectP,
+                ("cluster", "project"): OCPPodSummaryByProjectP,
             },
             "volume": {
-                "default": OCPVolumeSummary,
-                ("cluster",): OCPVolumeSummary,
-                ("project",): OCPVolumeSummaryByProject,
-                ("cluster", "project"): OCPVolumeSummaryByProject,
+                "default": OCPVolumeSummaryP,
+                ("cluster",): OCPVolumeSummaryP,
+                ("project",): OCPVolumeSummaryByProjectP,
+                ("cluster", "project"): OCPVolumeSummaryByProjectP,
             },
         }
         super().__init__(provider, report_type)
