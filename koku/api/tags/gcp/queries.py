@@ -33,7 +33,9 @@ class GCPTagQueryHandler(TagQueryHandler):
         }
     ]
     TAGS_VALUES_SOURCE = [{"db_table": GCPTagsValues, "fields": ["key"]}]
-    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "project", "enabled"]
+    # TODO: COST-1986
+    # SUPPORTED_FILTERS, filter_map.update
+    SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "project", "gcp_project", "enabled"]
 
     def __init__(self, parameters):
         """Establish GCP report query handler.
@@ -65,6 +67,10 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "gcp_project": [
+                        {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
+                    ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
             )
@@ -77,6 +83,10 @@ class GCPTagQueryHandler(TagQueryHandler):
                     "project": [
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
+                    ],
+                    "gcp_project": [
+                        {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
