@@ -10,7 +10,7 @@ r_sql = "select 1;"
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0200_ocpgcp_partables")]
+    dependencies = [("reporting", "0201_ocp_partables")]
 
     operations = [
         migrations.AddField(
