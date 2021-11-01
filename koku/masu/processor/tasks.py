@@ -47,7 +47,6 @@ from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import GCP_MATERIALIZED_VIEWS
-from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
@@ -575,8 +574,7 @@ def refresh_materialized_views(  # noqa: C901
             )
     elif provider_type in (Provider.PROVIDER_OCP):
         materialized_views = (
-            OCP_MATERIALIZED_VIEWS
-            + OCP_ON_AWS_MATERIALIZED_VIEWS
+            OCP_ON_AWS_MATERIALIZED_VIEWS
             + OCP_ON_AZURE_MATERIALIZED_VIEWS
             + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
