@@ -143,8 +143,10 @@ class OCPAllFilterSerializer(AWSFilterSerializer, AzureFilterSerializer, OCPFilt
 class GCPFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
+    # TODO: COST-1986
     account = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
+    gcp_project = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
 
     def __init__(self, *args, **kwargs):
