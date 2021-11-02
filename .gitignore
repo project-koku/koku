@@ -147,3 +147,6 @@ dev/*.yml
 
 # unleash cache
 .unleash/cache/
+
+#sonarqube
+sonarqube/
