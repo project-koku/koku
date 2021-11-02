@@ -104,6 +104,7 @@ help:
 	@echo "  unleash-export                        export feature-flags to file"
 	@echo "  unleash-import                        import feature-flags from file"
 	@echo "  unleash-import-drop                   import feature-flags from file AND wipe current database"
+	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -263,6 +264,9 @@ unleash-import:
 unleash-import-drop:
 	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
 	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
+
+scan_project:
+	./sonarqube.sh
 
 ####################################
 # Commands using OpenShift Cluster #
