@@ -18,14 +18,22 @@ from sqlparse import parse as sql_parse
 from sqlparse.sql import Identifier
 
 
+def get_driver_exception(db_exception):
+    if isinstance(db_exception, DJDatabaseError):
+        return db_exception.__cause__
+    else:
+        return db_exception
+
+
 class ExtendedDBException(Exception):
     REGEXP = None
 
     def __init__(self, db_exception, query_limit=128):
-        if not isinstance(db_exception, DatabaseError):
+        _db_exception = get_driver_exception(db_exception)
+        if not isinstance(_db_exception, DatabaseError):
             raise TypeError("This wrapper class only works on type <psycopg2.errors.DatabaseError>")
         self.query_limit = query_limit
-        self.ingest_exception(db_exception)
+        self.ingest_exception(_db_exception)
         self.parse_exception()
         self.get_extended_info()
 
@@ -176,13 +184,6 @@ class ExtendedDeadlockDetected(ExtendedDBException):
 
 
 __EXCEPTION_REGISTER = {_class.__name__ for _class in locals() if inspect.isclass(_class)}
-
-
-def get_driver_exception(db_exception):
-    if isinstance(db_exception, DJDatabaseError):
-        return db_exception.__cause__
-    else:
-        return db_exception
 
 
 def get_extended_exception_by_type(db_exception):
