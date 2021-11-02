@@ -10,6 +10,7 @@ import re
 import traceback
 
 import psycopg2
+from django.db.utils import DatabaseError as DJDatabaseError
 from psycopg2.errors import DatabaseError
 from psycopg2.errors import DeadlockDetected
 from psycopg2.extras import RealDictCursor
@@ -22,7 +23,7 @@ class ExtendedDBException(Exception):
 
     def __init__(self, db_exception, query_limit=128):
         if not isinstance(db_exception, DatabaseError):
-            raise TypeError("This wrapper class only works on type < psycopg2.errors.DatabaseError >")
+            raise TypeError("This wrapper class only works on type <psycopg2.errors.DatabaseError>")
         self.query_limit = query_limit
         self.ingest_exception(db_exception)
         self.parse_exception()
@@ -37,6 +38,7 @@ class ExtendedDBException(Exception):
     def ingest_exception(self, db_exception):
         self.db_exception_type = type(db_exception)
         self.args = db_exception.args
+        self.__traceback__ = db_exception.__traceback__
         self.cursor = getattr(db_exception, "cursor", None)
         self.query = self.cursor.query.decode("utf-8").strip() if self.cursor else ""
         self.diag = getattr(db_exception, "diag", None)
@@ -46,33 +48,56 @@ class ExtendedDBException(Exception):
             self.db_backend_pid = self.cursor.connection.get_backend_pid()
         else:
             self.db_backend_pid = None
-        self.with_traceback(db_exception.__traceback__)
 
     def as_dict(self):
         return {
             "exception_type": self.db_exception_type,
             "message": str(self),
-            "code_file": self.exc_file,
-            "code_line_num": self.exc_line_num,
-            "code_line": self.exc_line,
+            "exception_code_file": self.exc_file,
+            "exception_code_line_num": self.exc_line_num,
+            "exception_code_line": self.exc_line,
+            "koku_exception_code_file": self.koku_exc_file,
+            "koku_exception_code_line_num": self.koku_exc_line_num,
+            "koku_exception_code_line": self.koku_exc_line,
             "cursor_name": self.cursor.name or "",
             "query": self.query,
             "query_type": self.query_type,
             "query_tables": self.query_tables,
-            "diag": self.diag,
             "pgcode": self.pgcode,
             "pgerror": self.pgerror,
             "db_backend_pid": self.db_backend_pid,
+            "traceback": self.formatted_tb,
         }
 
     def as_json(self):
         return json.dumps(self.as_dict(), default=str)
 
-    def parse_exception(self):
-        _frame = traceback.extract_tb(self.__traceback__)[-1]
+    def set_exception_frame_info(self, _frames):
+        _frame = _frames[-1]
         self.exc_line = _frame.line
         self.exc_line_num = _frame.lineno
         self.exc_file = _frame.filename
+
+    def set_koku_exception_frame_info(self, _frames):
+        _koku_frame = None
+        for _frame in _frames:
+            if "koku" in _frame.filename:
+                _koku_frame = _frame
+            else:
+                break
+        if _koku_frame and _koku_frame.filename != self.exc_file and _koku_frame.lineno != self.exc_line_num:
+            self.koku_exc_line = _frame.line
+            self.koku_exc_line_num = _frame.lineno
+            self.koku_exc_file = _frame.filename
+        else:
+            self.koku_exc_line = self.koku_exc_line_num = self.koku_exc_file = None
+
+    def parse_exception(self):
+        _frames = traceback.extract_tb(self.__traceback__)
+        self.set_exception_frame_info(_frames)
+        self.set_koku_exception_frame_info(_frames)
+
+        self.formatted_tb = traceback.format_tb(self.__traceback__)
         self.query_type = self.query_tables = None
         if self.query:
             parsed = sql_parse(self.query)
@@ -84,7 +109,7 @@ class ExtendedDBException(Exception):
                 ]
 
     def get_extended_info(self):
-        args_query = self.query[self.query_limit] if self.query_limit else self.query
+        args_query = self.query[: self.query_limit] if self.query_limit else self.query
         self.args = (
             f"DB BACKEND PID: {self.db_backend_pid}",
             f"QUERY TYPE: {self.query_type or '<UNKNOWN>'}",
@@ -121,6 +146,7 @@ class ExtendedDeadlockDetected(ExtendedDBException):
 
     def parse_exception(self):
         super().parse_exception()
+
         res = self.REGEXP.findall(str(self))
         if res:
             self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = res[0]
@@ -143,23 +169,34 @@ class ExtendedDeadlockDetected(ExtendedDBException):
         data = super().as_dict()
         data["current_db_log_file"] = self.current_log_file
         data["process1_pid"] = self.process1
+        data["transxation1"] = self.txaction1
         data["process2_pid"] = self.process2
+        data["transxation2"] = self.txaction2
         return data
 
 
 __EXCEPTION_REGISTER = {_class.__name__ for _class in locals() if inspect.isclass(_class)}
 
 
+def get_driver_exception(db_exception):
+    if isinstance(db_exception, DJDatabaseError):
+        return db_exception.__cause__
+    else:
+        return db_exception
+
+
 def get_extended_exception_by_type(db_exception):
-    key = f"Extended{type(db_exception).__name__}"
+    _db_exception = get_driver_exception(db_exception)
+    key = f"Extended{type(_db_exception).__name__}"
     if key in __EXCEPTION_REGISTER:
         return locals()[key]
     else:
-        return get_extended_exception_by_base_type(db_exception)
+        return get_extended_exception_by_base_type(_db_exception)
 
 
 def get_extended_exception_by_base_type(db_exception):
-    if isinstance(db_exception, DeadlockDetected):
+    _db_exception = get_driver_exception(db_exception)
+    if isinstance(_db_exception, DeadlockDetected):
         return ExtendedDeadlockDetected
     else:
         return ExtendedDBException
