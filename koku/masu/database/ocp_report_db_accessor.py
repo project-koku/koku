@@ -1027,10 +1027,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
+                    LOG.debug("Node (%s) has a monthly infrastructure cost of %s.", node, node_cost)
                     line_item.infrastructure_monthly_cost_json = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
+                    LOG.debug("Node (%s) has a monthly supplemenarty cost of %s.", node, node_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
             # How are we gonna handle distributing the node cost to the projects.
@@ -1074,7 +1074,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
                     project_line_item.save()
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
 
     def tag_upsert_monthly_node_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
@@ -1130,7 +1130,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     )
                                 node_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
+                                    LOG.debug("Node (%s) has a monthly infrastructure cost of %s.", node, rate_value)
                                     if line_item.infrastructure_monthly_cost_json:
                                         node_cost = (
                                             line_item.infrastructure_monthly_cost_json.get(distribution, 0)
@@ -1139,7 +1139,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
+                                    LOG.debug("Node (%s) has a monthly supplemenarty cost of %s.", node, rate_value)
                                     if line_item.supplementary_monthly_cost_json:
                                         node_cost = (
                                             line_item.supplementary_monthly_cost_json.get(distribution, 0) + rate_value
@@ -1413,8 +1413,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             with schema_context(self.schema):
                 # NOTE: I implemented a logic change here, now instead of one entry per cluster cost
                 # We now have multiple cluster cost entries for each node.
-                LOG.info("Cluster (%s) has a monthly cost of %s.", cluster_id, cluster_cost)
-                LOG.info("Distributing the cluster cost to nodes using %s distribution.", distribution)
+                LOG.debug("Cluster (%s) has a monthly cost of %s.", cluster_id, cluster_cost)
+                LOG.debug("Distributing the cluster cost to nodes using %s distribution.", distribution)
                 for node_dikt in distribution_list:
                     node = node_dikt.get("node")
                     distributed_cost = node_dikt.get("distributed_cost", Decimal(0))
@@ -1452,7 +1452,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         line_item.infrastructure_monthly_cost_json = monthly_cost
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         line_item.supplementary_monthly_cost_json = monthly_cost
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
                     line_item.save()
             # Project Distribution
             project_distribution_list = self.get_cluster_to_project_distribution(
@@ -1496,7 +1496,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
                         project_line_item.supplementary_project_monthly_cost = monthly_cost
                     project_line_item.save()
-                    LOG.info(log_statement)
+                    LOG.debug(log_statement)
 
     def tag_upsert_monthly_pvc_cost_line_item(  # noqa: C901
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
@@ -1557,7 +1557,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     )
                                 pvc_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
+                                    LOG.debug("PVC (%s) has a monthly infrastructure cost of %s.", pvc, rate_value)
                                     if line_item.infrastructure_monthly_cost_json:
                                         pvc_cost = (
                                             line_item.infrastructure_monthly_cost_json.get(distribution, 0)
@@ -1566,7 +1566,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, pvc_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
+                                    LOG.debug("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, rate_value)
                                     if line_item.supplementary_monthly_cost_json:
                                         pvc_cost = (
                                             line_item.supplementary_monthly_cost_json.get(distribution, 0) + rate_value
@@ -1611,10 +1611,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly infrastructure cost of %s.", pvc, pvc_cost)
                     line_item.infrastructure_monthly_cost_json = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly supplemenarty cost of %s.", pvc, pvc_cost)
                     line_item.supplementary_monthly_cost_json = monthly_cost
                 line_item.save()
                 # PVC to project Distribution
@@ -1648,10 +1648,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly project infrastructure cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly project infrastructure cost of %s.", pvc, pvc_cost)
                     project_line_item.infrastructure_project_monthly_cost = monthly_cost
                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                    LOG.info("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
+                    LOG.debug("PVC (%s) has a monthly project supplemenarty cost of %s.", pvc, pvc_cost)
                     project_line_item.supplementary_project_monthly_cost = monthly_cost
                 project_line_item.save()
 
@@ -1704,7 +1704,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     )
                                 cluster_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                                    LOG.info(
+                                    LOG.debug(
                                         "Cluster (%s) has a monthly infrastructure cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
@@ -1717,7 +1717,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
                                     line_item.infrastructure_monthly_cost_json = monthly_cost
                                 elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                                    LOG.info(
+                                    LOG.debug(
                                         "Cluster (%s) has a monthly supplemenarty cost of %s from tag rates.",
                                         cluster_id,
                                         rate_value,
@@ -1786,7 +1786,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             )
                         cluster_cost = tag_default
                         if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
-                            LOG.info(
+                            LOG.debug(
                                 "Cluster (%s) has a default monthly infrastructure cost of %s.",
                                 cluster_id,
                                 tag_default,
@@ -1798,7 +1798,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             monthly_cost = self.generate_monthly_cost_json_object(distribution, cluster_cost)
                             line_item.infrastructure_monthly_cost_json = monthly_cost
                         elif rate_type == metric_constants.SUPPLEMENTARY_COST_TYPE:
-                            LOG.info(
+                            LOG.debug(
                                 "Cluster (%s) has a default monthly supplemenarty cost of %s.", cluster_id, tag_default
                             )
                             if line_item.supplementary_monthly_cost_json:
@@ -2284,3 +2284,20 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
         script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
+
+    def get_max_min_timestamp_from_parquet(self, source_uuid, start_date, end_date):
+        """Get the max and min timestamps for parquet data given a date range"""
+        sql = f"""
+            SELECT min(interval_start) as min_timestamp,
+                max(interval_start) as max_timestamp
+            FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND ocp.month = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        timestamps = self._execute_presto_raw_sql_query(self.schema, sql)
+        max, min = timestamps[0]
+        return parse(max), parse(min)

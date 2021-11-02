@@ -47,7 +47,12 @@ class QueryParameters:
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
             (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
-        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account"), (Provider.PROVIDER_GCP, "project", "gcp.project")],
+        # TODO: COST-1986
+        "gcp": [
+            (Provider.PROVIDER_GCP, "account", "gcp.account"),
+            (Provider.PROVIDER_GCP, "gcp_project", "gcp.project"),
+            (Provider.PROVIDER_GCP, "project", "gcp.project"),
+        ],
         "ibm": [(Provider.PROVIDER_IBM, "account", "ibm.account")],
     }
 
