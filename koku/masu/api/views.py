@@ -14,6 +14,8 @@ from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import running_celery_tasks
 from masu.api.source_cleanup import cleanup
+from masu.api.sourceproviders.providers.views import ProviderView
+from masu.api.sourceproviders.sources.views import SourcesView
 from masu.api.status import get_status
 from masu.api.update_cost_model_costs import update_cost_model_costs
 from masu.api.update_exchange_rates import update_exchange_rates
