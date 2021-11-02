@@ -18,7 +18,7 @@ from sqlparse.sql import Identifier
 
 
 class ExtendedDBException(Exception):
-    REGEXP = re.compile("(.*)")
+    REGEXP = None
 
     def __init__(self, db_exception, query_limit=128):
         if not isinstance(db_exception, DatabaseError):
