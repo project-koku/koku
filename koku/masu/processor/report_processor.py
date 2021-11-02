@@ -15,7 +15,6 @@ from requests.exceptions import InvalidURL
 
 from api.common import log_json
 from api.models import Provider
-from koku.database_exc import get_driver_exception
 from koku.database_exc import get_extended_exception_by_type
 from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
@@ -187,7 +186,7 @@ class ReportProcessor:
         except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(str(err))
         except OperationalError as o_err:
-            db_exc = get_extended_exception_by_type(o_err)(get_driver_exception(o_err))
+            db_exc = get_extended_exception_by_type(o_err)(o_err)
             LOG.error(log_json(self.tracing_id, str(db_exc), context=db_exc.as_dict()))
             raise db_exc
         except Exception as err:
