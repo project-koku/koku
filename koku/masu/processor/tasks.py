@@ -9,6 +9,7 @@ import logging
 import os
 from decimal import Decimal
 from decimal import InvalidOperation
+from sys import exc_info
 
 from celery import chain
 from dateutil import parser
@@ -158,14 +159,14 @@ def get_report_files(
         None
 
     """
+    month = report_month
+    report_file = report_context.get("key")
+    cache_key = f"{provider_uuid}:{report_file}"
+    tracing_id = report_context.get("assembly_id", "no-tracing-id")
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
-        month = report_month
         if isinstance(report_month, str):
             month = parser.parse(report_month)
-        report_file = report_context.get("key")
-        cache_key = f"{provider_uuid}:{report_file}"
-        tracing_id = report_context.get("assembly_id", "no-tracing-id")
         WorkerCache().add_task_to_cache(cache_key)
 
         report_dict = _get_report_files(
@@ -234,7 +235,22 @@ def get_report_files(
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(err))
+        _, _, exc_tb = exc_info()
+        LOG.error(
+            log_json(
+                tracing_id,
+                str(err),
+                dict(
+                    month=month,
+                    schema_name=schema_name,
+                    provider_type=provider_type,
+                    provider_uuid=provider_uuid,
+                    report_file=report_file,
+                    code_filename=exc_tb.tb_frame.f_code.co_filename,
+                    code_line=exc_tb.tb_lineno,
+                ),
+            )
+        )
         WorkerCache().remove_task_from_cache(cache_key)
 
 
