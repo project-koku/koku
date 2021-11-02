@@ -9,6 +9,7 @@ CREATE MATERIALIZED VIEW reporting_aws_cost_summary_by_account AS(
         max(account_alias_id) as account_alias_id,
         max(organizational_unit_id) as organizational_unit_id,
         sum(unblended_cost) as unblended_cost,
+        sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         sum(markup_cost) as markup_cost,
         max(currency_code) as currency_code,

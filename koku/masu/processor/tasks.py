@@ -22,6 +22,8 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.feature_flags import fallback_true
+from koku.feature_flags import UNLEASH_CLIENT
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -516,7 +518,9 @@ def update_cost_model_costs(
     stmt = (
         f"update_cost_model_costs called with args:\n"
         f" schema_name: {schema_name},\n"
-        f" provider_uuid: {provider_uuid}"
+        f" provider_uuid: {provider_uuid},\n"
+        f" start_date: {start_date},\n"
+        f" start_date: {end_date},\n"
         f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))
@@ -564,9 +568,11 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        materialized_views = (
-            AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
-        )
+        materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
+        if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", fallback_function=fallback_true):
+            materialized_views = (
+                AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            )
     elif provider_type in (Provider.PROVIDER_OCP):
         materialized_views = (
             OCP_MATERIALIZED_VIEWS

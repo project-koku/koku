@@ -314,6 +314,7 @@ docker-down:
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f db
+	$(DOCKER_COMPOSE) rm -s -v -f unleash
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
@@ -391,6 +392,7 @@ docker-up-db:
 	    sleep 0.5 ; \
     done
 	@echo ' PostgreSQL is available!'
+	$(DOCKER_COMPOSE) up -d unleash
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
