@@ -448,6 +448,8 @@ class CostModelSerializer(serializers.Serializer):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
         data["currency"] = self.get_currency()
+        currenc = data["currency"]
+        LOG.info(f"CURRENCY {currenc}")
         source_type = data.get("source_type")
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
             data["source_type"] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
