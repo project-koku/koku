@@ -117,7 +117,7 @@
                 }
             }
         },
-        "/cost_type/": {
+        "/cost-type/": {
             "get": {
               "tags": [
                 "Cost Type"
@@ -4322,7 +4322,7 @@
     "components": {
         "parameters": {
             "CostType": {
-                "name": "cost_type",
+                "name": "cost-type",
                 "required": false,
                 "in": "query",
                 "description": "String to indicate cost type in report",
@@ -5500,7 +5500,7 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
-                    "cost_type": {
+                    "cost-type": {
                         "type": "string",
                         "enum": [
                             "Infrastructure",
@@ -5559,7 +5559,7 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
-                    "cost_type": {
+                    "cost-type": {
                         "type": "string",
                         "enum": [
                             "Infrastructure",
