@@ -71,6 +71,7 @@ class AWSCostModelCostUpdater:
             LOG.debug(
                 "Updating AWS derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
             )
+            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:

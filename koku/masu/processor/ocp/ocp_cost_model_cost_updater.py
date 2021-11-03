@@ -367,6 +367,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
             self._update_monthly_tag_based_default_cost(start_date, end_date)
 
         with OCPReportDBAccessor(self._schema) as accessor:
+            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             report_period = accessor.report_periods_for_provider_uuid(self._provider_uuid, start_date)
             if report_period:
                 with schema_context(self._schema):
