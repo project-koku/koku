@@ -168,6 +168,7 @@ class AWSCostEntryLineItem(models.Model):
     reservation_unused_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     reservation_unused_recurring_fee = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
 
 class AWSCostEntryLineItemDaily(models.Model):
@@ -219,6 +220,7 @@ class AWSCostEntryLineItemDaily(models.Model):
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
 
 class AWSCostEntryLineItemDailySummary(models.Model):
