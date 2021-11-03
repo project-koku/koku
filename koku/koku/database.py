@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import pkgutil
+import re
 import threading
 import types
 
@@ -36,6 +37,47 @@ from .migration_sql_helpers import find_db_functions_dir
 
 
 LOG = logging.getLogger(__name__)
+
+
+class FKViolation:
+    """Detect Foreign Key violation verbage from an IntegritiyError or other more generic exception"""
+
+    FK_VIOLATION_REGEX_STR = (
+        r'(.+?) on table "(.+?)" violates foreign key constraint .+?'
+        + r'DETAIL:\s*(.+?) is not present in table "(.+?)".*\n'
+    )
+    FK_VIOLATION_REGEX = re.compile(FK_VIOLATION_REGEX_STR, flags=re.DOTALL)
+
+    def __init__(self, _exception):
+        """Accepts Exception or str"""
+        res = self.FK_VIOLATION_REGEX.findall(_exception if isinstance(_exception, str) else str(_exception))
+        self.__is_fk_violation = bool(res)
+        if not self.__is_fk_violation:
+            res = [(None,) * 4]
+        self.action, self.target_table, self.detected_key_values, self.reference_table = res[0]
+
+    @property
+    def is_fk_violation(self):
+        """Returns bool reflecting fk violation or not based on the regex search of the exception error"""
+        return self.__is_fk_violation
+
+    def __bool__(self):
+        return self.__is_fk_violation
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        if self.__is_fk_violation:
+            msg = (
+                f'{self.action} on table "{self.target_table}" violates foreign key.\n'
+                + f'DETAILS: {self.detected_key_values} is not present in table "{self.reference_table}"'
+            )
+        else:
+            msg = ""
+
+        return msg
+
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
