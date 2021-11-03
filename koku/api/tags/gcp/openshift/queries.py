@@ -59,7 +59,7 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
         if self._parameters.get_filter("value"):
             filter_map.update(
                 {
-                    "subscription_guid": {"field": "subscription_guids", "operation": "icontains"},
+                    "account": {"field": "account_ids", "operation": "icontains"},
                     "project": {"field": "namespaces", "operation": "icontains"},
                     "cluster": [
                         {"field": "cluster_ids", "operation": "icontains", "composition_key": "cluster_filter"},
@@ -71,7 +71,7 @@ class OCPGCPTagQueryHandler(GCPTagQueryHandler, OCPTagQueryHandler):
         else:
             filter_map.update(
                 {
-                    "subscription_guid": {"field": "subscription_guid", "operation": "icontains"},
+                    "account": {"field": "account_id", "operation": "icontains"},
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
                         {
