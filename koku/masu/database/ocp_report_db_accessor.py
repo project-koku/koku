@@ -1901,68 +1901,69 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
-        OCPUsageLineItemDailySummary.objects.filter(
-            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
-        ).update(
-            infrastructure_usage_cost=JSONBBuildObject(
-                Value("cpu"),
-                Coalesce(
-                    Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
-                    + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
-                Value("memory"),
-                Coalesce(
-                    Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
-                    + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
-                Value("storage"),
-                Coalesce(
-                    Value(infrastructure_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
-                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
-                    + Value(infrastructure_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
-                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
+        infra_usage_costs = JSONBBuildObject(
+            Value("cpu"),
+            Coalesce(
+                Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
             ),
-            supplementary_usage_cost=JSONBBuildObject(
-                Value("cpu"),
-                Coalesce(
-                    Value(supplementary_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
-                    + Value(supplementary_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
-                Value("memory"),
-                Coalesce(
-                    Value(supplementary_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
-                    + Value(supplementary_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
-                Value("storage"),
-                Coalesce(
-                    Value(supplementary_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
-                    * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
-                    + Value(supplementary_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
-                    * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
-                    0,
-                    output_field=DecimalField(),
-                ),
+            Value("memory"),
+            Coalesce(
+                Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+            Value("storage"),
+            Coalesce(
+                Value(infrastructure_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                + Value(infrastructure_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
             ),
         )
+
+        supp_usage_costs = JSONBBuildObject(
+            Value("cpu"),
+            Coalesce(
+                Value(supplementary_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
+                + Value(supplementary_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+            Value("memory"),
+            Coalesce(
+                Value(supplementary_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                + Value(supplementary_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
+                * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+            Value("storage"),
+            Coalesce(
+                Value(supplementary_rates.get("storage_gb_usage_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("persistentvolumeclaim_usage_gigabyte_months"), Value(0), output_field=DecimalField())
+                + Value(supplementary_rates.get("storage_gb_request_per_month", 0), output_field=DecimalField())
+                * Coalesce(F("volume_request_storage_gigabyte_months"), Value(0), output_field=DecimalField()),
+                0,
+                output_field=DecimalField(),
+            ),
+        )
+
+        OCPUsageLineItemDailySummary.objects.filter(
+            cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+        ).update(infrastructure_usage_cost=infra_usage_costs, supplementary_usage_cost=supp_usage_costs)
 
     def populate_tag_usage_costs(  # noqa: C901
         self, infrastructure_rates, supplementary_rates, start_date, end_date, cluster_id

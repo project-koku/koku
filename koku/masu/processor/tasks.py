@@ -26,7 +26,6 @@ from koku.feature_flags import fallback_true
 from koku.feature_flags import UNLEASH_CLIENT
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
@@ -45,7 +44,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
-from masu.util.common import date_range_pair
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import GCP_MATERIALIZED_VIEWS
@@ -443,10 +441,6 @@ def update_summary_tables(  # noqa: C901
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
-    linked_tasks |= refresh_ui_views.si(
-        schema_name, provider, provider_uuid, start_date, end_date, synchronous, queue_name, tracing_id
-    ).set(queue=queue_name or REFRESH_UI_VIEWS_QUEUE)
-
     chain(linked_tasks).apply_async()
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
@@ -615,72 +609,6 @@ def refresh_materialized_views(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
-
-    if not synchronous:
-        worker_cache.release_single_task(task_name, cache_args)
-
-
-@celery_app.task(name="masu.processor.tasks.refresh_ui_views", queue=REFRESH_UI_VIEWS_QUEUE)
-def refresh_ui_views(  # noqa: C901
-    schema_name,
-    provider_type,
-    provider_uuid,
-    start_date,
-    end_date,
-    synchronous=False,
-    queue_name=None,
-    tracing_id=None
-):
-    """Refresh the database's ui views for reporting."""
-    task_name = "masu.processor.tasks.refresh_ui_views"
-    cache_args = [schema_name, provider_type]
-    if not synchronous:
-        worker_cache = WorkerCache()
-        if worker_cache.single_task_is_running(task_name, cache_args):
-            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(log_json(tracing_id, msg))
-            refresh_ui_views.s(
-                schema_name,
-                provider_type,
-                provider_uuid,
-                start_date,
-                end_date,
-                synchronous,
-                queue_name,
-                tracing_id
-            ).apply_async(queue=queue_name or REFRESH_UI_VIEWS_QUEUE)
-            return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
-    # if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-    #     with AWSReportDBAccessor(schema_name) as accessor:
-    #         for start, end in date_range_pair(start_date, end_date):
-    #             accessor.populate_ui_summary_tables(start, end, provider_uuid)
-    # elif provider_type in (Provider.PROVIDER_OCP):
-    if provider_type in (Provider.PROVIDER_OCP):
-        with OCPReportDBAccessor(schema_name) as accessor:
-            for start, end in date_range_pair(start_date, end_date):
-                accessor.populate_ui_summary_tables(start, end, provider_uuid)
-    # try:
-    #     with schema_context(schema_name):
-    #         for view in materialized_views:
-    #             table_name = view._meta.db_table
-    #             with connection.cursor() as cursor:
-    #                 cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-    #                 LOG.info(log_json(tracing_id, f"Refreshed {table_name}."))
-
-    #     invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
-
-    #     if provider_uuid:
-    #         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    #     if manifest_id:
-    #         # Processing for this monifest should be complete after this step
-    #         with ReportManifestDBAccessor() as manifest_accessor:
-    #             manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-    #             manifest_accessor.mark_manifest_as_completed(manifest)
-    # except Exception as ex:
-    #     if not synchronous:
-    #         worker_cache.release_single_task(task_name, cache_args)
-    #     raise ex
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)

@@ -98,6 +98,7 @@ class OCPReportSummaryUpdater(PartitionHandlerMixin):
                 accessor.populate_storage_line_item_daily_summary_table(
                     start, end, self._cluster_id, self._provider.uuid
                 )
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)

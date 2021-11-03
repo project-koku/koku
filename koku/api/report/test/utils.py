@@ -23,7 +23,6 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
-from masu.processor.tasks import refresh_ui_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import update_summary_tables
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
@@ -148,9 +147,6 @@ class NiseDataLoader:
                 )
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True)
         refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
-        refresh_ui_views(
-            self.schema, provider_type, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        )
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None, day_list=None):
