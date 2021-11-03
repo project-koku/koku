@@ -5,6 +5,7 @@
 """Database Extended Exceptions."""
 import inspect
 import json
+import logging
 import os
 import re
 import traceback
@@ -16,6 +17,9 @@ from psycopg2.errors import DeadlockDetected
 from psycopg2.extras import RealDictCursor
 from sqlparse import parse as sql_parse
 from sqlparse.sql import Identifier
+
+
+LOG = logging.getLogger(__name__)
 
 
 def get_driver_exception(db_exception):
@@ -162,11 +166,15 @@ class ExtendedDeadlockDetected(ExtendedDBException):
     def get_extended_info(self):
         super().get_extended_info()
 
-        with self.connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute("select pg_current_logfile() as curr_log;")
-                res = cur.fetchone()
-                self.current_log_file = res["curr_log"] if res else None
+        try:
+            with self.connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("select pg_current_logfile() as curr_log;")
+                    res = cur.fetchone()
+                    self.current_log_file = res["curr_log"] if res else None
+        except DatabaseError as e:
+            LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")
+            self.current_log_file = "<Unknown> (DB connect error)"
 
         self.args = (
             f"CURRENT DB LOG FILE: {self.current_log_file}",
