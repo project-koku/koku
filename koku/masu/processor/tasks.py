@@ -585,7 +585,7 @@ def refresh_materialized_views(  # noqa: C901
             AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        materialized_views = GCP_MATERIALIZED_VIEWS
+        materialized_views = (GCP_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
     try:
         with schema_context(schema_name):
             for view in materialized_views:
