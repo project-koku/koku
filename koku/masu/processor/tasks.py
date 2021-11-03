@@ -51,7 +51,6 @@ from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 
-# from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -60,7 +59,6 @@ GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
 PRIORITY_QUEUE = "priority"
 REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
-REFRESH_UI_VIEWS_QUEUE = "refresh"
 REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
@@ -74,7 +72,6 @@ QUEUE_LIST = [
     OCP_QUEUE,
     PRIORITY_QUEUE,
     REFRESH_MATERIALIZED_VIEWS_QUEUE,
-    REFRESH_UI_VIEWS_QUEUE,
     REMOVE_EXPIRED_DATA_QUEUE,
     SUMMARIZE_REPORTS_QUEUE,
     UPDATE_COST_MODEL_COSTS_QUEUE,
