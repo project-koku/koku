@@ -18,40 +18,46 @@ from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
 
+# TODO: COST-1986
+# GCPGroupBySerializer, GCPOrderBySerializer, GCPFilterSerializer
+
 
 class GCPGroupBySerializer(GroupSerializer):
     """Serializer for handling query parameter group_by."""
 
-    _opfields = ("account", "region", "service", "project", "instance_type")
+    _opfields = ("account", "region", "service", "project", "gcp_project", "instance_type")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
+    gcp_project = StringOrListField(child=serializers.CharField(), required=False)
     instance_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class GCPOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("account", "region", "service", "project", "date")
+    _opfields = ("account", "region", "service", "project", "gcp_project", "date")
 
     account = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    gcp_project = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
 
 
 class GCPFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("account", "service", "region", "project")
+    _opfields = ("account", "service", "region", "project", "gcp_project")
 
     account = StringOrListField(child=serializers.CharField(), required=False)
     service = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
     project = StringOrListField(child=serializers.CharField(), required=False)
+    gcp_project = StringOrListField(child=serializers.CharField(), required=False)
 
 
 class GCPQueryParamSerializer(ParamSerializer):
