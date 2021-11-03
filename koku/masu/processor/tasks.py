@@ -186,7 +186,7 @@ def get_report_files(  # noqa: C901
         except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
             worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
             WorkerCache().remove_task_from_cache(cache_key)
-            LOG.error(log_json(tracing_id, str(err), context))
+            LOG.warning(log_json(tracing_id, str(err), context))
             return
 
         stmt = (
