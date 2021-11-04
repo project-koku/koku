@@ -11,6 +11,8 @@ from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.aws.common import get_bills_from_provider
+from reporting.provider.aws.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
+
 
 LOG = logging.getLogger(__name__)
 
@@ -71,7 +73,9 @@ class AWSCostModelCostUpdater:
             LOG.debug(
                 "Updating AWS derived cost summary for schema: %s and provider: %s", self._schema, self._provider.uuid
             )
-            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
+            accessor.populate_ui_summary_tables(
+                start_date, end_date, self._provider.uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+            )
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:

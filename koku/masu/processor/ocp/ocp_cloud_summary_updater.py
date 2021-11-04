@@ -23,7 +23,7 @@ from masu.util.azure.common import get_bills_from_provider as azure_get_bills_fr
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from reporting.provider.ocp.models import UI_SUMMARY_TABLES_SUBSET
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 
 LOG = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             # Update the UI tables for the OpenShift provider
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 ocp_accessor.populate_ui_summary_tables(
-                    start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_SUBSET
+                    start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
