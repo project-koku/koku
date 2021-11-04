@@ -71,7 +71,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_pod_summary_p (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
-        -- AND source_uuid = {{source_uuid}}
+        AND source_uuid = {{source_uuid}}
         AND data_source = 'Pod'
-    GROUP BY usage_start, cluster_id, cluster_alias
+    GROUP BY usage_start, cluster_id, cluster_alias, source_uuid
 ;

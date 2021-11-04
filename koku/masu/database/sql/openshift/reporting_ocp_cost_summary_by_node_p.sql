@@ -22,7 +22,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
     SELECT uuid_generate_v4() as id,
         cluster_id,
         cluster_alias,
-        node,
+        coalesce(node, 'no-node') as node,
         usage_start as usage_start,
         usage_start as usage_end,
         sum(infrastructure_raw_cost) as infrastructure_raw_cost,
@@ -51,7 +51,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
-        AND node IS NOT NULL
-        -- AND source_uuid = {{source_uuid}}
-    GROUP BY usage_start, cluster_id, cluster_alias, node
+        AND source_uuid = {{source_uuid}}
+    GROUP BY usage_start, cluster_id, cluster_alias, node, source_uuid
 ;

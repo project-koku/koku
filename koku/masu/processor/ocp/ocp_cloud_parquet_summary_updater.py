@@ -111,8 +111,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
 
-                for start, end in date_range_pair(start_date, end_date):
-                    ocp_accessor.populate_ui_summary_tables(start, end, openshift_provider_uuid)
+                ocp_accessor.populate_ui_summary_tables(start, end, openshift_provider_uuid)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -196,5 +195,4 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
 
-                for start, end in date_range_pair(start_date, end_date):
-                    ocp_accessor.populate_ui_summary_tables(start, end, openshift_provider_uuid)
+                ocp_accessor.populate_ui_summary_tables(start, end, openshift_provider_uuid)

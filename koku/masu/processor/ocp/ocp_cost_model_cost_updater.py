@@ -206,6 +206,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                         self._cluster_id,
                         self._cluster_alias,
                         self._distribution,
+                        self._provider_uuid,
                     )
 
         except OCPCostModelCostUpdaterError as error:
@@ -254,6 +255,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             self._cluster_id,
                             self._cluster_alias,
                             self._distribution,
+                            self._provider_uuid,
                         )
 
         except OCPCostModelCostUpdaterError as error:
@@ -302,6 +304,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                             self._cluster_id,
                             self._cluster_alias,
                             self._distribution,
+                            self._provider_uuid,
                         )
 
         except OCPCostModelCostUpdaterError as error:

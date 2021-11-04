@@ -35,6 +35,12 @@ VIEWS = (
     "reporting_ocp_volume_summary_by_project",
 )
 
+UI_SUMMARY_TABLES_SUBSET = (
+    "reporting_ocp_cost_summary_p",
+    "reporting_ocp_cost_summary_by_node_p",
+    "reporting_ocp_cost_summary_by_project_p",
+)
+
 UI_SUMMARY_TABLES = (
     "reporting_ocp_cost_summary_p",
     "reporting_ocp_cost_summary_by_node_p",

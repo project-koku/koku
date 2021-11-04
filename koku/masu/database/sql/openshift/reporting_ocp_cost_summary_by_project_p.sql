@@ -21,7 +21,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     SELECT uuid_generate_v4() as id,
         cluster_id,
         cluster_alias,
-        namespace,
+        coalesce(namespace, 'no-project') as namespace,
         usage_start as usage_start,
         usage_start as usage_end,
         json_build_object(
@@ -50,7 +50,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
-        AND namespace IS NOT NULL
-        -- AND source_uuid = {{source_uuid}}
-    GROUP BY usage_start, cluster_id, cluster_alias, namespace
+        AND source_uuid = {{source_uuid}}
+    GROUP BY usage_start, cluster_id, cluster_alias, namespace, source_uuid
 ;
