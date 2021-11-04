@@ -22,6 +22,7 @@ from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 LOG = logging.getLogger(__name__)
 
@@ -111,6 +112,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
 
+                ocp_accessor.populate_ui_summary_tables(
+                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+                )
+
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
@@ -192,3 +197,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
+
+                ocp_accessor.populate_ui_summary_tables(
+                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+                )

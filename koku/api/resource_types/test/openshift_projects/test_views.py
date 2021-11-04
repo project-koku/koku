@@ -11,7 +11,7 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from reporting.provider.ocp.models import OCPCostSummaryByProject
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 
 
 class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
@@ -27,7 +27,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+                OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
                 .values("value")
                 .distinct()
                 .filter(namespace__in=["cost-management"])
@@ -48,7 +48,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+                OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
                 .values("value")
                 .distinct()
                 .filter(cluster_id__in=["OCP-on-AWS"])
@@ -71,7 +71,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+                OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
                 .values("value")
                 .distinct()
                 .filter(namespace__in=["cost-management"], cluster_id__in=["OCP-on-AWS"])
@@ -92,7 +92,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+                OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
                 .values("value")
                 .distinct()
                 .filter(cluster_id__in=["OCP-on-AWS"])
@@ -113,7 +113,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+                OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
                 .values("value")
                 .distinct()
                 .filter(namespace__in=["cost-management"])

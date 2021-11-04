@@ -13,6 +13,7 @@ from koku.database import execute_delete_sql
 from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import PartitionedTable
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
@@ -102,6 +103,7 @@ class OCPReportDBCleaner:
                 # accessor._aws_table_map["ocp_on_aws_project_daily_summary"],
                 accessor._table_map["line_item_daily_summary"]
             ]
+            table_names.extend(UI_SUMMARY_TABLES)
             table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
