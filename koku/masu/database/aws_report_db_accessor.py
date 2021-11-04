@@ -253,9 +253,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_ui_summary_tables(self, start_date, end_date, source_uuid):
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in UI_SUMMARY_TABLES:
+        for table_name in tables:
             summary_sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
             summary_sql = summary_sql.decode("utf-8")
             summary_sql_params = {
