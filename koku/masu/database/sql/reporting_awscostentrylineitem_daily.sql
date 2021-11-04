@@ -118,6 +118,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily (
         unblended_cost,
         blended_rate,
         blended_cost,
+        savingsplan_effective_cost,
         public_on_demand_cost,
         public_on_demand_rate
     FROM reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}}
