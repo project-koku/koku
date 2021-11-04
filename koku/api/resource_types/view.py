@@ -18,9 +18,9 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
-from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByNode
-from reporting.provider.ocp.models import OCPCostSummaryByProject
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostSummaryP
 
 
 class ResourceTypeView(APIView):
@@ -44,9 +44,9 @@ class ResourceTypeView(APIView):
                 .count()
             )
             azure_sub_guid_count = AzureCostSummaryByAccount.objects.values("subscription_guid").distinct().count()
-            ocp_cluster_count = OCPCostSummary.objects.values("cluster_id").distinct().count()
-            ocp_node_count = OCPCostSummaryByNode.objects.values("node").distinct().count()
-            ocp_project_count = OCPCostSummaryByProject.objects.values("namespace").distinct().count()
+            ocp_cluster_count = OCPCostSummaryP.objects.values("cluster_id").distinct().count()
+            ocp_node_count = OCPCostSummaryByNodeP.objects.values("node").distinct().count()
+            ocp_project_count = OCPCostSummaryByProjectP.objects.values("namespace").distinct().count()
             cost_model_count = CostModel.objects.count()
 
             aws_account_dict = {
