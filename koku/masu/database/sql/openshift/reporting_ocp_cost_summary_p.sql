@@ -50,5 +50,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_p (
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
-    GROUP BY usage_start, cluster_id, cluster_alias, source_uuid
+    GROUP BY usage_start, cluster_id, cluster_alias
 ;

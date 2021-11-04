@@ -65,5 +65,5 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND data_source = 'Storage'
-    GROUP BY usage_start, cluster_id, cluster_alias, namespace, source_uuid
+    GROUP BY usage_start, cluster_id, cluster_alias, namespace
 ;
