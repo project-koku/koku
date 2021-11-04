@@ -30,6 +30,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     usage_amount,
     currency_code,
     unblended_cost,
+    blended_cost,
     savingsplan_effective_cost,
     markup_cost,
     shared_projects,
@@ -58,6 +59,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         max(currency_code) as currency_code,
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
+        sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
         count(DISTINCT namespace) as shared_projects,
         source_uuid
