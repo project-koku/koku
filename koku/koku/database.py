@@ -91,6 +91,14 @@ PARTITIONED_MODEL_NAMES = [
     "OCPGCPDatabaseSummaryP",
     "OCPGCPNetworkSummaryP",
     "OCPGCPStorageSummaryP",
+    "AzureCostSummaryP",
+    "AzureCostSummaryByAccountP",
+    "AzureCostSummaryByLocationP",
+    "AzureCostSummaryByServiceP",
+    "AzureComputeSummaryP",
+    "AzureStorageSummaryP",
+    "AzureNetworkSummaryP",
+    "AzureDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
