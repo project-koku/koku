@@ -200,7 +200,7 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     savingsplan_effective_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
-    
+
     markup_cost_blended = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost_amortized = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -280,7 +280,7 @@ class OCPAWSCostSummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    
+
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
