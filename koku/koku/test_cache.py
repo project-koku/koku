@@ -10,10 +10,13 @@ from django.core.cache import caches
 from django.test.utils import override_settings
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.provider.models import Provider
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
+from koku.cache import invalidate_view_cache_for_tenant_and_source_types
 from koku.cache import KokuCacheError
 from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
@@ -120,3 +123,98 @@ class KokuCacheTest(IamTestCase):
 
         for key in azure_cache_data:
             self.assertIsNone(self.cache.get(key))
+
+    def test_invalidate_view_cache_for_tenant_and_source_types(self):
+        """Test that all views for a all source types and tenant are invalidated."""
+        sources = {
+            "openshift": {
+                "source_type": Provider.PROVIDER_OCP,
+                "cache_keys": (
+                    OPENSHIFT_CACHE_PREFIX,
+                    OPENSHIFT_AWS_CACHE_PREFIX,
+                    OPENSHIFT_AZURE_CACHE_PREFIX,
+                    OPENSHIFT_ALL_CACHE_PREFIX,
+                ),
+                "cache_data": {},
+            },
+            "aws": {
+                "source_type": Provider.PROVIDER_AWS,
+                "cache_keys": (AWS_CACHE_PREFIX, OPENSHIFT_AWS_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX),
+                "cache_data": {},
+            },
+        }
+
+        # initialize data
+        for source in sources:
+            cache_keys = sources[source]["cache_keys"]
+            cache_data = sources[source]["cache_data"]
+
+            for prefix in cache_keys:
+                cache_data.update({f"{self.schema_name}:{prefix}": "value"})
+            self.cache.set_many(cache_data)
+
+        # clear data based on given sources
+        source_types = []
+        for source in sources:
+            source_types.append(sources[source]["source_type"])
+
+        invalidate_view_cache_for_tenant_and_source_types(self.schema_name, source_types)
+
+        # test to make sure data is cleared
+        for source in sources:
+            cache_data = sources[source]["cache_data"]
+
+            for key in cache_data:
+                self.assertIsNone(self.cache.get(key))
+
+        # test for log warning on invalid source type
+        with self.assertLogs() as captured:
+            result = "unable to invalidate cache, bogus is not a valid source type"
+            source_types = ["bogus"]
+            invalidate_view_cache_for_tenant_and_source_types(self.schema_name, source_types)
+            self.assertEqual(len(captured.records), 1)
+            self.assertEqual(captured.records[0].getMessage(), result)
+
+    def test_invalidate_view_cache_for_tenant_and_all_source_type(self):
+        """Test that all views for a all source types and tenant are invalidated."""
+        sources = {
+            "openshift": {
+                "source_type": Provider.PROVIDER_OCP,
+                "cache_keys": (
+                    OPENSHIFT_CACHE_PREFIX,
+                    OPENSHIFT_AWS_CACHE_PREFIX,
+                    OPENSHIFT_AZURE_CACHE_PREFIX,
+                    OPENSHIFT_ALL_CACHE_PREFIX,
+                ),
+                "cache_data": {},
+            },
+            "aws": {
+                "source_type": Provider.PROVIDER_AWS,
+                "cache_keys": (AWS_CACHE_PREFIX, OPENSHIFT_AWS_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX),
+                "cache_data": {},
+            },
+            "azure": {
+                "source_type": Provider.PROVIDER_AZURE,
+                "cache_keys": (AZURE_CACHE_PREFIX, OPENSHIFT_AZURE_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX),
+                "cache_data": {},
+            },
+        }
+
+        # initialize data
+        for source in sources:
+            cache_keys = sources[source]["cache_keys"]
+            cache_data = sources[source]["cache_data"]
+
+            for prefix in cache_keys:
+                cache_data.update({f"{self.schema_name}:{prefix}": "value"})
+            self.cache.set_many(cache_data)
+
+        # clear all cached data
+        invalidate_view_cache_for_tenant_and_all_source_types(self.schema_name)
+
+        # test to make sure data is cleared
+        for source in sources:
+            cache_data = sources[source]["cache_data"]
+
+            for key in cache_data:
+                self.assertIsNone(self.cache.get(key))
