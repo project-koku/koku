@@ -306,7 +306,7 @@ urlpatterns = [
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
-    path("resource-types/gcp-gcp_projects/", GCPProjectsView.as_view(), name="gcp-gcp_projects"),
+    path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
     path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
     path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
     path(
