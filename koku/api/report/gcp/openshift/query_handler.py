@@ -33,7 +33,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         """
         self._mapper = OCPGCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         # Update which field is used to calculate cost by group by param.
-        # TODO: Cody this may need to be updated for gcp_project.
         if is_grouped_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
             self._mapper = OCPGCPProviderMap(provider=self.provider, report_type=self._report_type)
