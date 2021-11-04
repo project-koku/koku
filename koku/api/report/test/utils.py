@@ -145,10 +145,8 @@ class NiseDataLoader:
                     manifest_id=manifest.id,
                     synchronous=True,
                 )
-        update_cost_model_costs.s(
-            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
+        update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None, day_list=None):
