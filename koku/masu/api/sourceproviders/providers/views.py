@@ -71,8 +71,6 @@ class ProviderView(viewsets.ModelViewSet):
             serialized = serializer(page, many=True).data
             return serialized
 
-    # TODO
-    # Figure out if this wants to just be a way to return all or filterable
     def get_all_providers(self, request, *args, **kwargs):
         """API list all providers, filter by: provider name"""
         param = self.request.query_params
@@ -87,8 +85,8 @@ class ProviderView(viewsets.ModelViewSet):
         else:
             return super().list(request)
 
-    def get_providers_by_customer(self, request, *args, **kwargs):
-        """Get Manifests by source UUID"""
+    def get_providers_by_account_id(self, request, *args, **kwargs):
+        """Get Providers By Account Id"""
         sourceuuidParam = kwargs
         try:
             queryset = self.queryset.filter(customer__account_id=sourceuuidParam["customer"])

@@ -14,15 +14,16 @@ class ProviderSerializer(serializers.Serializer):
     class Meta:
         model = Provider
 
-    uuid = serializers.IntegerField()
+    uuid = serializers.UUIDField()
     name = serializers.CharField()
-    authentication = serializers.PrimaryKeyRelatedField(read_only=True)
-    billing_source = serializers.PrimaryKeyRelatedField(read_only=True)
-    customer = serializers.PrimaryKeyRelatedField(read_only=True)
-    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    type = serializers.CharField()
     setup_complete = serializers.BooleanField()
     created_timestamp = serializers.DateTimeField()
     data_updated_timestamp = serializers.DateTimeField()
     active = serializers.BooleanField()
+    authentication_id = serializers.PrimaryKeyRelatedField(read_only=True)
+    billing_source_id = serializers.PrimaryKeyRelatedField(read_only=True)
+    created_by_id = serializers.PrimaryKeyRelatedField(read_only=True)
+    customer_id = serializers.PrimaryKeyRelatedField(read_only=True)
+    infrastructure_id = serializers.PrimaryKeyRelatedField(read_only=True)
     paused = serializers.BooleanField()
-    infrastructure = serializers.PrimaryKeyRelatedField(read_only=True)
