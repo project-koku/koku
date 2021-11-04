@@ -54,7 +54,7 @@ select m.relname::text as "matview_name",
    and mc.attnum > 0
  where m.relkind = 'm'
    and m.relnamespace = 'template0'::regnamespace
-   and m.relname ~ '^reporting_ocp'
+   and m.relname ~ '^reporting_ocp_'
  group
     by m.relname
 ),
@@ -67,7 +67,7 @@ select t.relname::text as "partable_name",
    and tc.attnum > 0
  where t.relkind = 'p'
    and t.relnamespace = 'template0'::regnamespace
-   and t.relname ~ '^reporting_ocp.*_p$'
+   and t.relname ~ '^reporting_ocp_.*_p$'
  group
     by t.relname
 )
