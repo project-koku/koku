@@ -14,7 +14,7 @@ from masu.api.sourceproviders.sources.serializers import SourceSerializer
 
 
 class SourceserializerTest(IamTestCase):
-    """Provider serializer tests"""
+    """Source serializer tests"""
 
     def setUp(self):
         super().setUp()
@@ -72,7 +72,7 @@ class SourceserializerTest(IamTestCase):
         }
 
     def test_provider_contains_expected_fields(self):
-        """Tests ProviderSerializer is utilizing expected fields"""
+        """Tests SourceSerializer is utilizing expected fields"""
         data = self.serializer.data
         # TODO
         # Have to make all the keys in the fake source above

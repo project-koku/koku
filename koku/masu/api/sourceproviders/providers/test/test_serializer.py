@@ -59,19 +59,19 @@ class ProviderserializerTest(IamTestCase):
         )
 
     def test_valid_data(self):
-        """Tests ManifestSerializer with all valid data."""
+        """Tests ProviderSerializer with all valid data."""
         with tenant_context(self.tenant):
             serializer = ProviderSerializer(data=self.basic_model)
             self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_invalid_string_data(self):
-        """Tests ManifestSerializer invalid string."""
+        """Tests ProviderSerializer invalid string."""
         self.basic_model["uuid"] = 1
         serializer = ProviderSerializer(data=self.basic_model)
         self.assertRaises(TypeError, serializer.is_valid(raise_exception=True))
 
     def test_invalid_date_data(self):
-        """Tests ManifestSerializer invalid date."""
+        """Tests ProviderSerializer invalid date."""
         self.basic_model["created_timestamp"] = "invalid date"
         with tenant_context(self.tenant):
             serializer = ProviderSerializer(data=self.basic_model)
@@ -80,7 +80,7 @@ class ProviderserializerTest(IamTestCase):
                     serializer.save()
 
     def test_invalid_boolean_data(self):
-        """Tests ManifestSerializer invalid boolean."""
+        """Tests ProviderSerializer invalid boolean."""
         self.basic_model["paused"] = 27
         with tenant_context(self.tenant):
             serializer = ProviderSerializer(data=self.basic_model)

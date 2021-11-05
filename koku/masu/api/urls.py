@@ -63,8 +63,8 @@ urlpatterns = [
     ),
     path(
         "providers/<int:customer>/",
-        ProviderView.as_view({"get": "get_providers_by_customer"}),
-        name="get_providers_by_customer",
+        ProviderView.as_view({"get": "get_providers_by_account_id"}),
+        name="get_providers_by_account_id",
     ),
-    path("providers/", ProviderView.as_view({"get": "get_all_providers"}), name="provider"),
+    path("providers/", ProviderView.as_view({"get": "get_all_providers"}), name="providers"),
 ]

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
-from django.forms.models import model_to_dict
 from django.utils.encoding import force_text
 from rest_framework import permissions
 from rest_framework import status
@@ -49,20 +48,13 @@ class ProviderView(viewsets.ModelViewSet):
     permission_classes = [ProviderPermission]
     http_method_names = ["get"]
 
-    def get_provider_UUID(request, provider):
-        """returns provider uuid based on provider name"""
-        provider = Provider.objects.filter(name=provider).first()
-        if provider is None:
-            raise ProviderException("Invalid provider name.")
-        return model_to_dict(provider)
-
     @staticmethod
     def check_filters(dict_):
         """Check if filter parameters are valid"""
-        valid_query_params = ["name", "limit", "offset"]
+        valid_query_params = ["limit", "offset"]
         params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         if params:
-            raise ProviderException("Invalid Filter Parameter")
+            raise ProviderInvalidFilterException("Invalid Filter Parameter")
 
     def set_pagination(self, request, queryset, serializer):
         """Sets up pagination"""
@@ -75,27 +67,19 @@ class ProviderView(viewsets.ModelViewSet):
         """API list all providers, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
-        if request.GET.get("name"):
-            providers = self.get_provider_UUID(param["name"])
-            queryset = self.queryset.filter(provider_id=providers["uuid"])
-            pagination = self.set_pagination(self, queryset, ProviderSerializer)
-            if pagination is not None:
-                return self.get_paginated_response(pagination)
-            return Response(ProviderSerializer(queryset).data, many=True)
-        else:
-            return super().list(request)
+        return super().list(request)
 
     def get_providers_by_account_id(self, request, *args, **kwargs):
         """Get Providers By Account Id"""
-        sourceuuidParam = kwargs
+        accountIdParam = kwargs
         try:
-            queryset = self.queryset.filter(customer__account_id=sourceuuidParam["customer"])
+            queryset = self.queryset.filter(customer__account_id=accountIdParam["customer"])
+            if not queryset:
+                raise ProviderException("Invalid account id.")
         except Exception:
-            raise ProviderException("Invalid source uuid.")
-
+            raise ProviderException("Invalid arguments.")
         pagination = self.set_pagination(self, queryset, ProviderSerializer)
         if pagination is not None:
             return self.get_paginated_response(pagination)
-
         queryset = ProviderSerializer(queryset, many=True).data
         return Response(queryset)
