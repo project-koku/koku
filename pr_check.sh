@@ -81,31 +81,35 @@ function run_trino_smoke_tests() {
 }
 
 function run_test_filter_expression {
-    if check_for_labels "aws"
+    if check_for_labels "aws-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_ocp_on_aws"
-    elif check_for_labels "azure"
+    elif check_for_labels "azure-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_ocp_on_azure"
-    elif check_for_labels "gcp"
+    elif check_for_labels "gcp-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_ocp_on_gcp"
-    elif check_for_labels "ocp"
+    elif check_for_labels "ocp-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
-    elif check_for_labels "hot-fix"
+    elif check_for_labels "hot-fix-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="outage"
-    elif check_for_labels "cost-models"
+    elif check_for_labels "cost-models-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
-    elif check_for_labels "full-run"
+    elif check_for_labels "full-run-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api"
-    else
+    elif check_for_labels "smoke-tests"
+    then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="cost_required"
+    else
+        echo "PR smoke tests skipped"
+        exit_code=2
     fi
 }
 
@@ -135,7 +139,7 @@ curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos
 
 
 # check if this PR is labeled to build the test image
-if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
+if ! [[ check_for_labels == 'lgtm' ]] || [[ check_for_labels == 'pr-check-build' ]] || [[ check_for_labels == *'smoke-tests' ]]
 then
     echo "PR check skipped"
     exit_code=1
@@ -150,7 +154,7 @@ fi
 
 if [[ $exit_code == 0 ]]; then
     # check if this PR is labeled to run smoke tests
-    if ! check_for_labels "lgtm|smoke-tests"
+    if ! [[ check_for_labels == 'lgtm' ]] || [[ check_for_labels == *'smoke-tests' ]]
     then
         echo "PR smoke tests skipped"
         exit_code=2
