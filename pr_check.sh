@@ -139,7 +139,7 @@ curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos
 
 
 # check if this PR is labeled to build the test image
-if ! [[ check_for_labels == 'lgtm' ]] || [[ check_for_labels == 'pr-check-build' ]] || [[ check_for_labels == *'smoke-tests' ]]
+if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests'
 then
     echo "PR check skipped"
     exit_code=1
@@ -154,7 +154,7 @@ fi
 
 if [[ $exit_code == 0 ]]; then
     # check if this PR is labeled to run smoke tests
-    if ! [[ check_for_labels == 'lgtm' ]] || [[ check_for_labels == *'smoke-tests' ]]
+    if ! check_for_labels 'lgtm|*smoke-tests'
     then
         echo "PR smoke tests skipped"
         exit_code=2
