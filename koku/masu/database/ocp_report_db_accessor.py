@@ -45,6 +45,7 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 from reporting.provider.ocp.models import PRESTO_LINE_ITEM_TABLE_DAILY_MAP
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
@@ -346,6 +347,22 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
         self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
+
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in tables:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": source_uuid,
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            self._execute_raw_sql_query(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+            )
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
         """Populate the enabled tag key table.
@@ -829,7 +846,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
 
     def populate_monthly_cost(
-        self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias, distribution
+        self, cost_type, rate_type, rate, start_date, end_date, cluster_id, cluster_alias, distribution, provider_uuid
     ):
         """
         Populate the monthly cost of a customer.
@@ -865,7 +882,14 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
                     self.upsert_monthly_node_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, distribution
+                        first_curr_month,
+                        first_next_month,
+                        cluster_id,
+                        cluster_alias,
+                        rate_type,
+                        rate,
+                        distribution,
+                        provider_uuid,
                     )
             elif cost_type == "Cluster":
                 if rate is None:
@@ -873,18 +897,34 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 else:
                     # start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost
                     self.upsert_monthly_cluster_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, distribution
+                        first_curr_month,
+                        first_next_month,
+                        cluster_id,
+                        cluster_alias,
+                        rate_type,
+                        rate,
+                        distribution,
+                        provider_uuid,
                     )
             elif cost_type == "PVC":
                 if rate is None:
                     self.remove_monthly_cost(first_curr_month, first_next_month, cluster_id, cost_type)
                 else:
                     self.upsert_monthly_pvc_cost_line_item(
-                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate
+                        first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate, provider_uuid
                     )
 
     def populate_monthly_tag_cost(
-        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias, distribution
+        self,
+        cost_type,
+        rate_type,
+        rate_dict,
+        start_date,
+        end_date,
+        cluster_id,
+        cluster_alias,
+        distribution,
+        provider_uuid,
     ):
         """
         Populate the monthly cost of a customer based on tag rates.
@@ -907,19 +947,42 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("Populating monthly tag based cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 self.tag_upsert_monthly_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+                    first_curr_month,
+                    first_next_month,
+                    cluster_id,
+                    cluster_alias,
+                    rate_type,
+                    rate_dict,
+                    distribution,
+                    provider_uuid,
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_cluster_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+                    first_curr_month,
+                    first_next_month,
+                    cluster_id,
+                    cluster_alias,
+                    rate_type,
+                    rate_dict,
+                    distribution,
+                    provider_uuid,
                 )
             elif cost_type == "PVC":
                 self.tag_upsert_monthly_pvc_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, provider_uuid
                 )
 
     def populate_monthly_tag_default_cost(
-        self, cost_type, rate_type, rate_dict, start_date, end_date, cluster_id, cluster_alias, distribution
+        self,
+        cost_type,
+        rate_type,
+        rate_dict,
+        start_date,
+        end_date,
+        cluster_id,
+        cluster_alias,
+        distribution,
+        provider_uuid,
     ):
         """
         Populate the monthly default cost of a customer based on tag rates.
@@ -942,15 +1005,29 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("Populating monthly tag based default cost from %s to %s.", first_curr_month, first_next_month)
             if cost_type == "Node":
                 self.tag_upsert_monthly_default_node_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+                    first_curr_month,
+                    first_next_month,
+                    cluster_id,
+                    cluster_alias,
+                    rate_type,
+                    rate_dict,
+                    distribution,
+                    provider_uuid,
                 )
             elif cost_type == "Cluster":
                 self.tag_upsert_monthly_default_cluster_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+                    first_curr_month,
+                    first_next_month,
+                    cluster_id,
+                    cluster_alias,
+                    rate_type,
+                    rate_dict,
+                    distribution,
+                    provider_uuid,
                 )
             elif cost_type == "PVC":
                 self.tag_upsert_monthly_default_pvc_cost_line_item(
-                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict
+                    first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, provider_uuid
                 )
 
     def get_node_to_project_distribution(self, start_date, end_date, cluster_id, node_cost):
@@ -997,7 +1074,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return node_mappings
 
     def upsert_monthly_node_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution, provider_uuid
     ):
         """Update or insert daily summary line item for node cost."""
         unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
@@ -1027,6 +1104,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         monthly_cost_type="Node",
                         node=node,
                         data_source="Pod",
+                        source_uuid=provider_uuid,
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(distribution, node_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1064,6 +1142,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             node=project_node,
                             namespace=namespace,
                             data_source="Pod",
+                            source_uuid=provider_uuid,
                         )
                     monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
                     log_statement = (
@@ -1080,7 +1159,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     LOG.debug(log_statement)
 
     def tag_upsert_monthly_node_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution, provider_uuid
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1130,6 +1209,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                         monthly_cost_type="Node",
                                         node=node,
                                         data_source="Pod",
+                                        source_uuid=provider_uuid,
                                     )
                                 node_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1152,7 +1232,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 line_item.save()
 
     def tag_upsert_monthly_default_node_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution, provider_uuid
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1208,6 +1288,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     monthly_cost_type="Node",
                                     node=node,
                                     data_source="Pod",
+                                    source_uuid=provider_uuid,
                                 )
                             node_cost = tag_default
                             if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1233,7 +1314,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             line_item.save()
 
     def tag_upsert_monthly_default_pvc_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, provider_uuid
     ):
         """
         Update or insert daily summary line item for node cost.
@@ -1296,6 +1377,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     node=node,
                                     data_source="Storage",
                                     namespace=namespace,
+                                    source_uuid=provider_uuid,
                                 )
                             pvc_cost = tag_default
                             if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1393,7 +1475,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return distributed_project_list
 
     def upsert_monthly_cluster_cost_line_item(
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, cluster_cost, distribution, provider_uuid
     ):
         """
         Update or insert a daily summary line item for cluster cost.
@@ -1443,6 +1525,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             monthly_cost_type="Cluster",
                             node=node,
                             data_source="Pod",
+                            source_uuid=provider_uuid,
                         )
                     monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
                     log_statement = (
@@ -1486,6 +1569,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             monthly_cost_type="Cluster",
                             namespace=namespace,
                             data_source="Pod",
+                            source_uuid=provider_uuid,
                         )
                     monthly_cost = self.generate_monthly_cost_json_object(distribution, distributed_cost)
                     log_statement = (
@@ -1502,7 +1586,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     LOG.debug(log_statement)
 
     def tag_upsert_monthly_pvc_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, provider_uuid
     ):
         """
         Update or insert daily summary line item for PVC cost.
@@ -1557,6 +1641,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                         node=node,
                                         data_source="Storage",
                                         namespace=namespace,
+                                        source_uuid=provider_uuid,
                                     )
                                 pvc_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1578,7 +1663,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                     line_item.supplementary_monthly_cost_json = monthly_cost
                                 line_item.save()
 
-    def upsert_monthly_pvc_cost_line_item(self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost):
+    def upsert_monthly_pvc_cost_line_item(
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost, provider_uuid
+    ):
         """Update or insert daily summary line item for pvc cost."""
         unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
@@ -1611,6 +1698,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         node=node,
                         data_source="Storage",
                         namespace=namespace,
+                        source_uuid=provider_uuid,
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1648,6 +1736,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         node=node,
                         namespace=namespace,
                         data_source="Storage",
+                        source_uuid=provider_uuid,
                     )
                 monthly_cost = self.generate_monthly_cost_json_object(metric_constants.PVC_DISTRIBUTION, pvc_cost)
                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1659,7 +1748,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 project_line_item.save()
 
     def tag_upsert_monthly_cluster_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution, provider_uuid
     ):
         """
         Update or insert a daily summary line item for cluster cost based on tag rates.
@@ -1704,6 +1793,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                         cluster_alias=cluster_alias,
                                         monthly_cost_type="Cluster",
                                         data_source="Pod",
+                                        source_uuid=provider_uuid,
                                     )
                                 cluster_cost = rate_value
                                 if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
@@ -1734,7 +1824,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 line_item.save()
 
     def tag_upsert_monthly_default_cluster_cost_line_item(  # noqa: C901
-        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution
+        self, start_date, end_date, cluster_id, cluster_alias, rate_type, rate_dict, distribution, provider_uuid
     ):
         """
         Update or insert daily summary line item for cluster cost.
@@ -1786,6 +1876,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 cluster_alias=cluster_alias,
                                 monthly_cost_type="Cluster",
                                 data_source="Pod",
+                                source_uuid=provider_uuid,
                             )
                         cluster_cost = tag_default
                         if rate_type == metric_constants.INFRASTRUCTURE_COST_TYPE:
