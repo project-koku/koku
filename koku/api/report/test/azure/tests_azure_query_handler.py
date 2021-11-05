@@ -30,17 +30,17 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
-from reporting.models import AzureComputeSummary
+from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
-from reporting.models import AzureCostSummary
-from reporting.models import AzureCostSummaryByAccount
-from reporting.models import AzureCostSummaryByLocation
-from reporting.models import AzureCostSummaryByService
-from reporting.models import AzureDatabaseSummary
-from reporting.models import AzureNetworkSummary
-from reporting.models import AzureStorageSummary
+from reporting.models import AzureCostSummaryByAccountP
+from reporting.models import AzureCostSummaryByLocationP
+from reporting.models import AzureCostSummaryByServiceP
+from reporting.models import AzureCostSummaryP
+from reporting.models import AzureDatabaseSummaryP
+from reporting.models import AzureNetworkSummaryP
+from reporting.models import AzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -1150,35 +1150,35 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", AzureCostView, AzureCostSummary),
-            ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccount),
-            ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocation),
+            ("?", AzureCostView, AzureCostSummaryP),
+            ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccountP),
+            ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocationP),
             (
                 "?group_by[resource_location]=*&group_by[subscription_guid]=*",
                 AzureCostView,
-                AzureCostSummaryByLocation,
+                AzureCostSummaryByLocationP,
             ),
-            ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByService),
-            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByService),
-            ("?", AzureInstanceTypeView, AzureComputeSummary),
-            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummary),
-            ("?", AzureStorageView, AzureStorageSummary),
-            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummary),
-            ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummary),
+            ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByServiceP),
+            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByServiceP),
+            ("?", AzureInstanceTypeView, AzureComputeSummaryP),
+            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummaryP),
+            ("?", AzureStorageView, AzureStorageSummaryP),
+            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummaryP),
+            ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummaryP),
             (
                 "?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[subscription_guid]=*",
                 AzureCostView,
-                AzureDatabaseSummary,
+                AzureDatabaseSummaryP,
             ),
             (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
                 AzureCostView,
-                AzureNetworkSummary,
+                AzureNetworkSummaryP,
             ),
             (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[subscription_guid]=*",  # noqa: E501
                 AzureCostView,
-                AzureNetworkSummary,
+                AzureNetworkSummaryP,
             ),
         ]
 

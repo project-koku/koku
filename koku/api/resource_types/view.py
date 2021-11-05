@@ -15,7 +15,7 @@ from api.query_params import get_tenant
 from cost_models.models import CostModel
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSOrganizationalUnit
-from reporting.provider.azure.models import AzureCostSummaryByAccount
+from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPCostSummary
@@ -43,7 +43,7 @@ class ResourceTypeView(APIView):
                 .distinct()
                 .count()
             )
-            azure_sub_guid_count = AzureCostSummaryByAccount.objects.values("subscription_guid").distinct().count()
+            azure_sub_guid_count = AzureCostSummaryByAccountP.objects.values("subscription_guid").distinct().count()
             ocp_cluster_count = OCPCostSummary.objects.values("cluster_id").distinct().count()
             ocp_node_count = OCPCostSummaryByNode.objects.values("node").distinct().count()
             ocp_project_count = OCPCostSummaryByProject.objects.values("namespace").distinct().count()
