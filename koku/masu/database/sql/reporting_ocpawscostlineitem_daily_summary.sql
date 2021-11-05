@@ -1063,7 +1063,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.blended_cost) as blended_cost,
         max(li.blended_cost) * {{markup}}::numeric as markup_cost_blended,
         max(li.savingsplan_effective_cost) as savingsplan_effective_cost,
-        max(li.savingsplan_effective_cost) * {{markup}}::numeric as markup_cost_savingsplan_effective_cost,
+        max(li.savingsplan_effective_cost) * {{markup}}::numeric as markup_cost_savingsplan,
         max(li.shared_projects) as shared_projects,
         pc.project_costs as project_costs,
         ab.provider_id as source_uuid
@@ -1117,7 +1117,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_daily_summary_{{uuid | sqlsa
         max(li.savingsplan_effective_cost) as savingsplan_effective_cost,
         max(li.unblended_cost) * {{markup}}::numeric as markup_cost,
         max(li.blended_cost) * {{markup}}::numeric as markup_cost_blended,
-        max(li.savingsplan_effective_cost) * {{markup}}::numeric as markup_cost_savingsplan_effective_cost,
+        max(li.savingsplan_effective_cost) * {{markup}}::numeric as markup_cost_savingsplan,
         max(li.shared_projects) as shared_projects,
         pc.project_costs,
         ab.provider_id as source_uuid
@@ -1180,7 +1180,7 @@ CREATE TEMPORARY TABLE reporting_ocpawscostlineitem_project_daily_summary_{{uuid
         li.savingsplan_effective_cost / li.pod_label_count / li.shared_projects as savingsplan_effective_cost,
         li.unblended_cost / li.pod_label_count / li.shared_projects * {{markup}}::numeric as markup_cost,
         li.blended_cost / li.pod_label_count / li.shared_projects * {{markup}}::numeric as markup_cost_blended,
-        li.savingsplan_effective_cost / li.pod_label_count / li.shared_projects * {{markup}}::numeric as markup_cost_savingsplan_effective_cost,
+        li.savingsplan_effective_cost / li.pod_label_count / li.shared_projects * {{markup}}::numeric as markup_cost_savingsplan,
         project_cost::numeric as project_cost,
         project_cost::numeric * {{markup}}::numeric as project_markup_cost,
         li.source_uuid
@@ -1245,7 +1245,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     savingsplan_effective_cost,
     markup_cost,
     markup_cost_blended,
-    markup_cost_savingsplan_effective_cost,
+    markup_cost_savingsplan,
     shared_projects,
     project_costs,
     source_uuid
@@ -1277,7 +1277,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         savingsplan_effective_cost,
         markup_cost,
         markup_cost_blended,
-        markup_cost_savingsplan_effective_cost,
+        markup_cost_savingsplan,
         shared_projects,
         project_costs,
         source_uuid
@@ -1338,7 +1338,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     savingsplan_effective_cost,
     markup_cost,
     markup_cost_blended,
-    markup_cost_savingsplan_effective_cost,
+    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     source_uuid
@@ -1374,7 +1374,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         savingsplan_effective_cost,
         markup_cost,
         markup_cost_blended,
-        markup_cost_savingsplan_effective_cost,
+        markup_cost_savingsplan,
         project_cost,
         project_markup_cost,
         source_uuid

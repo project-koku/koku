@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpawscostlineitemdailysummary",
-            name="markup_cost_savingsplan_effective_cost",
+            name="markup_cost_savingsplan",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.AddField(
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpawscostlineitemprojectdailysummary",
-            name="markup_cost_savingsplan_effective_cost",
+            name="markup_cost_savingsplan",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.AddField(

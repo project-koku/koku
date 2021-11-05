@@ -150,7 +150,7 @@ class OCPAWSReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
             parameters    (QueryParameters): parameter object for query
 
         """
-        self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+        self._mapper = OCPAWSProviderMap(provider=self.provider, report_type=parameters.report_type, cost_type=parameters.parameters.get("cost_type"))
         # Update which field is used to calculate cost by group by param.
         if is_grouped_by_project(parameters):
             self._report_type = parameters.report_type + "_by_project"
