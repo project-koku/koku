@@ -34,7 +34,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     savingsplan_effective_cost,
     markup_cost,
     markup_cost_blended,
-    markup_cost_amortized,
+    markup_cost_savingsplan_effective_cost,
     shared_projects,
     source_uuid
 )
@@ -64,7 +64,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         sum(blended_cost) as blended_cost,
         sum(markup_cost_blended) as markup_cost_blended,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
-        sum(markup_cost_amortized) as markup_cost_amortized,
+        sum(markup_cost_savingsplan_effective_cost) as markup_cost_savingsplan_effective_cost,
         count(DISTINCT namespace) as shared_projects,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary
@@ -110,7 +110,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     infrastructure_raw_cost,
     infrastructure_raw_cost_blended,
-    infrastructure_raw_cost_amortized,
+    infrastructure_raw_cost_savingsplan_effective_cost,
     infrastructure_project_raw_cost,
     infrastructure_usage_cost,
     supplementary_usage_cost,
@@ -155,7 +155,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         rp.provider_id as source_uuid,
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
         sum(ocp_aws.blended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost_blended,
-        sum(ocp_aws.savingsplan_effective_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost_amortized,
+        sum(ocp_aws.savingsplan_effective_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost_savingsplan_effective_cost,
         sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,

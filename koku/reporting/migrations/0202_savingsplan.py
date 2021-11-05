@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpawscostlineitemdailysummary",
-            name="markup_cost_amortized",
+            name="markup_cost_savingsplan_effective_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.AddField(
@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpawscostlineitemprojectdailysummary",
-            name="markup_cost_amortized",
+            name="markup_cost_savingsplan_effective_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.AddField(
@@ -62,7 +62,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="ocpusagelineitemdailysummary",
-            name="infrastructure_raw_cost_amortized",
+            name="infrastructure_raw_cost_savingsplan_effective_cost",
             field=models.DecimalField(decimal_places=15, default=Decimal("0"), max_digits=33, null=True),
         ),
         migrations.AddField(
