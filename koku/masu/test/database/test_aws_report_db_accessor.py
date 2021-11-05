@@ -949,7 +949,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(self.aws_provider.uuid, 0.1, start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
