@@ -14,7 +14,6 @@ ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
-export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
 
 set -ex
@@ -40,6 +39,7 @@ function run_unit_tests() {
 
 function run_smoke_tests() {
     run_trino_smoke_tests
+    run_test_filter_expression
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2)
 
@@ -77,6 +77,35 @@ function run_trino_smoke_tests() {
     if check_for_labels "trino-smoke-tests"
     then
         ENABLE_PARQUET_PROCESSING="true"
+    fi
+}
+
+function run_test_filter_expression {
+    if check_for_labels "aws"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_ocp_on_aws"
+    elif check_for_labels "azure"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_ocp_on_azure"
+    elif check_for_labels "gcp"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_ocp_on_gcp"
+    elif check_for_labels "ocp"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
+    elif check_for_labels "hot-fix"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="outage"
+    elif check_for_labels "cost-models"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+    elif check_for_labels "full-run"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+    else
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="cost_required"
     fi
 }
 
