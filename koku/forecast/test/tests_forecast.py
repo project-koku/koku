@@ -38,8 +38,8 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostSummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
-from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
+from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -638,21 +638,21 @@ class OCPForecastTest(IamTestCase):
         """Test that we select a valid table or view."""
         params = self.mocked_query_params("?", OCPCostForecastView)
         forecast = OCPForecast(params)
-        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}})
         forecast = OCPForecast(params)
-        self.assertEqual(forecast.cost_summary_table, OCPCostSummary)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.node": {"read": ["1"]}})
         forecast = OCPForecast(params)
-        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNodeP)
 
         params = self.mocked_query_params(
             "?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}, "openshift.node": {"read": ["1"]}}
         )
         forecast = OCPForecast(params)
-        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNode)
+        self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNodeP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.project": {"read": ["1"]}})
         forecast = OCPForecast(params)
