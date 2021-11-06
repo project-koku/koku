@@ -39,7 +39,6 @@ function run_unit_tests() {
 
 function run_smoke_tests() {
     run_trino_smoke_tests
-    run_test_filter_expression
     source ${CICD_ROOT}/_common_deploy_logic.sh
     export NAMESPACE=$(bonfire namespace reserve --duration 2)
 
@@ -97,7 +96,7 @@ function run_test_filter_expression {
     then
         export IQE_FILTER_EXPRESSION="test_api"
         export IQE_MARKER_EXPRESSION="outage"
-    elif check_for_labels "cost-models-smoke-tests"
+    elif check_for_labels "cost-model-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
     elif check_for_labels "full-run-smoke-tests"
@@ -145,6 +144,9 @@ then
     exit_code=1
 else
     # Install bonfire repo/initialize
+    run_test_filter_expression
+    echo $IQE_MARKER_EXPRESSION
+    echo $IQE_FILTER_EXPRESSION
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
     curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
     echo "creating PR image"
