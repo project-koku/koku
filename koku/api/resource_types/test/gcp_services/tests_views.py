@@ -62,7 +62,13 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
         end_date = dh.this_month_end
         self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
         with schema_context(self.schema_name):
-            expected = GCPTopology.objects.annotate(**{"value": F("account_id")}).values("value").distinct().count()
+            expected = (
+                GCPTopology.objects.annotate(**{"value": F("service_alias")})
+                .values("value")
+                .distinct()
+                .filter(service_alias="The Best Service")
+                .count()
+            )
         # check that the expected is not zero
         self.assertTrue(expected)
         url = reverse("gcp-services")
@@ -71,7 +77,7 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
         json_result = response.json()
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
-        self.assertNotEqual(len(json_result.get("data")), expected)
+        self.assertEqual(len(json_result.get("data")), expected)
 
     @RbacPermissions({"gcp.project": {"read": ["example-project-id"]}, "gcp.account": {"read": ["*"]}})
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
@@ -104,7 +110,13 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
         end_date = dh.this_month_end
         self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
         with schema_context(self.schema_name):
-            expected = GCPTopology.objects.annotate(**{"value": F("account_id")}).values("value").distinct().count()
+            expected = (
+                GCPTopology.objects.annotate(**{"value": F("service_alias")})
+                .values("value")
+                .distinct()
+                .filter(service_alias="The Best Service")
+                .count()
+            )
         # check that the expected is not zero
         self.assertTrue(expected)
         url = reverse("gcp-services")
@@ -113,4 +125,4 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
         json_result = response.json()
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
-        self.assertNotEqual(len(json_result.get("data")), expected)
+        self.assertEqual(len(json_result.get("data")), expected)
