@@ -33,10 +33,6 @@ function build_image() {
     source $CICD_ROOT/build.sh
 }
 
-function run_unit_tests() {
-    source $APP_ROOT/unit_test.sh
-}
-
 function run_smoke_tests() {
     run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
@@ -82,13 +78,13 @@ function run_trino_smoke_tests() {
 function run_test_filter_expression {
     if check_for_labels "aws-smoke-tests"
     then
-        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_ocp_on_aws"
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
     elif check_for_labels "azure-smoke-tests"
     then
-        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_ocp_on_azure"
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
     elif check_for_labels "gcp-smoke-tests"
     then
-        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_ocp_on_gcp"
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
     elif check_for_labels "ocp-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
