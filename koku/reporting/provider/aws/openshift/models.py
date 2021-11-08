@@ -99,7 +99,9 @@ class OCPAWSCostLineItemDailySummary(models.Model):
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     blended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
@@ -196,7 +198,9 @@ class OCPAWSCostLineItemProjectDailySummary(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
     unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     blended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     savingsplan_effective_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
 
     markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
