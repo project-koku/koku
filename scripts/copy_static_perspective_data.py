@@ -59,8 +59,14 @@ select m.relname::text as "matview_name",
     by m.relname
 ),
 partable_info as (
-select t.relname::text as "partable_name",
-       array_agg(tc.attname::text order by tc.attnum) as "partable_cols"
+select t.oid,
+       t.relname::text as "partable_name",
+       array_agg(tc.attname::text order by tc.attnum) as "partable_cols",
+       (select array_agg(nc.attname::text order by nc.attnum)
+          from pg_attribute nc
+         where nc.attrelid = t.oid
+           and nc.attname = any(array['node', 'namespace']::name[])
+           and nc.attnotnull) as "alter_cols"
   from pg_class t
   join pg_attribute tc
     on tc.attrelid = t.oid
@@ -69,11 +75,13 @@ select t.relname::text as "partable_name",
    and t.relnamespace = 'template0'::regnamespace
    and t.relname ~ '^reporting_ocp_.*_p$'
  group
-    by t.relname
+    by t.oid,
+       t.relname
 )
 select mi.matview_name,
        pi.partable_name,
-       pi.partable_cols
+       pi.partable_cols,
+       pi.alter_cols
   from partable_info pi
   join matview_info mi
     on mi.matview_name || '_p' = pi.partable_name;
@@ -86,12 +94,15 @@ select mi.matview_name,
 
 def get_customer_schemata(conn):
     sql = """
+select 'template0' as schema_name
+ union
 select t.schema_name
   from public.api_tenant t
   join public.api_customer c
     on c.schema_name = t.schema_name
  where t.schema_name ~ '^acct'
-   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP');
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP')
+ order by 1;
 """
     LOG.info("Getting all customer schemata...")
     return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
@@ -218,6 +229,23 @@ select uuid_generate_v4(), {sel_cols}
     return records_copied
 
 
+def alter_partable(conn, schema, partable_name, alter_cols):
+    if alter_cols:
+        alter_table_sql = [f"""alter table {schema}.{partable_name}"""]
+        alter_column_sql = """alter column {} drop not null"""
+
+        for col in alter_cols:
+            alter_table_sql.append(alter_column_sql.format(col))
+
+        sql = f"{os.linesep.join(alter_table_sql)} ;"
+
+        LOG.info(
+            f"""##### ALTER TABLE {schema}.{partable_name} :: removing NOT NULL constraint """
+            + f"""from columns: {', '.join('"{}"'.format(c) for c in alter_cols)}"""
+        )
+        _execute(conn, sql)
+
+
 def data_exists(conn, schema_name, partable_name):
     res = _execute(
         conn, f"select exists(select 1 from {schema_name}.{partable_name})::boolean as data_exists;"
@@ -238,6 +266,7 @@ def process_ocp_matviews(conn, schemata, matviews):  # noqa
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
             try:
+                alter_partable(conn, schema, matview_info["partable_name"], matview_info["alter_cols"])
                 if data_exists(conn, schema, matview_info["partable_name"]):
                     LOG.info(f"Materialized view {schema}.{matview_info['matview_name']} has already been processed.")
                     continue
