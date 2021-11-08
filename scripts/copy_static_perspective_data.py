@@ -101,7 +101,8 @@ select t.schema_name
   join public.api_customer c
     on c.schema_name = t.schema_name
  where t.schema_name ~ '^acct'
-   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP');
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP')
+ order by 1;
 """
     LOG.info("Getting all customer schemata...")
     return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
