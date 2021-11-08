@@ -209,7 +209,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             for bill_id in bill_ids:
                 for markup_model in MARKUP_MODELS_BILL:
                     markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
+                        markup_cost=(F("pretax_cost") * markup)
                     )
 
                 MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
