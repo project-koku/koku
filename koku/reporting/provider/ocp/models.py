@@ -35,6 +35,20 @@ VIEWS = (
     "reporting_ocp_volume_summary_by_project",
 )
 
+UI_SUMMARY_TABLES_MARKUP_SUBSET = (
+    "reporting_ocp_cost_summary_p",
+    "reporting_ocp_cost_summary_by_node_p",
+    "reporting_ocp_cost_summary_by_project_p",
+)
+
+UI_SUMMARY_TABLES = (
+    *UI_SUMMARY_TABLES_MARKUP_SUBSET,
+    "reporting_ocp_pod_summary_p",
+    "reporting_ocp_pod_summary_by_project_p",
+    "reporting_ocp_volume_summary_p",
+    "reporting_ocp_volume_summary_by_project_p",
+)
+
 
 class OCPUsageReportPeriod(models.Model):
     """The report period information for a Operator Metering report.
@@ -1071,15 +1085,15 @@ class OCPCostSummaryByProjectP(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     infrastructure_usage_cost = JSONField(null=True)
+
+    infrastructure_project_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    supplementary_usage_cost = JSONField(null=True)
-
     infrastructure_project_monthly_cost = JSONField(null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
 
     supplementary_project_monthly_cost = JSONField(null=True)
 
@@ -1176,7 +1190,11 @@ class OCPPodSummaryP(models.Model):
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
     supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
@@ -1193,10 +1211,6 @@ class OCPPodSummaryP(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost_json = JSONField(null=True)
-
-    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -1241,13 +1255,17 @@ class OCPPodSummaryByProjectP(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    supplementary_usage_cost = JSONField(null=True)
-
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_usage_cost = JSONField(null=True)
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     pod_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
@@ -1264,10 +1282,6 @@ class OCPPodSummaryByProjectP(models.Model):
     cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost_json = JSONField(null=True)
-
-    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -1307,23 +1321,23 @@ class OCPVolumeSummaryP(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    supplementary_usage_cost = JSONField(null=True)
-
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_usage_cost = JSONField(null=True)
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost_json = JSONField(null=True)
-
-    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -1368,23 +1382,23 @@ class OCPVolumeSummaryByProjectP(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    supplementary_usage_cost = JSONField(null=True)
-
     infrastructure_raw_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     infrastructure_usage_cost = JSONField(null=True)
 
     infrastructure_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    infrastructure_monthly_cost_json = JSONField(null=True)
+
+    supplementary_usage_cost = JSONField(null=True)
+
+    supplementary_monthly_cost_json = JSONField(null=True)
 
     volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
     persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
-
-    infrastructure_monthly_cost_json = JSONField(null=True)
-
-    supplementary_monthly_cost_json = JSONField(null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"

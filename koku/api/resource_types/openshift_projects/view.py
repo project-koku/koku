@@ -15,14 +15,14 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.ocp.models import OCPCostSummaryByProject
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 
 
 class OCPProjectsView(generics.ListAPIView):
     """API GET list view for Openshift projects."""
 
     queryset = (
-        OCPCostSummaryByProject.objects.annotate(**{"value": F("namespace")})
+        OCPCostSummaryByProjectP.objects.annotate(**{"value": F("namespace")})
         .values("value")
         .distinct()
         .filter(namespace__isnull=False)
