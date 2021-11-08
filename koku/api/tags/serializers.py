@@ -4,7 +4,6 @@
 #
 """Tag serializers."""
 from rest_framework import serializers
-from tenant_schemas.utils import schema_context
 
 from api.report.serializers import add_operator_specified_fields
 from api.report.serializers import handle_invalid_fields
@@ -12,9 +11,8 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import DateHelper
+from api.utils import get_cost_type
 from api.utils import materialized_view_month_start
-from koku.settings import KOKU_DEFAULT_COST_TYPE
-from reporting.user_settings.models import UserSettings
 
 OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
 AWS_FILTER_OP_FIELDS = ["account"]
@@ -256,18 +254,6 @@ class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryPa
 
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
 
-    def get_cost_type(self):
-        """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
-
-        request = self.context.get("request")
-
-        with schema_context(request.user.customer.schema_name):
-            try:
-                default_cost_type = UserSettings.objects.all().first().settings["cost_type"]
-            except Exception:
-                default_cost_type = KOKU_DEFAULT_COST_TYPE
-        return default_cost_type
-
     def validate(self, data):
         """Validate incoming data.
 
@@ -281,7 +267,7 @@ class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryPa
         """
         super().validate(data)
         if not data.get("cost_type"):
-            data["cost_type"] = self.get_cost_type()
+            data["cost_type"] = get_cost_type(self.context.get("request"))
 
         return data
 
