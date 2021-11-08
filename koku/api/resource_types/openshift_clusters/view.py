@@ -15,14 +15,14 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryP
 
 
 class OCPClustersView(generics.ListAPIView):
     """API GET list view for Openshift clusters."""
 
     queryset = (
-        OCPCostSummary.objects.annotate(
+        OCPCostSummaryP.objects.annotate(
             **{"value": F("cluster_id"), "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id")}
         )
         .values("value", "ocp_cluster_alias")

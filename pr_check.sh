@@ -14,7 +14,6 @@ ARTIFACTS_DIR="$WORKSPACE/artifacts"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
-export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
 
 set -ex
@@ -80,6 +79,39 @@ function run_trino_smoke_tests() {
     fi
 }
 
+function run_test_filter_expression {
+    if check_for_labels "aws-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_ocp_on_aws"
+    elif check_for_labels "azure-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_ocp_on_azure"
+    elif check_for_labels "gcp-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_ocp_on_gcp"
+    elif check_for_labels "ocp-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
+    elif check_for_labels "hot-fix-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="outage"
+    elif check_for_labels "cost-model-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+    elif check_for_labels "full-run-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+    elif check_for_labels "smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="cost_required"
+    else
+        echo "PR smoke tests skipped"
+        exit_code=2
+    fi
+}
+
 function make_results_xml() {
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -106,12 +138,15 @@ curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos
 
 
 # check if this PR is labeled to build the test image
-if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
+if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests'
 then
     echo "PR check skipped"
     exit_code=1
 else
     # Install bonfire repo/initialize
+    run_test_filter_expression
+    echo $IQE_MARKER_EXPRESSION
+    echo $IQE_FILTER_EXPRESSION
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
     curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
     echo "creating PR image"
@@ -121,7 +156,7 @@ fi
 
 if [[ $exit_code == 0 ]]; then
     # check if this PR is labeled to run smoke tests
-    if ! check_for_labels "lgtm|smoke-tests"
+    if ! check_for_labels 'lgtm|*smoke-tests'
     then
         echo "PR smoke tests skipped"
         exit_code=2
