@@ -10,7 +10,6 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-APIDOC  = apidoc
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -25,16 +24,6 @@ OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
-
-# required OpenShift template parameters
-# if a value is defined in a parameter file, we try to use that.
-# otherwise, we use a default value
-NAME = $(or $(shell grep -h '^NAME=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-NAMESPACE = $(or $(shell grep -h '^[^\#]*NAMESPACE=' openshift/parameters/* 2>/dev/null | uniq | awk -F= '{print $$2}'), koku)
-
-OC_TEMPLATE_DIR = $(TOPDIR)/openshift
-OC_PARAM_DIR = $(OC_TEMPLATE_DIR)/parameters
-OC_TEMPLATES = $(wildcard $(OC_TEMPLATE_DIR))
 
 # Docker compose specific file
 ifdef compose_file
@@ -68,6 +57,7 @@ help:
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
+	@echo "  clear-trino                           Remove stale files/subdirectories from the trino data directory."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -76,6 +66,8 @@ help:
 	@echo "                                          @param generator_template_file - (optional) jinja2 template to render output"
 	@echo "                                          @param generator_flags - (optional) additional cli flags and args"
 	@echo "  delete-test-sources                   Call the source DELETE API for each source in the database"
+	@echo "  delete-cost-models                    Call the cost-model DELETE API for each cost-model in the database"
+	@echo "  delete-test-customer-data             Delete all sources and cost-models in the database"
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
@@ -86,6 +78,7 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
+	@echo "  minio-bucket-cleanup                  Remove the data directory in our local MinIO bucket."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -108,6 +101,10 @@ help:
 	@echo "  superuser                             create a Django super user"
 	@echo "  unittest                              run unittests"
 	@echo "  local-upload-data                     upload data to Ingress if it is up and running locally"
+	@echo "  unleash-export                        export feature-flags to file"
+	@echo "  unleash-import                        import feature-flags from file"
+	@echo "  unleash-import-drop                   import feature-flags from file AND wipe current database"
+	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -172,6 +169,9 @@ lint:
 clear-testing:
 	$(PREFIX) $(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
 
+clear-trino:
+	$(PREFIX) rm -fr ./.trino/
+
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
@@ -180,6 +180,11 @@ create-test-customer-no-sources: run-migrations docker-up-koku
 
 delete-test-sources:
 	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
+
+delete-cost-models:
+	$(PYTHON) $(TOPDIR)/scripts/delete_cost_models.py
+
+delete-test-customer-data: delete-test-sources delete-cost-models
 
 load-test-customer-data:
 	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
@@ -247,6 +252,22 @@ unittest:
 superuser:
 	$(DJANGO_MANAGE) createsuperuser
 
+unleash-export:
+	curl -X GET -H "Authorization: Basic YWRtaW46" \
+	"http://localhost:4242/api/admin/state/export?format=json&featureToggles=1&strategies=0&tags=0&projects=0&download=1" \
+	-s | python -m json.tool > .unleash/flags.json
+
+unleash-import:
+	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
+	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import
+
+unleash-import-drop:
+	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
+	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
+
+scan_project:
+	./sonarqube.sh
+
 ####################################
 # Commands using OpenShift Cluster #
 ####################################
@@ -297,12 +318,16 @@ docker-down:
 
 docker-down-db:
 	$(DOCKER_COMPOSE) rm -s -v -f db
+	$(DOCKER_COMPOSE) rm -s -v -f unleash
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
 docker-presto-logs:
 	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
+
+docker-trino-logs:
+	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-trino.yml logs -f
 
 docker-rabbit:
 	$(DOCKER_COMPOSE) up -d rabbit
@@ -353,12 +378,20 @@ docker-up:
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-min:
+# basic dev environment targets
+docker-up-min: docker-up-db
 	$(DOCKER_COMPOSE) build koku-base
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
+
+# basic dev environment targets with koku-listener for local Sources Kafka testing
+docker-up-min-with-listener: docker-up-min docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+
+docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 
@@ -371,6 +404,7 @@ docker-up-db:
 	    sleep 0.5 ; \
     done
 	@echo ' PostgreSQL is available!'
+	$(DOCKER_COMPOSE) up -d unleash
 
 docker-up-db-monitor:
 	$(DOCKER_COMPOSE) up --build -d grafana
@@ -396,39 +430,39 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
 docker-metastore-setup:
-	@cp -fr deploy/metastore/ testing/metastore/
-	find ./testing/metastore -type d -exec chmod a+rwx {} \;
-	@[[ ! -d ./testing/metastore/db-data ]] && mkdir -p -m a+rwx ./testing/metastore/db-data || chmod a+rwx ./testing/metastore/db-data
-	@cp -fr deploy/hadoop/ testing/hadoop/
-#	@[[ ! -d ./testing/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
-	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/s3secret/$(shell echo $(or $(S3_SECRET),localhost))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_name/$(shell echo $(or $(HIVE_DATABASE_NAME),hive))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_user/$(shell echo $(or $(HIVE_DATABASE_USER),hive))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_port/$(shell echo $(or $(DATABASE_PORT),5432))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_host/$(shell echo $(or $(DATABASE_HOST),db))/g' testing/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),require))/g' testing/metastore/hive-config/hive-site.xml
+	mkdir -p -m a+rwx ./.trino
+	@cp -fr deploy/metastore/ .trino/metastore/
+	find ./.trino/metastore -type d -exec chmod a+rwx {} \;
+	@[[ ! -d ./.trino/metastore/db-data ]] && mkdir -p -m a+rwx ./.trino/metastore/db-data || chmod a+rwx ./.trino/metastore/db-data
+	@cp -fr deploy/hadoop/ .trino/hadoop/
+#	@[[ ! -d ./.trino/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
+	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' .trino/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's;s3secret;$(shell echo $(or $(S3_SECRET),localhost));g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_name/$(shell echo $(or $(HIVE_DATABASE_NAME),hive))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_user/$(shell echo $(or $(HIVE_DATABASE_USER),hive))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_port/$(shell echo $(or $(DATABASE_PORT),5432))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_host/$(shell echo $(or $(DATABASE_HOST),db))/g' .trino/metastore/hive-config/hive-site.xml
+	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),require))/g' .trino/metastore/hive-config/hive-site.xml
 
 
 docker-presto-setup:
-	@cp -fr deploy/presto/ testing/presto/
-	find ./testing/presto -type d -exec chmod a+rwx {} \;
-	@cp -fr deploy/hadoop/ testing/hadoop/
-	find ./testing/hadoop -type d -exec chmod a+rwx {} \;
-	@[[ ! -d ./testing/parquet_data ]] && mkdir -p -m a+rwx ./testing/parquet_data || chmod a+rwx ./testing/parquet_data
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' testing/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
-	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
-	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' testing/presto/presto-catalog-config/postgres.properties
+	@cp -fr deploy/presto/ .trino/presto/
+	find ./.trino/presto -type d -exec chmod a+rwx {} \;
+	@cp -fr deploy/hadoop/ .trino/hadoop/
+	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
+	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
+	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
+	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
 
-docker-presto-cleanup:
-	$(PREFIX) rm -fr ./testing/hadoop ./testing/metastore ./testing/presto
-	make clear-testing
+minio-bucket-cleanup:
+	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data/
 
 docker-presto-up: docker-metastore-setup docker-presto-setup
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d $(build)
@@ -438,9 +472,35 @@ docker-presto-ps:
 
 docker-presto-down:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
-	make docker-presto-cleanup
+	make clear-trino
 
 docker-presto-down-all: docker-presto-down docker-down
+
+docker-trino-setup:
+	mkdir -p -m a+rwx ./.trino
+	@cp -fr deploy/trino/ .trino/trino/
+	find ./.trino/trino -type d -exec chmod a+rwx {} \;
+	@cp -fr deploy/hadoop/ .trino/hadoop/
+	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
+	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
+	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
+
+docker-trino-up: docker-metastore-setup docker-trino-setup
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up -d $(build)
+
+docker-trino-ps:
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
+
+docker-trino-down:
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v
+	make clear-trino
+
+docker-trino-down-all: docker-trino-down docker-down
+
+docker-up-min-trino: docker-up-min docker-trino-up
+
+docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up
+
 
 ### Source targets ###
 ocp-source-from-yaml:

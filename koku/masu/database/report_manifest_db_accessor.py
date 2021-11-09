@@ -6,6 +6,7 @@
 import logging
 
 from django.db.models import F
+from django.db.models import Max
 from django.db.models.expressions import Window
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import schema_context
@@ -49,6 +50,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Update the updated timestamp."""
         if manifest:
             manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
+            manifest.save()
+
+    def update_number_of_files_for_manifest(self, manifest):
+        """Update the number of files for manifest."""
+        set_num_of_files = CostUsageReportStatus.objects.filter(manifest_id=manifest.id).count()
+        if manifest:
+            manifest.num_total_files = set_num_of_files
             manifest.save()
 
     def add(self, **kwargs):
@@ -191,3 +199,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()
+
+    def get_max_export_time_for_manifests(self, provider_uuid, bill_date):
+        """Return the max export time for manifests given provider and bill date."""
+        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        manifests = CostUsageReportManifest.objects.filter(**filters).all()
+        max_export = manifests.aggregate(Max("export_time"))
+        return max_export.get("export_time__max")

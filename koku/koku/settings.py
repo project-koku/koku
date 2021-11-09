@@ -136,6 +136,17 @@ if DEVELOPMENT:
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
 
+### Feature Flags
+UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
+UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
+UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
+UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
+UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
+UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+
+### Currency URL
+CURRENCY_URL = ENVIRONMENT.get_value("CURRENCY_URL", default="https://open.er-api.com/v6/latest/USD")
+
 ### End Middleware
 
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBackend"]
@@ -261,6 +272,8 @@ USE_L10N = True
 USE_TZ = True
 
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
+DEFAULT_RETAIN_NUM_MONTHS = 4
+RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
@@ -298,6 +311,7 @@ CW_LOG_GROUP = CONFIGURATOR.get_cloudwatch_log_group()
 LOGGING_FORMATTER = ENVIRONMENT.get_value("DJANGO_LOG_FORMATTER", default="simple")
 DJANGO_LOGGING_LEVEL = ENVIRONMENT.get_value("DJANGO_LOG_LEVEL", default="INFO")
 KOKU_LOGGING_LEVEL = ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO")
+UNLEASH_LOGGING_LEVEL = ENVIRONMENT.get_value("UNLEASH_LOG_LEVEL", default="WARNING")
 LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
@@ -377,6 +391,10 @@ LOGGING = {
         "reporting_common": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "masu": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "sources": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        # The following set the log level for the UnleashClient and Unleash cache refresh jobs.
+        # Setting to WARNING will prevent the INFO level spam.
+        "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
+        "apscheduler": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
     },
 }
 
@@ -385,6 +403,7 @@ if "watchtower" in LOGGING_HANDLERS:
     print("CloudWatch configured.")
 
 KOKU_DEFAULT_CURRENCY = ENVIRONMENT.get_value("KOKU_DEFAULT_CURRENCY", default="USD")
+KOKU_DEFAULT_COST_TYPE = ENVIRONMENT.get_value("KOKU_DEFAULT_COST_TYPE", default="unblended_cost")
 KOKU_DEFAULT_TIMEZONE = ENVIRONMENT.get_value("KOKU_DEFAULT_TIMEZONE", default="UTC")
 KOKU_DEFAULT_LOCALE = ENVIRONMENT.get_value("KOKU_DEFAULT_LOCALE", default="en_US.UTF-8")
 
@@ -409,6 +428,7 @@ RABBITMQ_PORT = ENVIRONMENT.get_value("RABBITMQ_PORT", default="5672")
 
 # AWS S3 Bucket Settings
 REQUESTED_BUCKET = ENVIRONMENT.get_value("REQUESTED_BUCKET", default="koku-report")
+S3_TIMEOUT = ENVIRONMENT.int("S3_CONNECTION_TIMEOUT", default=60)
 S3_ENDPOINT = CONFIGURATOR.get_object_store_endpoint()
 S3_REGION = ENVIRONMENT.get_value("S3_REGION", default="us-east-1")
 S3_BUCKET_PATH = ENVIRONMENT.get_value("S3_BUCKET_PATH", default="data_archive")

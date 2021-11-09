@@ -3,17 +3,20 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for GCP report data."""
+import datetime
 import logging
 import pkgutil
 import uuid
 from os import path
 
 from dateutil.parser import parse
+from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 from masu.database import GCP_REPORT_TABLE_MAP
+from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.gcp.models import GCPCostEntryBill
@@ -22,6 +25,7 @@ from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
+from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 from reporting_common.models import CostUsageReportStatus
 
@@ -140,6 +144,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
+            "invoice_month": start_date.strftime("%Y%m"),
             "schema": self.schema,
         }
         daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
@@ -185,6 +190,7 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "bill_ids": bill_ids,
+            "invoice_month": start_date.strftime("%Y%m"),
             "schema": self.schema,
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
@@ -203,6 +209,16 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
             (None)
 
         """
+        last_month_end = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
+        if end_date == last_month_end:
+
+            # For gcp in order to catch what we are calling cross over data
+            # we need to extend the end date by a couple of days. For more
+            # information see: https://issues.redhat.com/browse/COST-1771
+            new_end_date = end_date + relativedelta(days=2)
+            self.delete_line_item_daily_summary_entries_for_date_range(source_uuid, end_date, new_end_date)
+            end_date = new_end_date
+
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_gcpcostentrylineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
         uuid_str = str(uuid.uuid4()).replace("-", "_")
@@ -336,3 +352,79 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_gcp_topology_information_tables(self, provider, start_date, end_date):
+        """Populate the GCP topology table."""
+        msg = f"Populating GCP topology for {provider.uuid} from {start_date} to {end_date}"
+        LOG.info(msg)
+        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date)
+
+        with schema_context(self.schema):
+            for record in topology:
+                _, created = GCPTopology.objects.get_or_create(
+                    source_uuid=record[0],
+                    account_id=record[1],
+                    project_id=record[2],
+                    project_name=record[3],
+                    service_id=record[4],
+                    service_alias=record[5],
+                    region=record[6],
+                )
+        LOG.info("Finished populating GCP topology")
+
+    def get_gcp_topology_trino(self, source_uuid, start_date, end_date):
+        """Get the account topology for a GCP source."""
+        sql = f"""
+            SELECT source,
+                billing_account_id,
+                project_id,
+                project_name,
+                service_id,
+                service_description,
+                location_region
+            FROM hive.{self.schema}.gcp_line_items as gcp
+            WHERE gcp.source = '{source_uuid}'
+                AND gcp.year = '{start_date.strftime("%Y")}'
+                AND gcp.month = '{start_date.strftime("%m")}'
+                AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
+                AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
+            GROUP BY source,
+                billing_account_id,
+                project_id,
+                project_name,
+                service_id,
+                service_description,
+                location_region
+        """
+
+        topology = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return topology
+
+    def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
+        """Overwrite the parent class to include invoice month for gcp.
+
+        Args:
+            source_uuid (uuid): uuid of a given source
+            start_date (datetime): start range date
+            end_date (datetime): end range date
+            table (string): table name
+        """
+        # We want to include the invoice month in the delete to make sure we
+        # don't accidentially delete last month's data that flows into the
+        # next month
+        invoice_month = start_date.strftime("%Y%m")
+        if table is None:
+            table = self.line_item_daily_summary_table
+        msg = f"Deleting records from {table} from {start_date} to {end_date} for invoice_month {invoice_month}"
+        LOG.info(msg)
+        select_query = table.objects.filter(
+            source_uuid=source_uuid,
+            usage_start__gte=start_date,
+            usage_start__lte=end_date,
+            invoice_month=invoice_month,
+        )
+        with schema_context(self.schema):
+            count, _ = mini_transaction_delete(select_query)
+        msg = f"Deleted {count} records from {table}"
+        LOG.info(msg)

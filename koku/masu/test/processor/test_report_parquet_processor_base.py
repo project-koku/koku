@@ -107,12 +107,10 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_create_table(self, mock_execute):
         """Test the Presto/Hive create table method."""
-        expected_log = (
-            f"INFO:masu.processor.report_parquet_processor_base:Presto Table: {self.processor._table_name} created."
-        )
+        expected_log = f"Table: {self.processor._table_name} created."
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.create_table()
-            self.assertIn(expected_log, logger.output)
+            self.assertTrue(any(expected_log in log for log in logger.output))
 
     @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     def test_sync_hive_partitions(self, mock_execute):

@@ -9,7 +9,7 @@ from json import dumps as json_dumps
 from unittest.mock import Mock
 from uuid import UUID
 
-import prestodb
+import trino
 from django.conf import settings
 from django.db import connection
 from django.db.models.signals import post_save
@@ -30,7 +30,7 @@ from koku.koku_test_runner import KokuTestRunner
 from sources.kafka_listener import storage_callback
 
 
-class FakePrestoCur(prestodb.dbapi.Cursor):
+class FakePrestoCur(trino.dbapi.Cursor):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -41,7 +41,7 @@ class FakePrestoCur(prestodb.dbapi.Cursor):
         return [["eek"]]
 
 
-class FakePrestoConn(prestodb.dbapi.Connection):
+class FakePrestoConn(trino.dbapi.Connection):
     def __init__(self, *args, **kwargs):
         pass
 
@@ -137,6 +137,7 @@ class IamTestCase(TestCase):
         create_tenant=False,
         is_admin=True,
         is_cost_management=True,
+        path=None,
     ):
         """Create the request context for a user."""
         customer = customer_data
@@ -158,7 +159,7 @@ class IamTestCase(TestCase):
         }
         json_identity = json_dumps(identity)
         mock_header = b64encode(json_identity.encode("utf-8")).decode("utf-8")
-        request = Mock()
+        request = Mock(path=path)
         request.META = {RH_IDENTITY_HEADER: mock_header}
         if create_user:
             tempUser = User(username=user_data["username"], email=user_data["email"], customer=cls.customer)

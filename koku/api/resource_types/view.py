@@ -13,14 +13,14 @@ from api.common.pagination import ListPaginator
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.query_params import get_tenant
 from cost_models.models import CostModel
-from reporting.provider.aws.models import AWSCostSummaryByAccount
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByAccount
 from reporting.provider.gcp.models import GCPCostSummaryByProject
-from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByNode
-from reporting.provider.ocp.models import OCPCostSummaryByProject
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostSummaryP
 
 
 class ResourceTypeView(APIView):
@@ -34,7 +34,7 @@ class ResourceTypeView(APIView):
         tenant = get_tenant(request.user)
         with tenant_context(tenant):
 
-            aws_account_count = AWSCostSummaryByAccount.objects.values("usage_account_id").distinct().count()
+            aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
             gcp_account_count = GCPCostSummaryByAccount.objects.values("account_id").distinct().count()
             gcp_project_count = GCPCostSummaryByProject.objects.values("project_id").distinct().count()
             aws_org_unit_count = (
@@ -44,9 +44,9 @@ class ResourceTypeView(APIView):
                 .count()
             )
             azure_sub_guid_count = AzureCostSummaryByAccount.objects.values("subscription_guid").distinct().count()
-            ocp_cluster_count = OCPCostSummary.objects.values("cluster_id").distinct().count()
-            ocp_node_count = OCPCostSummaryByNode.objects.values("node").distinct().count()
-            ocp_project_count = OCPCostSummaryByProject.objects.values("namespace").distinct().count()
+            ocp_cluster_count = OCPCostSummaryP.objects.values("cluster_id").distinct().count()
+            ocp_node_count = OCPCostSummaryByNodeP.objects.values("node").distinct().count()
+            ocp_project_count = OCPCostSummaryByProjectP.objects.values("namespace").distinct().count()
             cost_model_count = CostModel.objects.count()
 
             aws_account_dict = {

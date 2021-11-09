@@ -21,7 +21,7 @@ from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
-from reporting.models import OCPAllCostLineItemDailySummary
+from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -47,7 +47,12 @@ class QueryParameters:
             (Provider.PROVIDER_OCP, "node", "openshift.node", False),
             (Provider.PROVIDER_OCP, "project", "openshift.project", False),
         ],
-        "gcp": [(Provider.PROVIDER_GCP, "account", "gcp.account"), (Provider.PROVIDER_GCP, "project", "gcp.project")],
+        # TODO: COST-1986
+        "gcp": [
+            (Provider.PROVIDER_GCP, "account", "gcp.account"),
+            (Provider.PROVIDER_GCP, "gcp_project", "gcp.project"),
+            (Provider.PROVIDER_GCP, "project", "gcp.project"),
+        ],
         "ibm": [(Provider.PROVIDER_IBM, "account", "ibm.account")],
     }
 
@@ -254,7 +259,7 @@ class QueryParameters:
         if ReportQueryHandler.has_wildcard(access_list):
             with tenant_context(self.tenant):
                 access_list = list(
-                    OCPAllCostLineItemDailySummary.objects.filter(source_type=provider)
+                    OCPAllCostLineItemDailySummaryP.objects.filter(source_type=provider)
                     .values_list("usage_account_id", flat=True)
                     .distinct()
                 )

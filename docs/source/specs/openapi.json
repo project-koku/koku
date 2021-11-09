@@ -34,6 +34,10 @@
             "description": "Operations about cost model interactions"
         },
         {
+            "name": "Cost Type",
+            "description": "Operations about cost types"
+          },
+        {
             "name": "Metrics",
             "description": "Operations about cost model metrics"
         },
@@ -111,6 +115,27 @@
                         }
                     }
                 }
+            }
+        },
+        "/cost-type/": {
+            "get": {
+              "tags": [
+                "Cost Type"
+              ],
+              "summary": "Obtain the supported cost types",
+              "operationId": "getCostType",
+              "responses": {
+                "200": {
+                  "description": "An object describing the supported cost types",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/CostTypePagination"
+                      }
+                    }
+                  }
+                }
+              }
             }
         },
         "/cost-models/": {
@@ -868,6 +893,9 @@
                     },
                     {
                         "$ref": "#/components/parameters/QueryEndDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/CostType"
                     }
                 ],
                 "responses": {
@@ -4293,6 +4321,21 @@
     ],
     "components": {
         "parameters": {
+            "CostType": {
+                "name": "cost-type",
+                "required": false,
+                "in": "query",
+                "description": "String to indicate cost type in report",
+                "schema": {
+                  "type": "string",
+                  "default": "unblended_cost",
+                  "enum": [
+                    "unblended_cost",
+                    "blended_cost",
+                    "savingsplan_effective_cost"
+                  ]
+                }
+            },
             "QueryComputeCount": {
                 "name": "compute_count",
                 "required": false,
@@ -4601,6 +4644,45 @@
                         }
                     }
                 ]
+            },
+            "CostTypePagination": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ListPagination"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "data"
+                    ],
+                    "properties": {
+                      "data": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/CostType"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+            "CostType": {
+            "required": [
+                "code",
+                "name",
+                "description"
+            ],
+            "properties": {
+                "code": {
+                "type": "string"
+                },
+                "name": {
+                "type": "string"
+                },
+                "description": {
+                "type": "string"
+                }
+            }
             },
             "Currency": {
                 "allOf": [{
@@ -5418,7 +5500,7 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
-                    "cost_type": {
+                    "cost-type": {
                         "type": "string",
                         "enum": [
                             "Infrastructure",
@@ -5477,7 +5559,7 @@
                             "display_name": "Compute usage Rate"
                         }
                     },
-                    "cost_type": {
+                    "cost-type": {
                         "type": "string",
                         "enum": [
                             "Infrastructure",
@@ -8298,6 +8380,13 @@
                             "django.utils.six": "1.10.0",
                             "django_filters": "1.0.4",
                             "http.server": "0.6"
+                        }
+                    },
+                    "config": {
+                        "type": "object",
+                        "example": {
+                            "debug": true,
+                            "account_access_type": "db"
                         }
                     }
                 }

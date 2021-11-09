@@ -14,6 +14,8 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from koku.database import get_model
+from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
@@ -27,11 +29,12 @@ from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportDBAccessor(ReportDBAccessorBase):
+class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
 
     def __init__(self, schema):
@@ -49,6 +52,14 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return AWSCostEntryLineItemDailySummary
+
+    @property
+    def ocpall_line_item_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemDailySummaryP")
+
+    @property
+    def ocpall_line_item_project_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemProjectDailySummaryP")
 
     @property
     def line_item_table(self):
@@ -242,6 +253,22 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in tables:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/aws/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": source_uuid,
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            self._execute_raw_sql_query(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+            )
+
     def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
         """Populate the daily aggregated summary of line items table.
 
@@ -344,10 +371,10 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
 
         """
         # Default to cpu distribution
-        node_column = "node_capacity_cpu_core_hours"
+        pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            node_column = "node_capacity_memory_gigabyte_hours"
+            pod_column = "pod_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
@@ -363,7 +390,7 @@ class AWSReportDBAccessor(ReportDBAccessorBase):
             "bill_id": bill_id,
             "report_period_id": report_period_id,
             "markup": markup_value,
-            "node_column": node_column,
+            "pod_column": pod_column,
             "cluster_column": cluster_column,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)

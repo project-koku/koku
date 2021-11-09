@@ -15,6 +15,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor import enable_trino_processing
@@ -310,10 +311,6 @@ class ParquetReportProcessor:
         for us to convert the archived data.
         """
         parquet_base_filename = ""
-        if not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
-            msg = "Skipping convert_to_parquet. Parquet processing is disabled."
-            LOG.info(log_json(self.tracing_id, msg, self.error_context))
-            return "", pd.DataFrame()
 
         if self.csv_path_s3 is None or self.parquet_path_s3 is None or self.local_path is None:
             msg = (
@@ -345,6 +342,7 @@ class ParquetReportProcessor:
             manifest_accessor.mark_s3_parquet_cleared(manifest)
 
         failed_conversion = []
+        daily_data_frames = []
         for csv_filename in self.file_list:
             if self.provider_type == Provider.PROVIDER_OCP and self.report_type is None:
                 msg = f"Could not establish report type for {csv_filename}."
@@ -352,7 +350,8 @@ class ParquetReportProcessor:
                 failed_conversion.append(csv_filename)
                 continue
 
-            parquet_base_filename, daily_data_frames, success = self.convert_csv_to_parquet(csv_filename)
+            parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
+            daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
@@ -444,9 +443,37 @@ class ParquetReportProcessor:
             s3_path = self.parquet_path_s3
         return s3_path
 
+    def _determin_s3_path_for_gcp(self, file_type, gcp_file_name):
+        """Determine the s3 path based off of the invoice month."""
+        invoice_month = gcp_file_name.split("_")[0]
+        dh = DateHelper()
+        start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+        if file_type == DAILY_FILE_TYPE:
+            report_type = self.report_type
+            if report_type is None:
+                report_type = "raw"
+            return get_path_prefix(
+                self.account,
+                self.provider_type,
+                self.provider_uuid,
+                start_of_invoice,
+                Config.PARQUET_DATA_TYPE,
+                report_type=report_type,
+                daily=True,
+            )
+        else:
+            return get_path_prefix(
+                self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+            )
+
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""
-        s3_path = self._determin_s3_path(file_type)
+        if self._provider_type == Provider.PROVIDER_GCP:
+            # We need to determine the parquet file path based off
+            # of the start of the invoice month and usage start for GCP.
+            s3_path = self._determin_s3_path_for_gcp(file_type, file_name)
+        else:
+            s3_path = self._determin_s3_path(file_type)
         data_frame.to_parquet(file_path, allow_truncated_timestamps=True, coerce_timestamps="ms", index=False)
         try:
             with open(file_path, "rb") as fin:
@@ -474,16 +501,20 @@ class ParquetReportProcessor:
         parquet_base_filename, daily_data_frames = self.convert_to_parquet()
 
         # Clean up the original downloaded file
-        for f in self.file_list:
-            if os.path.exists(f):
-                os.remove(f)
+        if (
+            self.provider_type != Provider.PROVIDER_OCP
+            and not enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name)
+        ) or enable_trino_processing(self.provider_uuid, self.provider_type, self.schema_name):
+            for f in self.file_list:
+                if os.path.exists(f):
+                    os.remove(f)
 
-        for f in self.files_to_remove:
-            if os.path.exists(f):
-                os.remove(f)
+            for f in self.files_to_remove:
+                if os.path.exists(f):
+                    os.remove(f)
 
-        if os.path.exists(self.report_file):
-            os.remove(self.report_file)
+            if os.path.exists(self.report_file):
+                os.remove(self.report_file)
 
         return parquet_base_filename, daily_data_frames
 

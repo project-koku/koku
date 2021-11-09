@@ -13,7 +13,9 @@ from collections import OrderedDict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 from itertools import groupby
+from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
 from django.db.models import F
@@ -72,24 +74,25 @@ class ReportQueryHandler(QueryHandler):
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
-        self._report_type = parameters.report_type
+        if not hasattr(self, "_report_type"):
+            self._report_type = parameters.report_type
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
 
         self.query_filter = self._get_filter()
 
-    @property
+    @cached_property
     def query_table_access_keys(self):
         """Return the access keys specific for selecting the query table."""
         return set(self.parameters.get("access", {}).keys())
 
-    @property
+    @cached_property
     def query_table_group_by_keys(self):
         """Return the group by keys specific for selecting the query table."""
         return set(self.parameters.get("group_by", {}).keys())
 
-    @property
+    @cached_property
     def query_table_filter_keys(self):
         """Return the filter keys specific for selecting the query table."""
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
@@ -101,7 +104,7 @@ class ReportQueryHandler(QueryHandler):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
 
-    @property
+    @cached_property
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table
@@ -339,7 +342,10 @@ class ReportQueryHandler(QueryHandler):
             (Dict): query filter dictionary
 
         """
-        filters = super()._get_filter(delta)
+        if "gcp_filters" in dir(self._mapper) and self._mapper.gcp_filters:
+            filters = super()._get_gcp_filter(delta)
+        else:
+            filters = super()._get_filter(delta)
 
         # set up filters for instance-type and storage queries.
         for filter_map in self._mapper._report_type_map.get("filter"):
@@ -946,7 +952,7 @@ class ReportQueryHandler(QueryHandler):
             date = date + date_delta
             row["date"] = self.date_to_string(date)
             key = tuple(row[key] for key in query_group_by)
-            previous_dict[key] = row[self._delta]
+            previous_dict[json_dumps(key)] = row[self._delta]
 
         return previous_dict
 
@@ -995,7 +1001,7 @@ class ReportQueryHandler(QueryHandler):
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
-            previous_total = previous_dict.get(key) or 0
+            previous_total = previous_dict.get(json_dumps(key)) or 0
             current_total = row.get(self._delta) or 0
             row["delta_value"] = current_total - previous_total
             row["delta_percent"] = self._percent_delta(current_total, previous_total)
