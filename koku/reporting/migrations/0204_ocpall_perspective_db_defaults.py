@@ -5,12 +5,11 @@ from django.db import models
 sql_tmpl = """
 alter table {} alter column id set default uuid_generate_v4();
 """
-r_sql = "select 1;"
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0202_azure_partables")]
+    dependencies = [("reporting", "0203_auto_20211108_1626")]
 
     operations = [
         migrations.AddField(
@@ -35,12 +34,26 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="ocpallstoragesummarypt", name="source_type", field=models.TextField(default="")
         ),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_compute_summary_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_account_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_region_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_service_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_cost_summary_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_database_summary_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_network_summary_pt"), reverse_sql=r_sql),
-        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_storage_summary_pt"), reverse_sql=r_sql),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_compute_summary_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_account_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_region_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_cost_summary_by_service_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(sql=sql_tmpl.format("reporting_ocpall_cost_summary_pt"), reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_database_summary_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_network_summary_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL(
+            sql=sql_tmpl.format("reporting_ocpall_storage_summary_pt"), reverse_sql=migrations.RunSQL.noop
+        ),
     ]
