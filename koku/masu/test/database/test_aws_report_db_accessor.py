@@ -1164,7 +1164,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
 
     def test_bad_sql_execution(self):
-        script_file_path = "sql/reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        script_file_name = "reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        script_file_path = f"{OCPReportDBAccessor.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
