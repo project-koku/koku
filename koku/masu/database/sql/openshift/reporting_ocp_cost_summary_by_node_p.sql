@@ -22,7 +22,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_node_p (
     SELECT uuid_generate_v4() as id,
         cluster_id,
         cluster_alias,
-        coalesce(node, 'no-node') as node,
+        node,
         usage_start as usage_start,
         usage_start as usage_end,
         sum(infrastructure_raw_cost) as infrastructure_raw_cost,
