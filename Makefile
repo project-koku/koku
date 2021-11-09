@@ -104,6 +104,7 @@ help:
 	@echo "  unleash-export                        export feature-flags to file"
 	@echo "  unleash-import                        import feature-flags from file"
 	@echo "  unleash-import-drop                   import feature-flags from file AND wipe current database"
+	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -264,6 +265,9 @@ unleash-import-drop:
 	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
 	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
 
+scan_project:
+	./sonarqube.sh
+
 ####################################
 # Commands using OpenShift Cluster #
 ####################################
@@ -374,12 +378,20 @@ docker-up:
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-min:
+# basic dev environment targets
+docker-up-min: docker-up-db
 	$(DOCKER_COMPOSE) build koku-base
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
+
+# basic dev environment targets with koku-listener for local Sources Kafka testing
+docker-up-min-with-listener: docker-up-min docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+
+docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 

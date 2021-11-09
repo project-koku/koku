@@ -12,7 +12,7 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from reporting.provider.ocp.models import OCPCostSummary
+from reporting.provider.ocp.models import OCPCostSummaryP
 
 
 class ResourceTypesViewTestOpenshiftClusters(IamTestCase):
@@ -28,7 +28,7 @@ class ResourceTypesViewTestOpenshiftClusters(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummary.objects.annotate(
+                OCPCostSummaryP.objects.annotate(
                     **{"value": F("cluster_id"), "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id")}
                 )
                 .values("value", "ocp_cluster_alias")
