@@ -16,8 +16,8 @@ from cost_models.models import CostModel
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.azure.models import AzureCostSummaryByAccount
-from reporting.provider.gcp.models import GCPCostSummaryByAccount
-from reporting.provider.gcp.models import GCPCostSummaryByProject
+from reporting.provider.gcp.models import GCPCostSummaryByAccountP
+from reporting.provider.gcp.models import GCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 from reporting.provider.ocp.models import OCPCostSummaryP
@@ -35,8 +35,8 @@ class ResourceTypeView(APIView):
         with tenant_context(tenant):
 
             aws_account_count = AWSCostSummaryByAccountP.objects.values("usage_account_id").distinct().count()
-            gcp_account_count = GCPCostSummaryByAccount.objects.values("account_id").distinct().count()
-            gcp_project_count = GCPCostSummaryByProject.objects.values("project_id").distinct().count()
+            gcp_account_count = GCPCostSummaryByAccountP.objects.values("account_id").distinct().count()
+            gcp_project_count = GCPCostSummaryByProjectP.objects.values("project_id").distinct().count()
             aws_org_unit_count = (
                 AWSOrganizationalUnit.objects.filter(deleted_timestamp__isnull=True)
                 .values("org_unit_id")
