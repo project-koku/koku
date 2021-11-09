@@ -11,6 +11,7 @@ CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS (
         c.usage_amount,
         c.unit,
         c.unblended_cost,
+        c.markup_cost,
         c.blended_cost,
         c.markup_cost_blended,
         c.savingsplan_effective_cost,
