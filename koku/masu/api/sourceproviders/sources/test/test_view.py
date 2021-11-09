@@ -101,6 +101,6 @@ class SourceViewTests(IamTestCase):
     def test_source_by_valid_account_id_returns_not_null(self, _):
         """Test get sources valid id"""
         account_id = 10001
-        url = reverse("get_source_by_account_id", kwargs={"account_id": account_id})
+        url = reverse("get_sources_by_account_id", kwargs={"account_id": account_id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
