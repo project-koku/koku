@@ -18,7 +18,7 @@ from api.provider.models import Sources
 
 @override_settings(ROOT_URLCONF="masu.urls")
 class SourceViewTests(IamTestCase):
-    """Tests manifests views"""
+    """Tests source views"""
 
     def setUp(self):
         """Set up the tests."""
@@ -61,20 +61,20 @@ class SourceViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_sources(self, _):
-        """Test providers"""
+        """Test sources"""
         response = self.client.get(reverse("sources"))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_sources_invalid_parameter(self, _):
-        """Test providers with invalid parameter for filter"""
+        """Test sources with invalid parameter for filter"""
         url = "%s?invalid=parameter" % reverse("sources")
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_provider_by_source(self, _):
-        """Test get provider for account id"""
+    def test_get_sources_by_account_id(self, _):
+        """Test get source for account id"""
         provider = Provider.objects.first()
         account_id = provider.customer.account_id
         url = reverse("get_sources_by_account_id", kwargs={"account_id": account_id})
@@ -83,8 +83,24 @@ class SourceViewTests(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_sources_by_invalid_account_id_returns_null(self, _):
-        """Test get provider invalid account id"""
+        """Test get sources by  invalid account id"""
         account_id = 20012707
         url = reverse("get_sources_by_account_id", kwargs={"account_id": account_id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_source_by_invalid_filter(self, _):
+        """Test get sources invalid filter"""
+        filter = "bad filter"
+        url = reverse("sources") + filter
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_source_by_valid_account_id_returns_not_null(self, _):
+        """Test get sources valid id"""
+        account_id = 10001
+        url = reverse("get_source_by_account_id", kwargs={"account_id": account_id})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
