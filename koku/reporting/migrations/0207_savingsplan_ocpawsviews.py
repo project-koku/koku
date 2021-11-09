@@ -26,6 +26,6 @@ def add_awsocp_views(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0203_savingsplan")]
+    dependencies = [("reporting", "0206_savingsplan_awsviews")]
 
     operations = [migrations.RunPython(add_awsocp_views)]

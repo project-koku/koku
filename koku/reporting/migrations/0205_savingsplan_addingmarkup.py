@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0204_savingsplan_ocpawsviews")]
+    dependencies = [("reporting", "0204_savingsplan")]
 
     operations = [
         migrations.AddField(
