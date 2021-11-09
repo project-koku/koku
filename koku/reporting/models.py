@@ -228,8 +228,6 @@ OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureDatabaseSummary,
 )
 
-OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (OCPCostSummary, OCPCostSummaryByProject, OCPCostSummaryByNode)
-
 GCP_MATERIALIZED_VIEWS = (
     GCPCostSummary,
     GCPCostSummaryByAccount,
