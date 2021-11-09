@@ -387,10 +387,10 @@ docker-up-min-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
-docker-up-min-with-kafka: docker-up-min docker-up-db
+docker-up-min-with-listener: docker-up-min docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
-docker-up-min-no-build-with-kafka: docker-up-min-no-build docker-up-db
+docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
