@@ -7,14 +7,9 @@ import logging
 
 import psutil
 
-import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from masu.config import Config
-from masu.exceptions import MasuProcessingError
-from masu.exceptions import MasuProviderError
 from masu.external.report_downloader import ReportDownloader
-from masu.external.report_downloader import ReportDownloaderError
-from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
 
@@ -29,7 +24,6 @@ def _get_report_files(
     provider_type,
     provider_uuid,
     report_month,
-    cache_key,
     report_context,
 ):
     """
@@ -72,23 +66,14 @@ def _get_report_files(
         disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
     LOG.info(log_json(tracing_id, disk_msg, context))
 
-    report = None
-    try:
-        downloader = ReportDownloader(
-            customer_name=customer_name,
-            credentials=authentication,
-            data_source=billing_source,
-            provider_type=provider_type,
-            provider_uuid=provider_uuid,
-            report_name=None,
-            account=customer_name[4:],
-            tracing_id=tracing_id,
-        )
-        report = downloader.download_report(report_context)
-    except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
-        worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        WorkerCache().remove_task_from_cache(cache_key)
-        LOG.error(log_json(tracing_id, str(err), context))
-        raise err
-
-    return report
+    downloader = ReportDownloader(
+        customer_name=customer_name,
+        credentials=authentication,
+        data_source=billing_source,
+        provider_type=provider_type,
+        provider_uuid=provider_uuid,
+        report_name=None,
+        account=customer_name[4:],
+        tracing_id=tracing_id,
+    )
+    return downloader.download_report(report_context)
