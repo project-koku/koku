@@ -1073,7 +1073,7 @@ class OCPCostSummaryByProjectP(models.Model):
     cluster_alias = models.TextField(null=True)
 
     # Kubernetes objects by convention have a max name length of 253 chars
-    namespace = models.CharField(max_length=253)
+    namespace = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateField(null=False)
 
@@ -1122,7 +1122,7 @@ class OCPCostSummaryByNodeP(models.Model):
 
     cluster_alias = models.TextField(null=True)
 
-    node = models.CharField(max_length=253, null=False)
+    node = models.CharField(max_length=253, null=True)
 
     usage_start = models.DateField(null=False)
 
