@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0202_azure_partables")]
+    dependencies = [("reporting", "0203_auto_20211108_1626")]
 
     operations = [
         migrations.CreateModel(
