@@ -8,6 +8,8 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
+# VIEWS is deprecated and will be removed in a future release
+# It is currently only used in migrations that may still be in use.
 VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
     "reporting_ocpallcostlineitem_project_daily_summary",
@@ -19,6 +21,22 @@ VIEWS = (
     "reporting_ocpall_cost_summary_by_service",
     "reporting_ocpall_database_summary",
     "reporting_ocpall_network_summary",
+)
+
+OCP_ON_ALL_TABLES = (
+    "reporting_ocpallcostlineitem_daily_summary_p",
+    "reporting_ocpallcostlineitem_project_daily_summary_p",
+)
+
+UI_SUMMARY_TABLES = (
+    "reporting_ocpall_cost_summary_pt",
+    "reporting_ocpall_cost_summary_by_account_pt",
+    "reporting_ocpall_cost_summary_by_service_pt",
+    "reporting_ocpall_cost_summary_by_region_pt",
+    "reporting_ocpall_compute_summary_pt",
+    "reporting_ocpall_database_summary_pt",
+    "reporting_ocpall_network_summary_pt",
+    "reporting_ocpall_storage_summary_pt",
 )
 
 
