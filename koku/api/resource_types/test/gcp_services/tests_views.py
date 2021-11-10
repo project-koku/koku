@@ -66,7 +66,7 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
                 GCPTopology.objects.annotate(**{"value": F("service_alias")})
                 .values("value")
                 .distinct()
-                .filter(service_alias="The Best Service")
+                .filter(account_id="example_account_id")
                 .count()
             )
         # check that the expected is not zero
@@ -114,7 +114,7 @@ class ResourceTypesViewTestGcpServices(MasuTestCase):
                 GCPTopology.objects.annotate(**{"value": F("service_alias")})
                 .values("value")
                 .distinct()
-                .filter(service_alias="The Best Service")
+                .filter(project_id="example-project-id")
                 .count()
             )
         # check that the expected is not zero

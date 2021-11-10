@@ -66,7 +66,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
                 GCPTopology.objects.annotate(**{"value": F("region")})
                 .values("value")
                 .distinct()
-                .filter(region="US East")
+                .filter(account_id="example_account_id")
                 .count()
             )
         # check that the expected is not zero
@@ -114,7 +114,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
                 GCPTopology.objects.annotate(**{"value": F("region")})
                 .values("value")
                 .distinct()
-                .filter(region="US East")
+                .filter(project_id="example-project-id")
                 .count()
             )
         # check that the expected is not zero
