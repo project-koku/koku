@@ -1392,8 +1392,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     volume_labels,
     source_uuid,
     infrastructure_raw_cost,
-    infrastructure_raw_cost_blended,
-    infrastructure_raw_cost_savingsplan_effective_cost,
     infrastructure_project_raw_cost,
     infrastructure_usage_cost,
     supplementary_usage_cost,
