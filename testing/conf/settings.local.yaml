@@ -9,7 +9,7 @@ local:
       masu:
         config:
           path: api/cost-management/v1
-          port: 5000
+          port: 5042
           hostname: localhost
           scheme: http
   SOURCES:
