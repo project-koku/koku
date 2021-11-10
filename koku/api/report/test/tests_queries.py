@@ -9,7 +9,6 @@ from django.test import TestCase
 from faker import Faker
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
@@ -131,11 +130,7 @@ def create_test_handler(params, mapper=None):
             _report_type_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
             _provider_map=Mock(return_value=mapper, get=lambda x, y=None: mapper.get(x, y)),
             tag_column="tags",
-            views={},
         )
-
-        is_csv_output = params.accept_type and "text/csv" in params.accept_type
-        provider = Provider.PROVIDER_AWS
 
     return TestableReportQueryHandler(params)
 

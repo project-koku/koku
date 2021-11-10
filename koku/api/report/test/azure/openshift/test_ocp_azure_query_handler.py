@@ -562,18 +562,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-        with tenant_context(self.tenant):
-            tag_count = (
-                OCPAzureCostLineItemDailySummary.objects.filter(
-                    resource_location=location, usage_start__gte=self.dh.this_month_start
-                )
-                .values(handler._mapper.tag_column)
-                .distinct()
-                .count()
-            )
-
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
+        self.assertEqual(len(data), 1)
         for data_item in data:
             month_val = data_item.get("date", "not-a-date")
             self.assertEqual(month_val, cmonth_str)
@@ -583,7 +573,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
         mock_accept.return_value = "text/csv"
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[subscription_guid]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -597,17 +587,11 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-        with tenant_context(self.tenant):
-            tag_count = OCPAzureCostLineItemDailySummary.objects.values(handler._mapper.tag_column).distinct().count()
-
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
-        subs = set()
+        self.assertEqual(len(data), 1)
         for data_item in data:
-            subs.add(data_item.get("subscription_guid"))
             month = data_item.get("date", "not-a-date")
             self.assertEqual(month, cmonth_str)
-        self.assertEqual(len(subs), 1)
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
