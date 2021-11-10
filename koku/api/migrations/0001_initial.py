@@ -34,6 +34,8 @@ class Migration(migrations.Migration):
 
     initial = True
 
+    replaces = []
+
     dependencies = []
 
     operations = [

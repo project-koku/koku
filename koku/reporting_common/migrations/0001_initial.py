@@ -13,6 +13,8 @@ class Migration(migrations.Migration):
 
     initial = True
 
+    replaces = []
+
     dependencies = [("api", "0001_initial")]
 
     operations = [
