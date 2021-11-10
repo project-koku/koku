@@ -84,7 +84,7 @@ class OCPAWSProviderMap(ProviderMap):
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),

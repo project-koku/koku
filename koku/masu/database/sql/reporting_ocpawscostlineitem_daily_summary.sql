@@ -1268,8 +1268,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         blended_cost,
         savingsplan_effective_cost,
         markup_cost,
-        markup_cost_blended,
-        markup_cost_savingsplan,
         shared_projects,
         project_costs,
         source_uuid
@@ -1329,8 +1327,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
     blended_cost,
     savingsplan_effective_cost,
     markup_cost,
-    markup_cost_blended,
-    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     source_uuid
@@ -1365,8 +1361,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summ
         blended_cost,
         savingsplan_effective_cost,
         markup_cost,
-        markup_cost_blended,
-        markup_cost_savingsplan,
         project_cost,
         project_markup_cost,
         source_uuid
@@ -1443,8 +1437,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         END as volume_labels,
         rp.provider_id as source_uuid,
         sum(ocp_aws.unblended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost,
-        sum(ocp_aws.blended_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost_blended,
-        sum(ocp_aws.savingsplan_effective_cost + ocp_aws.markup_cost) AS infrastructure_raw_cost_savingsplan_effective_cost,
         sum(ocp_aws.pod_cost + ocp_aws.project_markup_cost) AS infrastructure_project_raw_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as infrastructure_usage_cost,
         '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}'::jsonb as supplementary_usage_cost,
