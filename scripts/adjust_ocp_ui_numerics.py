@@ -48,7 +48,8 @@ select table_schema::text,
  where (table_schema = 'template0' or table_schema ~ '^acct')
    and table_name ~ '^reporting_ocp_.+_p$'
    and data_type = 'numeric'
-   and numeric_precision is distinct from 33
+   and numeric_precision is not null
+   and numeric_precision < 33
  group
     by 1, 2;
 """
