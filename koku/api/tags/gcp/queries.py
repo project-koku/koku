@@ -85,8 +85,8 @@ class GCPTagQueryHandler(TagQueryHandler):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                     "gcp_project": [
-                        {"field": "project_ids", "operation": "icontains", "composition_key": "project_filter"},
-                        {"field": "project_names", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                     "enabled": {"field": "enabled", "operation": "exact", "parameter": enabled_parameter},
                 }
