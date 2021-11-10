@@ -78,7 +78,7 @@ settings.local.yaml::
         azure_dir: /tmp/local_container
         masu:
           path: api/cost-management/v1
-          port: 5000
+          port: 5042
           hostname: masu-hccm.apps-crc.testing
           scheme: http
       main:
