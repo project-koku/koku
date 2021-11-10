@@ -112,7 +112,7 @@ Run AWS Scenario
     make aws-source aws_name=AWS-SOURCE-001 bucket=cost-usage-bucket
 
 2. Verify source exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001
-3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+3. Trigger MASU processing by visiting http://127.0.0.1:5042/api/cost-management/v1/download/
 4. Wait for processing to complete
 5. Verify data existing using AWS API endpoints
 
@@ -128,7 +128,7 @@ Run OCP Scenario
     make ocp-source-from-yaml cluster_id=my_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=my_ocp_name
 
 2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name
-3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+3. Trigger MASU processing by visiting http://127.0.0.1:5042/api/cost-management/v1/download/
 4. Wait for processing to complete
 5. Verify data exists using API endpoints
 
