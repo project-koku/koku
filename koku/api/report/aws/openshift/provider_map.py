@@ -31,11 +31,8 @@ from reporting.models import OCPAWSStorageSummary
 class OCPAWSProviderMap(ProviderMap):
     """OCP on AWS Provider Map."""
 
-    def __init__(self, provider, report_type, cost_type):
+    def __init__(self, provider, report_type):
         """Constructor."""
-        self.markup_cost = "markup_cost"
-        if cost_type != "unblended_cost":
-            self.markup_cost = "markup_cost_" + cost_type.split("_")[0]
         self._mapping = [
             {
                 "provider": Provider.OCP_AWS,
@@ -75,23 +72,23 @@ class OCPAWSProviderMap(ProviderMap):
                     "costs": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                         },
                         "annotations": {
                             # Note: This only applies if the annotation is the same as the db column
@@ -102,23 +99,23 @@ class OCPAWSProviderMap(ProviderMap):
                             # a Sum() and things will break trying to add
                             # a column with the sum of another column.
                             "infra_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Value(0, output_field=DecimalField()),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Value(0, output_field=DecimalField()),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -128,8 +125,8 @@ class OCPAWSProviderMap(ProviderMap):
                         "count": None,
                         "delta_key": {
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
@@ -212,41 +209,41 @@ class OCPAWSProviderMap(ProviderMap):
                     },
                     "storage": {
                         "aggregates": {
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
-                            "infra_total": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_total": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
                         "annotations": {
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
-                            "infra_total": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_total": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
@@ -345,23 +342,23 @@ class OCPAWSProviderMap(ProviderMap):
                     "instance_type": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_amount")),
@@ -370,23 +367,23 @@ class OCPAWSProviderMap(ProviderMap):
                         "aggregate_key": "usage_amount",
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F(cost_type)),
+                            "infra_raw": Sum(F("unblended_cost")),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F(cost_type)),
+                            "cost_raw": Sum(F("unblended_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),

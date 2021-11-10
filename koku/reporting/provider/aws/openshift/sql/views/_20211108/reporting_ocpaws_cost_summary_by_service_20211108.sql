@@ -15,8 +15,6 @@ CREATE MATERIALIZED VIEW reporting_ocpaws_cost_summary_by_service AS(
         sum(markup_cost) as markup_cost,
         sum(blended_cost) as blended_cost,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
-        sum(markup_cost_blended) as markup_cost_blended,
-        sum(markup_cost_savingsplan) as markup_cost_savingsplan,
         max(currency_code) as currency_code,
         max(source_uuid::text)::uuid as source_uuid
     FROM reporting_ocpawscostlineitem_daily_summary

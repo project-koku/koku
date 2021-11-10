@@ -33,8 +33,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
     blended_cost,
     savingsplan_effective_cost,
     markup_cost,
-    markup_cost_blended,
-    markup_cost_savingsplan,
     shared_projects,
     source_uuid
 )
@@ -62,9 +60,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary (
         sum(unblended_cost) as unblended_cost,
         sum(markup_cost) as markup_cost,
         sum(blended_cost) as blended_cost,
-        sum(markup_cost_blended) as markup_cost_blended,
         sum(savingsplan_effective_cost) as savingsplan_effective_cost,
-        sum(markup_cost_savingsplan) as markup_cost_savingsplan,
         count(DISTINCT namespace) as shared_projects,
         source_uuid
     FROM reporting_ocpawscostlineitem_project_daily_summary

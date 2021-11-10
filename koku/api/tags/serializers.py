@@ -11,7 +11,6 @@ from api.report.serializers import ParamSerializer
 from api.report.serializers import StringOrListField
 from api.report.serializers import validate_field
 from api.utils import DateHelper
-from api.utils import get_cost_type
 from api.utils import materialized_view_month_start
 
 OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
@@ -246,30 +245,6 @@ class OCPAWSTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryPa
     """Serializer for handling OCP-on-AWS tag query parameters."""
 
     filter = OCPAWSFilterSerializer(required=False)
-    COST_TYPE_CHOICE = (
-        ("blended_cost", "blended_cost"),
-        ("unblended_cost", "unblended_cost"),
-        ("savingsplan_effective_cost", "savingsplan_effective_cost"),
-    )
-
-    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
-
-    def validate(self, data):
-        """Validate incoming data.
-
-        Args:
-            data    (Dict): data to be validated
-        Returns:
-            (Dict): Validated data
-        Raises:
-            (ValidationError): if field inputs are invalid
-
-        """
-        super().validate(data)
-        if not data.get("cost_type"):
-            data["cost_type"] = get_cost_type(self.context.get("request"))
-
-        return data
 
 
 class OCPAllTagsQueryParamSerializer(AWSTagsQueryParamSerializer, OCPTagsQueryParamSerializer):

@@ -100,7 +100,7 @@ class Forecast:
     def provider_map(self):
         """Return the provider map instance."""
         current_provider = self
-        if current_provider.provider in [Provider.PROVIDER_AWS, Provider.OCP_AWS]:
+        if current_provider.provider is Provider.PROVIDER_AWS:
             return self.provider_map_class(self.provider, self.REPORT_TYPE, self.COST_TYPE)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 

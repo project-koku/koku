@@ -26,9 +26,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
     unblended_cost,
     markup_cost,
     blended_cost,
-    markup_cost_blended,
     savingsplan_effective_cost,
-    markup_cost_savingsplan,
     pod_cost,
     project_markup_cost,
     pod_labels,
@@ -214,9 +212,7 @@ SELECT uuid(),
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count as unblended_cost,
     ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
     ocp_aws.blended_cost / pc.project_count / dsc.data_source_count as blended_cost,
-    ocp_aws.blended_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost_blended,
     ocp_aws.savingsplan_effective_cost / pc.project_count / dsc.data_source_count as savingsplan_effective_cost,
-    ocp_aws.savingsplan_effective_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost_savingsplan,
     CASE WHEN ocp_aws.resource_id_matched = TRUE AND ocp_aws.data_source = 'Pod'
         THEN (ocp_aws.{{pod_column | sqlsafe}} / ocp_aws.{{cluster_column | sqlsafe}}) * ocp_aws.unblended_cost / dsc.data_source_count
         ELSE ocp_aws.unblended_cost / pc.project_count / dsc.data_source_count

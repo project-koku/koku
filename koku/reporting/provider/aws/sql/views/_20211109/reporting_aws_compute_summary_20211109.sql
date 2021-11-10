@@ -1,26 +1,8 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_aws_compute_summary_p
-WHERE usage_start >= {{start_date}}::date
-    AND usage_start <= {{end_date}}::date
-    AND source_uuid = {{source_uuid}}
-;
+DROP INDEX IF EXISTS aws_compute_summary;
+DROP MATERIALIZED VIEW IF EXISTS reporting_aws_compute_summary;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
-    id,
-    usage_start,
-    usage_end,
-    instance_type,
-    resource_ids,
-    resource_count,
-    usage_amount,
-    unit,
-    unblended_cost,
-    blended_cost,
-    savingsplan_effective_cost,
-    markup_cost,
-    currency_code,
-    source_uuid
-)
-    SELECT uuid_generate_v4() as id,
+CREATE MATERIALIZED VIEW reporting_aws_compute_summary AS (
+    SELECT ROW_NUMBER() OVER(ORDER BY c.usage_start, c.instance_type, c.source_uuid) AS id,
         c.usage_start,
         c.usage_start as usage_end,
         c.instance_type,
@@ -29,9 +11,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
         c.usage_amount,
         c.unit,
         c.unblended_cost,
+        c.markup_cost,
         c.blended_cost,
         c.savingsplan_effective_cost,
-        c.markup_cost,
         c.currency_code,
         c.source_uuid
     FROM (
@@ -41,17 +23,15 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SUM(usage_amount) AS usage_amount,
             MAX(unit) AS unit,
             SUM(unblended_cost) AS unblended_cost,
-            SUM(blended_cost) AS blended_cost,
             SUM(markup_cost) AS markup_cost,
+            SUM(blended_cost) AS blended_cost,
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             MAX(currency_code) AS currency_code,
-            {{source_uuid}}::uuid as source_uuid
-        FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
-        WHERE usage_start >= {{start_date}}::date
-            AND usage_start <= {{end_date}}::date
+            source_uuid
+        FROM reporting_awscostentrylineitem_daily_summary
+        WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
             AND instance_type IS NOT NULL
-            AND source_uuid = {{source_uuid}}
-        GROUP BY usage_start, instance_type
+        GROUP BY usage_start, instance_type, source_uuid
     ) AS c
     JOIN (
         -- this group by gets the distinct resources running by day
@@ -62,14 +42,18 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             SELECT usage_start,
                 instance_type,
                 UNNEST(resource_ids) AS resource_id
-            FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
-            WHERE usage_start >= {{start_date}}::date
-                AND usage_start <= {{end_date}}::date
+            FROM reporting_awscostentrylineitem_daily_summary
+            WHERE usage_start >= DATE_TRUNC('month', NOW() - '2 month'::interval)::date
                 AND instance_type IS NOT NULL
-                AND source_uuid = {{source_uuid}}
         ) AS x
         GROUP BY usage_start, instance_type
     ) AS r
     ON c.usage_start = r.usage_start
         AND c.instance_type = r.instance_type
+)
+WITH DATA
+    ;
+
+CREATE UNIQUE INDEX aws_compute_summary
+    ON reporting_aws_compute_summary (usage_start, source_uuid, instance_type)
 ;
