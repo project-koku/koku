@@ -17,6 +17,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
     blended_cost,
     savingsplan_effective_cost,
     markup_cost,
+    markup_cost_blended,
+    markup_cost_savingsplan,
     currency_code,
     source_uuid
 )
@@ -32,6 +34,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
         c.blended_cost,
         c.savingsplan_effective_cost,
         c.markup_cost,
+        c.markup_cost_blended,
+        c.markup_cost_savingsplan,
         c.currency_code,
         c.source_uuid
     FROM (
@@ -42,8 +46,10 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             MAX(unit) AS unit,
             SUM(unblended_cost) AS unblended_cost,
             SUM(blended_cost) AS blended_cost,
-            SUM(markup_cost) AS markup_cost,
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
+            SUM(markup_cost) AS markup_cost,
+            SUM(markup_cost_blended) AS markup_cost_blended,
+            SUM(markup_cost_savingsplan) AS markup_cost_savingsplan,
             MAX(currency_code) AS currency_code,
             {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary

@@ -41,6 +41,9 @@ class AWSProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type, cost_type):
         """Constructor."""
+        self.markup_cost = "markup_cost"
+        if cost_type != "unblended_cost":
+            self.markup_cost = "markup_cost_" + cost_type.split("_")[0]
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_AWS,

@@ -36,6 +36,8 @@ SELECT uuid_generate_v4() as id,
     sum(blended_cost) as blended_cost,
     sum(savingsplan_effective_cost) as savingsplan_effective_cost,
     sum(markup_cost) as markup_cost,
+    sum(markup_cost_blended) as markup_cost_blended,
+    sum(markup_cost_savingsplan) as markup_cost_savingsplan,
     max(currency_code) as currency_code,
     {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
