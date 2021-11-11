@@ -10,7 +10,7 @@ COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should p
 
 ENABLE_PARQUET_PROCESSING="false"
 
-ARTIFACTS_DIR="$WORKSPACE/artifacts"
+LABELS_DIR="$WORKSPACE/github_labels"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
@@ -18,14 +18,16 @@ export IQE_CJI_TIMEOUT="90m"
 
 set -ex
 
-mkdir -p $ARTIFACTS_DIR
+mkdir -p $LABELS_DIR
 exit_code=0
 task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
 error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
 function check_for_labels() {
-    if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
-        egrep "$1" $ARTIFACTS_DIR/github_labels.txt &>/dev/null
+    if [ -f $LABELS_DIR/github_labels.txt ]; then
+        egrep "$1" $LABELS_DIR/github_labels.txt &>/dev/null
+    else
+        null &>/dev/null
     fi
 }
 
@@ -71,6 +73,7 @@ function run_smoke_tests() {
 function run_trino_smoke_tests() {
     if check_for_labels "trino-smoke-tests"
     then
+        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
         ENABLE_PARQUET_PROCESSING="true"
     fi
 }
@@ -130,7 +133,7 @@ fi
 
 
 # Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $ARTIFACTS_DIR/github_labels.txt
+curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
 
 
 # check if this PR is labeled to build the test image
@@ -161,6 +164,8 @@ if [[ $exit_code == 0 ]]; then
         run_smoke_tests
     fi
 fi
+
+cp $LABELS_DIR/github_labels.txt $ARTIFACTS_DIR/github_labels.txt
 
 if [[ $exit_code != 0 ]]
 then
