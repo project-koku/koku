@@ -8,16 +8,18 @@ import logging
 
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class OCPReportSummaryUpdater:
+class OCPReportSummaryUpdater(PartitionHandlerMixin):
     """Class to update OCP report summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -74,6 +76,8 @@ class OCPReportSummaryUpdater:
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
 
         report_period = None
         with OCPReportDBAccessor(self._schema) as accessor:
@@ -94,6 +98,7 @@ class OCPReportSummaryUpdater:
                 accessor.populate_storage_line_item_daily_summary_table(
                     start, end, self._cluster_id, self._provider.uuid
                 )
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_pod_label_summary_table(report_period_ids, start_date, end_date)
             accessor.populate_volume_label_summary_table(report_period_ids, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, report_period_ids)

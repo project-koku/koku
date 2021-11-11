@@ -113,7 +113,7 @@ services:
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
     privileged: true
     ports:
-      - 5000:8000
+      - 5042:8000
       - 5001:9000
     volumes:
       - '.:/koku/'
