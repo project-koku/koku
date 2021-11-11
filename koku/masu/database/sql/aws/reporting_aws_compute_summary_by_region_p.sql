@@ -44,6 +44,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_by_region_p (
         c.blended_cost,
         c.savingsplan_effective_cost,
         c.markup_cost,
+        c.markup_cost_blended,
+        c.markup_cost_savingsplan,
         c.currency_code,
         c.source_uuid
     FROM (
