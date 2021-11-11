@@ -104,3 +104,11 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
             error = {"delta": f'"{value}" is not a valid choice.'}
             raise serializers.ValidationError(error)
         return value
+
+    def validate(self, data):
+        """Override the super validate to not allow cost_type."""
+        if data.get("cost_type"):
+            error = {"cost_type": ["Unsupported parameter or invalid value"]}
+            raise serializers.ValidationError(error)
+        super().validate(data)
+        return data
