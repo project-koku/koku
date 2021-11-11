@@ -106,7 +106,15 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
         return value
 
     def validate(self, data):
-        """Override the super validate to not allow cost_type."""
+        """Validate incoming data.
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+        """
+        # we will need to remove this when we add support for ocp aws cost type
         if data.get("cost_type"):
             error = {"cost_type": ["Unsupported parameter or invalid value"]}
             raise serializers.ValidationError(error)
