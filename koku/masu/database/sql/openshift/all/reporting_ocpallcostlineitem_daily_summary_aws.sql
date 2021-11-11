@@ -1,7 +1,7 @@
 -- OCP ON ALL DAILY SUMMARY PROCESSING (AWS DATA)
 
 DELETE
-  FROM reporting_ocpallcostlineitem_daily_summary_p
+  FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
@@ -10,7 +10,7 @@ DELETE
 
 
 INSERT
-  INTO reporting_ocpallcostlineitem_daily_summary_p (
+  INTO {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_daily_summary_p (
            source_type,
            cluster_id,
            cluster_alias,
@@ -58,7 +58,7 @@ SELECT 'AWS'::text AS source_type,
        max(aws.currency_code),
        max(aws.shared_projects),
        {{source_uuid}}::uuid as source_uuid
-  FROM reporting_ocpawscostlineitem_daily_summary AS aws
+  FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary AS aws
  WHERE aws.usage_start >= {{start_date}}::date
    AND aws.usage_start <= {{end_date}}::date
    AND aws.cluster_id = {{cluster_id}}

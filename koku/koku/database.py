@@ -611,12 +611,15 @@ class SQLScriptAtomicExecutorMixin:
                 with conn.cursor() as cur:
                     try:
                         cur.execute(sql_stmt, params)
-                    except ProgrammingError as exc:
+                    except (ProgrammingError, IndexError) as exc:
+                        if isinstance(sql_stmt, bytes):
+                            sql_stmt = sql_stmt.decode("utf-8")
                         msg = [
-                            f"ERROR in SQL statement '{exc}'",
+                            f"ERROR in SQL statement: '{exc}'",
+                            f"Script file {os.path.join(base_module.replace('.', os.path.sep), script_file_path)}",
                             f"STATEMENT: {sql_stmt}",
                             f"PARAMS: {params}",
                             f"INPUT_PARAMS: {sql_params}",
                         ]
                         LOG.error(os.linesep.join(msg))
-                        raise
+                        raise exc
