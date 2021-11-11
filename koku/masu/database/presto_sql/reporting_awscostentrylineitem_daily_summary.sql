@@ -69,8 +69,8 @@ SELECT uuid() as uuid,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
-    cast(blended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost_blended
+    cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost,
+    cast(blended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost_blended,
     cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost_savingsplan
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
