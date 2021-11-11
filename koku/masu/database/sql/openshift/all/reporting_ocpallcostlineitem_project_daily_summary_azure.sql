@@ -1,16 +1,16 @@
--- OCP ON ALL PROJECT DAILY SUMMARY PROCESSING (AWS DATA)
+-- OCP ON ALL PROJECT DAILY SUMMARY PROCESSING (AZURE DATA)
 
 DELETE
-  FROM reporting_ocpallcostlineitem_project_daily_summary_p
+  FROM {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND source_uuid = {{source_uuid}}::uuid
    AND cluster_id = {{cluster_id}}
-   AND source_type = 'AWS';
+   AND source_type = 'Azure';
 
 
 INSERT
-  INTO reporting_ocpallcostlineitem_project_daily_summary_p (
+  INTO {{schema_name | sqlsafe}}.reporting_ocpallcostlineitem_project_daily_summary_p (
            source_type,
            cluster_id,
            cluster_alias,
@@ -36,7 +36,7 @@ INSERT
            currency_code,
            source_uuid
        )
-SELECT 'AWS' as source_type,
+SELECT 'Azure' as source_type,
        cluster_id,
        {{cluster_alias}} as cluster_alias,
        data_source,
@@ -46,21 +46,21 @@ SELECT 'AWS' as source_type,
        resource_id,
        usage_start,
        usage_end,
-       usage_account_id,
-       max(account_alias_id) as account_alias_id,
-       product_code,
-       product_family,
+       subscription_guid as usage_account_id,
+       NULL::int as account_alias_id,
+       service_name as product_code,
+       NULL as product_family,
        instance_type,
-       region,
-       availability_zone,
-       sum(usage_amount) as usage_amount,
-       max(unit) as unit,
-       sum(unblended_cost) as unblended_cost,
+       resource_location as region,
+       NULL as availability_zone,
+       sum(usage_quantity) as usage_amount,
+       max(unit_of_measure) as unit,
+       sum(pretax_cost) as unblended_cost,
        sum(project_markup_cost) as project_markup_cost,
        sum(pod_cost) as pod_cost,
-       max(currency_code) as currency_code,
+       max(currency) as currency_code,
        {{source_uuid}}::uuid as source_uuid
-  FROM reporting_ocpawscostlineitem_project_daily_summary
+  FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
  WHERE usage_start >= {{start_date}}::date
    AND usage_start <= {{end_date}}::date
    AND cluster_id = {{cluster_id}}
@@ -75,8 +75,6 @@ SELECT 'AWS' as source_type,
        usage_account_id,
        resource_id,
        product_code,
-       product_family,
        instance_type,
        region,
-       availability_zone,
        pod_labels;
