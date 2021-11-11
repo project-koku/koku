@@ -19,6 +19,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_storage_summary_by_service_p (
     blended_cost,
     savingsplan_effective_cost,
     markup_cost,
+    markup_cost_blended,
+    markup_cost_savingsplan,
     currency_code,
     source_uuid
 )
