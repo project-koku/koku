@@ -18,7 +18,7 @@ logging.basicConfig(
     datefmt="%m/%d/%Y %I:%M:%S %p",
     level=getattr(logging, os.environ.get("KOKU_LOG_LEVEL", "INFO")),
 )
-LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_aws_matview_data_console"))
+LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_ocp_matview_data_console"))
 
 
 def connect():
@@ -43,7 +43,7 @@ def _execute(conn, sql, params=None):
     return cur
 
 
-def get_aws_matviews(conn):
+def get_ocp_matviews(conn):
     sql = """
 with matview_info as (
 select m.relname::text as "matview_name",
@@ -54,26 +54,34 @@ select m.relname::text as "matview_name",
    and mc.attnum > 0
  where m.relkind = 'm'
    and m.relnamespace = 'template0'::regnamespace
-   and m.relname ~ '^reporting_aws'
+   and m.relname ~ '^reporting_ocp_'
  group
     by m.relname
 ),
 partable_info as (
-select t.relname::text as "partable_name",
-       array_agg(tc.attname::text order by tc.attnum) as "partable_cols"
+select t.oid,
+       t.relname::text as "partable_name",
+       array_agg(tc.attname::text order by tc.attnum) as "partable_cols",
+       (select array_agg(nc.attname::text order by nc.attnum)
+          from pg_attribute nc
+         where nc.attrelid = t.oid
+           and nc.attname = any(array['node', 'namespace']::name[])
+           and nc.attnotnull) as "alter_cols"
   from pg_class t
   join pg_attribute tc
     on tc.attrelid = t.oid
    and tc.attnum > 0
  where t.relkind = 'p'
    and t.relnamespace = 'template0'::regnamespace
-   and t.relname ~ '^reporting_aws.*_p$'
+   and t.relname ~ '^reporting_ocp_.*_p$'
  group
-    by t.relname
+    by t.oid,
+       t.relname
 )
 select mi.matview_name,
        pi.partable_name,
-       pi.partable_cols
+       pi.partable_cols,
+       pi.alter_cols
   from partable_info pi
   join matview_info mi
     on mi.matview_name || '_p' = pi.partable_name;
@@ -86,12 +94,15 @@ select mi.matview_name,
 
 def get_customer_schemata(conn):
     sql = """
+select 'template0' as schema_name
+ union
 select t.schema_name
   from public.api_tenant t
   join public.api_customer c
     on c.schema_name = t.schema_name
  where t.schema_name ~ '^acct'
-   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^AWS');
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP')
+ order by 1;
 """
     LOG.info("Getting all customer schemata...")
     return [r["schema_name"] for r in _execute(conn, sql).fetchall()]
@@ -218,6 +229,23 @@ select uuid_generate_v4(), {sel_cols}
     return records_copied
 
 
+def alter_partable(conn, schema, partable_name, alter_cols):
+    if alter_cols:
+        alter_table_sql = [f"""alter table {schema}.{partable_name}"""]
+        alter_column_sql = """alter column {} drop not null"""
+
+        for col in alter_cols:
+            alter_table_sql.append(alter_column_sql.format(col))
+
+        sql = f"{os.linesep.join(alter_table_sql)} ;"
+
+        LOG.info(
+            f"""##### ALTER TABLE {schema}.{partable_name} :: removing NOT NULL constraint """
+            + f"""from columns: {', '.join('"{}"'.format(c) for c in alter_cols)}"""
+        )
+        _execute(conn, sql)
+
+
 def data_exists(conn, schema_name, partable_name):
     res = _execute(
         conn, f"select exists(select 1 from {schema_name}.{partable_name})::boolean as data_exists;"
@@ -225,7 +253,7 @@ def data_exists(conn, schema_name, partable_name):
     return res["data_exists"]
 
 
-def process_aws_matviews(conn, schemata, matviews):  # noqa
+def process_ocp_matviews(conn, schemata, matviews):  # noqa
     LOG.info("This script is part of Jira ticket COST-1976 https://issues.redhat.com/browse/COST-1976")
     LOG.info("This script is speficically for sub-task COST-1979 https://issues.redhat.com/browse/COST-1979")
 
@@ -238,6 +266,7 @@ def process_aws_matviews(conn, schemata, matviews):  # noqa
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
             try:
+                alter_partable(conn, schema, matview_info["partable_name"], matview_info["alter_cols"])
                 if data_exists(conn, schema, matview_info["partable_name"]):
                     LOG.info(f"Materialized view {schema}.{matview_info['matview_name']} has already been processed.")
                     continue
@@ -297,11 +326,11 @@ def process_aws_matviews(conn, schemata, matviews):  # noqa
 
 def main():
     with connect() as conn:
-        matviews = get_aws_matviews(conn)
+        matviews = get_ocp_matviews(conn)
         schemata = get_customer_schemata(conn)
         conn.rollback()  # close any open tx from selects
 
-        process_aws_matviews(conn, schemata, matviews)
+        process_ocp_matviews(conn, schemata, matviews)
 
 
 if __name__ == "__main__":

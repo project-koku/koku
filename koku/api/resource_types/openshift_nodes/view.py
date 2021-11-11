@@ -15,14 +15,14 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftNodePermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 
 
 class OCPNodesView(generics.ListAPIView):
     """API GET list view for Openshift nodes."""
 
     queryset = (
-        OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+        OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
         .values("value")
         .distinct()
         .filter(node__isnull=False)

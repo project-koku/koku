@@ -11,4 +11,4 @@
 !db_functions/
 !scripts/run_migrations.sh
 !scripts/job_script.sh
-!scripts/copy_static_aws_perspective_data.py
+!scripts/adjust_ocp_ui_numerics.py

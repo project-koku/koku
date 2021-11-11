@@ -218,9 +218,9 @@ OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS = (
     OCPAllDatabaseSummaryP,
     OCPAllNetworkSummaryP,
     OCPAllStorageSummaryP,
-    OCPCostSummary,
-    OCPCostSummaryByProject,
-    OCPCostSummaryByNode,
+    # OCPCostSummary,
+    # OCPCostSummaryByProject,
+    # OCPCostSummaryByNode,
 )
 
 GCP_MATERIALIZED_VIEWS = (

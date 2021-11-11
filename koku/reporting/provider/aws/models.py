@@ -44,6 +44,9 @@ UI_SUMMARY_TABLES = (
     "reporting_aws_network_summary_p",
 )
 
+# TODO: Update this subset when we trim out the unecessary ui tables.
+UI_SUMMARY_TABLES_MARKUP_SUBSET = UI_SUMMARY_TABLES
+
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
