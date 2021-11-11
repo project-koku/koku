@@ -17,7 +17,6 @@ import reporting.partition.models
 from koku import migration_sql_helpers as msh
 from koku.database import set_partitioned_schema_editor
 from koku.database import unset_partitioned_schema_editor
-from reporting.provider.all.openshift.models import VIEWS as OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 from reporting.provider.aws.models import VIEWS as AWS_MATERIALIZED_VIEWS
 from reporting.provider.aws.openshift.models import VIEWS as OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.provider.azure.models import VIEWS as AZURE_MATERIALIZED_VIEWS
@@ -103,13 +102,6 @@ def apply_views(apps, schema_editor):
         LOG.info(f"Applying materialized view {view}")
         LOG.info(f"Path: reporting/provider/azure/openshift/sql/views/{view}.sql")
         view_sql = pkgutil.get_data("reporting.provider.azure.openshift", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/all/openshift/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.all.openshift", f"sql/views/{view}.sql").decode("utf-8")
         with conn.cursor() as cur:
             cur.execute(view_sql)
 

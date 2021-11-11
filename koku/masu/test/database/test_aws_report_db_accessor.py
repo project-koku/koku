@@ -949,7 +949,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(self.aws_provider.uuid, 0.1, start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -1164,7 +1164,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
 
     def test_bad_sql_execution(self):
-        script_file_path = "sql/reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        script_file_name = "reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        script_file_path = f"{OCPReportDBAccessor.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})

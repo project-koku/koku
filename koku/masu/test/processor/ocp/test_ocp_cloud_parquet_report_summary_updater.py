@@ -40,8 +40,26 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_presto"  # noqa: E501
     )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.aws_get_bills_from_provider")
-    def test_update_aws_summary_tables(self, mock_utility, mock_ocp_on_aws, mock_tag_summary, mock_map):
+    def test_update_aws_summary_tables(
+        self,
+        mock_utility,
+        mock_ocpall_proj_summ,
+        mock_ocpall_summ,
+        mock_ocpall_persp,
+        mock_ocp_on_aws,
+        mock_tag_summary,
+        mock_map,
+    ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()
         fake_bills.__iter__.return_value = [Mock(), Mock()]
@@ -84,8 +102,26 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_presto"  # noqa: E501
     )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")
-    def test_update_azure_summary_tables(self, mock_utility, mock_ocp_on_azure, mock_tag_summary, mock_map):
+    def test_update_azure_summary_tables(
+        self,
+        mock_utility,
+        mock_ocpall_proj_summ,
+        mock_ocpall_summ,
+        mock_ocpall_persp,
+        mock_ocp_on_azure,
+        mock_tag_summary,
+        mock_map,
+    ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()
         fake_bills.__iter__.return_value = [Mock(), Mock()]
@@ -127,9 +163,25 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_presto"  # noqa: E501
     )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.azure_get_bills_from_provider")
     def test_update_azure_summary_tables_with_string_dates(
-        self, mock_utility, mock_ocp_on_azure, mock_tag_summary, mock_map
+        self,
+        mock_utility,
+        mock_ocpall_proj_summ,
+        mock_ocpall_summ,
+        mock_ocpall_persp,
+        mock_ocp_on_azure,
+        mock_tag_summary,
+        mock_map,
     ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()

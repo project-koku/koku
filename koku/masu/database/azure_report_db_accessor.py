@@ -20,6 +20,7 @@ from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -190,18 +191,34 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
 
-    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
+    def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
-                for bill_id in bill_ids:
-                    AzureCostEntryLineItemDailySummary.objects.filter(
-                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
-                    ).update(markup_cost=(F("pretax_cost") * markup))
-            elif bill_ids:
-                for bill_id in bill_ids:
-                    AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
+            else:
+                date_filters = {}
+
+            # Models that are linked via the billing id
+            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, get_model("OCPAzureCostLineItemDailySummary"))
+            # Models that are linked via the provider_id (uuid)
+            MARKUP_MODELS_PROVIDER = (get_model("OCPALLCostLineItemDailySummaryP"), *OCP_ON_ALL_PERSPECTIVES)
+            # Linked by provider, model for project
+            MARKUP_PROJECT_MODEL_PROVIDER = get_model("OCPALLCostLineItemProjectDailySummaryP")
+
+            for bill_id in bill_ids:
+                for markup_model in MARKUP_MODELS_BILL:
+                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                         markup_cost=(F("pretax_cost") * markup)
+                    )
+
+                MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
+                    source_uuid=provider_uuid, source_type="Azure", **date_filters
+                ).update(project_markup_cost=(F("pod_cost") * markup))
+
+                for markup_model in MARKUP_MODELS_PROVIDER:
+                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="Azure", **date_filters).update(
+                        markup_cost=(F("unblended_cost") * markup)
                     )
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
