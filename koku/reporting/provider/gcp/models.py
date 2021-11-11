@@ -991,7 +991,10 @@ class GCPCostSummaryP(models.Model):
         """Meta for GCPCostSummaryP."""
 
         db_table = "reporting_gcp_cost_summary_p"
-        indexes = [models.Index(fields=["usage_start"], name="gcpcostsumm_usage_start")]
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpcostsumm_usage_start"),
+            models.Index(fields=["invoice_month"], name="gcpcostsumm_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1005,7 +1008,9 @@ class GCPCostSummaryP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -1030,6 +1035,7 @@ class GCPCostSummaryByAccountP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="gcpcostsumm_acc_usage_start"),
             models.Index(fields=["account_id"], name="gcpcostsumm_acc_account_id"),
+            models.Index(fields=["invoice_month"], name="gcpcostsumm_acc_invmonth"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1046,7 +1052,9 @@ class GCPCostSummaryByAccountP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -1071,6 +1079,7 @@ class GCPCostSummaryByProjectP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="gcpcostsumm_pro_usage_start"),
             models.Index(fields=["project_id"], name="gcpcostsumm_pro_project_id"),
+            models.Index(fields=["invoice_month"], name="gcpcostsumm_pro_invmonth"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1085,7 +1094,9 @@ class GCPCostSummaryByProjectP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     project_id = models.CharField(unique=False, max_length=256)
 
@@ -1116,6 +1127,7 @@ class GCPCostSummaryByRegionP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="gcpcostsumm_reg_usage_start"),
             models.Index(fields=["region"], name="gcpcostsumm_reg_region"),
+            models.Index(fields=["invoice_month"], name="gcpcostsumm_reg_invmonth"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1134,7 +1146,9 @@ class GCPCostSummaryByRegionP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -1159,6 +1173,7 @@ class GCPCostSummaryByServiceP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="gcpcostsumm_ser_usage_start"),
             models.Index(fields=["service_id"], name="gcpcostsumm_ser_service_id"),
+            models.Index(fields=["invoice_month"], name="gcpcostsumm_ser_invmonth"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1175,7 +1190,9 @@ class GCPCostSummaryByServiceP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     service_id = models.CharField(max_length=256, null=True)
 
@@ -1204,6 +1221,7 @@ class GCPComputeSummaryP(models.Model):
         indexes = [
             models.Index(fields=["usage_start"], name="gcpcompsumm_usage_start"),
             models.Index(fields=["instance_type"], name="gcpcompsumm_insttyp"),
+            models.Index(fields=["invoice_month"], name="gcpcompsumm_invmonth"),
         ]
 
     id = models.UUIDField(primary_key=True)
@@ -1224,7 +1242,9 @@ class GCPComputeSummaryP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -1246,6 +1266,12 @@ class GCPComputeSummaryByProjectP(models.Model):
         """Meta for GCPComputeSummaryByProjectP."""
 
         db_table = "reporting_gcp_compute_summary_by_project_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpcompsumm_pro_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpcompsumm_pro_insttyp"),
+            models.Index(fields=["project_id"], name="gcpcompsumm_pro_project_id"),
+            models.Index(fields=["invoice_month"], name="gcpcompsumm_pro_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1265,7 +1291,9 @@ class GCPComputeSummaryByProjectP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     project_id = models.CharField(unique=False, max_length=256)
 
@@ -1293,6 +1321,11 @@ class GCPComputeSummaryByServiceP(models.Model):
         """Meta for GCPComputeSummaryByServiceP."""
 
         db_table = "reporting_gcp_compute_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpcompsumm_ser_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpcompsumm_ser_insttyp"),
+            models.Index(fields=["invoice_month"], name="gcpcompsumm_ser_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1312,7 +1345,9 @@ class GCPComputeSummaryByServiceP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     service_id = models.CharField(max_length=256, null=True)
 
@@ -1340,6 +1375,12 @@ class GCPComputeSummaryByAccountP(models.Model):
         """Meta for GCPComputeSummaryByAccountP."""
 
         db_table = "reporting_gcp_compute_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["account_id"], name="gcpcompsumm_acc_account_id"),
+            models.Index(fields=["usage_start"], name="gcpcompsumm_acc_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpcompsumm_acc_insttyp"),
+            models.Index(fields=["invoice_month"], name="gcpcompsumm_acc_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1359,7 +1400,9 @@ class GCPComputeSummaryByAccountP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     account_id = models.CharField(max_length=50, null=False)
 
@@ -1383,6 +1426,12 @@ class GCPComputeSummaryByRegionP(models.Model):
         """Meta for GCPComputeSummaryByRegionP."""
 
         db_table = "reporting_gcp_compute_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["account_id"], name="gcpcompsumm_reg_account_id"),
+            models.Index(fields=["usage_start"], name="gcpcompsumm_reg_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpcompsumm_reg_insttyp"),
+            models.Index(fields=["invoice_month"], name="gcpcompsumm_reg_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1402,7 +1451,9 @@ class GCPComputeSummaryByRegionP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     account_id = models.CharField(max_length=50, null=False)
 
@@ -1428,7 +1479,10 @@ class GCPStorageSummaryP(models.Model):
         """Meta for GCPStorageSummaryP."""
 
         db_table = "reporting_gcp_storage_summary_p"
-        indexes = [models.Index(fields=["usage_start"], name="gcpstorsumm_usage_start")]
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpstorsumm_usage_start"),
+            models.Index(fields=["invoice_month"], name="gcpstorsumm_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1446,7 +1500,9 @@ class GCPStorageSummaryP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -1468,6 +1524,12 @@ class GCPStorageSummaryByProjectP(models.Model):
         """Meta for GCPStorageSummaryByProjectP."""
 
         db_table = "reporting_gcp_storage_summary_by_project_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpstorsumm_pro_usage_start"),
+            models.Index(fields=["project_id"], name="gcpstorsumm_pro_project_id"),
+            models.Index(fields=["account_id"], name="gcpstorsumm_pro_account_id"),
+            models.Index(fields=["invoice_month"], name="gcpstorsumm_pro_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1485,7 +1547,9 @@ class GCPStorageSummaryByProjectP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     project_id = models.CharField(unique=False, max_length=256)
 
@@ -1513,6 +1577,12 @@ class GCPStorageSummaryByServiceP(models.Model):
         """Meta for GCPStorageSummaryByServiceP."""
 
         db_table = "reporting_gcp_storage_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpstorsumm_ser_usage_start"),
+            models.Index(fields=["service_id"], name="gcpstorsumm_ser_service_id"),
+            models.Index(fields=["account_id"], name="gcpstorsumm_ser_account_id"),
+            models.Index(fields=["invoice_month"], name="gcpstorsumm_ser_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1530,7 +1600,9 @@ class GCPStorageSummaryByServiceP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     service_id = models.CharField(max_length=256, null=True)
 
@@ -1558,6 +1630,12 @@ class GCPStorageSummaryByAccountP(models.Model):
         """Meta for GCPStorageSummaryByAccountP."""
 
         db_table = "reporting_gcp_storage_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpstorsumm_acc_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpstorsumm_acc_insttyp"),
+            models.Index(fields=["account_id"], name="gcpstorsumm_acc_account_id"),
+            models.Index(fields=["invoice_month"], name="gcpstorsumm_acc_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1577,7 +1655,9 @@ class GCPStorageSummaryByAccountP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     account_id = models.CharField(max_length=50, null=False)
 
@@ -1601,6 +1681,12 @@ class GCPStorageSummaryByRegionP(models.Model):
         """Meta for GCPStorageSummaryByRegionP."""
 
         db_table = "reporting_gcp_storage_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpstorsumm_reg_usage_start"),
+            models.Index(fields=["instance_type"], name="gcpstorsumm_reg_insttyp"),
+            models.Index(fields=["account_id"], name="gcpstorsumm_reg_account_id"),
+            models.Index(fields=["invoice_month"], name="gcpstorsumm_reg_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1620,7 +1706,9 @@ class GCPStorageSummaryByRegionP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     account_id = models.CharField(max_length=50, null=False)
 
@@ -1642,7 +1730,10 @@ class GCPNetworkSummaryP(models.Model):
         """Meta for GCPNetworkSummaryP."""
 
         db_table = "reporting_gcp_network_summary_p"
-        indexes = [models.Index(fields=["usage_start"], name="gcpnetsumm_usage_start")]
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpnetsumm_usage_start"),
+            models.Index(fields=["invoice_month"], name="gcpnetsumm_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1662,7 +1753,9 @@ class GCPNetworkSummaryP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     service_id = models.CharField(max_length=256, null=True)
 
@@ -1684,7 +1777,10 @@ class GCPDatabaseSummaryP(models.Model):
         """Meta for GCPDatabaseSummaryP."""
 
         db_table = "reporting_gcp_database_summary_p"
-        indexes = [models.Index(fields=["usage_start"], name="gcpdbsumm_usage_start")]
+        indexes = [
+            models.Index(fields=["usage_start"], name="gcpdbsumm_usage_start"),
+            models.Index(fields=["invoice_month"], name="gcpdbsumm_invmonth"),
+        ]
 
     id = models.UUIDField(primary_key=True)
 
@@ -1704,7 +1800,9 @@ class GCPDatabaseSummaryP(models.Model):
 
     currency = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     service_id = models.CharField(max_length=256, null=True)
 
