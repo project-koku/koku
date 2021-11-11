@@ -55,7 +55,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_by_account_p (
             SUM(blended_cost) AS blended_cost,
             SUM(savingsplan_effective_cost) AS savingsplan_effective_cost,
             SUM(markup_cost) AS markup_cost,
-            SUM(markup_cost_blended AS markup_cost_blended,
+            SUM(markup_cost_blended) AS markup_cost_blended,
             SUM(markup_cost_savingsplan) AS markup_cost_savingsplan,
             MAX(currency_code) AS currency_code,
             {{source_uuid}}::uuid as source_uuid
