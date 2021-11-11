@@ -430,10 +430,22 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     AWSCostEntryLineItemDailySummary.objects.filter(
                         cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
                     ).update(markup_cost=(F("unblended_cost") * markup))
+                    AWSCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost_blended=(F("blended_cost") * markup))
+                    AWSCostEntryLineItemDailySummary.objects.filter(
+                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
+                    ).update(markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup))
             elif bill_ids:
                 for bill_id in bill_ids:
                     AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
                         markup_cost=(F("unblended_cost") * markup)
+                    )
+                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost_blended=(F("blended_cost") * markup)
+                    )
+                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                        markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup)
                     )
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
