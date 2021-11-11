@@ -256,7 +256,7 @@ To add test sources and data ::
     make create-test-customer
     make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
 
-The MinIO UI will be available at http://127.0.0.1:9000/minio/. Use the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
+The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as `admin`. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
