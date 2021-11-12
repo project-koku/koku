@@ -80,7 +80,7 @@ select c.oid
             );
             messages = array_append(messages, format('DROP TABLE IF EXISTS %I.%I', OLD.schema_name, OLD.table_name));
         ELSE
-            RAISE NOTICE 'Table %s.%s does not exist. No partition actions taken', OLD.schema_name, OLD.table_name;
+            RAISE NOTICE 'Table %.% does not exist. No partition actions taken', OLD.schema_name, OLD.table_name;
         END IF;
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
