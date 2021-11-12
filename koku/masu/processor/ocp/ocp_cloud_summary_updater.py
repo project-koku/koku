@@ -91,6 +91,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
                     "reporting_ocpawscostlineitem_project_daily_summary",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
+                    "reporting_ocpall_compute_summary_pt",
+                    "reporting_ocpall_cost_summary_pt",
                 ),
                 start_date,
                 end_date,
@@ -127,15 +129,18 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
 
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
             sql_params = {
+                "schema_name": self._schema,
                 "start_date": start_date,
                 "end_date": end_date,
                 "source_uuid": self._provider.uuid,
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_alias,
+                "source_type": "AWS",
             }
             LOG.info(f"Processing OCP-ALL for AWS  (s={start_date} e={end_date})")
             ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
             ocp_accessor.populate_ocp_on_all_daily_summary("aws", sql_params)
+            ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
@@ -152,6 +157,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
                     "reporting_ocpazurecostlineitem_project_daily_summary",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
+                    "reporting_ocpall_compute_summary_pt",
+                    "reporting_ocpall_cost_summary_pt",
                 ),
                 start_date,
                 end_date,
@@ -188,12 +195,15 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
 
         with OCPReportDBAccessor(self._schema) as ocp_accessor:
             sql_params = {
+                "schema_name": self._schema,
                 "start_date": start_date,
                 "end_date": end_date,
                 "source_uuid": self._provider.uuid,
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_alias,
+                "source_type": "Azure",
             }
             LOG.info(f"Processing OCP-ALL for Azure (s={start_date} e={end_date})")
             ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
             ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
+            ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
