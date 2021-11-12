@@ -29,7 +29,7 @@ export SONAR_SCANNER_CLI_VERSION="4.6.2.2472"
 export SONAR_SCANNER_DOWNLOAD_NAME="sonar-scanner-cli-$SONAR_SCANNER_CLI_VERSION-$SONAR_SCANNER_OS"
 export SONAR_SCANNER_NAME="sonar-scanner-$SONAR_SCANNER_CLI_VERSION-$SONAR_SCANNER_OS"
 
-curl -o $PWD/sonarqube/download/$SONAR_SCANNER_DOWNLOAD_NAME.zip --insecure https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/$SONAR_SCANNER_DOWNLOAD_NAME.zip
+curl -o $PWD/sonarqube/download/$SONAR_SCANNER_DOWNLOAD_NAME.zip --insecure $SONARQUBE_CLI_URL
 
 unzip -d $PWD/sonarqube/extract/ $PWD/sonarqube/download/$SONAR_SCANNER_DOWNLOAD_NAME.zip
 
@@ -40,7 +40,7 @@ COMMIT_SHORT=$(git rev-parse --short=7 HEAD)
 sonar-scanner \
   -Dsonar.projectKey=console.redhat.com:cost-management \
   -Dsonar.sources=./koku \
-  -Dsonar.host.url=https://sonarqube.corp.redhat.com \
+  -Dsonar.host.url=$SONARQUBE_REPORT_URL \
   -Dsonar.projectVersion=$COMMIT_SHORT \
   -Dsonar.login=$SONARQUBE_TOKEN
 
