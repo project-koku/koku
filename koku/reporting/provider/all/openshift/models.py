@@ -8,6 +8,8 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
+# VIEWS is deprecated and will be removed in a future release
+# It is currently only used in migrations that may still be in use.
 VIEWS = (
     "reporting_ocpallcostlineitem_daily_summary",
     "reporting_ocpallcostlineitem_project_daily_summary",
@@ -19,6 +21,22 @@ VIEWS = (
     "reporting_ocpall_cost_summary_by_service",
     "reporting_ocpall_database_summary",
     "reporting_ocpall_network_summary",
+)
+
+OCP_ON_ALL_TABLES = (
+    "reporting_ocpallcostlineitem_daily_summary_p",
+    "reporting_ocpallcostlineitem_project_daily_summary_p",
+)
+
+UI_SUMMARY_TABLES = (
+    "reporting_ocpall_cost_summary_pt",
+    "reporting_ocpall_cost_summary_by_account_pt",
+    "reporting_ocpall_cost_summary_by_service_pt",
+    "reporting_ocpall_cost_summary_by_region_pt",
+    "reporting_ocpall_compute_summary_pt",
+    "reporting_ocpall_database_summary_pt",
+    "reporting_ocpall_network_summary_pt",
+    "reporting_ocpall_storage_summary_pt",
 )
 
 
@@ -698,6 +716,8 @@ class OCPAllCostSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllCostSummaryByAccountPT(models.Model):
     """A PARTITIONED TABLE specifically for UI API queries.
@@ -738,6 +758,8 @@ class OCPAllCostSummaryByAccountPT(models.Model):
     currency_code = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllCostSummaryByServicePT(models.Model):
@@ -786,6 +808,8 @@ class OCPAllCostSummaryByServicePT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllCostSummaryByRegionPT(models.Model):
     """A PARTITIONED TABLE specifically for UI API queries.
@@ -832,6 +856,8 @@ class OCPAllCostSummaryByRegionPT(models.Model):
     currency_code = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllComputeSummaryPT(models.Model):
@@ -885,6 +911,8 @@ class OCPAllComputeSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllDatabaseSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the database service category."""
@@ -932,6 +960,8 @@ class OCPAllDatabaseSummaryPT(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    source_type = models.TextField(default="")
+
 
 class OCPAllNetworkSummaryPT(models.Model):
     """A summarized view of OCP on All infrastructure cost for products in the network service category."""
@@ -977,6 +1007,8 @@ class OCPAllNetworkSummaryPT(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 class OCPAllStorageSummaryPT(models.Model):
@@ -1027,6 +1059,8 @@ class OCPAllStorageSummaryPT(models.Model):
     currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
+
+    source_type = models.TextField(default="")
 
 
 # ======================================================
