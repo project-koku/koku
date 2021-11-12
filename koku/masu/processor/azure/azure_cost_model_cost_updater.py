@@ -43,7 +43,7 @@ class AzureCostModelCostUpdater:
             with AzureReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
-                report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
+                report_accessor.populate_markup_cost(self._provider.uuid, markup_value, start_date, end_date, bill_ids)
         except AzureCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 
