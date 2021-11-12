@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0029_auto_20200921_2016")]
+    dependencies = [("api", "0001_initial")]
 
     operations = [
         migrations.AlterField(model_name="user", name="is_active", field=models.BooleanField(default=True, null=True))
