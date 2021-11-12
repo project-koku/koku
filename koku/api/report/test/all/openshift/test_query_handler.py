@@ -15,19 +15,19 @@ from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
 from reporting.models import AWSCostEntryBill
 from reporting.models import AzureCostEntryBill
-from reporting.models import OCPAllComputeSummaryP
-from reporting.models import OCPAllCostSummaryByAccountP
-from reporting.models import OCPAllCostSummaryByRegionP
-from reporting.models import OCPAllCostSummaryByServiceP
-from reporting.models import OCPAllCostSummaryP
-from reporting.models import OCPAllDatabaseSummaryP
-from reporting.models import OCPAllNetworkSummaryP
-from reporting.models import OCPAllStorageSummaryP
+from reporting.models import OCPAllComputeSummaryPT
+from reporting.models import OCPAllCostSummaryByAccountPT
+from reporting.models import OCPAllCostSummaryByRegionPT
+from reporting.models import OCPAllCostSummaryByServicePT
+from reporting.models import OCPAllCostSummaryPT
+from reporting.models import OCPAllDatabaseSummaryPT
+from reporting.models import OCPAllNetworkSummaryPT
+from reporting.models import OCPAllStorageSummaryPT
 
-COMPUTE_SUMMARY = OCPAllComputeSummaryP
-STORAGE_SUMMARY = OCPAllStorageSummaryP
-NETWORK_SUMMARY = OCPAllNetworkSummaryP
-DATABASE_SUMMARY = OCPAllDatabaseSummaryP
+COMPUTE_SUMMARY = OCPAllComputeSummaryPT
+STORAGE_SUMMARY = OCPAllStorageSummaryPT
+NETWORK_SUMMARY = OCPAllNetworkSummaryPT
+DATABASE_SUMMARY = OCPAllDatabaseSummaryPT
 
 
 class OCPAllQueryHandlerTest(IamTestCase):
@@ -120,20 +120,20 @@ class OCPAllQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", OCPAllCostView, OCPAllCostSummaryP),
-            ("?group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByAccountP),
-            ("?group_by[region]=*", OCPAllCostView, OCPAllCostSummaryByRegionP),
-            ("?group_by[region]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByRegionP),
-            ("?group_by[service]=*", OCPAllCostView, OCPAllCostSummaryByServiceP),
-            ("?group_by[service]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByServiceP),
-            ("?", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?group_by[service]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?group_by[service]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?group_by[instance_type]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?group_by[instance_type]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryP),
-            ("?", OCPAllStorageView, OCPAllStorageSummaryP),
-            ("?group_by[account]=*", OCPAllStorageView, OCPAllStorageSummaryP),
+            ("?", OCPAllCostView, OCPAllCostSummaryPT),
+            ("?group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByAccountPT),
+            ("?group_by[region]=*", OCPAllCostView, OCPAllCostSummaryByRegionPT),
+            ("?group_by[region]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByRegionPT),
+            ("?group_by[service]=*", OCPAllCostView, OCPAllCostSummaryByServicePT),
+            ("?group_by[service]=*&group_by[account]=*", OCPAllCostView, OCPAllCostSummaryByServicePT),
+            ("?", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?group_by[service]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?group_by[service]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?group_by[instance_type]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?group_by[instance_type]=*&group_by[account]=*", OCPAllInstanceTypeView, OCPAllComputeSummaryPT),
+            ("?", OCPAllStorageView, OCPAllStorageSummaryPT),
+            ("?group_by[account]=*", OCPAllStorageView, OCPAllStorageSummaryPT),
             (
                 (
                     "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
@@ -141,7 +141,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     "Database,Cosmos DB,Cache for Redis"
                 ),
                 OCPAllCostView,
-                OCPAllDatabaseSummaryP,
+                OCPAllDatabaseSummaryPT,
             ),
             (
                 (
@@ -150,7 +150,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     "Database,Cosmos DB,Cache for Redis&group_by[account]=*"
                 ),
                 OCPAllCostView,
-                OCPAllDatabaseSummaryP,
+                OCPAllDatabaseSummaryPT,
             ),
             (
                 (
@@ -159,7 +159,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     "ExpressRoute,Load Balancer,Application Gateway"
                 ),
                 OCPAllCostView,
-                OCPAllNetworkSummaryP,
+                OCPAllNetworkSummaryPT,
             ),
             (
                 (
@@ -168,7 +168,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     "ExpressRoute,Load Balancer,Application Gateway&group_by[account]=*"
                 ),
                 OCPAllCostView,
-                OCPAllNetworkSummaryP,
+                OCPAllNetworkSummaryPT,
             ),
         ]
 

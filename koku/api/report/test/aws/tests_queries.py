@@ -871,21 +871,12 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(total_cost_total)
         self.assertAlmostEqual(total_cost_total.get("value", {}), self.calculate_total(handler), 6)
-        with tenant_context(self.tenant):
-            tag_count = (
-                AWSCostEntryLineItemDailySummary.objects.filter(account_alias__account_alias=self.account_alias)
-                .values(handler._mapper.tag_column)
-                .distinct()
-                .count()
-            )
+
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
-        accounts = set()
+        self.assertEqual(len(data), 1)
         for data_item in data:
-            accounts.add(data_item.get("alias"))
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
-        self.assertEqual(len(accounts), 1)
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
