@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import datetime
+import json
 import uuid
 
 from django.db import connection as conn
@@ -36,6 +37,125 @@ select c.relkind,
         res = cur.fetchone()
 
     return dict(zip(("relkind", "relispartition"), res)) if res else res
+
+
+class TestPartitionManager(IamTestCase):
+    PARTITIONED_TABLE_NAME = "__pg_partition_test2"
+    SCHEMA_NAME = "acct10001"
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        sql = f"""
+create table if not exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} (
+    id bigserial,
+    ref_id int,
+    utilization_date date not null,
+    label text not null,
+    data numeric(15,4),
+    primary key (utilization_date, id)
+)
+partition by range (utilization_date);
+"""
+        _execute(sql)
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        sql = f"""
+drop table if exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} ;
+"""
+        _execute(sql)
+
+    def execute(self, sql, params=None):
+        return _execute(sql, params)
+
+    def drop_all_partitions(self):
+        PartitionedTable.objects.filter(
+            schema_name=self.SCHEMA_NAME, partition_of_table_name=self.PARTITIONED_TABLE_NAME
+        ).delete()
+
+    def test_drop_partition_from_different_schema(self):
+        """Test that a default partition can be explicitly created"""
+        with schema_context(self.SCHEMA_NAME):
+            self.drop_all_partitions()
+
+        partition_name = self.PARTITIONED_TABLE_NAME + "_1800_01"
+        part_rec = {
+            "schema_name": self.SCHEMA_NAME,
+            "table_name": partition_name,
+            "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+            "partition_parameters": json.dumps({"default": False, "from": "1800-01-01", "to": "1800-02-01"}),
+            "partition_type": PartitionedTable.RANGE,
+            "partition_col": "utilization_date",
+            "active": True,
+        }
+
+        with schema_context("public"):
+            with conn.cursor() as cur:
+                sql = f"""
+INSERT
+  INTO {self.SCHEMA_NAME}.partitioned_tables (
+           schema_name,
+           table_name,
+           partition_of_table_name,
+           partition_type,
+           partition_col,
+           partition_parameters,
+           active
+       )
+VALUES (
+    %(schema_name)s,
+    %(table_name)s,
+    %(partition_of_table_name)s,
+    %(partition_type)s,
+    %(partition_col)s,
+    %(partition_parameters)s,
+    %(active)s
+)
+"""
+
+                cur.execute(sql, part_rec)
+
+                sql = """
+select oid
+  from pg_class
+ where relkind = 'r'
+   and relispartition
+   and relnamespace = %s::regnamespace
+   and relname = %s ;
+"""
+                cur.execute(sql, (self.SCHEMA_NAME, partition_name))
+                res = cur.fetchone()
+                self.assertIsNotNone(res)
+                self.assertTrue(res[0] > 0)
+
+                exc = None
+                sql = f"""
+delete
+  from {self.SCHEMA_NAME}.partitioned_tables
+ where schema_name = %(schema_name)s
+   and table_name = %(table_name)s
+   and partition_of_table_name = %(partition_of_table_name)s ;
+"""
+                try:
+                    cur.execute(sql, part_rec)
+                except Exception as ex:
+                    exc = ex
+
+                self.assertIsNone(exc)
+
+                sql = """
+select oid
+  from pg_class
+ where relkind = 'r'
+   and relispartition
+   and relnamespace = %s::regnamespace
+   and relname = %s ;
+"""
+                cur.execute(sql, (self.SCHEMA_NAME, partition_name))
+                res = cur.fetchone()
+                self.assertIsNone(res)
 
 
 class TestGoCPartition(IamTestCase):
