@@ -442,6 +442,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                         markup_cost=(F("unblended_cost") * markup)
                     )
+                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                        markup_cost_blended=(F("blended_cost") * markup)
+                    )
+                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                        markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup)
+                    )
 
                 MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
                     source_uuid=provider_uuid, source_type="AWS", **date_filters
@@ -450,12 +456,6 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 for markup_model in MARKUP_MODELS_PROVIDER:
                     markup_model.objects.filter(source_uuid=provider_uuid, source_type="AWS", **date_filters).update(
                         markup_cost=(F("unblended_cost") * markup)
-                    )
-                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost_blended=(F("blended_cost") * markup)
-                    )
-                    AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
-                        markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup)
                     )
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):

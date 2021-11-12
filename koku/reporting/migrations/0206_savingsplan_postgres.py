@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0204_auto_20211110_2118")]
+    dependencies = [("reporting", "0205_ocpall_perspective_db_defaults")]
 
     operations = [
         migrations.AddField(
