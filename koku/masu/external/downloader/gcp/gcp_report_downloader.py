@@ -396,6 +396,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             scan_start, scan_end = date_range.split(":")
             last_export_time = self._get_export_time_for_big_query(scan_start, scan_end, key)
             if not last_export_time:
+                if str(DateAccessor().today().date()) == scan_end:
+                    scan_end = DateAccessor().today().date() + relativedelta(days=1)
                 query = f"""
                 SELECT {self.build_query_select_statement()}
                 FROM {self.table_name}
