@@ -4,6 +4,7 @@
 """Models for OCP on GCP tables."""
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -73,16 +74,22 @@ class OCPGCPCostLineItemDailySummaryP(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the GCP unblended_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     currency = models.TextField(null=True)
 
@@ -100,7 +107,9 @@ class OCPGCPCostLineItemDailySummaryP(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
@@ -181,25 +190,37 @@ class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
 
     unit = models.CharField(max_length=63, null=True)
 
-    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     currency = models.CharField(max_length=10, null=True)
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    project_markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     tags = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostSummaryByAccountP(models.Model):
@@ -226,14 +247,20 @@ class OCPGCPCostSummaryByAccountP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=20)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostSummaryByGCPProjectP(models.Model):
@@ -262,14 +289,20 @@ class OCPGCPCostSummaryByGCPProjectP(models.Model):
     usage_end = models.DateField(null=False)
     project_id = models.CharField(max_length=256)
     project_name = models.CharField(max_length=256)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostSummaryByRegionP(models.Model):
@@ -297,14 +330,20 @@ class OCPGCPCostSummaryByRegionP(models.Model):
     usage_end = models.DateField(null=False)
     account_id = models.CharField(max_length=50, null=False)
     region = models.TextField(null=True)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostSummaryByServiceP(models.Model):
@@ -331,8 +370,12 @@ class OCPGCPCostSummaryByServiceP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     account_id = models.CharField(max_length=50, null=False)
     source_uuid = models.ForeignKey(
@@ -341,7 +384,9 @@ class OCPGCPCostSummaryByServiceP(models.Model):
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPCostSummaryP(models.Model):
@@ -364,14 +409,20 @@ class OCPGCPCostSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPComputeSummaryP(models.Model):
@@ -395,14 +446,20 @@ class OCPGCPComputeSummaryP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     instance_type = models.CharField(max_length=50, null=True)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
     account_id = models.CharField(max_length=50, null=False)
 
 
@@ -429,14 +486,20 @@ class OCPGCPDatabaseSummaryP(models.Model):
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPNetworkSummaryP(models.Model):
@@ -462,14 +525,20 @@ class OCPGCPNetworkSummaryP(models.Model):
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPStorageSummaryP(models.Model):
@@ -495,14 +564,20 @@ class OCPGCPStorageSummaryP(models.Model):
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
-    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
+    credit_amount = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True, blank=True
+    )
 
 
 class OCPGCPTagsValues(models.Model):

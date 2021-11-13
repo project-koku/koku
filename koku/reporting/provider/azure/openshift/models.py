@@ -5,6 +5,7 @@
 """Models for OCP on Azure tables."""
 from uuid import uuid4
 
+from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -76,16 +77,22 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     # Cost breakdown can be done by cluster, node, project, and pod.
     # Cluster and node cost can be determined by summing the Azure pretax_cost
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(pretax_cost) - sum(project_cost)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     currency = models.TextField(null=True)
 
@@ -162,19 +169,29 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     resource_location = models.TextField(null=True)
 
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     unit_of_measure = models.TextField(null=True)
 
     currency = models.TextField(null=True)
 
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    project_markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     tags = JSONField(null=True)
 
@@ -239,8 +256,12 @@ class OCPAzureCostSummary(models.Model):
     usage_end = models.DateField(null=False)
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -264,8 +285,12 @@ class OCPAzureCostSummaryByAccount(models.Model):
     cluster_id = models.CharField(max_length=50, null=True)
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -290,8 +315,12 @@ class OCPAzureCostSummaryByLocation(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
     resource_location = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -316,8 +345,12 @@ class OCPAzureCostSummaryByService(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -343,10 +376,16 @@ class OCPAzureComputeSummary(models.Model):
     subscription_guid = models.TextField(null=False)
     instance_type = models.TextField(null=True)
     resource_id = models.CharField(max_length=253, null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -371,10 +410,16 @@ class OCPAzureStorageSummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -399,10 +444,16 @@ class OCPAzureNetworkSummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -427,9 +478,15 @@ class OCPAzureDatabaseSummary(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
-    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    usage_quantity = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     unit_of_measure = models.TextField(null=True)
-    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pretax_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)

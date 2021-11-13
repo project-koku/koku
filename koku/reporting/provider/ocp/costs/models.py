@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Models for OCP cost view tables."""
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
@@ -38,24 +39,40 @@ class CostSummary(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
-    pod_charge_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_charge_cpu_core_hours = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    pod_charge_memory_gigabyte_hours = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    persistentvolumeclaim_charge_gb_month = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
-    infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    infra_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     # This field is used in place of infrastructure_cost when
     # grouping by project
-    project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    project_infra_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
-    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    project_markup_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
 
     pod_labels = JSONField(null=True)
 
-    monthly_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    monthly_cost = models.DecimalField(
+        max_digits=settings.NUMERIC_MAX_DIGITS, decimal_places=settings.NUMERIC_DECIMAL_PLACES, null=True
+    )
