@@ -99,10 +99,10 @@ class GCPCostEntryLineItem(models.Model):
     region = models.CharField(max_length=256, null=True, blank=True)
     zone = models.CharField(max_length=256, null=True, blank=True)
     export_time = models.CharField(max_length=256, null=True, blank=True)
-    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_to_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_to_pricing_units = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
     credits = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
@@ -139,14 +139,14 @@ class GCPCostEntryLineItemDaily(models.Model):
     tags = JSONField(null=True)
     usage_type = models.CharField(max_length=50, null=True)
     region = models.CharField(max_length=256, null=True, blank=True)
-    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    cost = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
     currency = models.CharField(max_length=256, null=True, blank=True)
     conversion_rate = models.CharField(max_length=256, null=True, blank=True)
-    usage_in_pricing_units = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_in_pricing_units = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     usage_pricing_unit = models.CharField(max_length=256, null=True, blank=True)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
     tax_type = models.CharField(max_length=256, null=True, blank=True)
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPCostEntryLineItemDailySummary(models.Model):
@@ -195,16 +195,16 @@ class GCPCostEntryLineItemDailySummary(models.Model):
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
     line_item_type = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency = models.CharField(max_length=10)
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
     # The following fields are aggregates
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPEnabledTagKeys(models.Model):
@@ -298,9 +298,9 @@ class GCPCostSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -308,7 +308,7 @@ class GCPCostSummary(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPCostSummaryByAccount(models.Model):
@@ -332,9 +332,9 @@ class GCPCostSummaryByAccount(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -342,7 +342,7 @@ class GCPCostSummaryByAccount(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPCostSummaryByProject(models.Model):
@@ -364,9 +364,9 @@ class GCPCostSummaryByProject(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -380,7 +380,7 @@ class GCPCostSummaryByProject(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPCostSummaryByRegion(models.Model):
@@ -406,9 +406,9 @@ class GCPCostSummaryByRegion(models.Model):
 
     region = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -416,7 +416,7 @@ class GCPCostSummaryByRegion(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPCostSummaryByService(models.Model):
@@ -440,9 +440,9 @@ class GCPCostSummaryByService(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -454,7 +454,7 @@ class GCPCostSummaryByService(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPComputeSummary(models.Model):
@@ -478,13 +478,13 @@ class GCPComputeSummary(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -492,7 +492,7 @@ class GCPComputeSummary(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPComputeSummaryByProject(models.Model):
@@ -516,13 +516,13 @@ class GCPComputeSummaryByProject(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -536,7 +536,7 @@ class GCPComputeSummaryByProject(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPComputeSummaryByService(models.Model):
@@ -560,13 +560,13 @@ class GCPComputeSummaryByService(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -580,7 +580,7 @@ class GCPComputeSummaryByService(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPComputeSummaryByAccount(models.Model):
@@ -604,13 +604,13 @@ class GCPComputeSummaryByAccount(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -620,7 +620,7 @@ class GCPComputeSummaryByAccount(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPComputeSummaryByRegion(models.Model):
@@ -644,13 +644,13 @@ class GCPComputeSummaryByRegion(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -662,7 +662,7 @@ class GCPComputeSummaryByRegion(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPStorageSummary(models.Model):
@@ -684,13 +684,13 @@ class GCPStorageSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -698,7 +698,7 @@ class GCPStorageSummary(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPStorageSummaryByProject(models.Model):
@@ -720,13 +720,13 @@ class GCPStorageSummaryByProject(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -740,7 +740,7 @@ class GCPStorageSummaryByProject(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPStorageSummaryByService(models.Model):
@@ -762,13 +762,13 @@ class GCPStorageSummaryByService(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -782,7 +782,7 @@ class GCPStorageSummaryByService(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPStorageSummaryByAccount(models.Model):
@@ -806,13 +806,13 @@ class GCPStorageSummaryByAccount(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -822,7 +822,7 @@ class GCPStorageSummaryByAccount(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPStorageSummaryByRegion(models.Model):
@@ -846,13 +846,13 @@ class GCPStorageSummaryByRegion(models.Model):
 
     instance_type = models.CharField(max_length=50, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -864,7 +864,7 @@ class GCPStorageSummaryByRegion(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPNetworkSummary(models.Model):
@@ -888,13 +888,13 @@ class GCPNetworkSummary(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -906,7 +906,7 @@ class GCPNetworkSummary(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)
 
 
 class GCPDatabaseSummary(models.Model):
@@ -930,13 +930,13 @@ class GCPDatabaseSummary(models.Model):
 
     account_id = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency = models.CharField(max_length=10)
 
@@ -948,4 +948,4 @@ class GCPDatabaseSummary(models.Model):
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
+    credit_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True, blank=True)

@@ -154,22 +154,22 @@ class AWSCostEntryLineItem(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     normalization_factor = models.FloatField(null=True)
-    normalized_usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    normalized_usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    reservation_amortized_upfront_fee = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    reservation_amortized_upfront_cost_for_usage = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    reservation_recurring_fee_for_usage = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    reservation_amortized_upfront_fee = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    reservation_amortized_upfront_cost_for_usage = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    reservation_recurring_fee_for_usage = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     # Unused reservation fields more useful for later predictions.
-    reservation_unused_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    reservation_unused_recurring_fee = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    reservation_unused_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    reservation_unused_recurring_fee = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     tax_type = models.TextField(null=True)
 
 
@@ -210,16 +210,16 @@ class AWSCostEntryLineItemDaily(models.Model):
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     resource_id = models.CharField(max_length=256, null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
 
@@ -279,21 +279,21 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     # The following fields are aggregates
     resource_ids = ArrayField(models.TextField(), null=True)
     resource_count = models.IntegerField(null=True)
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     normalization_factor = models.FloatField(null=True)
     normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    public_on_demand_rate = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
 
 class AWSCostEntryPricing(models.Model):
@@ -334,7 +334,7 @@ class AWSCostEntryReservation(models.Model):
 
     reservation_arn = models.TextField(unique=True)
     number_of_reservations = models.PositiveIntegerField(null=True)
-    units_per_reservation = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    units_per_reservation = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     start_time = models.DateTimeField(null=True)
     end_time = models.DateTimeField(null=True)
 
@@ -404,13 +404,13 @@ class AWSCostSummary(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -446,13 +446,13 @@ class AWSCostSummaryByService(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -484,13 +484,13 @@ class AWSCostSummaryByAccount(models.Model):
 
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -526,13 +526,13 @@ class AWSCostSummaryByRegion(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -564,17 +564,17 @@ class AWSComputeSummary(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -616,17 +616,15 @@ class AWSComputeSummaryByService(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = (models.DecimalField(max_digits=33, decimal_places=15, null=True),)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -664,17 +662,17 @@ class AWSComputeSummaryByAccount(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -716,17 +714,17 @@ class AWSComputeSummaryByRegion(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -754,17 +752,17 @@ class AWSStorageSummary(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -800,17 +798,17 @@ class AWSStorageSummaryByService(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -844,17 +842,17 @@ class AWSStorageSummaryByAccount(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -892,17 +890,17 @@ class AWSStorageSummaryByRegion(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -936,17 +934,17 @@ class AWSNetworkSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -980,17 +978,17 @@ class AWSDatabaseSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1081,13 +1079,13 @@ class AWSCostSummaryP(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1132,13 +1130,13 @@ class AWSCostSummaryByServiceP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1176,13 +1174,13 @@ class AWSCostSummaryByAccountP(models.Model):
 
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1229,13 +1227,13 @@ class AWSCostSummaryByRegionP(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1276,17 +1274,17 @@ class AWSComputeSummaryP(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1337,17 +1335,17 @@ class AWSComputeSummaryByServiceP(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1394,17 +1392,17 @@ class AWSComputeSummaryByAccountP(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1457,17 +1455,17 @@ class AWSComputeSummaryByRegionP(models.Model):
 
     resource_count = models.IntegerField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1504,17 +1502,17 @@ class AWSStorageSummaryP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1559,17 +1557,17 @@ class AWSStorageSummaryByServiceP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1612,17 +1610,17 @@ class AWSStorageSummaryByAccountP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1671,17 +1669,17 @@ class AWSStorageSummaryByRegionP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1724,17 +1722,17 @@ class AWSNetworkSummaryP(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1777,17 +1775,17 @@ class AWSDatabaseSummaryP(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    blended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 

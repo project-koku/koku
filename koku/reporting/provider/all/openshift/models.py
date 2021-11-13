@@ -103,7 +103,7 @@ class OCPAllCostLineItemDailySummary(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
@@ -112,9 +112,9 @@ class OCPAllCostLineItemDailySummary(models.Model):
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -149,9 +149,9 @@ class OCPAllCostSummary(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -183,9 +183,9 @@ class OCPAllCostSummaryByAccount(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -221,9 +221,9 @@ class OCPAllCostSummaryByService(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -259,9 +259,9 @@ class OCPAllCostSummaryByRegion(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -297,13 +297,13 @@ class OCPAllComputeSummary(models.Model):
 
     resource_id = models.CharField(max_length=253)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -336,13 +336,13 @@ class OCPAllDatabaseSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -374,13 +374,13 @@ class OCPAllNetworkSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -415,13 +415,13 @@ class OCPAllStorageSummary(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -490,15 +490,15 @@ class OCPAllCostLineItemProjectDailySummary(models.Model):
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -576,7 +576,7 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
 
     tags = JSONField(null=True)
 
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
@@ -585,9 +585,9 @@ class OCPAllCostLineItemDailySummaryP(models.Model):
     # with a GROUP BY cluster/node.
     # Project cost is a summation of pod costs with a GROUP BY project
     # The cost of un-utilized resources = sum(unblended_cost) - sum(project_cost)
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -663,15 +663,15 @@ class OCPAllCostLineItemProjectDailySummaryP(models.Model):
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -708,9 +708,9 @@ class OCPAllCostSummaryPT(models.Model):
 
     cluster_alias = models.CharField(max_length=256, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -751,9 +751,9 @@ class OCPAllCostSummaryByAccountPT(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -800,9 +800,9 @@ class OCPAllCostSummaryByServicePT(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -849,9 +849,9 @@ class OCPAllCostSummaryByRegionPT(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -899,13 +899,13 @@ class OCPAllComputeSummaryPT(models.Model):
 
     resource_id = models.CharField(max_length=253)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -948,13 +948,13 @@ class OCPAllDatabaseSummaryPT(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -996,13 +996,13 @@ class OCPAllNetworkSummaryPT(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -1048,13 +1048,13 @@ class OCPAllStorageSummaryPT(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -1087,11 +1087,9 @@ class OCPAllCostSummaryP(models.Model):
 
     cluster_id = models.CharField(max_length=50, null=True)
 
-    cluster_alias = models.CharField(max_length=256, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1123,9 +1121,9 @@ class OCPAllCostSummaryByAccountP(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1161,9 +1159,9 @@ class OCPAllCostSummaryByServiceP(models.Model):
 
     product_family = models.CharField(max_length=150, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1199,9 +1197,9 @@ class OCPAllCostSummaryByRegionP(models.Model):
 
     availability_zone = models.CharField(max_length=50, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
@@ -1237,13 +1235,13 @@ class OCPAllComputeSummaryP(models.Model):
 
     resource_id = models.CharField(max_length=253)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -1276,13 +1274,13 @@ class OCPAllDatabaseSummaryP(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -1314,13 +1312,13 @@ class OCPAllNetworkSummaryP(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
@@ -1355,13 +1353,13 @@ class OCPAllStorageSummaryP(models.Model):
 
     product_code = models.CharField(max_length=50, null=False)
 
-    usage_amount = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     unit = models.CharField(max_length=63, null=True)
 
-    unblended_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    unblended_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10, null=True)
 
