@@ -38,11 +38,11 @@ class CostSummary(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
-    pod_charge_cpu_core_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_charge_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    pod_charge_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    persistentvolumeclaim_charge_gb_month = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Need more precision on calculated fields, otherwise there will be
     # Rounding errors
@@ -52,9 +52,9 @@ class CostSummary(models.Model):
     # grouping by project
     project_infra_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    project_markup_cost = models.DecimalField(max_digits=27, decimal_places=9, null=True)
+    project_markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_labels = JSONField(null=True)
 
