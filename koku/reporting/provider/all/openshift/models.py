@@ -714,7 +714,9 @@ class OCPAllCostSummaryPT(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -757,7 +759,9 @@ class OCPAllCostSummaryByAccountPT(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -806,7 +810,9 @@ class OCPAllCostSummaryByServicePT(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -855,7 +861,9 @@ class OCPAllCostSummaryByRegionPT(models.Model):
 
     currency_code = models.CharField(max_length=10)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -909,7 +917,9 @@ class OCPAllComputeSummaryPT(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -958,7 +968,9 @@ class OCPAllDatabaseSummaryPT(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -1006,7 +1018,9 @@ class OCPAllNetworkSummaryPT(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
@@ -1058,7 +1072,9 @@ class OCPAllStorageSummaryPT(models.Model):
 
     currency_code = models.CharField(max_length=10, null=True)
 
-    source_uuid = models.UUIDField(unique=False, null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
 
     source_type = models.TextField(default="")
 
