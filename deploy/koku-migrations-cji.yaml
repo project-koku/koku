@@ -1,0 +1,65 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: koku-migrations-cji
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: koku-migrations-cji
+  spec:
+    database:
+      sharedDbAppName: koku
+    dependencies:
+      - koku
+    envName: ${ENV_NAME}
+    jobs:
+    - name: script-runner-${IMAGE_TAG}
+      podSpec:
+        args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_django_migrations.sh
+        env:
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        image: ${IMAGE}:${IMAGE_TAG}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: koku-migrations-cji-v${IMAGE_TAG}
+  spec:
+    appName: koku-migrations-cji
+    jobs:
+      - script-runner-${IMAGE_TAG}
+parameters:
+- name: ENV_NAME
+  required: true
+  value: koku-env
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+  value: latest
+- description: Image
+  name: IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- displayName: Presto/Trino host
+  name: PRESTO_HOST
+  value: trino-coordinator
+- displayName: Presto/Trino port
+  name: PRESTO_PORT
+  value: "8000"
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- name: CLOWDER_ENABLED
+  required: true
+  value: "True"
