@@ -257,8 +257,8 @@ select vdp.source_schema,
         cur.execute(view_sql, (table_name,))
         fields = [d[0] for d in cur.description]
         for rec in cur:
-            drec = zip(fields, rec)
-            drec["definition"] = drec["definiion"].rstrip()
+            drec = dict(zip(fields, rec))
+            drec["definition"] = drec["definition"].rstrip()
             if drec["dependent_view_kind"] == "m":
                 drec["dependent_view_kind"] = "MATERIALIZED"
             else:
@@ -290,8 +290,8 @@ def alter_numerics(apps, schema_editor):
         dependent_matviews = get_dep_views(conn, table_name)
         alter_table_tail_sql = ALTER_SEP.join(ALTER_COLUMN_SQL.format(col) for col in alter_cols)
         sql = f"{ALTER_TABLE_SQL.format(table_name)}{os.linesep}{alter_table_tail_sql} ;"
-        for dep_nv in dependent_matviews:
-            view_name = dep_nv["dependent_view"]
+        for dep_mv in dependent_matviews:
+            view_name = dep_mv["dependent_view"]
             LOG.info(f"DROPPING dependent MATERIALIZED VIEW {view_name}")
             with conn.cursor() as cur:
                 cur.execute(f"DROP {dep_mv['dependent_view_kind']} VIEW IF EXISTS {view_name} ;")
@@ -304,7 +304,7 @@ def alter_numerics(apps, schema_editor):
         if dependent_matviews:
             with conn.cursor() as cur:
                 for dep_mv in dependent_matviews:
-                    view_name = dep_nv["dependent_view"]
+                    view_name = dep_mv["dependent_view"]
                     LOG.info(f"CREATING MATERIALIZED VIEW {view_name}")
                     sql = CREATE_MATVIEW_SQL.format(view_name, dep_mv["definition"])
                     LOG.debug(f"SQL = [{sql}]")
