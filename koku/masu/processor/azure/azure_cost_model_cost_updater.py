@@ -11,7 +11,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
-from reporting.provider.azure.models import UI_SUMMARY_TABLES
 
 
 LOG = logging.getLogger(__name__)
