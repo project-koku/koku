@@ -632,10 +632,6 @@ class AWSComputeSummaryByService(models.Model):
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
     currency_code = models.CharField(max_length=10)
 
     source_uuid = models.UUIDField(unique=False, null=True)
@@ -773,10 +769,6 @@ class AWSStorageSummary(models.Model):
     savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-
-    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     currency_code = models.CharField(max_length=10)
 
