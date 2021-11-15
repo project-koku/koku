@@ -11,7 +11,6 @@ from koku.database import get_model
 
 LOG = logging.getLogger(__name__)
 
-DEPENDENT_MATVIEWS = {"reporting_awscostentrylineitem_daily_summary": "reporting_aws_compute_summary"}
 ALTER_DATA = {
     "awscomputesummarybyaccountp": [
         "blended_cost",
@@ -217,18 +216,68 @@ select relname
  where relnamespace = current_schema::regnamespace
    and relkind = 'm' ;
 """
+CREATE_MATVIEW_SQL = """
+CREATE MATERIALIZED VIEW {} AS {} WITH DATA;
+"""
 
 
-def create_matview(conn, matview_name):
-    pass
+def get_dep_views(conn, table_name):
+    view_sql = """
+with view_dep as (
+SELECT distinct
+source_ns.nspname as source_schema
+, source_table.relname as source_table
+, dependent_view.oid as dependent_view_oid
+, dependent_ns.nspname as dependent_schema
+, dependent_view.relname as dependent_view
+, dependent_view.relkind as dependent_view_kind
+FROM pg_depend
+JOIN pg_rewrite ON pg_depend.objid = pg_rewrite.oid
+JOIN pg_class as dependent_view ON pg_rewrite.ev_class = dependent_view.oid
+JOIN pg_class as source_table ON pg_depend.refobjid = source_table.oid
+JOIN pg_namespace dependent_ns ON dependent_ns.oid = dependent_view.relnamespace
+JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
+WHERE source_ns.nspname = current_schema
+  AND source_table.relname = %s
+)
+select vdp.source_schema,
+       vdp.source_table,
+       vdp.dependent_view_oid,
+       vdp.dependent_schema,
+       vdp.dependent_view,
+       vdp.dependent_view_kind,
+       pg_get_viewdef(vdp.dependent_view_oid) as definition
+  from view_dep vdp
+ ORDER
+    BY vdp.dependent_schema,
+       vdp.dependent_view;
+"""
+    res = []
+    with conn.cursor() as cur:
+        cur.execute(view_sql, (table_name,))
+        fields = [d[0] for d in cur.description]
+        for rec in cur:
+            drec = zip(fields, rec)
+            drec["definition"] = drec["definiion"].rstrip()
+            if drec["dependent_view_kind"] == "m":
+                drec["dependent_view_kind"] = "MATERIALIZED"
+            else:
+                drec["dependent_view_kind"] = ""
+            if drec["definition"].endswith(";"):
+                drec["definition"] = drec["definition"][:-1]
+            res.append(drec)
+
+    return res
 
 
 def alter_numerics(apps, schema_editor):
     conn = schema_editor.connection
+
     matviews = set()
     with conn.cursor() as cur:
         cur.execute(MATVIEW_SQL)
-        matviews = {r[0] for r in cur}
+        for rec in cur:
+            matviews.add(rec[0])
 
     LOG.debug(f"MATVIEWS = {sorted(matviews)}")
 
@@ -238,21 +287,28 @@ def alter_numerics(apps, schema_editor):
             LOG.info(f"*** {table_name} is a materialized view -- SKIP ***")
             continue
 
+        dependent_matviews = get_dep_views(conn, table_name)
         alter_table_tail_sql = ALTER_SEP.join(ALTER_COLUMN_SQL.format(col) for col in alter_cols)
         sql = f"{ALTER_TABLE_SQL.format(table_name)}{os.linesep}{alter_table_tail_sql} ;"
-        dep_mv = DEPENDENT_MATVIEWS.get(model_name)
-        if dep_mv:
-            LOG.info(f"DROPPING dependent MATERIALIZED VIEW")
+        for dep_nv in dependent_matviews:
+            view_name = dep_nv["dependent_view"]
+            LOG.info(f"DROPPING dependent MATERIALIZED VIEW {view_name}")
             with conn.cursor() as cur:
-                cur.execute(f"DROP MATERIALIZED VIEW IF EXISTS {dep_mv} ;")
+                cur.execute(f"DROP {dep_mv['dependent_view_kind']} VIEW IF EXISTS {view_name} ;")
 
         LOG.info(f"ALTER TABLE {table_name} :: cols = {alter_cols}")
         LOG.debug(f"SQL = [{sql}]")
         with conn.cursor() as cur:
             cur.execute(sql)
 
-        if dep_mv:
-            create_matview(conn, dep_mv)
+        if dependent_matviews:
+            with conn.cursor() as cur:
+                for dep_mv in dependent_matviews:
+                    view_name = dep_nv["dependent_view"]
+                    LOG.info(f"CREATING MATERIALIZED VIEW {view_name}")
+                    sql = CREATE_MATVIEW_SQL.format(view_name, dep_mv["definition"])
+                    LOG.debug(f"SQL = [{sql}]")
+                    cur.execute(sql)
 
 
 class Migration(migrations.Migration):
