@@ -1726,6 +1726,10 @@ class GCPNetworkSummaryP(models.Model):
 
     """
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class Meta:
         """Meta for GCPNetworkSummaryP."""
 
@@ -1772,6 +1776,10 @@ class GCPDatabaseSummaryP(models.Model):
     This table gives a daily breakdown of database usage.
 
     """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
 
     class Meta:
         """Meta for GCPDatabaseSummaryP."""
