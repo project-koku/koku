@@ -712,7 +712,7 @@ class OCPAllCostSummaryPT(models.Model):
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    currency_code = models.CharField(max_length=10)
+    currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -757,7 +757,7 @@ class OCPAllCostSummaryByAccountPT(models.Model):
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    currency_code = models.CharField(max_length=10)
+    currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -808,7 +808,7 @@ class OCPAllCostSummaryByServicePT(models.Model):
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    currency_code = models.CharField(max_length=10)
+    currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
@@ -859,7 +859,7 @@ class OCPAllCostSummaryByRegionPT(models.Model):
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    currency_code = models.CharField(max_length=10)
+    currency_code = models.CharField(max_length=10, null=True)
 
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
