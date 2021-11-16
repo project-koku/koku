@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.azure.models import AzureCostSummaryByAccount
+from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
 
 
@@ -22,7 +22,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     """API GET list view for Azure Subscription Guid."""
 
     queryset = (
-        AzureCostSummaryByAccount.objects.annotate(**{"value": F("subscription_guid")}).values("value").distinct()
+        AzureCostSummaryByAccountP.objects.annotate(**{"value": F("subscription_guid")}).values("value").distinct()
     )
     serializer_class = ResourceTypeSerializer
     permission_classes = [AzureAccessPermission]
