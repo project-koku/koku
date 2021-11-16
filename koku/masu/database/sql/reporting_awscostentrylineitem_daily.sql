@@ -23,7 +23,7 @@ CREATE TEMPORARY TABLE reporting_awscostentrylineitem_daily_{{uuid | sqlsafe}} A
         sum(li.unblended_cost) as unblended_cost,
         max(li.blended_rate) as blended_rate,
         sum(li.blended_cost) as blended_cost,
-        sum(li.savingsplan_effective_cost) as savingsplan_effective_cost,
+        sum(coalesce(li.savingsplan_effective_cost, 0.0::numeric(24,9))) as savingsplan_effective_cost,
         sum(li.public_on_demand_cost) as public_on_demand_cost,
         max(li.public_on_demand_rate) as public_on_demand_rate
     FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem AS li
