@@ -15,12 +15,12 @@ objects:
       - koku
     envName: ${ENV_NAME}
     jobs:
-    - name: script-runner-${IMAGE_TAG}
+    - name: migration-script-runner-${IMAGE_TAG}
       podSpec:
         args:
         - /bin/bash
         - -c
-        - $HOME/scripts/run_django_migrations.sh
+        - $HOME/scripts/run_migrations.sh
         env:
         - name: PRESTO_HOST
           value: ${PRESTO_HOST}
@@ -34,11 +34,11 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: koku-migrations-cji-v${IMAGE_TAG}
+    name: koku-migrations-cji-${IMAGE_TAG}
   spec:
     appName: koku-migrations-cji
     jobs:
-      - script-runner-${IMAGE_TAG}
+      - migration-script-runner-${IMAGE_TAG}
 parameters:
 - name: ENV_NAME
   required: true
