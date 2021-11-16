@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
 from masu.external import UNCOMPRESSED
+from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
@@ -189,6 +190,23 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert download_file successful scenario"""
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
         key = "202011_1234_2020-12-05:2020-12-08.csv"
+        mock_name = "Cody"
+        expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
+        downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
+            full_path, etag, date, _ = downloader.download_file(key)
+            mock_makedirs.assert_called()
+            self.assertEqual(etag, self.etag)
+            self.assertEqual(date, self.today)
+            self.assertEqual(full_path, expected_full_path)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
+    def test_download_file_success_end_date_today(self, mock_bigquery, mock_makedirs):
+        """Assert download_file successful scenario"""
+        mock_bigquery.client.return_value.query.return_value = ["This", "test"]
+        end_date = DateAccessor().today().date()
+        key = f"202011_1234_2020-12-05:{end_date}.csv"
         mock_name = "Cody"
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)

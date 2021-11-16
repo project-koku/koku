@@ -33,7 +33,7 @@ LABEL summary="$SUMMARY" \
 USER root
 
 # Get latest packages
-RUN dnf -y upgrade
+# RUN dnf -y upgrade
 
 COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
 
