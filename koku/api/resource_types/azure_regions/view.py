@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.azure.models import AzureCostSummaryByLocation
+from reporting.provider.azure.models import AzureCostSummaryByLocationP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocation
 
 
@@ -22,7 +22,7 @@ class AzureRegionView(generics.ListAPIView):
     """API GET list view for Azure Region locations."""
 
     queryset = (
-        AzureCostSummaryByLocation.objects.annotate(**{"value": F("resource_location")})
+        AzureCostSummaryByLocationP.objects.annotate(**{"value": F("resource_location")})
         .values("value")
         .distinct()
         .filter(resource_location__isnull=False)
