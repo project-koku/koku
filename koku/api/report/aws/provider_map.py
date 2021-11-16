@@ -227,26 +227,38 @@ class AWSProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(NullIf(F(cost_type), Value(0, output_field=DecimalField())), "unblended_cost")
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    NullIf(F(self.markup_cost), Value(0, output_field=DecimalField())), "markup_cost"
+                                )
                             ),
                             "infra_raw": Sum(
                                 Coalesce(NullIf(F(cost_type), Value(0, output_field=DecimalField())), "unblended_cost")
                             ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(
+                                Coalesce(
+                                    NullIf(F(self.markup_cost), Value(0, output_field=DecimalField())), "markup_cost"
+                                )
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(NullIf(F(cost_type), Value(0, output_field=DecimalField())), "unblended_cost")
-                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                                + Coalesce(
+                                    NullIf(F(self.markup_cost), Value(0, output_field=DecimalField())), "markup_cost"
+                                )
                             ),
                             "cost_raw": Sum(
                                 Coalesce(NullIf(F(cost_type), Value(0, output_field=DecimalField())), "unblended_cost")
                             ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(
+                                Coalesce(
+                                    NullIf(F(self.markup_cost), Value(0, output_field=DecimalField())), "markup_cost"
+                                )
+                            ),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
