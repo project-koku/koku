@@ -15,15 +15,15 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import AzureComputeSummary
+from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryLineItemDailySummary
-from reporting.models import AzureCostSummary
-from reporting.models import AzureCostSummaryByAccount
-from reporting.models import AzureCostSummaryByLocation
-from reporting.models import AzureCostSummaryByService
-from reporting.models import AzureDatabaseSummary
-from reporting.models import AzureNetworkSummary
-from reporting.models import AzureStorageSummary
+from reporting.models import AzureCostSummaryByAccountP
+from reporting.models import AzureCostSummaryByLocationP
+from reporting.models import AzureCostSummaryByServiceP
+from reporting.models import AzureCostSummaryP
+from reporting.models import AzureDatabaseSummaryP
+from reporting.models import AzureNetworkSummaryP
+from reporting.models import AzureStorageSummaryP
 
 
 class AzureProviderMap(ProviderMap):
@@ -242,31 +242,31 @@ class AzureProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": AzureCostSummary,
-                ("subscription_guid",): AzureCostSummaryByAccount,
-                ("resource_location",): AzureCostSummaryByLocation,
-                ("resource_location", "subscription_guid"): AzureCostSummaryByLocation,
-                ("service_name",): AzureCostSummaryByService,
-                ("service_name", "subscription_guid"): AzureCostSummaryByService,
+                "default": AzureCostSummaryP,
+                ("subscription_guid",): AzureCostSummaryByAccountP,
+                ("resource_location",): AzureCostSummaryByLocationP,
+                ("resource_location", "subscription_guid"): AzureCostSummaryByLocationP,
+                ("service_name",): AzureCostSummaryByServiceP,
+                ("service_name", "subscription_guid"): AzureCostSummaryByServiceP,
             },
             "instance_type": {
-                "default": AzureComputeSummary,
-                ("instance_type",): AzureComputeSummary,
-                ("instance_type", "subscription_guid"): AzureComputeSummary,
-                ("subscription_guid",): AzureComputeSummary,
+                "default": AzureComputeSummaryP,
+                ("instance_type",): AzureComputeSummaryP,
+                ("instance_type", "subscription_guid"): AzureComputeSummaryP,
+                ("subscription_guid",): AzureComputeSummaryP,
             },
-            "storage": {"default": AzureStorageSummary, ("subscription_guid",): AzureStorageSummary},
+            "storage": {"default": AzureStorageSummaryP, ("subscription_guid",): AzureStorageSummaryP},
             "database": {
-                "default": AzureDatabaseSummary,
-                ("service_name",): AzureDatabaseSummary,
-                ("service_name", "subscription_guid"): AzureDatabaseSummary,
-                ("subscription_guid",): AzureDatabaseSummary,
+                "default": AzureDatabaseSummaryP,
+                ("service_name",): AzureDatabaseSummaryP,
+                ("service_name", "subscription_guid"): AzureDatabaseSummaryP,
+                ("subscription_guid",): AzureDatabaseSummaryP,
             },
             "network": {
-                "default": AzureNetworkSummary,
-                ("service_name",): AzureNetworkSummary,
-                ("service_name", "subscription_guid"): AzureNetworkSummary,
-                ("subscription_guid",): AzureNetworkSummary,
+                "default": AzureNetworkSummaryP,
+                ("service_name",): AzureNetworkSummaryP,
+                ("service_name", "subscription_guid"): AzureNetworkSummaryP,
+                ("subscription_guid",): AzureNetworkSummaryP,
             },
         }
         super().__init__(provider, report_type)
