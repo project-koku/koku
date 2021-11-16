@@ -36,7 +36,7 @@ INSERT INTO reporting_gcp_network_summary_p (
         invoice_month,
         SUM(credit_amount) AS credit_amount
     FROM reporting_gcpcostentrylineitem_daily_summary
-    WHERE service_alias LIKE '%%Network%%'
+    WHERE (service_alias LIKE '%%Network%%'
         OR service_alias LIKE '%%VPC%%'
         OR service_alias LIKE '%%Firewall%%'
         OR service_alias LIKE '%%Route%%'
@@ -48,7 +48,7 @@ INSERT INTO reporting_gcp_network_summary_p (
         OR service_alias LIKE '%%Service Discovery%%'
         OR service_alias LIKE '%%Cloud Domains%%'
         OR service_alias LIKE '%%Private Service Connect%%'
-        OR service_alias LIKE '%%Cloud Armor%%'
+        OR service_alias LIKE '%%Cloud Armor%%')
         AND usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}

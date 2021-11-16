@@ -36,13 +36,13 @@ INSERT INTO reporting_gcp_database_summary_p (
         invoice_month,
         SUM(credit_amount) AS credit_amount
     FROM reporting_gcpcostentrylineitem_daily_summary
-    WHERE service_alias LIKE '%%SQL%%'
+    WHERE (service_alias LIKE '%%SQL%%'
         OR service_alias LIKE '%%Spanner%%'
         OR service_alias LIKE '%%Bigtable%%'
         OR service_alias LIKE '%%Firestore%%'
         OR service_alias LIKE '%%Firebase%%'
         OR service_alias LIKE '%%Memorystore%%'
-        OR service_alias LIKE '%%MongoDB%%'
+        OR service_alias LIKE '%%MongoDB%%')
         AND usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
