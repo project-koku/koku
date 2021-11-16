@@ -10,7 +10,7 @@ from koku.database import unset_partition_mode
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0050_exchangerates"), ("reporting", "0204_auto_20211110_2118")]
+    dependencies = [("reporting", "0207_auto_20211115_2234")]
 
     operations = [
         migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
