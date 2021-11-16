@@ -313,7 +313,7 @@ def alter_numerics(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0205_ocpall_perspective_db_defaults")]
+    dependencies = [("reporting", "0206_auto_20211115_1322")]
 
     operations = [
         migrations.SeparateDatabaseAndState(
