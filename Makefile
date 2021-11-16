@@ -10,6 +10,7 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
+SCRIPTDIR = $(TOPDIR)/scripts
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -234,7 +235,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas $(applabel) $(migration)
+	$(SCRIPTDIR)/run_migrations.sh $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
