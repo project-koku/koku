@@ -7,6 +7,7 @@ import copy
 import datetime
 import json
 import logging
+import os
 import pkgutil
 import uuid
 from decimal import Decimal
@@ -34,6 +35,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
@@ -63,6 +65,9 @@ def create_filter(data_source, start_date, end_date, cluster_id):
 
 class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with customer reporting tables."""
+
+    #  Empty string will put a path seperator on the end
+    OCP_ON_ALL_SQL_PATH = os.path.join("sql", "openshift", "all", "")
 
     def __init__(self, schema):
         """Establish the database connection.
@@ -2368,13 +2373,21 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
-        script_file_path = f"sql/reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
+        script_file_name = f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"
+        script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def populate_ocp_on_all_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_daily_summary")
-        script_file_path = f"sql/reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
+        script_file_name = f"reporting_ocpallcostlineitem_daily_summary_{platform.lower()}.sql"
+        script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{script_file_name}"
         self._execute_processing_script("masu.database", script_file_path, sql_params)
+
+    def populate_ocp_on_all_ui_summary_tables(self, sql_params):
+        for perspective in OCP_ON_ALL_PERSPECTIVES:
+            LOG.info(f"Populating {perspective._meta.db_table} data using {sql_params}")
+            script_file_path = f"{self.OCP_ON_ALL_SQL_PATH}{perspective._meta.db_table}.sql"
+            self._execute_processing_script("masu.database", script_file_path, sql_params)
 
     def get_max_min_timestamp_from_parquet(self, source_uuid, start_date, end_date):
         """Get the max and min timestamps for parquet data given a date range"""
