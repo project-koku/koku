@@ -32,14 +32,6 @@ function check_for_labels() {
 }
 
 function build_image() {
-    AUTH_CONF_DIR="$(pwd)/.podman"
-    mkdir -p $AUTH_CONF_DIR
-    export REGISTRY_AUTH_FILE="$AUTH_CONF_DIR/auth.json"
-    set -x
-    podman login -u="$QUAY_USER" -p="$QUAY_TOKEN" quay.io
-    podman login -u="$RH_REGISTRY_USER" -p="$RH_REGISTRY_TOKEN" registry.redhat.io
-    podman pull registry.access.redhat.com/ubi8/python-38:latest
-    set +x
     source $CICD_ROOT/build.sh
 }
 
