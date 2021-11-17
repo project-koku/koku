@@ -2,10 +2,12 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import json
 import os
 
 import psycopg2
 from django.db import connection
+from django.db import IntegrityError
 from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import DivisionByZero
 
@@ -21,13 +23,14 @@ class TestDatabaseExc(IamTestCase):
 
     def test_real_exception(self):
         """Test a **real** exception from another connection to the DB."""
+
         with self._new_connection() as conn2:
             eexc = None
             sql = "select 1 / 0 from api_provider;"
             with conn2.cursor() as cur:
                 try:
                     cur.execute(sql)
-                except Exception as x:
+                except DivisionByZero as x:
                     eexc = dbex.get_extended_exception_by_type(x)(x)
 
             self.assertEqual(type(eexc), dbex.ExtendedDBException)
@@ -37,7 +40,11 @@ class TestDatabaseExc(IamTestCase):
             self.assertTrue(eexc.query_tables)
             self.assertEqual(eexc.query_tables[0], "api_provider")
             self.assertGreater(eexc.db_backend_pid, 0)
-            self.assertEqual(type(eexc.as_dict()), dict)
+            eedict = eexc.as_dict()
+            self.assertEqual(type(eedict), dict)
+            # Test json
+            eedict_json = json.dumps(eedict, default=str)
+            self.assertEqual(eexc.as_json(), eedict_json)
 
     def test_deadlock_exception(self):
         """Test deadlock exception message parsing."""
@@ -49,12 +56,29 @@ class TestDatabaseExc(IamTestCase):
             + "Process 56  transaction 78  blocked by process 12"
             + os.linesep
         )
-        eexc = eexc = dbex.get_extended_exception_by_type(ddexc)(ddexc)
+        eexc = dbex.get_extended_exception_by_type(ddexc)(ddexc)
 
         self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
         self.assertEqual(DeadlockDetected, eexc.db_exception_type)
         self.assertEqual(sorted([eexc.process1, eexc.process2]), sorted([12, 56]))
         self.assertTrue(hasattr(eexc, "current_log_file"))
+        eedict = eexc.as_dict()
+        self.assertEqual(type(eedict), dict)
+        self.assertTrue({"process1_pid", "process2_pid"}.issubset(set(eedict)))
+
+    def test_bad_exception(self):
+        class BadException(Exception):
+            pass
+
+        exc = BadException("It's really bad!")
+        with self.assertRaises(TypeError):
+            _ = dbex.get_extended_exception_by_type(exc)(exc)
+
+    def test_django_exception(self):
+        dxc = IntegrityError("It's really bad!")
+        dxc.__cause__ = DivisionByZero("Don't do it!")
+        eexc = dbex.get_extended_exception_by_type(dxc)(dxc)
+        self.assertEqual(type(eexc), dbex.ExtendedDBException)
 
     def test_excpetion_subclass(self):
         """Test that extended exception can resolve correctly by base exception class."""

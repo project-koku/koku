@@ -71,7 +71,7 @@ class ExtendedDBException(Exception):
             "koku_exception_code_file": self.koku_exc_file,
             "koku_exception_code_line_num": self.koku_exc_line_num,
             "koku_exception_code_line": self.koku_exc_line,
-            "cursor_name": self.cursor.name or "",
+            "cursor_name": (self.cursor.name if self.cursor else "") or "",
             "query": self.query,
             "query_type": self.query_type,
             "query_tables": self.query_tables,
