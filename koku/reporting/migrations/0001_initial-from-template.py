@@ -17,7 +17,6 @@ import reporting.partition.models
 from koku import migration_sql_helpers as msh
 from koku.database import set_partitioned_schema_editor
 from koku.database import unset_partitioned_schema_editor
-from reporting.provider.all.openshift.models import VIEWS as OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
 from reporting.provider.aws.models import VIEWS as AWS_MATERIALIZED_VIEWS
 from reporting.provider.aws.openshift.models import VIEWS as OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.provider.azure.models import VIEWS as AZURE_MATERIALIZED_VIEWS
@@ -106,71 +105,12 @@ def apply_views(apps, schema_editor):
         with conn.cursor() as cur:
             cur.execute(view_sql)
 
-    for view in OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/all/openshift/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.all.openshift", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("reporting", "0001_initial"),
-        ("reporting", "0143_awsorganizationalunit_provider"),
-        ("reporting", "0144_auto_20201007_1441"),
-        ("reporting", "0145_awsenabledtagkeys_azureenabledtagkeys"),
-        ("reporting", "0146_auto_20200917_1448"),
-        ("reporting", "0147_auto_20201028_1305"),
-        ("reporting", "0148_presto_delete_log"),
-        ("reporting", "0149_auto_20201112_1414"),
-        ("reporting", "0150_presto_bulk_pk_delete"),
-        ("reporting", "0151_ocp_summary_table_presto_interface"),
-        ("reporting", "0152_gcpcostentrylineitem"),
-        ("reporting", "0153_ocpnamespacelabellineitem"),
-        ("reporting", "0154_gcp_summary_tables"),
-        ("reporting", "0155_gcp_partitioned"),
-        ("reporting", "0156_auto_20201208_2029"),
-        ("reporting", "0157_auto_20201214_1757"),
-        ("reporting", "0158_auto_20201214_1757"),
-        ("reporting", "0159_gcp_cost_summary"),
-        ("reporting", "0160_auto_20210114_1548"),
-        ("reporting", "0161_auto_20210118_2113"),
-        ("reporting", "0162_auto_20201120_1901"),
-        ("reporting", "0163_gcp_compute_summary"),
-        (
-            "reporting",
-            "0164_gcpcomputesummary_gcpcomputesummarybyaccount_gcpcomputesummarybyproject_gcpcomputesummarybyregion_gc",
-        ),
-        ("reporting", "0165_repartition_default_data"),
-        ("reporting", "0166_gcp_storage_summary"),
-        ("reporting", "0167_gcpdatabasesummary_gcpnetworksummary"),
-        ("reporting", "0168_auto_20210211_2210"),
-        ("reporting", "0169_auto_20210216_1448"),
-        ("reporting", "0170_auto_20210305_1659"),
-        ("reporting", "0171_gcp_database_network_additions"),
-        ("reporting", "0172_auto_20210318_1514"),
-        ("reporting", "0173_auto_20210325_1354"),
-        ("reporting", "0174_update_ocpall_matviews"),
-        ("reporting", "0175_auto_20210407_2043"),
-        ("reporting", "0176_update_aws_enabled_keys"),
-        ("reporting", "0177_auto_20210506_1650"),
-        ("reporting", "0178_auto_20210511_1851"),
-        ("reporting", "0179_matview_tags_hash"),
-        ("reporting", "0180_ocpcluster_ocpnode_ocpproject_ocppvc"),
-        ("reporting", "0181_auto_20210525_1641"),
-        ("reporting", "0182_drop_constraints"),
-        ("reporting", "0183_cost_distribution"),
-        ("reporting", "0184_new_partition_manager_trigger"),
-        ("reporting", "0185_subpartition_cols"),
-        ("reporting", "0186_partition_ocp_on_x_tables"),
-        ("reporting", "0187_project_distribution"),
-        ("reporting", "0188_gcp_invoice_month"),
-        ("reporting", "0189_auto_20210803_2056"),
-    ]
-
     initial = True
+
+    replaces = []
 
     dependencies = [("api", "0001_initial")]
 

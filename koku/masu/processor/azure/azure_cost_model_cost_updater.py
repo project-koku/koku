@@ -12,6 +12,7 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 
+
 LOG = logging.getLogger(__name__)
 
 
@@ -43,7 +44,7 @@ class AzureCostModelCostUpdater:
             with AzureReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
                     bill_ids = [str(bill.id) for bill in bills]
-                report_accessor.populate_markup_cost(markup_value, start_date, end_date, bill_ids)
+                report_accessor.populate_markup_cost(self._provider.uuid, markup_value, start_date, end_date, bill_ids)
         except AzureCostModelCostUpdaterError as error:
             LOG.error("Unable to update markup costs. Error: %s", str(error))
 
@@ -73,6 +74,7 @@ class AzureCostModelCostUpdater:
                 self._schema,
                 self._provider.uuid,
             )
+            accessor.populate_ui_summary_tables(start_date, end_date, self._provider.uuid)
             bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
             with schema_context(self._schema):
                 for bill in bills:
