@@ -1,0 +1,88 @@
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+import os
+
+import psycopg2
+from psycopg2.errors import DeadlockDetected
+from psycopg2.errors import DivisionByZero
+
+from . import database_exc as dbex
+from api.iam.test.iam_test_case import IamTestCase
+from koku.configurator import CONFIGURATOR
+
+
+class TestDatabaseExc(IamTestCase):
+    def _new_connection(self):
+        return psycopg2.connect(
+            f"postgresql://{CONFIGURATOR.get_database_user()}:{CONFIGURATOR.get_database_password()}"
+            + f"@{CONFIGURATOR.get_database_host()}:{CONFIGURATOR.get_database_port()}"
+            + f"/{CONFIGURATOR.get_database_name()}?sslmode=prefer&application_name=koku_test_2nd_conn"
+        )
+
+    def test_real_exception(self):
+        """Test a **real** exception from another connection to the DB."""
+        with self._new_connection() as conn2:
+            eexc = None
+            sql = "select 1 / 0 from api_provider;"
+            with conn2.cursor() as cur:
+                try:
+                    cur.execute(sql)
+                except Exception as x:
+                    eexc = dbex.get_extended_exception_by_type(x)(x)
+
+            self.assertEqual(type(eexc), dbex.ExtendedDBException)
+            self.assertEqual(eexc.query, sql)
+            self.assertEqual(DivisionByZero, eexc.db_exception_type)
+            self.assertTrue(eexc.formatted_tb)
+            self.assertTrue(eexc.query_tables)
+            self.assertEqual(eexc.query_tables[0], "api_provider")
+            self.assertGreater(eexc.db_backend_pid, 0)
+            self.assertEqual(type(eexc.as_dict()), dict)
+
+    def test_deadlock_exception(self):
+        """Test deadlock exception message parsing."""
+        ddexc = DeadlockDetected(
+            "deadlock detected"
+            + os.linesep
+            + "DETAIL: Process 12  transaction 34  blocked by process 56"
+            + os.linesep
+            + "Process 56  transaction 78  blocked by process 12"
+            + os.linesep
+        )
+        eexc = eexc = dbex.get_extended_exception_by_type(ddexc)(ddexc)
+
+        self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
+        self.assertEqual(DeadlockDetected, eexc.db_exception_type)
+        self.assertEqual(sorted([eexc.process1, eexc.process2]), sorted([12, 56]))
+        self.assertIsNotNone(eexc.current_log_file)
+        self.assertNotEqual(eexc.current_log_file, "")
+
+    def test_excpetion_subclass(self):
+        """Test that extended exception can resolve correctly by base exception class."""
+
+        class SubDD(DeadlockDetected):
+            pass
+
+        class SubDZ(DivisionByZero):
+            pass
+
+        ddexc = SubDD(
+            "deadlock detected"
+            + os.linesep
+            + "DETAIL: Process 12  transaction 34  blocked by process 56"
+            + os.linesep
+            + "Process 56  transaction 78  blocked by process 12"
+            + os.linesep
+        )
+        base_x = dbex.get_extended_exception_by_base_type(ddexc)
+        x = dbex.get_extended_exception_by_type(ddexc)
+        self.assertEqual(base_x, dbex.ExtendedDeadlockDetected)
+        self.assertEqual(base_x, x)
+
+        dzexc = SubDZ("eek")
+        base_x = dbex.get_extended_exception_by_base_type(dzexc)
+        x = dbex.get_extended_exception_by_type(dzexc)
+        self.assertEqual(base_x, dbex.ExtendedDBException)
+        self.assertEqual(base_x, x)

@@ -85,22 +85,28 @@ class ExtendedDBException(Exception):
         return json.dumps(self.as_dict(), default=str)
 
     def set_exception_frame_info(self, _frames):
-        _frame = _frames[-1]
-        self.exc_line = _frame.line
-        self.exc_line_num = _frame.lineno
-        self.exc_file = _frame.filename
+        if _frames:
+            _frame = _frames[-1]
+            self.exc_line = _frame.line
+            self.exc_line_num = _frame.lineno
+            self.exc_file = _frame.filename
+        else:
+            self.exc_line = self.exc_line_num = self.exc_file = None
 
     def set_koku_exception_frame_info(self, _frames):
-        _koku_frame = None
-        for _frame in _frames:
-            if "koku" in _frame.filename:
-                _koku_frame = _frame
+        if _frames:
+            _koku_frame = None
+            for _frame in _frames:
+                if "koku" in _frame.filename:
+                    _koku_frame = _frame
+                else:
+                    break
+            if _koku_frame and _koku_frame.filename != self.exc_file and _koku_frame.lineno != self.exc_line_num:
+                self.koku_exc_line = _frame.line
+                self.koku_exc_line_num = _frame.lineno
+                self.koku_exc_file = _frame.filename
             else:
-                break
-        if _koku_frame and _koku_frame.filename != self.exc_file and _koku_frame.lineno != self.exc_line_num:
-            self.koku_exc_line = _frame.line
-            self.koku_exc_line_num = _frame.lineno
-            self.koku_exc_file = _frame.filename
+                self.koku_exc_line = self.koku_exc_line_num = self.koku_exc_file = None
         else:
             self.koku_exc_line = self.koku_exc_line_num = self.koku_exc_file = None
 
@@ -161,7 +167,16 @@ class ExtendedDeadlockDetected(ExtendedDBException):
 
         res = self.REGEXP.findall(str(self))
         if res:
-            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = res[0]
+            identifiers = []
+            for i in res[0]:
+                try:
+                    identifiers.append(int(i))
+                except ValueError:
+                    identifiers.append(i)
+
+            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = identifiers
+        else:
+            self.process1, self.txaction1, self.blocker2, self.process2, self.txaction2, self.blocker1 = None
 
     def get_extended_info(self):
         super().get_extended_info()
