@@ -34,30 +34,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    replaces = [
-        ("api", "0001_initial_squashed_0008_auto_20190305_2015"),
-        ("api", "0009_providerstatus_squashed_0042_auto_20200116_2048"),
-        ("api", "0010_auto_20200128_2138"),
-        ("api", "0011_auto_20200204_1647"),
-        ("api", "0012_auto_20200225_2022"),
-        ("api", "0013_auto_20200226_1953"),
-        ("api", "0014_reload_azure_map"),
-        ("api", "0015_auto_20200311_2049"),
-        ("api", "0016_auto_20200324_1420"),
-        ("api", "0017_delete_cloudaccount"),
-        ("api", "0018_auto_20200326_0102"),
-        ("api", "0019_delete_costmodelmetricsmap"),
-        ("api", "0020_sources_out_of_order_delete"),
-        ("api", "0021_delete_providerstatus"),
-        ("api", "0022_auto_20200812_1945"),
-        ("api", "0023_auto_20200820_2314"),
-        ("api", "0024_auto_20200824_1759"),
-        ("api", "0025_db_functions"),
-        ("api", "0026_provider_data_updated_timestamp"),
-        ("api", "0027_customer_date_updated"),
-        ("api", "0028_public_function_update"),
-        ("api", "0029_auto_20200921_2016"),
-    ]
+    replaces = []
 
     dependencies = []
 

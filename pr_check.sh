@@ -10,32 +10,29 @@ COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should p
 
 ENABLE_PARQUET_PROCESSING="false"
 
-ARTIFACTS_DIR="$WORKSPACE/artifacts"
+LABELS_DIR="$WORKSPACE/github_labels"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
-export IQE_FILTER_EXPRESSION="test_api"
 export IQE_CJI_TIMEOUT="90m"
 
 set -ex
 
-mkdir -p $ARTIFACTS_DIR
+mkdir -p $LABELS_DIR
 exit_code=0
 task_arr=([1]="Build" [2]="Smoke Tests" [3]="Latest Commit")
 error_arr=([1]="The PR is not labeled to build the test image" [2]="The PR is not labeled to run smoke tests" [3]="This commit is out of date with the PR")
 
 function check_for_labels() {
-    if [ -f $ARTIFACTS_DIR/github_labels.txt ]; then
-        egrep "$1" $ARTIFACTS_DIR/github_labels.txt &>/dev/null
+    if [ -f $LABELS_DIR/github_labels.txt ]; then
+        egrep "$1" $LABELS_DIR/github_labels.txt &>/dev/null
+    else
+        null &>/dev/null
     fi
 }
 
 function build_image() {
     source $CICD_ROOT/build.sh
-}
-
-function run_unit_tests() {
-    source $APP_ROOT/unit_test.sh
 }
 
 function run_smoke_tests() {
@@ -76,7 +73,41 @@ function run_smoke_tests() {
 function run_trino_smoke_tests() {
     if check_for_labels "trino-smoke-tests"
     then
+        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
         ENABLE_PARQUET_PROCESSING="true"
+    fi
+}
+
+function run_test_filter_expression {
+    if check_for_labels "aws-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_aws or test_api_ocp_on_aws or test_api_cost_model_aws or test_api_cost_model_ocp_on_aws"
+    elif check_for_labels "azure-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_azure or test_api_ocp_on_azure or test_api_cost_model_azure or test_api_cost_model_ocp_on_azure"
+    elif check_for_labels "gcp-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+    elif check_for_labels "ocp-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
+    elif check_for_labels "hot-fix-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="outage"
+    elif check_for_labels "cost-model-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_cost_model or test_api_ocp_source_upload_service"
+    elif check_for_labels "full-run-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+    elif check_for_labels "smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api"
+        export IQE_MARKER_EXPRESSION="cost_required"
+    else
+        echo "PR smoke tests skipped"
+        exit_code=2
     fi
 }
 
@@ -92,7 +123,7 @@ EOF
 }
 
 # check if this commit is out of date with the branch
-latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/commits/$ghprbSourceBranch | jq -r '.sha')
+latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/pulls/$ghprbPullId | jq -r '.head.sha')
 if [[ $latest_commit != $ghprbActualCommit ]]
 then
     exit_code=3
@@ -102,16 +133,19 @@ fi
 
 
 # Save PR labels into a file
-curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $ARTIFACTS_DIR/github_labels.txt
+curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/issues/$ghprbPullId/labels | jq '.[].name' > $LABELS_DIR/github_labels.txt
 
 
 # check if this PR is labeled to build the test image
-if ! check_for_labels "lgtm|pr-check-build|smoke-tests"
+if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests'
 then
     echo "PR check skipped"
     exit_code=1
 else
     # Install bonfire repo/initialize
+    run_test_filter_expression
+    echo $IQE_MARKER_EXPRESSION
+    echo $IQE_FILTER_EXPRESSION
     CICD_URL=https://raw.githubusercontent.com/RedHatInsights/bonfire/master/cicd
     curl -s $CICD_URL/bootstrap.sh > .cicd_bootstrap.sh && source .cicd_bootstrap.sh
     echo "creating PR image"
@@ -121,7 +155,7 @@ fi
 
 if [[ $exit_code == 0 ]]; then
     # check if this PR is labeled to run smoke tests
-    if ! check_for_labels "lgtm|smoke-tests"
+    if ! check_for_labels 'lgtm|*smoke-tests'
     then
         echo "PR smoke tests skipped"
         exit_code=2
@@ -130,6 +164,8 @@ if [[ $exit_code == 0 ]]; then
         run_smoke_tests
     fi
 fi
+
+cp $LABELS_DIR/github_labels.txt $ARTIFACTS_DIR/github_labels.txt
 
 if [[ $exit_code != 0 ]]
 then
