@@ -186,7 +186,6 @@ class ExtendedDeadlockDetected(ExtendedDBException):
                 with conn.cursor() as cur:
                     cur.execute("select pg_current_logfile() as curr_log;")
                     res = cur.fetchone()
-                    LOG.critical(f"res = {res}")
                     self.current_log_file = res["curr_log"] if res else None
         except DatabaseError as e:
             LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")

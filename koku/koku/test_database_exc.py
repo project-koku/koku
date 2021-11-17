@@ -54,8 +54,7 @@ class TestDatabaseExc(IamTestCase):
         self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
         self.assertEqual(DeadlockDetected, eexc.db_exception_type)
         self.assertEqual(sorted([eexc.process1, eexc.process2]), sorted([12, 56]))
-        self.assertIsNotNone(eexc.current_log_file)
-        self.assertNotEqual(eexc.current_log_file, "")
+        self.assertTrue(hasattr(eexc, "current_log_file"))
 
     def test_excpetion_subclass(self):
         """Test that extended exception can resolve correctly by base exception class."""
