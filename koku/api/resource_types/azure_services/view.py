@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.azure.models import AzureCostSummaryByService
+from reporting.provider.azure.models import AzureCostSummaryByServiceP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByService
 
 
@@ -22,7 +22,7 @@ class AzureServiceView(generics.ListAPIView):
     """API GET list view for Azure Service types."""
 
     queryset = (
-        AzureCostSummaryByService.objects.annotate(**{"value": F("service_name")})
+        AzureCostSummaryByServiceP.objects.annotate(**{"value": F("service_name")})
         .values("value")
         .distinct()
         .filter(service_name__isnull=False)
