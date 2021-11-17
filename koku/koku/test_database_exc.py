@@ -5,6 +5,7 @@
 import os
 
 import psycopg2
+from django.db import connection
 from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import DivisionByZero
 
@@ -15,11 +16,8 @@ from koku.configurator import CONFIGURATOR
 
 class TestDatabaseExc(IamTestCase):
     def _new_connection(self):
-        return psycopg2.connect(
-            f"postgresql://{CONFIGURATOR.get_database_user()}:{CONFIGURATOR.get_database_password()}"
-            + f"@{CONFIGURATOR.get_database_host()}:{CONFIGURATOR.get_database_port()}"
-            + f"/{CONFIGURATOR.get_database_name()}?sslmode=prefer&application_name=koku_test_2nd_conn"
-        )
+        raw_conn = connection.connection
+        return psycopg2.connect(password=CONFIGURATOR.get_database_password(), **raw_conn.get_dsn_parameters())
 
     def test_real_exception(self):
         """Test a **real** exception from another connection to the DB."""
