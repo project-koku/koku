@@ -17,7 +17,7 @@ class UserSettingsViewTest(IamTestCase):
     def test_supported_cost_types(self):
         """Test that a list GET call returns the supported cost_types."""
         qs = "?limit=20"
-        url = reverse("cost_type") + qs
+        url = reverse("cost-type") + qs
         client = APIClient()
 
         response = client.get(url, **self.headers)

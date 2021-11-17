@@ -70,6 +70,9 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 if file.endswith(".csv"):
                     report_name = os.path.splitext(file)[0]
                     invoice_month, etag, date_range = report_name.split("_")
+                    if ":" not in date_range:
+                        # if date range does not contain the `:`, it is not a file to process
+                        continue
                     scan_start, scan_end = date_range.split(":")
                     file_info = {"start": scan_start, "end": scan_end, "filename": file}
                     if not file_mapping.get(invoice_month):

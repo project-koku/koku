@@ -92,7 +92,7 @@ services:
 
       privileged: true
       ports:
-          - 5000:8000
+          - 5042:8000
       volumes:
         - './../..:/koku/'
       links:

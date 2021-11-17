@@ -87,7 +87,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
-    path("cost_type/", get_cost_type, name="cost_type"),
+    path("cost-type/", get_cost_type, name="cost-type"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
@@ -306,6 +306,7 @@ urlpatterns = [
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
     path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
     path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
     path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
     path(

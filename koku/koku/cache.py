@@ -89,3 +89,22 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
 
     for cache_key_prefix in cache_key_prefixes:
         invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
+
+
+def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):
+    """"Invalidate our view cache for a specific tenant and a list source types."""
+
+    for source_type in source_types:
+        if source_type in Provider.PROVIDER_LIST:
+            invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
+        else:
+            LOG.warning("unable to invalidate cache, %s is not a valid source type", source_type)
+
+
+def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
+    """"Invalidate our view cache for a specific tenant and all (non local) source types."""
+
+    non_local_providers = [provider for provider in Provider.PROVIDER_LIST if "-local" not in provider]
+
+    for source_type in non_local_providers:
+        invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)

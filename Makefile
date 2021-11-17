@@ -13,7 +13,7 @@ PYDIR	= koku
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
-MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5000}")
+MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 scale = 1
 
@@ -104,6 +104,7 @@ help:
 	@echo "  unleash-export                        export feature-flags to file"
 	@echo "  unleash-import                        import feature-flags from file"
 	@echo "  unleash-import-drop                   import feature-flags from file AND wipe current database"
+	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
 	@echo "  docker-up                            run docker-compose up --build -d"
@@ -264,6 +265,9 @@ unleash-import-drop:
 	curl -X POST -H "Content-Type: application/json" -H "Authorization: Basic YWRtaW46" \
 	-s -d @.unleash/flags.json http://localhost:4242/api/admin/state/import?drop=true
 
+scan_project:
+	./sonarqube.sh
+
 ####################################
 # Commands using OpenShift Cluster #
 ####################################
@@ -374,12 +378,20 @@ docker-up:
 docker-up-no-build: docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale)
 
-docker-up-min:
+# basic dev environment targets
+docker-up-min: docker-up-db
 	$(DOCKER_COMPOSE) build koku-base
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) db redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
 
 docker-up-min-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker koku-listener
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
+
+# basic dev environment targets with koku-listener for local Sources Kafka testing
+docker-up-min-with-listener: docker-up-min docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
+
+docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
 docker-up-min-presto: docker-up-min docker-presto-up
 
@@ -506,7 +518,7 @@ endif
 	mkdir -p testing/pvc_dir/insights_local
 	nise report ocp --ocp-cluster-id $(cluster_id) --insights-upload testing/pvc_dir/insights_local --static-report-file $(srf_yaml)
 	curl -d '{"name": "$(ocp_name)", "source_type": "OCP", "authentication": {"credentials": {"cluster_id": "$(cluster_id)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
-# From here you can hit the http://127.0.0.1:5000/api/cost-management/v1/download/ endpoint to start running masu.
+# From here you can hit the http://127.0.0.1:5042/api/cost-management/v1/download/ endpoint to start running masu.
 # After masu has run these endpoints should have data in them: (v1/reports/openshift/memory, v1/reports/openshift/compute/, v1/reports/openshift/volumes/)
 
 aws-source:
