@@ -18,7 +18,7 @@ logging.basicConfig(
     datefmt="%m/%d/%Y %I:%M:%S %p",
     level=getattr(logging, os.environ.get("KOKU_LOG_LEVEL", "INFO")),
 )
-LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_azure_matview_data_console"))
+LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_gcp_matview_data_console"))
 
 
 def connect():
