@@ -15,6 +15,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_storage_summary_p (
     blended_cost,
     savingsplan_effective_cost,
     markup_cost,
+    markup_cost_blended,
+    markup_cost_savingsplan,
     currency_code,
     source_uuid
 )
@@ -26,8 +28,10 @@ SELECT uuid_generate_v4() as id,
     max(unit) as unit,
     sum(unblended_cost) as unblended_cost,
     sum(blended_cost) as blended_cost,
-    sum(savingsplan_effective_cost) as savingsplan_effective_cost,
+    sum(coalesce(savingsplan_effective_cost, 0.0::numeric(24,9))) AS savingsplan_effective_cost,
     sum(markup_cost) as markup_cost,
+    sum(coalesce(markup_cost_blended, 0.0::numeric(33,15))) AS markup_cost_blended,
+    sum(coalesce(markup_cost_savingsplan, 0.0::numeric(33,15))) AS markup_cost_savingsplan,
     max(currency_code) as currency_code,
     {{source_uuid}}::uuid as source_uuid
 FROM {{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_summary
