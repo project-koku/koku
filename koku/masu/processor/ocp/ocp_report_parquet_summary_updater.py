@@ -11,17 +11,19 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class OCPReportParquetSummaryUpdater:
+class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update OCP report summary data from Presto/Parquet data."""
 
     def __init__(self, schema, provider, manifest):
@@ -104,6 +106,9 @@ class OCPReportParquetSummaryUpdater:
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
         start_date, end_date = self._check_parquet_date_range(start_date, end_date)
 
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
@@ -125,6 +130,7 @@ class OCPReportParquetSummaryUpdater:
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
 
             # This will process POD and STORAGE together
             LOG.info(

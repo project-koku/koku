@@ -147,3 +147,8 @@ dev/*.yml
 
 # unleash cache
 .unleash/cache/
+
+#sonarqube
+sonarqube/
+/koku.iml
+/view.prof

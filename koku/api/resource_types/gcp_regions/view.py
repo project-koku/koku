@@ -47,17 +47,11 @@ class GCPRegionView(generics.ListAPIView):
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
             gcp_project_access = request.user.access.get("gcp.project", {}).get("read", [])
+            # Checks if the access exists, and the user has wildcard access
             query_holder = self.queryset
-            if gcp_project_access:
+            if gcp_project_access and gcp_project_access[0] != "*":
                 query_holder = query_holder.filter(project_id__in=gcp_project_access)
-            if gcp_account_access:
+            if gcp_account_access and gcp_account_access[0] != "*":
                 query_holder = query_holder.filter(account_id__in=gcp_account_access)
-            if (
-                gcp_account_access
-                and gcp_account_access[0] == "*"
-                or gcp_project_access
-                and gcp_project_access[0] == "*"
-            ):
-                return super().list(request)
-            self.queryset = query_holder
+        self.queryset = query_holder
         return super().list(request)

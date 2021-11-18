@@ -34,6 +34,7 @@ from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
+from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
@@ -313,7 +314,7 @@ class Settings:
             LOG.warning(f"Failed to store new currency settings for schema {self.schema}. Reason: {exp}")
             return False
 
-        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        invalidate_view_cache_for_tenant_and_all_source_types(self.schema)
         return True
 
     def _cost_type_handler(self, settings):
@@ -338,7 +339,7 @@ class Settings:
             LOG.warning(f"Failed to store new cost_type settings for schema {self.schema}. Reason: {exp}")
             return False
 
-        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_OCP)
+        invalidate_view_cache_for_tenant_and_source_type(self.schema, Provider.PROVIDER_AWS)
         return True
 
     def build_settings(self):

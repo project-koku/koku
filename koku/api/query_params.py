@@ -302,7 +302,8 @@ class QueryParameters:
                 resolution=str(resolution),
             )
         else:
-            self.set_filter(resolution="daily")
+            if not resolution:
+                self.set_filter(resolution="daily")
 
     def _validate(self):
         """Validate query parameters.
