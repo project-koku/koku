@@ -141,23 +141,6 @@ PARTITIONED_MODEL_NAMES = [
     "AzureStorageSummaryP",
     "AzureNetworkSummaryP",
     "AzureDatabaseSummaryP",
-    "GCPCostSummaryP",
-    "GCPCostSummaryByAccountP",
-    "GCPCostSummaryByProjectP",
-    "GCPCostSummaryByRegionP",
-    "GCPCostSummaryByServiceP",
-    "GCPComputeSummaryP",
-    "GCPComputeSummaryByProjectP",
-    "GCPComputeSummaryByServiceP",
-    "GCPComputeSummaryByAccountP",
-    "GCPComputeSummaryByRegionP",
-    "GCPStorageSummaryP",
-    "GCPStorageSummaryByProjectP",
-    "GCPStorageSummaryByServiceP",
-    "GCPStorageSummaryByAccountP",
-    "GCPStorageSummaryByRegionP",
-    "GCPNetworkSummaryP",
-    "GCPDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
