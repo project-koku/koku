@@ -432,16 +432,22 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 date_filters = {}
 
             # Models that are linked via the billing id
-            MARKUP_MODELS_BILL = (AWSCostEntryLineItemDailySummary, get_model("OCPAWSCostLineItemDailySummary"))
+            MARKUP_MODELS_BILL_AWS = AWSCostEntryLineItemDailySummary
+            MARKUP_MODELS_BILL_OCP_AWS = get_model("OCPAWSCostLineItemDailySummary")
             # Models that are linked via the provider_id (uuid)
             MARKUP_MODELS_PROVIDER = (get_model("OCPALLCostLineItemDailySummaryP"), *OCP_ON_ALL_PERSPECTIVES)
             # Linked by provider, model for project
             MARKUP_PROJECT_MODEL_PROVIDER = get_model("OCPALLCostLineItemProjectDailySummaryP")
             for bill_id in bill_ids:
-                for markup_model in MARKUP_MODELS_BILL:
-                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                        markup_cost=(F("unblended_cost") * markup)
-                    )
+                MARKUP_MODELS_BILL_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                    markup_cost=(F("unblended_cost") * markup),
+                    markup_cost_blended=(F("blended_cost") * markup),
+                    markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                )
+
+                MARKUP_MODELS_BILL_OCP_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                    markup_cost=(F("unblended_cost") * markup)
+                )
 
                 MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
                     source_uuid=provider_uuid, source_type="AWS", **date_filters
