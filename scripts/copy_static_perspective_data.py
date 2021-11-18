@@ -43,7 +43,7 @@ def _execute(conn, sql, params=None):
     return cur
 
 
-def get_azure_matviews(conn):
+def get_gcp_matviews(conn):
     sql = """
 with matview_info as (
 select m.relname::text as "matview_name",
@@ -54,7 +54,7 @@ select m.relname::text as "matview_name",
    and mc.attnum > 0
  where m.relkind = 'm'
    and m.relnamespace = 'template0'::regnamespace
-   and m.relname ~ '^reporting_azure_'
+   and m.relname ~ '^reporting_gcp_'
  group
     by m.relname
 ),
@@ -67,7 +67,7 @@ select t.relname::text as "partable_name",
    and tc.attnum > 0
  where t.relkind = 'p'
    and t.relnamespace = 'template0'::regnamespace
-   and t.relname ~ '^reporting_azure_.*_p$'
+   and t.relname ~ '^reporting_gcp_.*_p$'
  group
     by t.relname
 )
@@ -93,7 +93,7 @@ select t.schema_name
   join public.api_customer c
     on c.schema_name = t.schema_name
  where t.schema_name ~ '^acct'
-   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^Azure')
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^GCP')
  order by 1;
 """
     LOG.info("Getting all customer schemata...")
@@ -245,7 +245,7 @@ def data_exists(conn, schema_name, partable_name):
     return res["data_exists"]
 
 
-def process_azure_matviews(conn, schemata, matviews):  # noqa
+def process_gcp_matviews(conn, schemata, matviews):  # noqa
     i = 0
     tot = len(schemata)
     for schema in schemata:
@@ -315,11 +315,11 @@ def process_azure_matviews(conn, schemata, matviews):  # noqa
 
 def main():
     with connect() as conn:
-        matviews = get_azure_matviews(conn)
+        matviews = get_gcp_matviews(conn)
         schemata = get_customer_schemata(conn)
         conn.rollback()  # close any open tx from selects
 
-        process_azure_matviews(conn, schemata, matviews)
+        process_gcp_matviews(conn, schemata, matviews)
 
 
 if __name__ == "__main__":
