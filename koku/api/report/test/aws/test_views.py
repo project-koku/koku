@@ -616,11 +616,20 @@ class AWSReportViewTest(IamTestCase):
 
     def test_start_end_parameters_monthly_resolution(self):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
-        qs_list = ["?start_date=2021-04-01&end_date=2021-04-13&filter[resolution]=monthly"]
+        qs_list = ["?start_date=-04-01&end_2021date=2021-04-13&filter[resolution]=monthly"]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_start_end_parameters_no_resolution(self):
+        """Test that a no_validation error is raised for no resolution with start/end parameters."""
+        dh = DateHelper()
+        qs_list = [f"?start_date={dh.last_month_end.date()}&end_date={dh.today.date()}"]
+        for qs in qs_list:
+            url = reverse("reports-aws-costs") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_start_end_parameters_with_delta(self):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
