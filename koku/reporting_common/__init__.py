@@ -41,6 +41,7 @@ REPORT_COLUMN_MAP = defaultdict(
             "lineItem/UnblendedCost": "unblended_cost",
             "lineItem/BlendedRate": "blended_rate",
             "lineItem/BlendedCost": "blended_cost",
+            "savingsPlan/SavingsPlanEffectiveCost": "savingsplan_effective_cost",
             "lineItem/TaxType": "tax_type",
             "pricing/publicOnDemandCost": "public_on_demand_cost",
             "pricing/publicOnDemandRate": "public_on_demand_rate",
