@@ -616,7 +616,9 @@ class AWSReportViewTest(IamTestCase):
 
     def test_start_end_parameters_monthly_resolution(self):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
-        qs_list = [f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"]
+        qs_list = [
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
+        ]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
