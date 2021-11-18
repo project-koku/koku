@@ -576,17 +576,6 @@ class QueryParamSerializerTest(IamTestCase):
                 "end_date": dh.today.date(),
                 "filter": {"resolution": "daily"},
             },
-        ]
-
-        for params in scenarios:
-            with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params, context=self.alt_request_context)
-                self.assertTrue(serializer.is_valid(raise_exception=True))
-
-    def test_parse_filter_dates_monthly_resolution(self):
-        """Test parse of a filter date-based param with monthly resolution should succeed."""
-        dh = DateHelper()
-        scenarios = [
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
