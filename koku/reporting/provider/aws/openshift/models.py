@@ -27,9 +27,9 @@ UI_SUMMARY_TABLES = (
     "reporting_ocpaws_cost_summary_by_account_p",
     "reporting_ocpaws_cost_summary_by_region_p",
     "reporting_ocpaws_cost_summary_by_service_p",
-    "reporting_ocpaws_storage_summary_p",
     "reporting_ocpaws_database_summary_p",
     "reporting_ocpaws_network_summary_p",
+    "reporting_ocpaws_storage_summary_p",
 )
 
 
@@ -590,7 +590,7 @@ class OCPAWSCostSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSCostSummary."""
+        """Meta for OCPAWSCostSummaryP."""
 
         db_table = "reporting_ocpaws_cost_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_usst")]
@@ -628,7 +628,7 @@ class OCPAWSCostSummaryByAccountP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSCostSummaryByAccount."""
+        """Meta for OCPAWSCostSummaryByAccountP."""
 
         db_table = "reporting_ocpaws_cost_summary_by_account_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_acct_usst")]
@@ -670,7 +670,7 @@ class OCPAWSCostSummaryByServiceP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSCostSummaryByService."""
+        """Meta for OCPAWSCostSummaryByServiceP."""
 
         db_table = "reporting_ocpaws_cost_summary_by_service_p"
         indexes = [
@@ -719,7 +719,7 @@ class OCPAWSCostSummaryByRegionP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSCostSummaryByRegion."""
+        """Meta for OCPAWSCostSummaryByRegionP."""
 
         db_table = "reporting_ocpaws_cost_summary_by_region_p"
         indexes = [
@@ -769,7 +769,7 @@ class OCPAWSComputeSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSComputeSummary."""
+        """Meta for OCPAWSComputeSummaryP."""
 
         db_table = "reporting_ocpaws_compute_summary_p"
         indexes = [
@@ -822,7 +822,7 @@ class OCPAWSStorageSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSStorageSummary."""
+        """Meta for OCPAWSStorageSummaryP."""
 
         db_table = "reporting_ocpaws_storage_summary_p"
         indexes = [
@@ -873,7 +873,7 @@ class OCPAWSNetworkSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSNetworkSummary."""
+        """Meta for OCPAWSNetworkSummaryP."""
 
         db_table = "reporting_ocpaws_network_summary_p"
         indexes = [
@@ -924,7 +924,7 @@ class OCPAWSDatabaseSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPAWSDatabaseSummary."""
+        """Meta for OCPAWSDatabaseSummaryP."""
 
         db_table = "reporting_ocpaws_database_summary_p"
         indexes = [
