@@ -16,10 +16,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    replaces = [
-        ("cost_models", "0001_initial_squashed_0018_auto_20200116_2048"),
-        ("cost_models", "0002_auto_20200318_1233"),
-    ]
+    replaces = []
 
     dependencies = []
 
