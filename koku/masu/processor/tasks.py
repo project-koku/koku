@@ -29,10 +29,13 @@ from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import MasuProcessingError
+from masu.exceptions import MasuProviderError
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -47,10 +50,9 @@ from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
 from reporting.models import GCP_MATERIALIZED_VIEWS
-from reporting.models import OCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
-from reporting.models import OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+
 
 LOG = logging.getLogger(__name__)
 
@@ -125,9 +127,8 @@ def record_report_status(manifest_id, file_name, tracing_id, context={}):
     return already_processed
 
 
-# pylint: disable=too-many-locals
-@celery_app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)
-def get_report_files(
+@celery_app.task(name="masu.processor.tasks.get_report_files", queue=GET_REPORT_FILES_QUEUE, bind=True)  # noqa: C901
+def get_report_files(  # noqa: C901
     self,
     customer_name,
     authentication,
@@ -168,17 +169,24 @@ def get_report_files(
         tracing_id = report_context.get("assembly_id", "no-tracing-id")
         WorkerCache().add_task_to_cache(cache_key)
 
-        report_dict = _get_report_files(
-            tracing_id,
-            customer_name,
-            authentication,
-            billing_source,
-            provider_type,
-            provider_uuid,
-            month,
-            cache_key,
-            report_context,
-        )
+        context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+
+        try:
+            report_dict = _get_report_files(
+                tracing_id,
+                customer_name,
+                authentication,
+                billing_source,
+                provider_type,
+                provider_uuid,
+                month,
+                report_context,
+            )
+        except (MasuProcessingError, MasuProviderError, ReportDownloaderError) as err:
+            worker_stats.REPORT_FILE_DOWNLOAD_ERROR_COUNTER.labels(provider_type=provider_type).inc()
+            WorkerCache().remove_task_from_cache(cache_key)
+            LOG.warning(log_json(tracing_id, str(err), context))
+            return
 
         stmt = (
             f"Reports to be processed: "
@@ -188,7 +196,7 @@ def get_report_files(
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
-            LOG.info(log_json(tracing_id, stmt))
+            LOG.info(log_json(tracing_id, stmt, context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
             return None
@@ -219,22 +227,22 @@ def get_report_files(
 
         except (ReportProcessorError, ReportProcessorDBError) as processing_error:
             worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-            LOG.error(str(processing_error))
+            LOG.error(log_json(tracing_id, str(processing_error), context))
             WorkerCache().remove_task_from_cache(cache_key)
             raise processing_error
         except NotImplementedError as err:
-            LOG.info(str(err))
+            LOG.info(log_json(tracing_id, str(err), context))
             WorkerCache().remove_task_from_cache(cache_key)
 
         WorkerCache().remove_task_from_cache(cache_key)
 
         return report_meta
     except ReportDownloaderWarning as err:
-        LOG.warning(str(err))
+        LOG.warning(log_json(tracing_id, str(err), context))
         WorkerCache().remove_task_from_cache(cache_key)
     except Exception as err:
         worker_stats.PROCESS_REPORT_ERROR_COUNTER.labels(provider_type=provider_type).inc()
-        LOG.error(str(err))
+        LOG.error(log_json(tracing_id, str(err), context))
         WorkerCache().remove_task_from_cache(cache_key)
 
 
@@ -432,7 +440,7 @@ def update_summary_tables(  # noqa: C901
             queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
         )
     else:
-        stmt = f"update_cost_model_costs skipped. " f" schema_name: {schema_name}, " f" provider_uuid: {provider_uuid}"
+        stmt = f"update_cost_model_costs skipped. schema_name: {schema_name}, provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = refresh_materialized_views.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
@@ -568,21 +576,19 @@ def refresh_materialized_views(  # noqa: C901
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
     if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS)
+        materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS)
         if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", fallback_function=fallback_true):
             materialized_views = (
-                AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+                AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS
             )
     elif provider_type in (Provider.PROVIDER_OCP):
         materialized_views = (
-            OCP_MATERIALIZED_VIEWS
-            + OCP_ON_AWS_MATERIALIZED_VIEWS
+            OCP_ON_AWS_MATERIALIZED_VIEWS
             + OCP_ON_AZURE_MATERIALIZED_VIEWS
-            + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
         )
     elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         materialized_views = (
-            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS + OCP_ON_INFRASTRUCTURE_MATERIALIZED_VIEWS
+            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS
         )
     elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         materialized_views = GCP_MATERIALIZED_VIEWS

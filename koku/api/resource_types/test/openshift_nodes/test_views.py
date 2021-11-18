@@ -11,7 +11,7 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
-from reporting.provider.ocp.models import OCPCostSummaryByNode
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 
 
 class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
@@ -27,7 +27,7 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+                OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
                 .values("value")
                 .distinct()
                 .filter(node__in=["aws_compute_1"])
@@ -47,7 +47,7 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+                OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
                 .values("value")
                 .distinct()
                 .filter(cluster_id__in=["OCP-on-AWS"])
@@ -67,7 +67,7 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+                OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
                 .values("value")
                 .distinct()
                 .filter(node__in=["aws_compute_1"], cluster_id__in=["OCP-on-AWS"])
@@ -87,7 +87,7 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+                OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
                 .values("value")
                 .distinct()
                 .filter(cluster_id__in=["OCP-on-AWS"])
@@ -107,7 +107,7 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
             expected = (
-                OCPCostSummaryByNode.objects.annotate(**{"value": F("node")})
+                OCPCostSummaryByNodeP.objects.annotate(**{"value": F("node")})
                 .values("value")
                 .distinct()
                 .filter(node__in=["aws_compute_1"])

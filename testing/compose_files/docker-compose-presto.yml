@@ -12,7 +12,8 @@ services:
       MINIO_ROOT_PASSWORD: kokuminiosecret
     ports:
       - 9000:9000
-    command: server /data
+      - 9090:9090
+    command: server /data --console-address ":9090"
     volumes:
       - ./../../.trino/parquet_data:/data
 
