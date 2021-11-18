@@ -30,6 +30,8 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: _MIGRATION_DIRECTIVE
+          value: ${_MIGRATION_DIRECTIVE}
         image: ${IMAGE}:${IMAGE_TAG}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
@@ -63,3 +65,6 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- name: _MIGRATION_DIRECTIVE
+  required: false
+  value: ""
