@@ -64,16 +64,16 @@ from reporting.provider.aws.models import AWSStorageSummaryByService
 from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.aws.openshift.models import OCPAWSComputeSummary
+from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
-from reporting.provider.aws.openshift.models import OCPAWSCostSummary
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegion
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByService
-from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummary
-from reporting.provider.aws.openshift.models import OCPAWSNetworkSummary
-from reporting.provider.aws.openshift.models import OCPAWSStorageSummary
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByServiceP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSNetworkSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSTagsSummary
 from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureComputeSummaryP
@@ -212,17 +212,6 @@ OCP_ON_ALL_PERSPECTIVES = (
     OCPAllDatabaseSummaryPT,
     OCPAllNetworkSummaryPT,
     OCPAllStorageSummaryPT,
-)
-
-OCP_ON_AWS_MATERIALIZED_VIEWS = (
-    OCPAWSCostSummary,
-    OCPAWSCostSummaryByAccount,
-    OCPAWSCostSummaryByService,
-    OCPAWSCostSummaryByRegion,
-    OCPAWSComputeSummary,
-    OCPAWSStorageSummary,
-    OCPAWSNetworkSummary,
-    OCPAWSDatabaseSummary,
 )
 
 OCP_ON_AZURE_MATERIALIZED_VIEWS = (

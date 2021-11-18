@@ -31,6 +31,8 @@ from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
+from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
+
 
 LOG = logging.getLogger(__name__)
 
@@ -349,6 +351,14 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self._execute_raw_sql_query(
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
+
+    def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in tables:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
+            self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
     def populate_ocp_on_aws_cost_daily_summary_presto(
         self,
