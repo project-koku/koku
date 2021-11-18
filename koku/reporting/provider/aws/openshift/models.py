@@ -595,7 +595,7 @@ class OCPAWSCostSummaryP(models.Model):
         db_table = "reporting_ocpaws_cost_summary_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_usst")]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -633,7 +633,7 @@ class OCPAWSCostSummaryByAccountP(models.Model):
         db_table = "reporting_ocpaws_cost_summary_by_account_p"
         indexes = [models.Index(fields=["usage_start"], name="ocpawscostsumm_acct_usst")]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -678,7 +678,7 @@ class OCPAWSCostSummaryByServiceP(models.Model):
             models.Index(fields=["product_code"], name="ocpawscostsumm_svc_prod_cd"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -728,7 +728,7 @@ class OCPAWSCostSummaryByRegionP(models.Model):
             models.Index(fields=["availability_zone"], name="ocpawscostsumm_reg_zone"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -777,7 +777,7 @@ class OCPAWSComputeSummaryP(models.Model):
             models.Index(fields=["instance_type"], name="ocpawscompsumm_insttyp"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -830,7 +830,7 @@ class OCPAWSStorageSummaryP(models.Model):
             models.Index(fields=["product_family"], name="ocpawsstorsumm_product_fam"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -881,7 +881,7 @@ class OCPAWSNetworkSummaryP(models.Model):
             models.Index(fields=["product_code"], name="ocpawsnetsumm_product_cd"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 
@@ -932,7 +932,7 @@ class OCPAWSDatabaseSummaryP(models.Model):
             models.Index(fields=["product_code"], name="ocpawsdbsumm_product_cd"),
         ]
 
-    id = models.IntegerField(primary_key=True)
+    id = models.UUIDField(primary_key=True)
 
     usage_start = models.DateField(null=False)
 

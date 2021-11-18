@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSStorageSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -53,7 +53,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSNetworkSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -90,7 +90,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSDatabaseSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -127,7 +127,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSCostSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -154,7 +154,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSCostSummaryByServiceP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -190,7 +190,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSCostSummaryByRegionP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -226,7 +226,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSCostSummaryByAccountP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
@@ -260,7 +260,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="OCPAWSComputeSummaryP",
             fields=[
-                ("id", models.IntegerField(primary_key=True, serialize=False)),
+                ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("cluster_id", models.CharField(max_length=50, null=True)),
