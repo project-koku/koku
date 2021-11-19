@@ -85,6 +85,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             "schema_name": self._schema,
             "start_date": start_date,
             "end_date": end_date,
+            "source_uuid": aws_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
@@ -116,14 +117,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
             accessor.back_populate_ocp_on_aws_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_aws_tags_summary_table(aws_bill_ids, start_date, end_date)
-
-            # the source_uuid in the ocp-on-aws tables is the AWS uuid
-            sql_params["source_uuid"] = aws_provider_uuid
             accessor.populate_ocp_on_aws_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                # the source_uuid in the ocp-on-all tables is the OCP uuid
-                sql_params["source_uuid"] = openshift_provider_uuid
                 sql_params["source_type"] = "AWS"
                 LOG.info(f"Processing OCP-ALL for AWS (T)  (s={start_date} e={end_date})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("aws", sql_params)
