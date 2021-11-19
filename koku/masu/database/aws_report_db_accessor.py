@@ -21,6 +21,10 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.models import OCP_ON_AWS_PERSPECTIVES
+from reporting.models import OCPAllCostLineItemDailySummaryP
+from reporting.models import OCPAllCostLineItemProjectDailySummaryP
+from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -441,29 +445,27 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 date_filters = {}
 
-            # Models that are linked via the billing id
-            MARKUP_MODELS_BILL_AWS = AWSCostEntryLineItemDailySummary
-            MARKUP_MODELS_BILL_OCP_AWS = get_model("OCPAWSCostLineItemDailySummary")
-            # Models that are linked via the provider_id (uuid)
-            MARKUP_MODELS_PROVIDER = (get_model("OCPALLCostLineItemDailySummaryP"), *OCP_ON_ALL_PERSPECTIVES)
-            # Linked by provider, model for project
-            MARKUP_PROJECT_MODEL_PROVIDER = get_model("OCPALLCostLineItemProjectDailySummaryP")
+            OCPALL_MARKUP = (OCPAllCostLineItemDailySummaryP, *OCP_ON_ALL_PERSPECTIVES)
             for bill_id in bill_ids:
-                MARKUP_MODELS_BILL_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                     markup_cost=(F("unblended_cost") * markup),
                     markup_cost_blended=(F("blended_cost") * markup),
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                 )
 
-                MARKUP_MODELS_BILL_OCP_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                     markup_cost=(F("unblended_cost") * markup)
                 )
+                for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
+                    ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
 
-                MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
+                OCPAllCostLineItemProjectDailySummaryP.objects.filter(
                     source_uuid=provider_uuid, source_type="AWS", **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
-                for markup_model in MARKUP_MODELS_PROVIDER:
+                for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(source_uuid=provider_uuid, source_type="AWS", **date_filters).update(
                         markup_cost=(F("unblended_cost") * markup)
                     )

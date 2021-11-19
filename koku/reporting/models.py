@@ -214,6 +214,18 @@ OCP_ON_ALL_PERSPECTIVES = (
     OCPAllStorageSummaryPT,
 )
 
+# These are partitioned tables
+OCP_ON_AWS_PERSPECTIVES = (
+    OCPAWSComputeSummaryP,
+    OCPAWSCostSummaryP,
+    OCPAWSCostSummaryByAccountP,
+    OCPAWSCostSummaryByServiceP,
+    OCPAWSCostSummaryByRegionP,
+    OCPAWSDatabaseSummaryP,
+    OCPAWSNetworkSummaryP,
+    OCPAWSStorageSummaryP,
+)
+
 OCP_ON_AZURE_MATERIALIZED_VIEWS = (
     OCPAzureCostSummary,
     OCPAzureCostSummaryByAccount,
