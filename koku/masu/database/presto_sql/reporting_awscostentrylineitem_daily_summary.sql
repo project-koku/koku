@@ -27,7 +27,9 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_awscostentrylineitem_daily_s
     account_alias_id,
     organizational_unit_id,
     source_uuid,
-    markup_cost
+    markup_cost,
+    markup_cost_blended,
+    markup_cost_savingsplan
 )
 with cte_pg_enabled_keys as (
     select array_agg(key order by key) as keys
@@ -67,7 +69,9 @@ SELECT uuid() as uuid,
     aa.id as account_alias_id,
     ou.id as organizational_unit_id,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
+    cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost,
+    cast(blended_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_blended,
+    cast(savingsplan_effective_cost * {{markup | sqlsafe}} AS decimal(33,15)) as markup_cost_savingsplan
 FROM (
     SELECT date(lineitem_usagestartdate) as usage_start,
         date(lineitem_usagestartdate) as usage_end,
