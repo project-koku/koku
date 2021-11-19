@@ -91,6 +91,17 @@ VIEWS = (
     "reporting_azure_storage_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_azure_compute_summary_p",
+    "reporting_azure_cost_summary_p",
+    "reporting_azure_cost_summary_by_account_p",
+    "reporting_azure_cost_summary_by_location_p",
+    "reporting_azure_cost_summary_by_service_p",
+    "reporting_azure_database_summary_p",
+    "reporting_azure_network_summary_p",
+    "reporting_azure_storage_summary_p",
+)
+
 
 class AzureCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.

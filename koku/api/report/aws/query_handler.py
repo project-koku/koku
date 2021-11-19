@@ -729,11 +729,3 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
             )
         return super()._group_by_ranks(query, data)
-
-    # def set_default_cost_type(parameters):
-    #     """
-    #     Sets default value for cost_type
-    #     Temporarily set up to be the string unblended_cost
-    #     To do: grab default value from the user_settings DB table once its added
-    #     """
-    #     parameters["cost_type"] = "unblended_cost"
