@@ -1403,11 +1403,11 @@
         },
         "watchtower": {
             "hashes": [
-                "sha256:b350230b8798f84185deb0169a4cb762e4b2fc6030859e79d4b7e9acad7a05a2",
-                "sha256:e479674f73c7d8b5ebbb5882b32d3d5d74ad736695c62ab92242ea4b8927153c"
+                "sha256:2859275df4ad71b005b983613dd64cabbda61f9fdd3db7600753fc465090119d",
+                "sha256:5eb5d78e730e1016e166b14a79a02d1b939cf1a58f2d559ff4f7c6f953284ebf"
             ],
             "index": "pypi",
-            "version": "==2.0.0"
+            "version": "==1.0.6"
         },
         "wcwidth": {
             "hashes": [
