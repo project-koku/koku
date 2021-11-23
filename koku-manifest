@@ -116,7 +116,7 @@ mgmt_services/cost-mgmt:koku/python-unleashclient:4.4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-uritemplate:4.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-urllib3:1.26.7.pipfile
 mgmt_services/cost-mgmt:koku/python-vine:5.0.0.pipfile
-mgmt_services/cost-mgmt:koku/python-watchtower:2.0.0.pipfile
+mgmt_services/cost-mgmt:koku/python-watchtower:1.0.6.pipfile
 mgmt_services/cost-mgmt:koku/python-wcwidth:0.2.5.pipfile
 mgmt_services/cost-mgmt:koku/python-whitenoise:5.3.0.pipfile
 mgmt_services/cost-mgmt:koku/python-wrapt:1.13.3.pipfile
