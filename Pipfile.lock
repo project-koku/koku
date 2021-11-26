@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "a3c08e6307aaf1b5fcd0fdc912db97dae59f6a44dabf40ec6940d62187c4a211"
+            "sha256": "fad109a56fc4c61dd2fe9fbb1b5d245c5913c5b0ade484d5e07cc8456fa04748"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -153,19 +153,19 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:879ee87037ad51317483ba175dcb982fffbc32de207e033287875b042765d750",
-                "sha256:bbf53a077d6a0575ddec8026f0475ca6ee6f41b227914bf315bf3e049a3d653a"
+                "sha256:97bbb57d9e37ee24e013d022a2b39b21b131a7b1364d4a44a1e2a16c3a66979f",
+                "sha256:df6f0c7f57a4463c9827080690046eb9381c6216d3a2f539ba74ba5c7dc84ef5"
             ],
             "index": "pypi",
-            "version": "==1.20.13"
+            "version": "==1.20.14"
         },
         "botocore": {
             "hashes": [
-                "sha256:35792b2196049ef900f538cae51fb8359c940156eef187962aa9e3bd2c0b8e8c",
-                "sha256:9b9385e61058eb0e7fc43013e4b43a710c9abafa2b28c340c45978d5a65c7113"
+                "sha256:28d5b0efa2d6a22232551b0b2df88a2978cbe9b1faa7ed0821dd012550b0aed6",
+                "sha256:e8d52cbf2e73c6268cf2c207f47e3cfb3ede0983f93e8b59674b54628e7ef1f1"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.23.13"
+            "version": "==1.23.14"
         },
         "bs4": {
             "hashes": [
@@ -847,7 +847,7 @@
                 "sha256:f5162ec777ba7138906c9c274353ece5603646c6965570d82905546579573f73",
                 "sha256:fde96af889262e85aa033f8ee1d3241e32bf36228318a61f1ace579df4e8170d"
             ],
-            "markers": "python_version < '3.11' and python_version >= '3.7'",
+            "markers": "python_version < '3.10' and platform_machine != 'aarch64' and platform_machine != 'arm64'",
             "version": "==1.21.4"
         },
         "oauthlib": {
@@ -1440,11 +1440,11 @@
         },
         "watchtower": {
             "hashes": [
-                "sha256:b350230b8798f84185deb0169a4cb762e4b2fc6030859e79d4b7e9acad7a05a2",
-                "sha256:e479674f73c7d8b5ebbb5882b32d3d5d74ad736695c62ab92242ea4b8927153c"
+                "sha256:2859275df4ad71b005b983613dd64cabbda61f9fdd3db7600753fc465090119d",
+                "sha256:5eb5d78e730e1016e166b14a79a02d1b939cf1a58f2d559ff4f7c6f953284ebf"
             ],
             "index": "pypi",
-            "version": "==2.0.0"
+            "version": "==1.0.6"
         },
         "whitenoise": {
             "hashes": [
@@ -1666,19 +1666,19 @@
         },
         "boto3": {
             "hashes": [
-                "sha256:879ee87037ad51317483ba175dcb982fffbc32de207e033287875b042765d750",
-                "sha256:bbf53a077d6a0575ddec8026f0475ca6ee6f41b227914bf315bf3e049a3d653a"
+                "sha256:97bbb57d9e37ee24e013d022a2b39b21b131a7b1364d4a44a1e2a16c3a66979f",
+                "sha256:df6f0c7f57a4463c9827080690046eb9381c6216d3a2f539ba74ba5c7dc84ef5"
             ],
             "index": "pypi",
-            "version": "==1.20.13"
+            "version": "==1.20.14"
         },
         "botocore": {
             "hashes": [
-                "sha256:35792b2196049ef900f538cae51fb8359c940156eef187962aa9e3bd2c0b8e8c",
-                "sha256:9b9385e61058eb0e7fc43013e4b43a710c9abafa2b28c340c45978d5a65c7113"
+                "sha256:28d5b0efa2d6a22232551b0b2df88a2978cbe9b1faa7ed0821dd012550b0aed6",
+                "sha256:e8d52cbf2e73c6268cf2c207f47e3cfb3ede0983f93e8b59674b54628e7ef1f1"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.23.13"
+            "version": "==1.23.14"
         },
         "cached-property": {
             "hashes": [
@@ -2558,7 +2558,7 @@
                 "sha256:f5162ec777ba7138906c9c274353ece5603646c6965570d82905546579573f73",
                 "sha256:fde96af889262e85aa033f8ee1d3241e32bf36228318a61f1ace579df4e8170d"
             ],
-            "markers": "python_version < '3.11' and python_version >= '3.7'",
+            "markers": "python_version < '3.10' and platform_machine != 'aarch64' and platform_machine != 'arm64'",
             "version": "==1.21.4"
         },
         "oauthlib": {
