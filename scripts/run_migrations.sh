@@ -25,14 +25,33 @@ arg_check()
 bash_check()
 {
     local -i _rc=0
-    local _chk_token="version 5"
+    local -i _chk_ver_major=${1:-4}
+    local -i _chk_ver_minor=${2:-0}
+    local _ver_str=""
+    local -i _ver_major=0
+    local -i _ver_minor=0
 
-    bash --version | grep -qE "${_chk_token}"
-    _rc=$?
+    _ver_str=$(bash --version | grep -E "version [0-9]+\." | sed -e 's/.*version //1' -e 's/ .x86.*$//1')
+    _ver_major=${_ver_str%%.*}
+    _ver_str=${_ver_str#*.}
+    _ver_minor=${_ver_str%%.*}
 
-    if [[ $_rc -ne 0 ]]
-    then
-        echo "🚨 : ERROR ::  This script uses advanced bash ops. Please upgrade bash to version >= 5" >&2
+    if [[ ${_ver_major} -ge ${_chk_ver_major} ]] ; then
+        if [[ ${_ver_major} -eq ${_chk_ver_major} ]] ; then
+            if [[ ${_ver_minor} -ge ${_chk_ver_minor} ]] ; then
+                _rc=0
+            else
+                _rc=1
+            fi
+        else
+            _rc=0
+        fi
+    else
+        _rc=1
+    fi
+
+    if [[ $_rc -ne 0 ]] ; then
+        echo "🚨 : ERROR ::  This script uses advanced bash ops. Please upgrade bash to version >= ${_chk_ver_major}.${_chk_ver_minor}" >&2
     fi
 
     return $_rc
@@ -147,7 +166,7 @@ process_migrations()
 arg_check $@
 
 # Check to see if bash is compatible
-if bash_check
+if bash_check 4 4
 then
     # Parse out the directive into an array of options
     parse_directive
