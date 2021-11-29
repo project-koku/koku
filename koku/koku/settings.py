@@ -135,6 +135,8 @@ if DEVELOPMENT:
     }
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
+    MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
+    DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
 
 ### Feature Flags
 UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
