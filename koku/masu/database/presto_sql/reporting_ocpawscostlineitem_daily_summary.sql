@@ -69,24 +69,27 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
-    ocp_source varchar,
     project_rank integer,
     data_source_rank integer,
     aws_source varchar,
+    ocp_source varchar,
     year varchar,
-    month varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'year', 'month'])
+    month varchar,
+    day varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['aws_source', 'ocp_source', 'year', 'month', 'day'])
 ;
 
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
+;
 
 DELETE
 FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
--- WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
---     AND year = {{year}}
---     AND month = {{month}}
---     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
-    -- AND usage_start >= TIMESTAMP {{start_date}}
-    -- AND usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
+WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
+    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+    AND year = {{year}}
+    AND month = {{month}}
+    AND day IN ({{days}})
+
 ;
 
 -- Direct resource_id matching
@@ -158,15 +161,12 @@ SELECT aws.uuid as aws_uuid,
         sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        -- max((ocp.{{pod_column | sqlsafe}} / ocp.{{cluster_column | sqlsafe}}) * aws.lineitem_unblendedcost) as pod_cost,
-        -- max((ocp.{{pod_column | sqlsafe}} / ocp.{{cluster_column | sqlsafe}}) * aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
         max(ocp.pod_labels) as pod_labels,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
         row_number() OVER (partition by aws.uuid) as project_rank,
         1 as data_source_rank,
         max(aws.resource_id_matched) as resource_id_matched
-        -- row_number() OVER (partition by aws.uuid, ocp.namespace) as data_source_rank
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
@@ -253,18 +253,6 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as double) as pod_request_memory_gigabyte_hours,
         cast(NULL as double) as cluster_capacity_cpu_core_hours,
         cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
-        -- CASE WHEN ocp.pod_labels IS NOT NULL
-        --     THEN cast(
-        --         map_concat(
-        --             cast(json_parse(ocp.pod_labels) as map(varchar, varchar)),
-        --             cast(json_parse(aws.tags) as map(varchar, varchar))
-        --         ) as JSON)
-        --     ELSE cast(
-        --         map_concat(
-        --             cast(json_parse(ocp.volume_labels) as map(varchar, varchar)),
-        --             cast(json_parse(aws.tags) as map(varchar, varchar))
-        --         ) as JSON)
-        -- END as pod_labels,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
@@ -325,12 +313,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_labels,
     tags,
-    ocp_source,
     project_rank,
     data_source_rank,
     aws_source,
+    ocp_source,
     year,
-    month
+    month,
+    day
 )
 SELECT aws_uuid,
     data_source,
@@ -362,10 +351,6 @@ SELECT aws_uuid,
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
-    -- max((ocp.{{pod_column | sqlsafe}} / ocp.{{cluster_column | sqlsafe}}) * aws.lineitem_unblendedcost) as pod_cost,
-    -- max((ocp.{{pod_column | sqlsafe}} / ocp.{{cluster_column | sqlsafe}}) * aws.lineitem_unblendedcost) * cast({{markup}} as decimal(24,9)) as project_markup_cost,
-    -- pod_cost / project_rank / data_source_rank as pod_cost,
-    -- project_markup_cost / project_rank / data_source_rank as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
@@ -378,14 +363,14 @@ SELECT aws_uuid,
                 cast(json_parse(ocp_aws.tags) as map(varchar, varchar))
             ) as JSON))
     END as pod_labels,
-    -- pod_labels,
     tags,
-    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     project_rank,
     data_source_rank,
     '{{aws_source_uuid | sqlsafe}}' as aws_source,
-    {{year}} as year,
-    {{month}} as month
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
+    cast(year(usage_start) as varchar) as year,
+    cast(month(usage_start) as varchar) as month,
+    cast(day(usage_start) as varchar) as day
 FROM (
     SELECT pds.aws_uuid,
         max(pds.data_source) as data_source,
@@ -409,8 +394,6 @@ FROM (
         max(pds.currency_code) as currency_code,
         sum(pds.unblended_cost) as unblended_cost,
         sum(pds.markup_cost) as markup_cost,
-        -- sum(pds.pod_cost) as pod_cost,
-        -- sum(pds.project_markup_cost) as project_markup_cost,
         sum(pds.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
         sum(pds.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
         sum(pds.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
