@@ -7,11 +7,15 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 
+from django.db.models import DecimalField
+from django.db.models import F
 from django.db.models import Max
+from django.db.models import Sum
+from django.db.models import Value
 from django.db.models.expressions import OrderBy
+from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -63,6 +67,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
+        with tenant_context(self.tenant):
+            self.namespaces = OCPUsageLineItemDailySummary.objects.values("namespace").distinct()
+            self.namespaces = [entry.get("namespace") for entry in self.namespaces]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -605,25 +612,32 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    @skip("This test needs to be re-engineered")
     def test_ocp_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test execute_query with order by date for correct order of projects."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
-        correctlst = []
+        expected = {}
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
         # test query output
+        for namespace in self.namespaces:
+            with tenant_context(self.tenant):
+                service_holder = (
+                    OCPUsageLineItemDailySummary.objects.filter(namespace=namespace)
+                    .filter(usage_start=yesterday)
+                    .aggregate(
+                        cost=Sum(Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())))
+                    )
+                )
+
+                expected[namespace] = service_holder["cost"]
+        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
+        correctlst = list(sorted_expected.keys())
         for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("projects"):
-                    correctlst.append(service.get("project"))
-        for element in data:
-            # Check if there is any data in services
             for service in element.get("projects"):
                 lst.append(service.get("project"))
             if lst and correctlst:
