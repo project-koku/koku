@@ -2,12 +2,12 @@
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
-  name: db-migrations
+  name: koku-migrations
 objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
-    name: db-migrations
+    name: koku-migrations
   spec:
     database:
       sharedDbAppName: koku
@@ -15,7 +15,7 @@ objects:
       - koku
     envName: ${ENV_NAME}
     jobs:
-    - name: koku-mig-cji-${IMAGE_TAG}
+    - name: koku-migrations-${IMAGE_TAG}
       podSpec:
         args:
         - /bin/bash
@@ -40,11 +40,11 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: koku-mig-cji-${IMAGE_TAG}
+    name: koku-migrations-${IMAGE_TAG}
   spec:
-    appName: koku-mig-cji
+    appName: koku-migrations
     jobs:
-      - koku-mig-cji-${IMAGE_TAG}
+      - koku-migrations-${IMAGE_TAG}
 parameters:
 - name: ENV_NAME
   required: true
