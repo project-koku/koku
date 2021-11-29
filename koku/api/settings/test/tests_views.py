@@ -42,7 +42,7 @@ class SettingsViewTest(IamTestCase):
         primary_object = data[0]
         tg_mngmnt_subform_fields = primary_object.get("fields")
         self.assertIsNotNone(tg_mngmnt_subform_fields)
-        fields_len = 3
+        fields_len = 6
         self.assertEqual(len(tg_mngmnt_subform_fields), fields_len)
         for element in tg_mngmnt_subform_fields:
             component_name = element.get("component")
