@@ -15,7 +15,7 @@ objects:
       - koku
     envName: ${ENV_NAME}
     jobs:
-    - name: migration-runner-${IMAGE_TAG}
+    - name: koku-migrations-cji-${IMAGE_TAG}
       podSpec:
         args:
         - /bin/bash
@@ -40,7 +40,7 @@ objects:
   spec:
     appName: koku-migrations-cji
     jobs:
-      - migration-runner-${IMAGE_TAG}
+      - koku-migrations-cji-${IMAGE_TAG}
 parameters:
 - name: ENV_NAME
   required: true
@@ -48,7 +48,7 @@ parameters:
 - description: Image tag
   name: IMAGE_TAG
   required: true
-  value: 0f1ec3b
+  value: 9c0efd1
   # value: latest
 - description: Image
   name: IMAGE
@@ -69,4 +69,4 @@ parameters:
   value: "True"
 - name: _MIGRATION_DIRECTIVE
   required: true
-  value: "api:0049"
+  value: ""
