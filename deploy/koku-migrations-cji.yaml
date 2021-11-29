@@ -48,11 +48,13 @@ parameters:
 - description: Image tag
   name: IMAGE_TAG
   required: true
-  value: latest
+  value: 0f1ec3b
+  # value: latest
 - description: Image
   name: IMAGE
   required: true
-  value: quay.io/cloudservices/koku
+  value: quay.io/48_41_50/local_koku
+  # value: quay.io/cloudservices/koku
 - displayName: Presto/Trino host
   name: PRESTO_HOST
   value: trino-coordinator
@@ -67,4 +69,4 @@ parameters:
   value: "True"
 - name: _MIGRATION_DIRECTIVE
   required: true
-  value: ""
+  value: "api:0049"

@@ -14,10 +14,12 @@ _NOOP="__NOOP__"
 arg_check()
 {
     # Command line args will override _MIGRATION_DIRECTIVE
-    if [[ ( -n "$1" ) && ( -n "$2" ) ]]; then
-        _MIGRATION_DIRECTIVE="${1}:${2}"
-    elif [[ ( -n "$1" ) && ( -z "$2" ) ]]; then
-        _MIGRATION_DIRECTIVE="${1}:${2}"
+    if [[ -n "$1" ]] ; then
+        if [[ -n "$2" ]] ; then
+            _MIGRATION_DIRECTIVE="${1}:${2}"
+        else
+            _MIGRATION_DIRECTIVE="${1}"
+        fi
     fi
 }
 
