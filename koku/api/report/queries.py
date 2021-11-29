@@ -612,7 +612,7 @@ class ReportQueryHandler(QueryHandler):
         for dictionary in data:
             new_values = []
             for key, values in dictionary.items():
-                if type(values) == list: 
+                if type(values) == list:
                     for day in values:
                         if type(day) == dict:
                             day = self._apply_total_exchange(day)
