@@ -4,8 +4,39 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 _APP_HOME=${APP_HOME:-$(dirname ${SCRIPT_DIR})/koku}
 
+declare -i RC=0
 declare -i _HAS_MIG=0
-declare -a _MIG_OPS
+declare -a _MIG_OPS=()
+
+_NOOP="__NOOP__"
+
+
+arg_check()
+{
+    # Command line args will override _MIGRATION_DIRECTIVE
+    if [[ ( -n "$1" ) && ( -n "$2" ) ]]; then
+        _MIGRATION_DIRECTIVE="${1}:${2}"
+    elif [[ ( -n "$1" ) && ( -z "$2" ) ]]; then
+        _MIGRATION_DIRECTIVE="${1}:${2}"
+    fi
+}
+
+
+bash_check()
+{
+    local -i _rc=0
+    local _chk_token="version 5"
+
+    bash --version | grep -qE "${_chk_token}"
+    _rc=$?
+
+    if [[ $_rc -ne 0 ]]
+    then
+        echo "🚨 : ERROR ::  This script uses advanced bash ops. Please upgrade bash to version >= 5" >&2
+    fi
+
+    return $_rc
+}
 
 
 # This will parse the information in the environment variable _MIGRATION_DIRECTIVE if any
@@ -20,6 +51,7 @@ parse_directive()
     local _tmp _app _mig _op
 
     if [[ -n "${_MIGRATION_DIRECTIVE}" ]]; then
+        # Set terminating delimiter to ensure that parsing works correctly
         if [[ "${_MIGRATION_DIRECTIVE: -1}" != ',' ]]; then
             _tmp="${_MIGRATION_DIRECTIVE},"
         else
@@ -30,38 +62,46 @@ parse_directive()
             _op=${_tmp%%,*}
             _tmp=${_tmp#*,}
 
+            # Attempt to detect an empty op (malformed directive)
             if [[ -z "${_op}" ]]; then
                 break
             fi
 
+            # If the op is app-only, then add a terminating delimiter
             if [[ ${_op} != *":"* ]]; then
                 _op="${_op}:"
             fi
 
+            # Set the flag to bypass the check if there is a migration specified
             [[ -n "${_op#*:}" ]] && _HAS_MIG=1
 
+            # Store the op in the global array
             _MIG_OPS+=("${_op}")
         done
     else
-        _MIG_OPS+=("_NOOP_")
+        # If there are no directives, mark as NO-OP
+        _MIG_OPS+=("${_NOOP}")
     fi
 }
 
 
 check_migrations()
 {
-    local _rc
+    local -i _rc
 
+    # If we have a specific migration, skip the migration check as this could be a downgrade op
     if [[ $_HAS_MIG -eq 0 ]]; then
+        echo "🔎 : Checking to see if migrations should be run..."
         RESULT=$(python3.8 ${_APP_HOME}/manage.py check_migrations | tail -1)
     else
         RESULT="False"
     fi
 
     if [[ "${RESULT}" == "True" ]]; then
-        echo "Migrations have already been processed"
+        echo "👍 : Migrations have already been processed"
         _rc=1
     else
+        echo "🤔 : Migrations should be run"
         _rc=0
     fi
 
@@ -71,12 +111,16 @@ check_migrations()
 
 process_migrations()
 {
+    local -i _rc
+
+    _rc=0
+
     if [[ "${DEVELOPMENT}" == "True" ]]; then
         export DJANGO_READ_DOT_ENV_FILE=True
     fi
 
     for _op in ${_MIG_OPS[@]}; do
-        if [[ ${_op} == "__NOOP__" ]]; then
+        if [[ ${_op} != "${_NOOP}" ]]; then
             _app=${_op%%:*}
             _mig=${_op#*:}
         else
@@ -84,54 +128,43 @@ process_migrations()
             _mig=""
         fi
 
-        echo "Running Migrations ${_app} ${_mig}"
+        echo "⌚ : Running Migrations ${_app} ${_mig}"
         python3.8 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig}
-        RC=$?
-        if [[ ${RC} -ne 0 ]]; then
-            echo "ERROR (${RC}) running migrations ${_app} ${_mig}"
+        _rc=$?
+        if [[ ${_rc} -ne 0 ]]; then
+            echo "⛔ : ERROR (${_rc}) running migrations ${_app} ${_mig}" >&2
             break
+        else
+            echo "✅ : Migrations complete!"
         fi
     done
+
+    return $_rc
 }
 
 
-parse_directive
+# Check to see if any CLI args will override the env var
+arg_check $@
 
-if check_migrations
+# Check to see if bash is compatible
+if bash_check
 then
-    process_migrations
-    RC=$?
+    # Parse out the directive into an array of options
+    parse_directive
+
+    # Check to see if migrations should be run
+    if check_migrations
+    then
+        # Execute migrations
+        process_migrations
+        RC=$?
+    else
+        # Ensure that a non-zero code never is forwarded from the check func
+        RC=0
+    fi
 else
-    RC=0
+    # Error out on bash check fail
+    RC=2
 fi
-
-# if [[ $_HAS_MIG -eq 0 ]]; then
-#     echo "Checking if migrations need to be processed."
-#     RESULT=$(python3.8 ${_APP_HOME}/manage.py check_migrations | tail -1)
-# else
-#     RESULT="False"
-# fi
-
-# if [[ "$RESULT" == "True" ]]; then
-#     echo "Migrations already processed."
-#     RC=0
-# else
-#     if [[ "${DEVELOPMENT}" == "True" ]]; then
-#         export DJANGO_READ_DOT_ENV_FILE=True
-#     fi
-
-#     for _op in ${_MIG_OPS[@]}; do
-#         _app=${_op%%:*}
-#         _mig=${_op#*:}
-
-#         echo "Running Migration ${_app} ${_mig}"
-#         python3.8 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig}
-#         RC=$?
-#         if [[ ${RC} -ne 0 ]]; then
-#             echo "ERROR (${RC}) running migration ${_app} ${_mig}"
-#             break
-#         fi
-#     done
-# fi
 
 exit $RC
