@@ -11,8 +11,11 @@ from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Coalesce
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -68,6 +71,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.dh.last_month_start, self.dh.last_month_end
             )
         }
+        with tenant_context(self.tenant):
+            self.services = GCPCostEntryLineItemDailySummary.objects.values("service_alias").distinct()
+            self.services = [entry.get("service_alias") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -1075,23 +1081,34 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     service_checked = True
         self.assertTrue(service_checked)
 
-    @skip("This test needs to be re-engineered")
     def test_gcp_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
-        correctlst = []
+        expected = {}
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
         # test query output
-        for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
+        for service in self.services:
+            with tenant_context(self.tenant):
+                service_holder = (
+                    GCPCostEntryLineItemDailySummary.objects.filter(service_alias=service)
+                    .filter(usage_start=yesterday)
+                    .aggregate(
+                        cost=Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    )
+                )
+
+                expected[service] = service_holder["cost"]
+        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
+        correctlst = list(sorted_expected.keys())
         for element in data:
             for service in element.get("services"):
                 lst.append(service.get("service"))
