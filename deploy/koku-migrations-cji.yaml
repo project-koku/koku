@@ -22,12 +22,12 @@ objects:
         - -c
         - $HOME/scripts/run_migrations.sh
         env:
-        # - name: PRESTO_HOST
-        #   value: ${PRESTO_HOST}
-        # - name: PRESTO_PORT
-        #   value: ${PRESTO_PORT}
-        # - name: PROMETHEUS_MULTIPROC_DIR
-        #   value: ${PROMETHEUS_DIR}
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
         - name: REDIS_HOST
           value: ${REDIS_HOST}
         - name: REDIS_PORT
@@ -57,15 +57,15 @@ parameters:
   name: IMAGE
   required: true
   value: quay.io/cloudservices/koku
-# - displayName: Presto/Trino host
-#   name: PRESTO_HOST
-#   value: trino-coordinator
-# - displayName: Presto/Trino port
-#   name: PRESTO_PORT
-#   value: "8000"
-# - displayName: Prometheus multiproc dir
-#   name: PROMETHEUS_DIR
-#   value: /tmp
+- displayName: Presto/Trino host
+  name: PRESTO_HOST
+  value: trino-coordinator
+- displayName: Presto/Trino port
+  name: PRESTO_PORT
+  value: "8000"
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
 - displayName: in-memory store host
   name: REDIS_HOST
   value: redis
