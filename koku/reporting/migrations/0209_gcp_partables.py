@@ -81,7 +81,6 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
-                ("instance_type", models.CharField(max_length=50, null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -145,7 +144,6 @@ class Migration(migrations.Migration):
                 ("id", models.UUIDField(primary_key=True, serialize=False)),
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
-                ("instance_type", models.CharField(max_length=50, null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
                 ("unblended_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -565,10 +563,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="gcpstoragesummarybyregionp",
-            index=models.Index(fields=["instance_type"], name="gcpstorsumm_reg_insttyp"),
-        ),
-        migrations.AddIndex(
-            model_name="gcpstoragesummarybyregionp",
             index=models.Index(fields=["account_id"], name="gcpstorsumm_reg_account_id"),
         ),
         migrations.AddIndex(
@@ -594,10 +588,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="gcpstoragesummarybyaccountp",
             index=models.Index(fields=["usage_start"], name="gcpstorsumm_acc_usage_start"),
-        ),
-        migrations.AddIndex(
-            model_name="gcpstoragesummarybyaccountp",
-            index=models.Index(fields=["instance_type"], name="gcpstorsumm_acc_insttyp"),
         ),
         migrations.AddIndex(
             model_name="gcpstoragesummarybyaccountp",

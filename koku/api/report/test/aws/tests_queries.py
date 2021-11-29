@@ -9,7 +9,6 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -1886,19 +1885,33 @@ class AWSReportQueryTest(IamTestCase):
         for acc in actual:
             self.assertTrue(acc in expected)
 
-    @skip("This test needs to be re-engineered")
     def test_aws_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
         # execute query
         yesterday = self.dh.yesterday.date()
         lst = []
-        correctlst = []
+        expected = {}
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+        for service in self.services:
+            with tenant_context(self.tenant):
+                service_holder = (
+                    AWSCostEntryLineItemDailySummary.objects.filter(product_code=service)
+                    .filter(usage_start=yesterday)
+                    .aggregate(
+                        cost=Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    )
+                )
+
+                expected[service] = service_holder["cost"]
+        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
+        correctlst = list(sorted_expected.keys())
         for element in data:
             for service in element.get("services"):
                 lst.append(service.get("service"))
