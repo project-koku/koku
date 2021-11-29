@@ -824,8 +824,6 @@ class GCPStorageSummaryByAccount(models.Model):
 
     usage_end = models.DateField(null=False)
 
-    instance_type = models.CharField(max_length=50, null=True)
-
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     unit = models.CharField(max_length=63, null=True)
@@ -863,8 +861,6 @@ class GCPStorageSummaryByRegion(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -1632,7 +1628,6 @@ class GCPStorageSummaryByAccountP(models.Model):
         db_table = "reporting_gcp_storage_summary_by_account_p"
         indexes = [
             models.Index(fields=["usage_start"], name="gcpstorsumm_acc_usage_start"),
-            models.Index(fields=["instance_type"], name="gcpstorsumm_acc_insttyp"),
             models.Index(fields=["account_id"], name="gcpstorsumm_acc_account_id"),
             models.Index(fields=["invoice_month"], name="gcpstorsumm_acc_invmonth"),
         ]
@@ -1642,8 +1637,6 @@ class GCPStorageSummaryByAccountP(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -1683,7 +1676,6 @@ class GCPStorageSummaryByRegionP(models.Model):
         db_table = "reporting_gcp_storage_summary_by_region_p"
         indexes = [
             models.Index(fields=["usage_start"], name="gcpstorsumm_reg_usage_start"),
-            models.Index(fields=["instance_type"], name="gcpstorsumm_reg_insttyp"),
             models.Index(fields=["account_id"], name="gcpstorsumm_reg_account_id"),
             models.Index(fields=["invoice_month"], name="gcpstorsumm_reg_invmonth"),
         ]
@@ -1693,8 +1685,6 @@ class GCPStorageSummaryByRegionP(models.Model):
     usage_start = models.DateField(null=False)
 
     usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
 
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
