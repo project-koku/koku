@@ -36,26 +36,6 @@ class UserSettingsCostViewTest(IamTestCase):
         meta = data.get("meta", {})
         self.assertEqual(meta.get("cost-type"), KOKU_DEFAULT_COST_TYPE)
 
-    # def test_userset_cost_type(self):
-    #     """Test that a list GET call returns the supported cost_types and returns meta users current cost_type."""
-    #     qs = "?limit=20"
-    #     url = reverse("cost-type") + qs
-    #     user_cost_type = "blended_cost"
-
-    #     with schema_context(self.schema_name):
-    #         set_cost_type(schema_context, user_cost_type)
-    #         response = self.client.get(url, **self.headers)
-    #         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    #     # response = self.client.get(url, **self.headers)
-    #     # self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-    #         data = response.data
-    #         self.assertEqual(data.get("data"), COST_TYPES)
-
-    #         meta = data.get("meta", {})
-    #         self.assertEqual(meta.get("cost-type"), user_cost_type)
-
     def test_userset_cost_type(self):
         """Test that a list GET call returns the supported cost_types and returns meta users current cost_type."""
         qs = "?limit=20"
