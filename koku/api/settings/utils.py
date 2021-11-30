@@ -238,6 +238,6 @@ def set_cost_type(schema, cost_type_code=KOKU_DEFAULT_COST_TYPE):
 
         if not account_current_setting:
             set_default_user_settings()
-        else:
-            account_current_setting.settings["cost_type"] = cost_type_code
-            account_current_setting.save()
+            account_current_setting = UserSettings.objects.all().first()
+        account_current_setting.settings["cost_type"] = cost_type_code
+        account_current_setting.save()
