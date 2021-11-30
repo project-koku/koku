@@ -81,7 +81,7 @@ parameters:
 - displayName: Memory Request
   name: JOB_MEMORY_REQUEST
   required: true
-  value: "500Mi"
+  value: "768Mi"
 - displayName: CPU Request
   name: JOB_CPU_REQUEST
   required: true
