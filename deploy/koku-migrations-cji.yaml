@@ -30,6 +30,14 @@ objects:
     jobs:
     - name: koku-migrations-${IMAGE_TAG}
       podSpec:
+        image: ${IMAGE}:${IMAGE_TAG}
+        # resources:
+        #   limits:
+        #     cpu: ${JOB_CPU_LIMIT}
+        #     memory: ${JOB_MEMORY_LIMIT}
+        #   requests:
+        #     cpu: ${JOB_CPU_REQUEST}
+        #     memory: ${JOB_MEMORY_REQUEST}
         args:
         - /bin/bash
         - -c
@@ -49,14 +57,6 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
-        image: ${IMAGE}:${IMAGE_TAG}
-        resources:
-          limits:
-            cpu: ${KOKU_CPU_LIMIT}
-            memory: ${KOKU_MEMORY_LIMIT}
-          requests:
-            cpu: ${KOKU_CPU_REQUEST}
-            memory: ${KOKU_MEMORY_REQUEST}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -69,22 +69,22 @@ parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
-- displayName: Memory Limit
-  name: KOKU_MEMORY_LIMIT
-  required: true
-  value: 1Gi
-- displayName: CPU Limit
-  name: KOKU_CPU_LIMIT
-  required: true
-  value: 600m
-- displayName: Memory Request
-  name: KOKU_MEMORY_REQUEST
-  required: true
-  value: 500Mi
-- displayName: CPU Request
-  name: KOKU_CPU_REQUEST
-  required: true
-  value: 300m
+# - displayName: Memory Limit
+#   name: JOB_MEMORY_LIMIT
+#   required: true
+#   value: 1Gi
+# - displayName: CPU Limit
+#   name: JOB_CPU_LIMIT
+#   required: true
+#   value: 600m
+# - displayName: Memory Request
+#   name: JOB_MEMORY_REQUEST
+#   required: true
+#   value: 500Mi
+# - displayName: CPU Request
+#   name: JOB_CPU_REQUEST
+#   required: true
+#   value: 300m
 - description: Image tag
   name: IMAGE_TAG
   required: true
