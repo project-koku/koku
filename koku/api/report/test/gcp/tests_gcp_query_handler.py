@@ -30,10 +30,10 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
-from reporting.models import GCPCostSummary
-from reporting.models import GCPCostSummaryByAccount
-from reporting.models import GCPCostSummaryByProject
-from reporting.models import GCPCostSummaryByService
+from reporting.models import GCPCostSummaryByAccountP
+from reporting.models import GCPCostSummaryByProjectP
+from reporting.models import GCPCostSummaryByServiceP
+from reporting.models import GCPCostSummaryP
 from reporting.models import GCPTagsSummary
 
 LOG = logging.getLogger(__name__)
@@ -872,26 +872,26 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", GCPCostView, GCPCostSummary),
-            ("?group_by[account]=*", GCPCostView, GCPCostSummaryByAccount),
-            ("?group_by[gcp_project]=*", GCPCostView, GCPCostSummaryByProject),
-            ("?group_by[gcp_project]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByProject),
-            ("?group_by[service]=*", GCPCostView, GCPCostSummaryByService),
-            ("?group_by[service]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByService),
+            ("?", GCPCostView, GCPCostSummaryP),
+            ("?group_by[account]=*", GCPCostView, GCPCostSummaryByAccountP),
+            ("?group_by[gcp_project]=*", GCPCostView, GCPCostSummaryByProjectP),
+            ("?group_by[gcp_project]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByProjectP),
+            ("?group_by[service]=*", GCPCostView, GCPCostSummaryByServiceP),
+            ("?group_by[service]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByServiceP),
             (
                 "?filter[service]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[account]=*",
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
             (
                 "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
             (
                 "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[account]=*",  # noqa: E501
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
         ]
 
