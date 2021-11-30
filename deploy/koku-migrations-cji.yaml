@@ -2,12 +2,12 @@
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
-  name: koku-migrations
+  name: db-migrations
 objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
-    name: koku-migrations
+    name: db-migrations
   spec:
     database:
       sharedDbAppName: koku
@@ -28,48 +28,44 @@ objects:
       - koku
     envName: ${ENV_NAME}
 
-    containers:
-
     jobs:
-    - name: koku-migrations-${IMAGE_TAG}
+    - name: koku-db-${IMAGE_TAG}
       podSpec:
-        containers:
-        - name: koku-migrations-${IMAGE_TAG}
-          image: ${IMAGE}:${IMAGE_TAG}
-          resources:
-            limits:
-              cpu: ${JOB_CPU_LIMIT}
-              memory: ${JOB_MEMORY_LIMIT}
-            requests:
-              cpu: ${JOB_CPU_REQUEST}
-              memory: ${JOB_MEMORY_REQUEST}
-          args:
-          - /bin/bash
-          - -c
-          - $HOME/scripts/run_migrations.sh
-          env:
-          - name: PRESTO_HOST
-            value: ${PRESTO_HOST}
-          - name: PRESTO_PORT
-            value: ${PRESTO_PORT}
-          - name: PROMETHEUS_MULTIPROC_DIR
-            value: ${PROMETHEUS_DIR}
-          - name: REDIS_HOST
-            value: ${REDIS_HOST}
-          - name: REDIS_PORT
-            value: ${REDIS_PORT}
-          - name: CLOWDER_ENABLED
-            value: ${CLOWDER_ENABLED}
-          - name: _MIGRATION_DIRECTIVE
-            value: ${_MIGRATION_DIRECTIVE}
+        image: ${IMAGE}:${IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${JOB_CPU_LIMIT}
+            memory: ${JOB_MEMORY_LIMIT}
+          requests:
+            cpu: ${JOB_CPU_REQUEST}
+            memory: ${JOB_MEMORY_REQUEST}
+        args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_migrations.sh
+        env:
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REDIS_HOST
+          value: ${REDIS_HOST}
+        - name: REDIS_PORT
+          value: ${REDIS_PORT}
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: _MIGRATION_DIRECTIVE
+          value: ${_MIGRATION_DIRECTIVE}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: koku-migrations-${IMAGE_TAG}
+    name: koku-db-${IMAGE_TAG}
   spec:
-    appName: koku-migrations
+    appName: db-migrations
     jobs:
-      - koku-migrations-${IMAGE_TAG}
+      - koku-db-${IMAGE_TAG}
 parameters:
 - name: ENV_NAME
   required: true
@@ -77,19 +73,19 @@ parameters:
 - displayName: Memory Limit
   name: JOB_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: "1Gi"
 - displayName: CPU Limit
   name: JOB_CPU_LIMIT
   required: true
-  value: 600m
+  value: "600m"
 - displayName: Memory Request
   name: JOB_MEMORY_REQUEST
   required: true
-  value: 500Mi
+  value: "500Mi"
 - displayName: CPU Request
   name: JOB_CPU_REQUEST
   required: true
-  value: 300m
+  value: "300m"
 - description: Image tag
   name: IMAGE_TAG
   required: true
