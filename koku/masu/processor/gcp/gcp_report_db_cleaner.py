@@ -13,6 +13,7 @@ from koku.database import execute_delete_sql
 from koku.database import get_model
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from reporting.models import PartitionedTable
+from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 
 LOG = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ class GCPReportDBCleaner:
                 # accessor._table_map["ocp_on_gcp_project_daily_summary"],
                 accessor.line_item_daily_summary_table._meta.db_table
             ]
+            table_names.extend(UI_SUMMARY_TABLES)
             table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
