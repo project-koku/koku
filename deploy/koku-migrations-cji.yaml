@@ -54,6 +54,9 @@ objects:
           limits:
             cpu: ${KOKU_CPU_LIMIT}
             memory: ${KOKU_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_CPU_REQUEST}
+            memory: ${KOKU_MEMORY_REQUEST}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -74,6 +77,14 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 600m
+- displayName: Memory Request
+  name: KOKU_MEMORY_REQUEST
+  required: true
+  value: 500Mi
+- displayName: CPU Request
+  name: KOKU_CPU_REQUEST
+  required: true
+  value: 300m
 - description: Image tag
   name: IMAGE_TAG
   required: true
