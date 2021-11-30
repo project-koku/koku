@@ -11,6 +11,19 @@ objects:
   spec:
     database:
       sharedDbAppName: koku
+
+    # Use Unleash server
+    featureFlags: true
+
+    # Redis
+    inMemoryDb: true
+
+    # Request kafka topics for your application here
+    kafkaTopics:
+    - topicName: platform.sources.event-stream
+    - topicName: platform.upload.hccm
+    - topicName: platform.upload.validation
+
     dependencies:
       - koku
     envName: ${ENV_NAME}
