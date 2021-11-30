@@ -94,12 +94,12 @@ class TestDeleteSQL(IamTestCase):
         )
         pocp.save()
 
-        expected1 = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
-        expected2 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
-        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected1 = "DEBUG:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        expected2 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
+        expected3 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
         skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
         query = Provider.objects.filter(pk=pocp.pk)
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             with schema_context(c.schema_name):
                 kdb.cascade_delete(Provider, query, skip_relations=skip_models)
             self.assertIn(expected1, _logger.output)
@@ -186,23 +186,23 @@ class TestDeleteSQL(IamTestCase):
             gcpceb.save()
             ocpurp.save()
 
-        expected = "INFO:koku.database:Level 1: delete records from AWSCostEntryBill"
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        expected = "DEBUG:koku.database:Level 1: delete records from AWSCostEntryBill"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
             self.assertIn(expected, _logger.output)
 
-        expected = "INFO:koku.database:Level 1: delete records from AzureCostEntryBill"
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        expected = "DEBUG:koku.database:Level 1: delete records from AzureCostEntryBill"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pazure.delete()
             self.assertIn(expected, _logger.output)
 
-        expected = "INFO:koku.database:Level 1: delete records from GCPCostEntryBill"
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        expected = "DEBUG:koku.database:Level 1: delete records from GCPCostEntryBill"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pgcp.delete()
             self.assertIn(expected, _logger.output)
 
-        expected = "INFO:koku.database:Level 1: delete records from OCPUsageReportPeriod"
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        expected = "DEBUG:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pocp.delete()
             self.assertIn(expected, _logger.output)
 
@@ -315,12 +315,12 @@ class TestDeleteSQL(IamTestCase):
             )
             awsceli.save()
 
-        expected = "INFO:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
-        expected2 = "INFO:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
-        expected3 = "INFO:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
-        expected4 = "INFO:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
-        expected5 = "INFO:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
-        with self.assertLogs("koku.database", level="INFO") as _logger:
+        expected = "DEBUG:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
+        expected2 = "DEBUG:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
+        expected3 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected4 = "DEBUG:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
+        expected5 = "DEBUG:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
+        with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
             self.assertIn(expected, _logger.output)
             self.assertIn(expected2, _logger.output)
