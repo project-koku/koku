@@ -149,16 +149,8 @@ process_migrations()
             _mig=""
         fi
 
-        echo "DEBUG :: Checking for file '${ACG_CONFIG}'"
-        if [[ -s ${ACG_CONFIG} ]] ; then
-            echo "DEBUG :: File '${ACG_CONFIG}' exists and has data"
-            cat ${ACG_CONFIG}
-        else
-            echo "DEBUG :: File '${ACG_CONFIG}' does not exist or is empty"
-        fi
-
         echo "⌚ : Running Migrations ${_app} ${_mig}"
-        KOKU_LOG_LEVEL=DEBUG python3.8 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig}
+        python3.8 ${_APP_HOME}/manage.py migrate_schemas ${_app} ${_mig}
         _rc=$?
         if [[ ${_rc} -ne 0 ]]; then
             echo "⛔ : ERROR (${_rc}) running migrations ${_app} ${_mig}" >&2

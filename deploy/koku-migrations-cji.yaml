@@ -50,6 +50,10 @@ objects:
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
         image: ${IMAGE}:${IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_CPU_LIMIT}
+            memory: ${KOKU_MEMORY_LIMIT}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
@@ -62,6 +66,14 @@ parameters:
 - name: ENV_NAME
   required: true
   value: koku-env
+- displayName: Memory Limit
+  name: KOKU_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Limit
+  name: KOKU_CPU_LIMIT
+  required: true
+  value: 600m
 - description: Image tag
   name: IMAGE_TAG
   required: true
