@@ -384,7 +384,8 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_kafka_topic(requestedName: str):
         """Obtain kafka topic."""
-        return KafkaTopics.get(requestedName).name
+        requested_topic = KafkaTopics.get(requestedName)
+        return requested_topic.name if requested_topic else None
 
     @staticmethod
     def get_cloudwatch_access_id():
@@ -465,8 +466,9 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        if ObjectBuckets.get(requestedName):
-            return ObjectBuckets.get(requestedName).name
+        requestedObject = ObjectBuckets.get(requestedName)
+        if requestedObject:
+            return requestedObject.name
         return requestedName
 
     @staticmethod
@@ -502,7 +504,7 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_database_ca_file():
         """Obtain database ca file."""
-        if LoadedConfig.database.rdsCa:
+        if LoadedConfig.database and LoadedConfig.database.rdsCa:
             return LoadedConfig.rds_ca()
         return None
 
