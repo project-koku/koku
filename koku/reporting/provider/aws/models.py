@@ -1291,6 +1291,10 @@ class AWSComputeSummaryP(models.Model):
 
     usage_end = models.DateField(null=False)
 
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
+
     instance_type = models.CharField(max_length=50, null=True)
 
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)

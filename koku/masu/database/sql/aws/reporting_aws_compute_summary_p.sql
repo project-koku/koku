@@ -8,6 +8,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
     id,
     usage_start,
     usage_end,
+    usage_account_id,
+    account_alias_id,
     instance_type,
     resource_ids,
     resource_count,
@@ -25,6 +27,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
     SELECT uuid_generate_v4() as id,
         c.usage_start,
         c.usage_start as usage_end,
+        c.usage_account_id,
+        c.account_alias_id,
         c.instance_type,
         r.resource_ids,
         CARDINALITY(r.resource_ids) AS resource_count,
@@ -42,6 +46,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
         -- this group by gets the counts
         SELECT usage_start,
             instance_type,
+            usage_account_id,
+            max(account_alias_id) as account_alias_id,
             SUM(usage_amount) AS usage_amount,
             MAX(unit) AS unit,
             SUM(unblended_cost) AS unblended_cost,
@@ -57,7 +63,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_aws_compute_summary_p (
             AND usage_start <= {{end_date}}::date
             AND instance_type IS NOT NULL
             AND source_uuid = {{source_uuid}}
-        GROUP BY usage_start, instance_type
+        GROUP BY usage_start, instance_type, usage_account_id, account_alias_id
     ) AS c
     JOIN (
         -- this group by gets the distinct resources running by day
