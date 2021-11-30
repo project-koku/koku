@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from api.common.pagination import CustomMetaPagination
 from api.user_settings.settings import COST_TYPES
-from api.user_settings.utils import CostTypeUtils
+from api.utils import get_cost_type
 
 
 class UserCostTypeSettings(APIView):
@@ -21,5 +21,5 @@ class UserCostTypeSettings(APIView):
     @method_decorator(never_cache)
     def get(self, request):
         """Gets a list for all supported cost_typs currently available."""
-        user_preferred_cost = {"cost-type": CostTypeUtils.get_selected_cost_type(self.schema)}
+        user_preferred_cost = {"cost-type": get_cost_type(request)}
         return CustomMetaPagination(COST_TYPES, request, user_preferred_cost).get_paginated_response()
