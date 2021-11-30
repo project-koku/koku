@@ -342,70 +342,63 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_feature_flag_host():
         """Obtain feature flag (Unleash) host."""
-        return LoadedConfig.featureFlags.hostname if LoadedConfig.featureFlags else None
+        return LoadedConfig.featureFlags.hostname
 
     @staticmethod
     def get_feature_flag_port():
         """Obtain feature flag (Unleash) port."""
-        return LoadedConfig.featureFlags.port if LoadedConfig.featureFlags else None
+        return LoadedConfig.featureFlags.port
 
     @staticmethod
     def get_feature_flag_token():
         """Obtain feature flag (Unleash) token."""
-        return LoadedConfig.featureFlags.clientAccessToken if LoadedConfig.featureFlags else None
+        return LoadedConfig.featureFlags.clientAccessToken
 
     @staticmethod
     def get_in_memory_db_host():
         """Obtain in memory (redis) db host."""
-        return LoadedConfig.inMemoryDb.hostname if LoadedConfig.inMemoryDb else None
+        return LoadedConfig.inMemoryDb.hostname
 
     @staticmethod
     def get_in_memory_db_port():
         """Obtain in memory (redis) db port."""
-        return LoadedConfig.inMemoryDb.port if LoadedConfig.inMemoryDb else None
+        return LoadedConfig.inMemoryDb.port
         # return ENVIRONMENT.get_value("REDIS_PORT", default="6379")
 
     @staticmethod
     def get_kafka_broker_host():
         """Obtain kafka broker host address."""
-        if LoadedConfig.kafka and LoadedConfig.kafka.brokers and LoadedConfig.kafka.brokers[0]:
-            return LoadedConfig.kafka.brokers[0].hostname
-        else:
-            return None
+        return LoadedConfig.kafka.brokers[0].hostname
 
     @staticmethod
     def get_kafka_broker_port():
         """Obtain kafka broker port."""
-        if LoadedConfig.kafka and LoadedConfig.kafka.brokers and LoadedConfig.kafka.brokers[0]:
-            return LoadedConfig.kafka.brokers[0].port
-        else:
-            return None
+        return LoadedConfig.kafka.brokers[0].port
 
     @staticmethod
     def get_kafka_topic(requestedName: str):
         """Obtain kafka topic."""
-        requested_topic = KafkaTopics.get(requestedName)
-        return requested_topic.name if requested_topic else None
+        return KafkaTopics.get(requestedName).name
 
     @staticmethod
     def get_cloudwatch_access_id():
         """Obtain cloudwatch access id."""
-        return LoadedConfig.logging.cloudwatch.accessKeyId if LoadedConfig.logging.cloudwatch else None
+        return LoadedConfig.logging.cloudwatch.accessKeyId
 
     @staticmethod
     def get_cloudwatch_access_key():
         """Obtain cloudwatch access key."""
-        return LoadedConfig.logging.cloudwatch.secretAccessKey if LoadedConfig.logging.cloudwatch else None
+        return LoadedConfig.logging.cloudwatch.secretAccessKey
 
     @staticmethod
     def get_cloudwatch_region():
         """Obtain cloudwatch region."""
-        return LoadedConfig.logging.cloudwatch.region if LoadedConfig.logging.cloudwatch else None
+        return LoadedConfig.logging.cloudwatch.region
 
     @staticmethod
     def get_cloudwatch_log_group():
         """Obtain cloudwatch log group."""
-        return LoadedConfig.logging.cloudwatch.logGroup if LoadedConfig.logging.cloudwatch else None
+        return LoadedConfig.logging.cloudwatch.logGroup
 
     @staticmethod
     def get_object_store_endpoint():
@@ -423,17 +416,17 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_object_store_host():
         """Obtain object store host."""
-        return LoadedConfig.objectStore.hostname if LoadedConfig.objectStore else None
+        return LoadedConfig.objectStore.hostname
 
     @staticmethod
     def get_object_store_port():
         """Obtain object store port."""
-        return LoadedConfig.objectStore.port if LoadedConfig.objectStore else None
+        return LoadedConfig.objectStore.port
 
     @staticmethod
     def get_object_store_tls():
         """Obtain object store secret key."""
-        value = LoadedConfig.objectStore.tls if LoadedConfig.objectStore else None
+        value = LoadedConfig.objectStore.tls
         if type(value) == bool:
             return value
         if value and value.lower() in ["true", "false"]:
@@ -446,65 +439,62 @@ class ClowderConfigurator(Configurator):
         """Obtain object store access key."""
         if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).accessKey
-        if LoadedConfig.objectStore and LoadedConfig.objectStore.buckets:
-            if len(LoadedConfig.objectStore.buckets) > 0:
-                return LoadedConfig.objectStore.buckets[0].accessKey
-            if LoadedConfig.objectStore.accessKey:
-                return LoadedConfig.objectStore.accessKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].accessKey
+        if LoadedConfig.objectStore.accessKey:
+            return LoadedConfig.objectStore.accessKey
 
     @staticmethod
     def get_object_store_secret_key(requestedName: str = ""):
         """Obtain object store secret key."""
         if requestedName != "" and ObjectBuckets.get(requestedName):
             return ObjectBuckets.get(requestedName).secretKey
-        if LoadedConfig.objectStore and LoadedConfig.objectStore.buckets:
-            if len(LoadedConfig.objectStore.buckets) > 0:
-                return LoadedConfig.objectStore.buckets[0].secretKey
-            if LoadedConfig.objectStore.secretKey:
-                return LoadedConfig.objectStore.secretKey
+        if len(LoadedConfig.objectStore.buckets) > 0:
+            return LoadedConfig.objectStore.buckets[0].secretKey
+        if LoadedConfig.objectStore.secretKey:
+            return LoadedConfig.objectStore.secretKey
 
     @staticmethod
     def get_object_store_bucket(requestedName: str = ""):
         """Obtain object store bucket."""
-        requestedObject = ObjectBuckets.get(requestedName)
-        if requestedObject:
-            return requestedObject.name
+        if ObjectBuckets.get(requestedName):
+            return ObjectBuckets.get(requestedName).name
         return requestedName
 
     @staticmethod
     def get_database_name():
         """Obtain database name."""
-        return LoadedConfig.database.name if LoadedConfig.database else None
+        return LoadedConfig.database.name
 
     @staticmethod
     def get_database_user():
         """Obtain database user."""
-        return LoadedConfig.database.username if LoadedConfig.database else None
+        return LoadedConfig.database.username
 
     @staticmethod
     def get_database_password():
         """Obtain database password."""
-        return LoadedConfig.database.password if LoadedConfig.database else None
+        return LoadedConfig.database.password
 
     @staticmethod
     def get_database_host():
         """Obtain database host."""
-        return LoadedConfig.database.hostname if LoadedConfig.database else None
+        return LoadedConfig.database.hostname
 
     @staticmethod
     def get_database_port():
         """Obtain database port."""
-        return LoadedConfig.database.port if LoadedConfig.database else None
+        return LoadedConfig.database.port
 
     @staticmethod
     def get_database_ca():
         """Obtain database ca."""
-        return LoadedConfig.database.rdsCa if LoadedConfig.database else None
+        return LoadedConfig.database.rdsCa
 
     @staticmethod
     def get_database_ca_file():
         """Obtain database ca file."""
-        if LoadedConfig.database and LoadedConfig.database.rdsCa:
+        if LoadedConfig.database.rdsCa:
             return LoadedConfig.rds_ca()
         return None
 
