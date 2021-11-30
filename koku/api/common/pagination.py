@@ -275,8 +275,9 @@ class CustomMetaPagination(StandardResultsSetPagination):
     def get_paginated_response(self):
         """Override pagination output."""
         meta = {"count": self.count}
-        for key, value in self.others.items():
-            meta[key] = value
+        if self.others is not None:
+            for key, value in self.others.items():
+                meta[key] = value
         response = {
             "meta": meta,
             "links": {
