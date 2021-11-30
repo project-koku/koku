@@ -119,5 +119,5 @@ parameters:
   required: true
   value: "True"
 - name: _MIGRATION_DIRECTIVE
-  required: true
+  required: false
   value: ""
