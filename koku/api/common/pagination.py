@@ -260,7 +260,7 @@ class EmptyResultsSetPagination(StandardResultsSetPagination):
         )
 
 
-class CustomMetaPagination(StandardResultsSetPagination):
+class CustomMetaPagination(ListPaginator):
     """A specialty paginator that allows for passing of meta data."""
 
     def __init__(self, data, request, others=None):
@@ -269,8 +269,8 @@ class CustomMetaPagination(StandardResultsSetPagination):
         self.others = others
         self.request = request
         self.count = len(data)
-        self.limit = 100
-        self.offset = 10
+        self.limit = self.get_limit(self.request)
+        self.offset = self.get_offset(self.request)
 
     def get_paginated_response(self):
         """Override pagination output."""
