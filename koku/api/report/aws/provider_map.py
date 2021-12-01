@@ -344,8 +344,8 @@ class AWSProviderMap(ProviderMap):
             "instance_type": {
                 "default": AWSComputeSummaryP,
                 ("instance_type",): AWSComputeSummaryP,
-                ("account", "instance_type"): AWSComputeSummaryP,
                 ("account",): AWSComputeSummaryByAccountP,
+                ("account", "instance_type"): AWSComputeSummaryByAccountP,
             },
             "storage": {"default": AWSStorageSummaryP, ("account",): AWSStorageSummaryByAccountP},
             "database": {

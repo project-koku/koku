@@ -2215,7 +2215,7 @@ class AWSQueryHandlerTest(IamTestCase):
             ("?group_by[product_family]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
             ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
             ("?group_by[instance_type]=*", AWSInstanceTypeView, AWSComputeSummaryP),
-            ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryP),
+            ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccountP),
             ("?", AWSStorageView, AWSStorageSummaryP),
             ("?group_by[account]=*", AWSStorageView, AWSStorageSummaryByAccountP),
             ("?group_by[region]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
