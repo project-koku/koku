@@ -374,7 +374,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         # Default to cpu distribution
         days = DateHelper().list_days(start_date, end_date)
-        days = ",".join([str(day.day) for day in days])
+        days_str = "','".join([str(day.day) for day in days])
 
         pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
@@ -389,7 +389,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
-            "days": days,
+            "days": days_str,
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,

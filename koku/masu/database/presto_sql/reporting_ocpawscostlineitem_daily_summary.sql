@@ -480,11 +480,10 @@ SELECT uuid(),
     cast(aws_source as UUID)
 FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
+    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND year = {{year}}
     AND month = {{month}}
-    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
-    AND usage_start >= TIMESTAMP {{start_date}}
-    AND usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
+    AND day IN ({{days}})
 ;
 
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
