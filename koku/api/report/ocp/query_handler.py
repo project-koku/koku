@@ -122,7 +122,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 or key.endswith("markup")
                 or key.endswith("total")
             ):
-                data[key] = Decimal(value) * Decimal(exchange_rate)
+                data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
             elif key.endswith("units"):
                 data[key] = self.currency
         return data
