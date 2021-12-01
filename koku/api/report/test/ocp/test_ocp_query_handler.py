@@ -9,13 +9,8 @@ from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.db.models import DecimalField
-from django.db.models import F
 from django.db.models import Max
-from django.db.models import Sum
-from django.db.models import Value
 from django.db.models.expressions import OrderBy
-from django.db.models.functions import Coalesce
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -30,6 +25,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from reporting.models import OCPCostSummaryByProject
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -613,40 +609,33 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(result_cost_total, expected_cost_total)
 
     def test_ocp_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of projects."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        expected = {}
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
-        for namespace in self.namespaces:
-            with tenant_context(self.tenant):
-                service_holder = (
-                    OCPUsageLineItemDailySummary.objects.filter(namespace=namespace)
-                    .filter(usage_start=yesterday)
-                    .aggregate(
-                        cost=Sum(Coalesce(F("infrastructure_project_raw_cost"), Value(0, output_field=DecimalField())))
-                    )
-                )
 
-                expected[namespace] = service_holder["cost"]
-        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
-        correctlst = list(sorted_expected.keys())
+        proj_annotations = handler.annotations.get("project")
+        cost_annotations = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPCostSummaryByProject.objects.filter(usage_start=str(yesterday))
+                .annotate(project=proj_annotations)
+                .values("project")
+                .annotate(cost=cost_annotations)
+                .order_by("-cost")
+            )
+        correctlst = [project.get("project") for project in expected]
         for element in data:
-            for service in element.get("projects"):
-                lst.append(service.get("project"))
+            lst = [project.get("project") for project in element.get("projects")]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
