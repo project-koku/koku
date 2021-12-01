@@ -15,6 +15,7 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 
 
@@ -36,7 +37,7 @@ class OCPProjectsView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "cloud"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -45,6 +46,15 @@ class OCPProjectsView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "cloud":
+                    cloud = self.request.query_params.get("cloud")
+                    if cloud == "true":
+                        self.queryset = (
+                            OCPAllCostLineItemDailySummaryP.objects.annotate(**{"value": F("namespace")})
+                            .values("value")
+                            .distinct()
+                            .filter(namespace__isnull=False)
+                        )
         if request.user.admin:
             return super().list(request)
         if request.user.access:

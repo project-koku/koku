@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
+from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.ocp.models import OCPCostSummaryP
 
 
@@ -38,7 +39,7 @@ class OCPClustersView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift cluster id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "cloud"]
         user_access = None
         error_message = {}
         # Test for only supported query_params
@@ -47,6 +48,20 @@ class OCPClustersView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "cloud":
+                    cloud = self.request.query_params.get("cloud")
+                    if cloud == "true":
+                        self.queryset = (
+                            OCPAllCostLineItemDailySummaryP.objects.annotate(
+                                **{
+                                    "value": F("cluster_id"),
+                                    "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
+                                }
+                            )
+                            .values("value", "ocp_cluster_alias")
+                            .distinct()
+                            .filter(cluster_id__isnull=False)
+                        )
         if request.user.admin:
             return super().list(request)
         if request.user.access:
