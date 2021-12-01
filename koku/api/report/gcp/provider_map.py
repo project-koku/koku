@@ -15,24 +15,24 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.provider.gcp.models import GCPComputeSummary
-from reporting.provider.gcp.models import GCPComputeSummaryByAccount
-from reporting.provider.gcp.models import GCPComputeSummaryByProject
-from reporting.provider.gcp.models import GCPComputeSummaryByRegion
-from reporting.provider.gcp.models import GCPComputeSummaryByService
+from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
+from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
+from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
+from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
+from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
-from reporting.provider.gcp.models import GCPCostSummary
-from reporting.provider.gcp.models import GCPCostSummaryByAccount
-from reporting.provider.gcp.models import GCPCostSummaryByProject
-from reporting.provider.gcp.models import GCPCostSummaryByRegion
-from reporting.provider.gcp.models import GCPCostSummaryByService
-from reporting.provider.gcp.models import GCPDatabaseSummary
-from reporting.provider.gcp.models import GCPNetworkSummary
-from reporting.provider.gcp.models import GCPStorageSummary
-from reporting.provider.gcp.models import GCPStorageSummaryByAccount
-from reporting.provider.gcp.models import GCPStorageSummaryByProject
-from reporting.provider.gcp.models import GCPStorageSummaryByRegion
-from reporting.provider.gcp.models import GCPStorageSummaryByService
+from reporting.provider.gcp.models import GCPCostSummaryByAccountP
+from reporting.provider.gcp.models import GCPCostSummaryByProjectP
+from reporting.provider.gcp.models import GCPCostSummaryByRegionP
+from reporting.provider.gcp.models import GCPCostSummaryByServiceP
+from reporting.provider.gcp.models import GCPCostSummaryP
+from reporting.provider.gcp.models import GCPDatabaseSummaryP
+from reporting.provider.gcp.models import GCPNetworkSummaryP
+from reporting.provider.gcp.models import GCPStorageSummaryByAccountP
+from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
+from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
+from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
+from reporting.provider.gcp.models import GCPStorageSummaryP
 
 
 class GCPProviderMap(ProviderMap):
@@ -297,61 +297,61 @@ class GCPProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": GCPCostSummary,
-                ("account",): GCPCostSummaryByAccount,
-                ("region",): GCPCostSummaryByRegion,
-                ("account", "region"): GCPCostSummaryByRegion,
-                ("service",): GCPCostSummaryByService,
-                ("account", "service"): GCPCostSummaryByService,
-                ("project",): GCPCostSummaryByProject,
-                ("account", "project"): GCPCostSummaryByProject,
-                ("gcp_project",): GCPCostSummaryByProject,
-                ("account", "gcp_project"): GCPCostSummaryByProject,
+                "default": GCPCostSummaryP,
+                ("account",): GCPCostSummaryByAccountP,
+                ("region",): GCPCostSummaryByRegionP,
+                ("account", "region"): GCPCostSummaryByRegionP,
+                ("service",): GCPCostSummaryByServiceP,
+                ("account", "service"): GCPCostSummaryByServiceP,
+                ("project",): GCPCostSummaryByProjectP,
+                ("account", "project"): GCPCostSummaryByProjectP,
+                ("gcp_project",): GCPCostSummaryByProjectP,
+                ("account", "gcp_project"): GCPCostSummaryByProjectP,
                 # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPCostSummaryByProject,
-                ("account", "gcp_project", "project"): GCPCostSummaryByProject,
+                ("gcp_project", "project"): GCPCostSummaryByProjectP,
+                ("account", "gcp_project", "project"): GCPCostSummaryByProjectP,
             },
             "instance-type": {
-                "default": GCPComputeSummary,
-                ("account",): GCPComputeSummaryByAccount,
-                ("region",): GCPComputeSummaryByRegion,
-                ("account", "region"): GCPComputeSummaryByRegion,
-                ("service",): GCPComputeSummaryByService,
-                ("account", "service"): GCPComputeSummaryByService,
-                ("project",): GCPComputeSummaryByProject,
-                ("account", "project"): GCPComputeSummaryByProject,
-                ("gcp_project",): GCPComputeSummaryByProject,
-                ("account", "gcp_project"): GCPComputeSummaryByProject,
+                "default": GCPComputeSummaryP,
+                ("account",): GCPComputeSummaryByAccountP,
+                ("region",): GCPComputeSummaryByRegionP,
+                ("account", "region"): GCPComputeSummaryByRegionP,
+                ("service",): GCPComputeSummaryByServiceP,
+                ("account", "service"): GCPComputeSummaryByServiceP,
+                ("project",): GCPComputeSummaryByProjectP,
+                ("account", "project"): GCPComputeSummaryByProjectP,
+                ("gcp_project",): GCPComputeSummaryByProjectP,
+                ("account", "gcp_project"): GCPComputeSummaryByProjectP,
                 # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPComputeSummaryByProject,
-                ("account", "gcp_project", "project"): GCPComputeSummaryByProject,
+                ("gcp_project", "project"): GCPComputeSummaryByProjectP,
+                ("account", "gcp_project", "project"): GCPComputeSummaryByProjectP,
             },
             "storage": {
-                "default": GCPStorageSummary,
-                ("account",): GCPStorageSummaryByAccount,
-                ("region",): GCPStorageSummaryByRegion,
-                ("account", "region"): GCPStorageSummaryByRegion,
-                ("service",): GCPStorageSummaryByService,
-                ("account", "service"): GCPStorageSummaryByService,
-                ("project",): GCPStorageSummaryByProject,
-                ("account", "project"): GCPStorageSummaryByProject,
-                ("gcp_project",): GCPStorageSummaryByProject,
-                ("account", "gcp_project"): GCPStorageSummaryByProject,
+                "default": GCPStorageSummaryP,
+                ("account",): GCPStorageSummaryByAccountP,
+                ("region",): GCPStorageSummaryByRegionP,
+                ("account", "region"): GCPStorageSummaryByRegionP,
+                ("service",): GCPStorageSummaryByServiceP,
+                ("account", "service"): GCPStorageSummaryByServiceP,
+                ("project",): GCPStorageSummaryByProjectP,
+                ("account", "project"): GCPStorageSummaryByProjectP,
+                ("gcp_project",): GCPStorageSummaryByProjectP,
+                ("account", "gcp_project"): GCPStorageSummaryByProjectP,
                 # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPStorageSummaryByProject,
-                ("account", "gcp_project", "project"): GCPStorageSummaryByProject,
+                ("gcp_project", "project"): GCPStorageSummaryByProjectP,
+                ("account", "gcp_project", "project"): GCPStorageSummaryByProjectP,
             },
             "database": {
-                "default": GCPDatabaseSummary,
-                ("service",): GCPDatabaseSummary,
-                ("account", "service"): GCPDatabaseSummary,
-                ("account",): GCPDatabaseSummary,
+                "default": GCPDatabaseSummaryP,
+                ("service",): GCPDatabaseSummaryP,
+                ("account", "service"): GCPDatabaseSummaryP,
+                ("account",): GCPDatabaseSummaryP,
             },
             "network": {
-                "default": GCPNetworkSummary,
-                ("service",): GCPNetworkSummary,
-                ("account", "service"): GCPNetworkSummary,
-                ("account",): GCPNetworkSummary,
+                "default": GCPNetworkSummaryP,
+                ("service",): GCPNetworkSummaryP,
+                ("account", "service"): GCPNetworkSummaryP,
+                ("account",): GCPNetworkSummaryP,
             },
         }
         # I needed a way to identify gcp in the parent class in queries.py so that

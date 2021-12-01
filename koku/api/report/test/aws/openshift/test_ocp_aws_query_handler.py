@@ -6,7 +6,6 @@
 import copy
 import logging
 from datetime import timedelta
-from unittest import skip
 
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -420,33 +419,34 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    @skip("This test needs to be re-engineered")
     def test_ocp_aws_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+
+        svc_annotations = handler.annotations.get("service")
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPAWSCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                .annotate(service=svc_annotations)
+                .values("service")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service") for service in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
-        for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_aws_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
 

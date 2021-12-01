@@ -8,15 +8,17 @@ import logging
 
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.gcp.common import get_bills_from_provider
+from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class GCPReportSummaryUpdater:
+class GCPReportSummaryUpdater(PartitionHandlerMixin):
     """Class to update GCP report summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -91,6 +93,10 @@ class GCPReportSummaryUpdater:
 
         """
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
@@ -115,6 +121,7 @@ class GCPReportSummaryUpdater:
                     str(bill_ids),
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
