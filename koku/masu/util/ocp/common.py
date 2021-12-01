@@ -380,6 +380,8 @@ def process_openshift_labels(label_string):
     label_dict = {}
 
     for label in labels:
+        if ":" not in label:
+            continue
         try:
             key, value = label.split(":")
             key = key.replace("label_", "")

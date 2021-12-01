@@ -9,12 +9,15 @@ import os
 from datetime import datetime
 from datetime import timedelta
 
+import requests
 from botocore.exceptions import ClientError
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 from django.utils import timezone
 from tenant_schemas.utils import schema_context
 
+from api.currency.currencies import CURRENCIES
+from api.currency.models import ExchangeRates
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
@@ -277,6 +280,40 @@ def clean_volume():
     LOG.info("The following files were deleted: %s", deleted_files)
 
 
+@celery_app.task(name="masu.celery.tasks.get_daily_currency_rates", queue=DEFAULT)
+def get_daily_currency_rates():
+    """Task to get latest daily conversion rates."""
+    # Create list of supported currencies
+    supported_currencies = []
+    rate_metrics = {}
+    for curr_object in CURRENCIES:
+        supported_currencies.append(curr_object.get("code"))
+
+    url = settings.CURRENCY_URL
+    # Retrieve conversion rates from URL
+    try:
+        data = requests.get(url).json()
+    except Exception as e:
+        LOG.error(f"Couldn't pull latest conversion rates from {url}")
+        LOG.error(e)
+        return rate_metrics
+    rates = data["rates"]
+    # Update conversion rates in database
+    for curr_type in rates.keys():
+        if curr_type.upper() in supported_currencies:
+            value = rates[curr_type]
+            try:
+                exchange = ExchangeRates.objects.get(currency_type=curr_type.lower())
+                LOG.info(f"Updating currency {curr_type} to {value}")
+            except ExchangeRates.DoesNotExist:
+                LOG.info(f"Creating the exchange rate {curr_type} to {value}")
+                exchange = ExchangeRates(currency_type=curr_type.lower())
+            rate_metrics[curr_type] = value
+            exchange.exchange_rate = value
+            exchange.save()
+    return rate_metrics
+
+
 @celery_app.task(name="masu.celery.tasks.crawl_account_hierarchy", queue=DEFAULT)
 def crawl_account_hierarchy(provider_uuid=None):
     """Crawl top level accounts to discover hierarchy."""
@@ -316,19 +353,32 @@ def crawl_account_hierarchy(provider_uuid=None):
 def delete_provider_async(name, provider_uuid, schema_name):
     with schema_context(schema_name):
         LOG.info(f"Removing Provider without Source: {str(name)} ({str(provider_uuid)}")
-        Provider.objects.get(uuid=provider_uuid).delete()
+        try:
+            Provider.objects.get(uuid=provider_uuid).delete()
+        except Provider.DoesNotExist:
+            LOG.warning(
+                f"[delete_provider_async] Provider with uuid {provider_uuid} does not exist. Nothing to delete."
+            )
 
 
 @celery_app.task(name="masu.celery.tasks.out_of_order_source_delete_async", queue=PRIORITY_QUEUE)
 def out_of_order_source_delete_async(source_id):
     LOG.info(f"Removing out of order delete Source (ID): {str(source_id)}")
-    Sources.objects.get(source_id=source_id).delete()
+    try:
+        Sources.objects.get(source_id=source_id).delete()
+    except Sources.DoesNotExist:
+        LOG.warning(
+            f"[out_of_order_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete."
+        )
 
 
 @celery_app.task(name="masu.celery.tasks.missing_source_delete_async", queue=PRIORITY_QUEUE)
 def missing_source_delete_async(source_id):
     LOG.info(f"Removing missing Source: {str(source_id)}")
-    Sources.objects.get(source_id=source_id).delete()
+    try:
+        Sources.objects.get(source_id=source_id).delete()
+    except Sources.DoesNotExist:
+        LOG.warning(f"[missing_source_delete_async] Source with ID {source_id} does not exist. Nothing to delete.")
 
 
 @celery_app.task(name="masu.celery.tasks.collect_queue_metrics", bind=True, queue=DEFAULT)

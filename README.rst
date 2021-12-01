@@ -2,7 +2,7 @@
 Koku README
 ===========
 
-|license| |Unittests| |codecov| |Updates| |Python 3| |Docs|
+|license| |Unittests| |codecov| |Docs|
 
 About
 =====
@@ -112,7 +112,7 @@ Run AWS Scenario
     make aws-source aws_name=AWS-SOURCE-001 bucket=cost-usage-bucket
 
 2. Verify source exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=AWS-SOURCE-001
-3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+3. Trigger MASU processing by visiting http://127.0.0.1:5042/api/cost-management/v1/download/
 4. Wait for processing to complete
 5. Verify data existing using AWS API endpoints
 
@@ -128,7 +128,7 @@ Run OCP Scenario
     make ocp-source-from-yaml cluster_id=my_test_cluster srf_yaml=../nise/example_ocp_static_data.yml ocp_name=my_ocp_name
 
 2. Verify provider exists by visiting http://127.0.0.1:8000/api/cost-management/v1/sources/?name=my_ocp_name
-3. Trigger MASU processing by visiting http://127.0.0.1:5000/api/cost-management/v1/download/
+3. Trigger MASU processing by visiting http://127.0.0.1:5042/api/cost-management/v1/download/
 4. Wait for processing to complete
 5. Verify data exists using API endpoints
 
@@ -239,15 +239,15 @@ Set the following environment variables ::
 
 To spin up the minimum targets for Trino use ::
 
-    make docker-up-min-presto
+    make docker-up-min-trino
 
 To skip building the koku image base ::
 
-    make docker-up-min-presto-no-build
+    make docker-up-min-trino-no-build
 
 To tear down containers ::
 
-    make docker-presto-down-all
+    make docker-trino-down-all
 
 With all containers running any source added will be processed by saving CSV files in MinIO and storing Parquet files in MinIO. The source's data will be summarized via Trino. Summarized data will land in the appropriate daily_summary table for the source type for consumption by the API.
 
@@ -256,7 +256,7 @@ To add test sources and data ::
     make create-test-customer
     make load-test-customer-data (optional)start={start_date} (optional)end={end_date}
 
-The MinIO UI will be available at http://127.0.0.1:9000/minio/. Use the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
+The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the S3_ACCESS_KEY and S3_SECRET set in your env as login credentials.
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as `admin`. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 

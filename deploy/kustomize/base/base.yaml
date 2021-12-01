@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
   name: koku
@@ -10,17 +10,18 @@ objects:
   spec:
     # The name of the ClowdEnvironment providing the services
     envName: ${ENV_NAME}
-    testing:
-      iqePlugin: cost-management
-
-    # Redis
-    inMemoryDb: true
 
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
+
+    # Use Unleash server
+    featureFlags: true
+
+    # Redis
+    inMemoryDb: true
 
     # Request kafka topics for your application here
     kafkaTopics:
@@ -36,9 +37,14 @@ objects:
     - rbac
     - sources-api
 
+    # IQE testing
+    testing:
+      iqePlugin: cost-management
+
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
+
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
   metadata:
@@ -49,7 +55,7 @@ objects:
   kind: Secret # For ephemeral/local environment only
   metadata:
     name: koku-aws
-  data:
+  stringData:
     aws-access-key-id: "${AWS_ACCESS_KEY_ID_EPH}"
     aws-secret-access-key: "${AWS_SECRET_ACCESS_KEY_EPH}"
 - apiVersion: v1
@@ -99,12 +105,18 @@ parameters:
 - displayName: Enable threads in Gunicorn
   name: GUNICORN_THREADS
   value: "True"
+- displayName: Celery log level
+  name: CELERY_LOG_LEVEL
+  value: INFO
 - displayName: Gunicorn log level
-  name: LOG_LEVEL
+  name: GUNICORN_LOG_LEVEL
   value: INFO
 - displayName: Koku log level
   name: KOKU_LOG_LEVEL
   value: INFO
+- displayName: Unleash log level
+  name: UNLEASH_LOG_LEVEL
+  value: WARNING
 - displayName: Django log level
   name: DJANGO_LOG_LEVEL
   value: INFO
@@ -120,9 +132,6 @@ parameters:
 - displayName: Django logging file
   name: DJANGO_LOG_FILE
   required: false
-- displayName: Prometheus multiproc dir
-  name: PROMETHEUS_DIR
-  value: /tmp
 - description: Koku Sentry Env
   displayName: Koku Sentry Env
   name: KOKU_SENTRY_ENV
@@ -163,7 +172,7 @@ parameters:
 - description: Flag to use account enhanced prometheus metrics
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
-  value: "True"
+  value: "False"
 - description: Flag to enable/disable caching
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
@@ -258,10 +267,10 @@ parameters:
   name: RBAC_CACHE_TTL
   value: "30"
 
-- displayName: Presto host
+- displayName: Presto/Trino host
   name: PRESTO_HOST
-  value: "presto-coordinator"
-- displayName: Presto port
+  value: "trino-coordinator"
+- displayName: Presto/Trino port
   name: PRESTO_PORT
   value: "8000"
 
@@ -276,6 +285,16 @@ parameters:
   name: SOURCES_PSK_SECRET_NAME
   value: "sources-psk"
 
+- displayName: Temporary directory
+  name: TMP_DIR
+  value: /tmp
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- description: Unleash cache directory
+  name: UNLEASH_CACHE_DIR
+  value: /tmp/unleash
+
 - name: SECRET_KEY
   displayName: Secret Key (Ephemeral)
   required: true
@@ -284,11 +303,11 @@ parameters:
 - name: AWS_ACCESS_KEY_ID_EPH
   displayName: AWS Access Key ID (Ephemeral)
   required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+  value: insert-string-value
 - name: AWS_SECRET_ACCESS_KEY_EPH
   displayName: AWS Secret Access Key (Ephemeral)
   required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+  value: insert-string-value
 - name: GCP_CREDENTIALS_EPH
   displayName: GCP Credentials (Ephemeral)
   required: true

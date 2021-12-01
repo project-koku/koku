@@ -14,6 +14,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.test import MasuTestCase
 from reporting_common.models import CostUsageReportStatus
 
@@ -104,7 +105,30 @@ class ReportDownloaderBaseTest(MasuTestCase):
     def test_process_manifest_db_record_race_no_provider(self, mock_get_manifest):
         """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
         mock_get_manifest.side_effect = [None, None]
-        with patch.object(ReportManifestDBAccessor, "add", side_effect=IntegrityError):
+        side_effect_error = IntegrityError(
+            """insert or update on table "reporting_awscostentrybill" violates foreign key constraint "reporting_awscostent_provider_id_a08725b3_fk_api_provi"
+DETAIL:  Key (provider_id)=(fbe0593a-1b83-4182-b23e-08cd190ed939) is not present in table "api_provider".
+"""  # noqa
+        )  # noqa
+        with patch.object(ReportManifestDBAccessor, "add", side_effect=side_effect_error):
             downloader = ReportDownloaderBase(provider_uuid=self.unkown_test_provider_uuid, cache_key=self.cache_key)
-            with self.assertRaises(IntegrityError):
+            with self.assertRaises(ReportDownloaderError):
                 downloader._process_manifest_db_record(self.assembly_id, self.billing_start, 2, DateAccessor().today())
+
+    def test_process_manifest_db_record_file_num_changed(self):
+        """Test that the _process_manifest_db_record returns the correct manifest during a race for initial entry."""
+        CostUsageReportStatus.objects.create(
+            report_name="fake_report.csv",
+            last_completed_datetime=self.billing_start,
+            last_started_datetime=self.billing_start,
+            etag="etag",
+            manifest=self.manifest,
+        )
+        manifest_id = self.downloader._process_manifest_db_record(
+            self.assembly_id, self.billing_start, 3, DateAccessor().today()
+        )
+        self.assertEqual(manifest_id, self.manifest.id)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            result_manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        expected_count = CostUsageReportStatus.objects.filter(manifest_id=self.manifest_id).count()
+        self.assertEqual(result_manifest.num_total_files, expected_count)

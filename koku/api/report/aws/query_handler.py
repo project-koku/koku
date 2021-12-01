@@ -46,6 +46,7 @@ EXPORT_COLUMNS = [
     "currency_code",
     "unblended_rate",
     "unblended_cost",
+    "savingsplan_effective_cost",
     "blended_rate",
     "blended_cost",
     "tax_type",
@@ -77,12 +78,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            self._mapper = AWSProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = AWSProviderMap(
+                provider=self.provider,
+                report_type=parameters.report_type,
+                cost_type=parameters.parameters.get("cost_type"),
+            )
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
-
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
@@ -361,7 +365,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
-            sum_query = query.annotate(**sum_annotations)
+            sum_query = query.annotate(**sum_annotations).order_by()
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}
             if self._mapper.usage_units_key:

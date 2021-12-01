@@ -20,7 +20,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_dashed-key-on-azure:dashed-value
                 - pod:
                   pod_name: pod_name1b
                   cpu_request: 1
@@ -28,18 +28,18 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_qa:approved
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_qa:approved|label_dashed-key-on-azure:dashed-value
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                  labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur|label_dashed-key-on-azure:dashed-value
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name1_data
                     pod_name: pod_name1a
-                    labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur
+                    labels: label_environment:Jupiter|label_app:mobile|label_version:Mars|label_storageclass:Baldur|label_dashed-key-on-azure:dashed-value
                     capacity_gig: 20
             news-site:
               pods:

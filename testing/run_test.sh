@@ -4,7 +4,7 @@ SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
 IMAGE="docker-registry.upshift.redhat.com/insights-qe/iqe-tests"
 
 _IQE_USER=${IQE_CONTAINER_UID:-1001}
-_IQE_GROUP=${IQE_CONTAINER_gID:-0}
+_IQE_GROUP=${IQE_CONTAINER_GID:-0}
 
 FLAGS=
 PREFIX=

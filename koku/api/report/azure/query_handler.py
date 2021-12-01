@@ -105,7 +105,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
-            sum_query = query.annotate(**sum_annotations)
+            sum_query = query.annotate(**sum_annotations).order_by()
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
             sum_units = {"cost_units": units_value}

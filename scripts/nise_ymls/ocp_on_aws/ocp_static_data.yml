@@ -20,7 +20,7 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:dev|label_app:install-test|label_version:prod
+                  labels: label_environment:dev|label_app:install-test|label_version:prod|label_dashed-key-on-aws:dashed-value
                 - pod:
                   pod_name: pod_name1b
                   cpu_request: 1
@@ -28,18 +28,18 @@ generators:
                   cpu_limit: 1
                   mem_limit_gig: 4
                   pod_seconds: 3600
-                  labels: label_environment:alpha|label_app:install-test|label_version:prod|label_qa:approved
+                  labels: label_environment:alpha|label_app:install-test|label_version:prod|label_qa:approved|label_dashed-key-on-aws:dashed-value
               volumes:
                 - volume:
                   volume_name: pvc-volume_1
                   storage_class: gp2
                   volume_request_gig: 20
-                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
+                  labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo|label_dashed-key-on-aws:dashed-value
                   volume_claims:
                   - volume_claim:
                     volume_claim_name: pod_name1_data
                     pod_name: pod_name1a
-                    labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo
+                    labels: label_environment:dev|label_app:catalog|label_version:prod|label_storageclass:bravo|label_dashed-key-on-aws:dashed-value
                     capacity_gig: 20
             catalog:
               pods:

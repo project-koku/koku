@@ -135,6 +135,25 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
+    def test_execute_query_w_valid_cost_type(self):
+        """Test that delta=total returns deltas."""
+        qs = "cost_type=unblended_cost"
+        url = reverse("reports-aws-costs") + "?" + qs
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_execute_query_w_invalid_cost_type(self):
+        """Test invalid delta value."""
+        invalid_cost_type = "Invalid"
+        expected = f'"{invalid_cost_type}" is not a valid choice.'
+        qs = f"group_by[account]=*&filter[limit]=2&cost_type={invalid_cost_type}"
+        url = reverse("reports-aws-costs") + "?" + qs
+
+        response = self.client.get(url, **self.headers)
+        result = str(response.data.get("cost_type")[0])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(result, expected)
+
     def test_convert_units_success(self):
         """Test unit conversion succeeds."""
         converter = UnitConverter()
@@ -597,18 +616,28 @@ class AWSReportViewTest(IamTestCase):
 
     def test_start_end_parameters_monthly_resolution(self):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
-        qs_list = ["?start_date=2021-04-01&end_date=2021-04-13&filter[resolution]=monthly"]
+        qs_list = [
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
+        ]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_start_end_parameters_no_resolution(self):
+        """Test that a no_validation error is raised for no resolution with start/end parameters."""
+        qs_list = [f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"]
+        for qs in qs_list:
+            url = reverse("reports-aws-costs") + qs
+            response = self.client.get(url, **self.headers)
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_start_end_parameters_with_delta(self):
-        """Test that a validation error is raised for monthly resolution with start/end parameters."""
+        """Test that a validation error is raised for delta with start/end parameters."""
         qs_list = [
-            "?start_date=2021-04-01&end_date=2021-04-13&delta=usage",
-            "?start_date=2021-04-01&delta=usage",
-            "?end_date=2021-04-13&delta=usage",
+            f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&delta=usage",
+            f"?start_date={self.dh.last_month_end.date()}&delta=usage",
+            f"?start_date={self.dh.last_month_end.date()}&delta=usage",
         ]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs

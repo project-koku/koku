@@ -4,13 +4,13 @@
 #
 """Models to capture server status."""
 import logging
-import os
 import platform
 import subprocess
 import sys
 
 from api import API_VERSION
 from koku.rbac import RbacService
+from masu.config import Config
 
 LOG = logging.getLogger(__name__)
 
@@ -18,17 +18,17 @@ LOG = logging.getLogger(__name__)
 class Status:
     """A server's status."""
 
+    config = Config
+
     @property
     def commit(self):
         """Collect the build number for the server.
 
         :returns: A build number
         """
-        commit_info = os.environ.get("OPENSHIFT_BUILD_COMMIT", None)
-        if commit_info is None:
-            commit_info = subprocess.run(["git", "describe", "--always"], stdout=subprocess.PIPE)
-            if commit_info.stdout:
-                commit_info = commit_info.stdout.decode("utf-8").strip()
+        commit_info = subprocess.run(["git", "rev-parse", "--short", "HEAD"], stdout=subprocess.PIPE)
+        if commit_info.stdout:
+            commit_info = commit_info.stdout.decode("utf-8").strip()
         return commit_info
 
     @property

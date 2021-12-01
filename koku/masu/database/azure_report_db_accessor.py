@@ -15,21 +15,26 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from koku.database import get_model
+from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
 from reporting.provider.azure.models import AzureMeter
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.azure.models import UI_SUMMARY_TABLES
+
 
 LOG = logging.getLogger(__name__)
 
 
-class AzureReportDBAccessor(ReportDBAccessorBase):
+class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     """Class to interact with Azure Report reporting tables."""
 
     def __init__(self, schema):
@@ -47,6 +52,14 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return AzureCostEntryLineItemDailySummary
+
+    @property
+    def ocpall_line_item_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemDailySummaryP")
+
+    @property
+    def ocpall_line_item_project_daily_summary_table(self):
+        return get_model("OCPAllCostLineItemProjectDailySummaryP")
 
     @property
     def line_item_daily_table(self):
@@ -181,18 +194,34 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         with schema_context(self.schema):
             return self._get_db_obj_query(table_name).filter(billing_period_start=start_date)
 
-    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
+    def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
-                for bill_id in bill_ids:
-                    AzureCostEntryLineItemDailySummary.objects.filter(
-                        cost_entry_bill_id=bill_id, usage_start__gte=start_date, usage_start__lte=end_date
-                    ).update(markup_cost=(F("pretax_cost") * markup))
-            elif bill_ids:
-                for bill_id in bill_ids:
-                    AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id).update(
+                date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}
+            else:
+                date_filters = {}
+
+            # Models that are linked via the billing id
+            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, get_model("OCPAzureCostLineItemDailySummary"))
+            # Models that are linked via the provider_id (uuid)
+            MARKUP_MODELS_PROVIDER = (get_model("OCPALLCostLineItemDailySummaryP"), *OCP_ON_ALL_PERSPECTIVES)
+            # Linked by provider, model for project
+            MARKUP_PROJECT_MODEL_PROVIDER = get_model("OCPALLCostLineItemProjectDailySummaryP")
+
+            for bill_id in bill_ids:
+                for markup_model in MARKUP_MODELS_BILL:
+                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                         markup_cost=(F("pretax_cost") * markup)
+                    )
+
+                MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
+                    source_uuid=provider_uuid, source_type="Azure", **date_filters
+                ).update(project_markup_cost=(F("pod_cost") * markup))
+
+                for markup_model in MARKUP_MODELS_PROVIDER:
+                    markup_model.objects.filter(source_uuid=provider_uuid, source_type="Azure", **date_filters).update(
+                        markup_cost=(F("unblended_cost") * markup)
                     )
 
     def get_bill_query_before_date(self, date, provider_uuid=None):
@@ -261,6 +290,22 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
+    def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in tables:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/azure/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "schema": self.schema,
+                "source_uuid": source_uuid,
+            }
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+            self._execute_raw_sql_query(
+                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+            )
+
     def populate_ocp_on_azure_cost_daily_summary_presto(
         self,
         start_date,
@@ -274,10 +319,10 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
     ):
         """Populate the daily cost aggregated summary for OCP on Azure."""
         # default to cpu distribution
-        node_column = "node_capacity_cpu_core_hours"
+        pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            node_column = "node_capacity_memory_gigabyte_hours"
+            pod_column = "pod_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
@@ -294,7 +339,7 @@ class AzureReportDBAccessor(ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "bill_id": bill_id,
             "markup": markup_value,
-            "node_column": node_column,
+            "pod_column": pod_column,
             "cluster_column": cluster_column,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)

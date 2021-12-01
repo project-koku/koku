@@ -9,6 +9,7 @@ import hashlib
 import logging
 import os
 
+import ciso8601
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -25,47 +26,21 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
+from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path):
-    """
-    Split local file into daily content.
-    """
-    daily_files = []
-    directory = os.path.dirname(file_path)
-
-    try:
-        data_frame = pd.read_csv(file_path)
-    except Exception as error:
-        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
-        raise error
-
-    unique_times = data_frame.usage_start_time.unique()
-    days = list({cur_dt[:10] for cur_dt in unique_times})
-    daily_data_frames = [
-        {"data_frame": data_frame[data_frame.usage_start_time.str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
-    ]
-
-    for daily_data in daily_data_frames:
-        day = daily_data.get("date")
-        df = daily_data.get("data_frame")
-        day_file = f"{day}.csv"
-        day_filepath = f"{directory}/{day_file}"
-        df.to_csv(day_filepath, index=False, header=True)
-        daily_files.append({"filename": day_file, "filepath": day_filepath})
-    return daily_files
-
-
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, last_export_time, context={}
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -79,26 +54,47 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    download_hash = None
     daily_file_names = []
-
+    if last_export_time:
+        download_hash = hashlib.md5(str(last_export_time).encode())
+        download_hash = download_hash.hexdigest()
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
-        daily_files = divide_csv_daily(filepath)
-        for daily_file in daily_files:
-            # Push to S3
+        dh = DateHelper()
+        directory = os.path.dirname(filepath)
+        try:
+            data_frame = pd.read_csv(filepath)
+        except Exception as error:
+            LOG.error(f"File {filepath} could not be parsed. Reason: {str(error)}")
+            raise error
+        for invoice_month in data_frame["invoice.month"].unique():
+            # daily_files = []
+            invoice_filter = data_frame["invoice.month"] == invoice_month
+            invoice_data = data_frame[invoice_filter]
+            unique_times = invoice_data.partition_date.unique()
+            days = list({cur_dt[:10] for cur_dt in unique_times})
+            daily_data_frames = [
+                {"data_frame": invoice_data[invoice_data.partition_date.str.contains(cur_day)], "date": cur_day}
+                for cur_day in days
+            ]
+            start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
-                account, Provider.PROVIDER_GCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
+                account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
-            copy_local_report_file_to_s3_bucket(
-                tracing_id,
-                s3_csv_path,
-                daily_file.get("filepath"),
-                daily_file.get("filename"),
-                manifest_id,
-                start_date,
-                context,
-            )
-            daily_file_names.append(daily_file.get("filepath"))
-    return daily_file_names
+            for daily_data in daily_data_frames:
+                day = daily_data.get("date")
+                df = daily_data.get("data_frame")
+                if download_hash:
+                    day_file = f"{invoice_month}_{day}_{download_hash}.csv"
+                else:
+                    day_file = f"{invoice_month}_{day}.csv"
+                day_filepath = f"{directory}/{day_file}"
+                df.to_csv(day_filepath, index=False, header=True)
+                copy_local_report_file_to_s3_bucket(
+                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                )
+                daily_file_names.append(day_filepath)
+        return daily_file_names
 
 
 class GCPReportDownloaderError(Exception):
@@ -169,6 +165,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.error(log_json(self.tracing_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
+        self.big_query_export_time = None
 
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
@@ -205,7 +202,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 f"\n  Customer: {self.customer_name}"
                 f"\n  Response: {err.message}"
             )
-            raise GCPReportDownloaderError(err_msg)
+            raise ReportDownloaderWarning(err_msg)
         return modified_hash
 
     def get_manifest_context_for_date(self, date):
@@ -257,8 +254,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        end_of_month = start_date + relativedelta(months=1)
-
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
                 self._provider_uuid, start_date
@@ -268,10 +263,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             self.scan_start = start_date
+            end_of_month = start_date + relativedelta(months=1)
             if isinstance(end_of_month, datetime.datetime):
                 end_of_month = end_of_month.date()
             if end_of_month < self.scan_end:
                 self.scan_end = end_of_month
+            today = DateAccessor().today().date()
+            if today < end_of_month:
+                self.scan_end = today
 
         invoice_month = self.scan_start.strftime("%Y%m")
         bill_date = self.scan_start.replace(day=1)
@@ -293,11 +292,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         Generate an assembly ID for use in manifests.
 
         The assembly id is a unique identifier to ensure we don't needlessly
-        re-fetch data with BigQuery because it cost the costomer money.
+        re-fetch data with BigQuery because it cost us money.
         We use BigQuery to collect the last modified date of the table and md5
         hash it.
             Format: {provider_id}:(etag}:{invoice_month}
-            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:1"
+            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:202109"
 
         Returns:
             str unique to this provider and GCP table and last modified date
@@ -342,6 +341,40 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         return report
 
+    def build_query_select_statement(self):
+        """Helper to build query select statement."""
+        columns_list = self.gcp_big_query_columns.copy()
+        columns_list.append("DATE(_PARTITIONTIME) as partition_time")
+        return ",".join(columns_list)
+
+    def _get_export_time_for_big_query(self, scan_start, scan_end, key):
+        """
+        Logic to set export_time in the manifest.
+        """
+        tomorrow = DateAccessor().today().date() + relativedelta(days=1)
+        bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
+            record = CostUsageReportStatus.objects.filter(report_name=key).first()
+            if record:
+                manifest = manifest_accessor.get_manifest_by_id(record.manifest_id)
+                total_files = manifest.num_total_files
+                processed_files = manifest_accessor.number_of_files_processed(record.manifest_id)
+                if (total_files - 1) == processed_files:
+                    client = bigquery.Client()
+                    export_query = f"""
+                    SELECT max(export_time) FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
+                    AND DATE(_PARTITIONTIME) < '{tomorrow}'
+                    """
+                    eq_result = client.query(export_query).result()
+                    for row in eq_result:
+                        new_export_time = row[0]
+                        break
+                    manifest.export_time = new_export_time
+                    manifest.save()
+        return last_export_time
+
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
@@ -361,24 +394,26 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             filename = os.path.splitext(key)[0]
             date_range = filename.split("_")[-1]
             scan_start, scan_end = date_range.split(":")
-            if start_date:
-                invoice_month = start_date.strftime("%Y%m")
+            last_export_time = self._get_export_time_for_big_query(scan_start, scan_end, key)
+            if not last_export_time:
+                if str(DateAccessor().today().date()) == scan_end:
+                    scan_end = DateAccessor().today().date() + relativedelta(days=1)
                 query = f"""
-                SELECT {",".join(self.gcp_big_query_columns)}
+                SELECT {self.build_query_select_statement()}
                 FROM {self.table_name}
-                WHERE usage_start_time >= '{scan_start}'
-                AND usage_start_time < '{scan_end}'
-                AND invoice.month = '{invoice_month}'
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) < '{scan_end}'
                 """
-                LOG.info(f"Using querying for invoice_month ({invoice_month})")
             else:
                 query = f"""
-                SELECT {",".join(self.gcp_big_query_columns)}
+                SELECT {self.build_query_select_statement()}
                 FROM {self.table_name}
-                WHERE usage_start_time >= '{scan_start}'
-                AND usage_start_time < '{scan_end}'
+                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
+                AND DATE(_PARTITIONTIME) < '{scan_end}'
+                AND export_time > '{last_export_time}'
                 """
             client = bigquery.Client()
+            LOG.info(f"{query}")
             query_job = client.query(query)
         except GoogleCloudError as err:
             err_msg = (
@@ -400,7 +435,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         try:
             with open(full_local_path, "w") as f:
                 writer = csv.writer(f)
-                writer.writerow(self.gcp_big_query_columns)
+                column_list = self.gcp_big_query_columns.copy()
+                column_list.append("partition_date")
+                LOG.info(f"writing columns: {column_list}")
+                writer.writerow(column_list)
                 for row in query_job:
                     writer.writerow(row)
         except (OSError, IOError) as exc:
@@ -424,6 +462,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             full_local_path,
             manifest_id,
             start_date,
+            last_export_time,
             self.context,
         )
 

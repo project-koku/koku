@@ -27,6 +27,26 @@ VIEWS = (
     "reporting_aws_network_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_aws_compute_summary_p",
+    "reporting_aws_compute_summary_by_account_p",
+    "reporting_aws_compute_summary_by_region_p",
+    "reporting_aws_compute_summary_by_service_p",
+    "reporting_aws_cost_summary_p",
+    "reporting_aws_cost_summary_by_account_p",
+    "reporting_aws_cost_summary_by_region_p",
+    "reporting_aws_cost_summary_by_service_p",
+    "reporting_aws_storage_summary_p",
+    "reporting_aws_storage_summary_by_account_p",
+    "reporting_aws_storage_summary_by_region_p",
+    "reporting_aws_storage_summary_by_service_p",
+    "reporting_aws_database_summary_p",
+    "reporting_aws_network_summary_p",
+)
+
+# TODO: Update this subset when we trim out the unecessary ui tables.
+UI_SUMMARY_TABLES_MARKUP_SUBSET = UI_SUMMARY_TABLES
+
 
 PRESTO_LINE_ITEM_TABLE = "aws_line_items"
 PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
@@ -49,10 +69,12 @@ PRESTO_REQUIRED_COLUMNS = (
     "lineItem/UnblendedCost",
     "lineItem/BlendedRate",
     "lineItem/BlendedCost",
+    "savingsPlan/SavingsPlanEffectiveCost",
     "pricing/publicOnDemandCost",
     "pricing/publicOnDemandRate",
     "lineItem/ResourceId",
     "resourceTags",
+    "savingsPlan/SavingsPlanEffectiveCost",
 )
 
 
@@ -141,6 +163,7 @@ class AWSCostEntryLineItem(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     reservation_amortized_upfront_fee = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -197,6 +220,7 @@ class AWSCostEntryLineItemDaily(models.Model):
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
@@ -267,6 +291,9 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     tax_type = models.TextField(null=True)
@@ -384,6 +411,10 @@ class AWSCostSummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -422,6 +453,10 @@ class AWSCostSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -455,6 +490,10 @@ class AWSCostSummaryByAccount(models.Model):
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.DO_NOTHING, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -494,6 +533,10 @@ class AWSCostSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -531,6 +574,10 @@ class AWSComputeSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -580,6 +627,10 @@ class AWSComputeSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -623,6 +674,10 @@ class AWSComputeSummaryByAccount(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -672,6 +727,10 @@ class AWSComputeSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -705,6 +764,10 @@ class AWSStorageSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -748,6 +811,10 @@ class AWSStorageSummaryByService(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -787,6 +854,10 @@ class AWSStorageSummaryByAccount(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -832,6 +903,10 @@ class AWSStorageSummaryByRegion(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -872,6 +947,10 @@ class AWSNetworkSummary(models.Model):
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     currency_code = models.CharField(max_length=10)
@@ -911,6 +990,10 @@ class AWSDatabaseSummary(models.Model):
     unit = models.CharField(max_length=63, null=True)
 
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
@@ -973,3 +1056,802 @@ class AWSEnabledTagKeys(models.Model):
 
     key = models.CharField(max_length=253, primary_key=True)
     enabled = models.BooleanField(default=True)
+
+
+# ======================================================
+#  Partitioned Models to replace matviews
+# ======================================================
+
+
+class AWSCostSummaryP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSCostSummaryP."""
+
+        db_table = "reporting_aws_cost_summary_p"
+        indexes = [models.Index(fields=["usage_start"], name="awscostsumm_usage_start")]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSCostSummaryByServiceP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSCostSummaryByServiceP."""
+
+        db_table = "reporting_aws_cost_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_svc_usage_start"),
+            models.Index(fields=["product_code"], name="awscostsumm_svc_prod_cd"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSCostSummaryByAccountP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSCostSummaryByAccountP."""
+
+        db_table = "reporting_aws_cost_summary_by_account_p"
+        indexes = [models.Index(fields=["usage_start"], name="awscostsumm_acct_usage_start")]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+# EXAMPLE FROM HAP
+class AWSCostSummaryByRegionP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSCostSummaryByRegionP."""
+
+        db_table = "reporting_aws_cost_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscostsumm_reg_usage_start"),
+            models.Index(fields=["region"], name="awscostsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awscostsumm_reg_zone"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSComputeSummaryP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSComputeSummaryP."""
+
+        db_table = "reporting_aws_compute_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_usage_start"),
+            models.Index(fields=["instance_type"], name="awscompsumm_insttyp"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSComputeSummaryByServiceP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage by service and instance type.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSComputeSummaryByServiceP."""
+
+        db_table = "reporting_aws_compute_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_svc_usage_start"),
+            models.Index(fields=["instance_type"], name="awscompsumm_svc_insttyp"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSComputeSummaryByAccountP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSComputeSummaryByAccountP."""
+
+        db_table = "reporting_aws_compute_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_acct_usage_start"),
+            models.Index(fields=["instance_type"], name="awscompsumm_acct_insttyp"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSComputeSummaryByRegionP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSComputeSummaryByRegionP."""
+
+        db_table = "reporting_aws_compute_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awscompsumm_reg_usage_start"),
+            models.Index(fields=["region"], name="awscompsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awscompsumm_reg_zone"),
+            models.Index(fields=["instance_type"], name="awscompsumm_reg_insttyp"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    instance_type = models.CharField(max_length=50, null=True)
+
+    resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+
+    resource_count = models.IntegerField(null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSStorageSummaryP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSStorageSummaryP."""
+
+        db_table = "reporting_aws_storage_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_usage_start"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_fam"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSStorageSummaryByServiceP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage by service.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSStorageSummaryP."""
+
+        db_table = "reporting_aws_storage_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_svc_usage_start"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_svc_fam"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSStorageSummaryByAccountP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of storage by account.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSStorageSummaryByAccountP."""
+
+        db_table = "reporting_aws_storage_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_acct_usage_start"),
+            models.Index(fields=["product_family"], name="awsstorsumm_product_acct_fam"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSStorageSummaryByRegionP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by region.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSStorageSummaryByRegionP."""
+
+        db_table = "reporting_aws_storage_summary_by_region_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsstorsumm_reg_usage_start"),
+            models.Index(fields=["region"], name="awsstorsumm_reg_region"),
+            models.Index(fields=["availability_zone"], name="awsstorsumm_reg_zone"),
+            models.Index(fields=["product_family"], name="awsstorsumm_reg_product_fam"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    region = models.CharField(max_length=50, null=True)
+
+    availability_zone = models.CharField(max_length=50, null=True)
+
+    product_family = models.CharField(max_length=150, null=True)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSNetworkSummaryP(models.Model):
+    """A summarized partition table specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSNetworkSummaryP."""
+
+        db_table = "reporting_aws_network_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsnetsumm_usage_start"),
+            models.Index(fields=["product_code"], name="awsnetsumm_product_cd"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AWSDatabaseSummaryP(models.Model):
+    """A summarized partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AWSDatabaseSummaryP."""
+
+        db_table = "reporting_aws_database_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="awsdbsumm_usage_start"),
+            models.Index(fields=["product_code"], name="awsdbsumm_product_cd"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+
+    usage_start = models.DateField(null=False)
+
+    usage_end = models.DateField(null=False)
+
+    usage_account_id = models.CharField(max_length=50, null=False)
+
+    account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.SET_NULL, null=True)
+
+    organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
+
+    product_code = models.CharField(max_length=50, null=False)
+
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    unit = models.CharField(max_length=63, null=True)
+
+    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+
+    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    currency_code = models.CharField(max_length=10)
+
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )

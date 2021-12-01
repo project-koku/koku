@@ -4,8 +4,12 @@
 #
 """View for report_data endpoint."""
 # flake8: noqa
+import datetime
 import logging
 
+import ciso8601
+import pytz
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -15,6 +19,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.utils import DateHelper
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import QUEUE_LIST
@@ -23,7 +28,7 @@ from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
 
 LOG = logging.getLogger(__name__)
-REPORT_DATA_KEY = "Report Data Task ID"
+REPORT_DATA_KEY = "Report Data Task IDs"
 
 
 @never_cache
@@ -33,6 +38,7 @@ REPORT_DATA_KEY = "Report Data Task ID"
 def report_data(request):
     """Update report summary tables in the database."""
     if request.method == "GET":
+        async_results = []
         params = request.query_params
         async_result = None
         all_providers = False
@@ -61,6 +67,23 @@ def report_data(request):
             errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+        start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+        end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
+        months = DateHelper().list_month_tuples(start_date, end_date)
+        num_months = len(months)
+        first_month = months[0]
+        months[0] = (start_date, first_month[1])
+
+        last_month = months[num_months - 1]
+        months[num_months - 1] = (last_month[0], end_date)
+
+        # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+        for i, month in enumerate(months):
+            start, end = month
+            start_date = start.date().strftime("%Y-%m-%d")
+            end_date = end.date().strftime("%Y-%m-%d")
+            months[i] = (start_date, end_date)
+
         if not all_providers:
             if schema_name is None:
                 errmsg = "schema is a required parameter."
@@ -74,12 +97,21 @@ def report_data(request):
                 errmsg = "provider_uuid and provider_type have mismatched provider types."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-            async_result = update_summary_tables.s(
-                schema_name, provider, provider_uuid, start_date, end_date, queue_name=queue_name
-            ).apply_async(queue=queue_name or PRIORITY_QUEUE)
+            for month in months:
+                async_result = update_summary_tables.s(
+                    schema_name, provider, provider_uuid, month[0], month[1], queue_name=queue_name
+                ).apply_async(queue=queue_name or PRIORITY_QUEUE)
+                async_results.append({str(month): str(async_result)})
         else:
-            async_result = update_all_summary_tables.delay(start_date, end_date)
-        return Response({REPORT_DATA_KEY: str(async_result)})
+            # TODO: when DEVELOPMENT=False, disable resummarization for all providers to prevent burning the db.
+            # this query could be re-enabled if we need it, but we should consider limiting its use to a schema.
+            if not settings.DEVELOPMENT:
+                errmsg = "?provider_uuid=* is invalid query."
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+            for month in months:
+                async_result = update_all_summary_tables.delay(month[0], month[1])
+                async_results.append({str(month): str(async_result)})
+        return Response({REPORT_DATA_KEY: async_results})
 
     if request.method == "DELETE":
         params = request.query_params

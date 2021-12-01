@@ -13,16 +13,7 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    replaces = [
-        ("reporting_common", "0001_initial_squashed_0007_auto_20190208_0316_squashed_0019_auto_20191022_1602"),
-        ("reporting_common", "0020_auto_20191022_1620_squashed_0025_auto_20200116_2048"),
-        ("reporting_common", "0021_delete_reportcolumnmap"),
-        ("reporting_common", "0022_auto_20200505_1707"),
-        ("reporting_common", "0023_delete_siunitscale"),
-        ("reporting_common", "0024_remove_costusagereportmanifest_num_processed_files"),
-        ("reporting_common", "0025_remove_costusagereportmanifest_task"),
-        ("reporting_common", "0026_costusagereportmanifest_manifest_modified_datetime"),
-    ]
+    replaces = []
 
     dependencies = [("api", "0001_initial")]
 

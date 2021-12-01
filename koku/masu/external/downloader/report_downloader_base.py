@@ -9,10 +9,19 @@ from tempfile import mkdtemp
 from django.db.utils import IntegrityError
 
 from api.common import log_json
+from koku.database import FKViolation
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 
 LOG = logging.getLogger(__name__)
+
+
+class ReportDownloaderWarning(Exception):
+    """A class for warnings related to report downloading"""
+
+
+class ReportDownloaderError(Exception):
+    """An exception class for base class errors"""
 
 
 class ReportDownloaderBase:
@@ -87,6 +96,10 @@ class ReportDownloaderBase:
                 try:
                     manifest_entry = manifest_accessor.add(**manifest_dict)
                 except IntegrityError as error:
+                    fk_violation = FKViolation(error)
+                    if fk_violation:
+                        LOG.warning(fk_violation)
+                        raise ReportDownloaderError(f"Method: _process_manifest_db_record :: {fk_violation}")
                     msg = (
                         f"Manifest entry uniqueness collision: Error {error}. "
                         "Manifest already added, getting manifest_entry_id."
@@ -100,9 +113,13 @@ class ReportDownloaderBase:
                     provider = provider_accessor.get_provider()
                     if not provider:
                         msg = f"Provider entry not found for {self._provider_uuid}."
+                        LOG.warning(log_json(self.tracing_id, msg, self.context))
+                        raise ReportDownloaderError(msg)
                 LOG.warning(log_json(self.tracing_id, msg, self.context))
                 raise IntegrityError(msg)
             else:
+                if num_of_files != manifest_entry.num_total_files:
+                    manifest_accessor.update_number_of_files_for_manifest(manifest_entry)
                 manifest_accessor.mark_manifest_as_updated(manifest_entry)
                 manifest_id = manifest_entry.id
 

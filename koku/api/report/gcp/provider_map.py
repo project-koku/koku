@@ -40,6 +40,8 @@ class GCPProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type):
         """Constructor."""
+        # TODO: COST-1986
+        # group_by_annotations, filters, group_by_options, self.views
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_GCP,
@@ -47,6 +49,7 @@ class GCPProviderMap(ProviderMap):
                 "group_by_annotations": {
                     "account": {"account": "account_id"},
                     "project": {"project": "project_id"},
+                    "gcp_project": {"gcp_project": "project_id"},
                     "service": {"service": "service_alias"},
                 },  # Annotations that should happen depending on group_by values
                 "end_date": "usage_end",
@@ -61,31 +64,40 @@ class GCPProviderMap(ProviderMap):
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
+                    "gcp_project": [
+                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
+                        {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
+                    ],
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["account", "region", "service", "project"],
+                "group_by_options": ["account", "region", "service", "project", "gcp_project"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum("unblended_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum("unblended_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                         },
                         "aggregate_key": "unblended_cost",
                         "annotations": {
@@ -94,19 +106,24 @@ class GCPProviderMap(ProviderMap):
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -115,7 +132,12 @@ class GCPProviderMap(ProviderMap):
                         "delta_key": {
                             # cost goes to cost_total
                             "cost_total": Sum(
-                                ExpressionWrapper(F("unblended_cost") + F("markup_cost"), output_field=DecimalField())
+                                ExpressionWrapper(
+                                    F("unblended_cost")
+                                    + F("markup_cost")
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField())),
+                                    output_field=DecimalField(),
+                                )
                             )
                         },
                         "filter": [{}],
@@ -128,45 +150,55 @@ class GCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum("unblended_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum("unblended_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum("unblended_cost"),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum("unblended_cost"),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
                             "source_uuid": ArrayAgg(
@@ -191,21 +223,26 @@ class GCPProviderMap(ProviderMap):
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "infra_raw": Sum("unblended_cost"),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum("unblended_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "usage": Sum("usage_amount"),
                         },
@@ -216,19 +253,24 @@ class GCPProviderMap(ProviderMap):
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "infra_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
+                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
+                            "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
+                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
@@ -263,6 +305,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPCostSummaryByService,
                 ("project",): GCPCostSummaryByProject,
                 ("account", "project"): GCPCostSummaryByProject,
+                ("gcp_project",): GCPCostSummaryByProject,
+                ("account", "gcp_project"): GCPCostSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPCostSummaryByProject,
+                ("account", "gcp_project", "project"): GCPCostSummaryByProject,
             },
             "instance-type": {
                 "default": GCPComputeSummary,
@@ -273,6 +320,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPComputeSummaryByService,
                 ("project",): GCPComputeSummaryByProject,
                 ("account", "project"): GCPComputeSummaryByProject,
+                ("gcp_project",): GCPComputeSummaryByProject,
+                ("account", "gcp_project"): GCPComputeSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPComputeSummaryByProject,
+                ("account", "gcp_project", "project"): GCPComputeSummaryByProject,
             },
             "storage": {
                 "default": GCPStorageSummary,
@@ -283,6 +335,11 @@ class GCPProviderMap(ProviderMap):
                 ("account", "service"): GCPStorageSummaryByService,
                 ("project",): GCPStorageSummaryByProject,
                 ("account", "project"): GCPStorageSummaryByProject,
+                ("gcp_project",): GCPStorageSummaryByProject,
+                ("account", "gcp_project"): GCPStorageSummaryByProject,
+                # COST-1981, COST-1986 Forecast stop gap
+                ("gcp_project", "project"): GCPStorageSummaryByProject,
+                ("account", "gcp_project", "project"): GCPStorageSummaryByProject,
             },
             "database": {
                 "default": GCPDatabaseSummary,
@@ -297,4 +354,8 @@ class GCPProviderMap(ProviderMap):
                 ("account",): GCPNetworkSummary,
             },
         }
+        # I needed a way to identify gcp in the parent class in queries.py so that
+        # way we could filter off of invoice month instead of usage dates for
+        # monthly time scope values.
+        self.gcp_filters = True
         super().__init__(provider, report_type)

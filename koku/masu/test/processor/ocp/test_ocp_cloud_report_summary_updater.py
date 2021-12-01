@@ -8,12 +8,14 @@ import decimal
 from unittest.mock import Mock
 from unittest.mock import patch
 
+from django.db import connection
 from django.db.models import Sum
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper
+from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -42,8 +44,19 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.today = self.dh.today
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
-    def test_update_summary_tables_with_ocp_provider(self, mock_ocp_on_aws, mock_map):
+    def test_update_summary_tables_with_ocp_provider(
+        self, mock_ocp_on_aws, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp, mock_map
+    ):
         """Test that summary tables are properly run for an OCP provider."""
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
@@ -71,8 +84,19 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.aws_get_bills_from_provider")
-    def test_update_summary_tables_with_aws_provider(self, mock_utility, mock_ocp_on_aws, mock_map):
+    def test_update_summary_tables_with_aws_provider(
+        self, mock_utility, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp, mock_ocp_on_aws, mock_map
+    ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = [Mock(), Mock()]
         fake_bills[0].id = 1
@@ -95,8 +119,19 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             start_date.date(), end_date.date(), cluster_id, bill_ids, decimal.Decimal(0)
         )
 
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
-    def test_update_summary_tables_no_ocp_on_aws(self, mock_ocp_on_aws):
+    def test_update_summary_tables_no_ocp_on_aws(
+        self, mock_ocp_on_aws, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
+    ):
         """Test that summary tables do not run when OCP-on-AWS does not exist."""
         new_aws_provider = baker.make("Provider", type="AWS")
         new_ocp_provider = baker.make("Provider", type="OCP")
@@ -136,8 +171,17 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             query = aws_accessor._get_db_obj_query(summary_table_name)
             self.assertNotEqual(query.count(), initial_count)
 
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    )
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
-    def test_update_markup_cost(self, mock_cost_model):
+    def test_update_markup_cost(self, mock_cost_model, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
         markup_dec = decimal.Decimal(markup.get("value") / 100)
@@ -209,8 +253,19 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
 
+    # @patch(
+    #     "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
+    # )
+    # @patch(
+    #     "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_daily_summary"  # noqa: E501
+    # )
+    # @patch(
+    #     "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
+    # )
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
-    def test_update_summary_tables_azure(self, mock_cost_model):
+    def test_update_summary_tables_azure(
+        self, mock_cost_model  # , mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
+    ):
         """Test that summary tables are updated correctly."""
         markup = {"value": 10, "unit": "percent"}
         mock_cost_model.markup = markup
@@ -247,3 +302,39 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNotNone(project_infra_cost)
         self.assertNotEqual(infra_cost, decimal.Decimal(0))
         self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
+
+    def test_partition_handler_str_table(self):
+        new_table_sql = f"""
+create table {self.schema}._eek_pt0 (usage_start date not null, id int) partition by range (usage_start);
+"""
+        with schema_context(self.schema):
+            with connection.cursor() as cur:
+                cur.execute(new_table_sql)
+
+            partable = get_model("PartitionedTable")
+            default_part = partable(
+                schema_name=self.schema,
+                table_name="_eek_pt0_default",
+                partition_of_table_name="_eek_pt0",
+                partition_type=partable.RANGE,
+                partition_col="usage_start",
+                partition_parameters={"default": True},
+                active=True,
+            )
+            default_part.save()
+
+            ocrsu = OCPCloudReportSummaryUpdater(self.schema, self.ocp_on_aws_ocp_provider, None)
+            num_eek = partable.objects.filter(schema_name=self.schema, partition_of_table_name="_eek_pt0").count()
+            self.assertEqual(num_eek, 1)
+
+            ocrsu._handle_partitions(self.schema, "_eek_pt0", datetime.date(1970, 10, 1), datetime.date(1970, 12, 1))
+            eek_p = partable.objects.filter(
+                schema_name=self.schema, partition_of_table_name="_eek_pt0", partition_parameters__default=False
+            ).all()
+            self.assertEqual(len(eek_p), 3)
+
+            eek_p.delete()
+            default_part.delete()
+
+            with connection.cursor() as cur:
+                cur.execute(f"drop table {self.schema}._eek_pt0 ;")

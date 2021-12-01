@@ -37,11 +37,16 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
+from masu.exceptions import MasuProcessingError
+from masu.exceptions import MasuProviderError
+from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from masu.external.report_downloader import ReportDownloaderError
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import normalize_table_options
@@ -100,7 +105,6 @@ class GetReportFileTests(MasuTestCase):
             report_month=DateHelper().today,
             provider_uuid=self.aws_provider_uuid,
             billing_source=self.fake.word(),
-            cache_key=self.fake.word(),
             report_context={},
         )
 
@@ -124,13 +128,9 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
-            statement_found = False
-            for log in logger.output:
-                if expected in log:
-                    statement_found = True
+            statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
         shutil.rmtree(Config.TMP_DIR, ignore_errors=True)
@@ -153,13 +153,9 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=self.aws_provider_uuid,
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
-            statement_found = False
-            for log in logger.output:
-                if expected in log:
-                    statement_found = True
+            statement_found = any(expected in log for log in logger.output)
             self.assertTrue(statement_found)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -177,7 +173,6 @@ class GetReportFileTests(MasuTestCase):
                 report_month=DateHelper().today,
                 provider_uuid=uuid4(),
                 billing_source=self.fake.word(),
-                cache_key=self.fake.word(),
                 report_context={},
             )
 
@@ -436,6 +431,22 @@ class TestProcessorTasks(MasuTestCase):
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._process_report_file")
+    def test_get_report_files_exception(self, mock_process_files, mock_inspect, mock_cache_remove):
+        """Test raising download exception is handled."""
+        exceptions = [MasuProcessingError, MasuProviderError, ReportDownloaderError]
+        for exception in exceptions:
+            with self.subTest(exception=exception):
+                with patch(
+                    "masu.processor.tasks._get_report_files", side_effect=exception("Mocked exception!")
+                ) as mock_get_files:
+                    get_report_files(**self.get_report_args)
+                    mock_get_files.assert_called()
+                    mock_cache_remove.assert_called()
+                    mock_process_files.assert_not_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks._get_report_files")
     @patch("masu.processor.tasks._process_report_file", side_effect=ReportProcessorError("Mocked process error!"))
     def test_get_report_process_exception(self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove):
@@ -463,6 +474,16 @@ class TestProcessorTasks(MasuTestCase):
     @patch("masu.processor.tasks._get_report_files", side_effect=Exception("Mocked download error!"))
     def test_get_report_broad_exception(self, mock_get_files, mock_inspect, mock_cache_remove):
         """Test raising download broad exception is handled."""
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
+
+        get_report_files(**self.get_report_args)
+        mock_cache_remove.assert_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files", side_effect=ReportDownloaderWarning("Mocked download warning!"))
+    def test_get_report_download_warning(self, mock_get_files, mock_inspect, mock_cache_remove):
+        """Test raising download warning is handled."""
         mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP"}
 
         get_report_files(**self.get_report_args)
@@ -1205,6 +1226,42 @@ class TestWorkerCacheThrottling(MasuTestCase):
             for log in logger.output:
                 if expected in log:
                     statement_found = True
+            self.assertTrue(statement_found)
+
+    @patch("masu.processor.tasks.update_summary_tables.s")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_summary_tables_provider_not_found_error(
+        self,
+        mock_inspect,
+        mock_lock,
+        mock_release,
+        mock_update_cost,
+        mock_refresh,
+        mock_chain,
+        mock_daily,
+        mock_summary,
+        mock_delay,
+    ):
+        """Test that the update_summary_table provider not found exception is caught."""
+        start_date = DateHelper().this_month_start
+        end_date = DateHelper().this_month_end
+        mock_daily.return_value = start_date, end_date
+        mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
+        expected = "Processing for this provier will halt."
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, uuid4(), start_date, end_date)
+            statement_found = False
+            for log in logger.output:
+                if expected in log:
+                    statement_found = True
+                    break
             self.assertTrue(statement_found)
 
     @patch("masu.processor.tasks.update_cost_model_costs.s")

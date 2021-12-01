@@ -35,23 +35,23 @@ from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
-from reporting.models import AWSComputeSummary
-from reporting.models import AWSComputeSummaryByAccount
-from reporting.models import AWSComputeSummaryByRegion
-from reporting.models import AWSComputeSummaryByService
+from reporting.models import AWSComputeSummaryByAccountP
+from reporting.models import AWSComputeSummaryByRegionP
+from reporting.models import AWSComputeSummaryByServiceP
+from reporting.models import AWSComputeSummaryP
 from reporting.models import AWSCostEntryBill
 from reporting.models import AWSCostEntryLineItemDailySummary
 from reporting.models import AWSCostEntryProduct
-from reporting.models import AWSCostSummary
-from reporting.models import AWSCostSummaryByAccount
-from reporting.models import AWSCostSummaryByRegion
-from reporting.models import AWSCostSummaryByService
-from reporting.models import AWSDatabaseSummary
-from reporting.models import AWSNetworkSummary
-from reporting.models import AWSStorageSummary
-from reporting.models import AWSStorageSummaryByAccount
-from reporting.models import AWSStorageSummaryByRegion
-from reporting.models import AWSStorageSummaryByService
+from reporting.models import AWSCostSummaryByAccountP
+from reporting.models import AWSCostSummaryByRegionP
+from reporting.models import AWSCostSummaryByServiceP
+from reporting.models import AWSCostSummaryP
+from reporting.models import AWSDatabaseSummaryP
+from reporting.models import AWSNetworkSummaryP
+from reporting.models import AWSStorageSummaryByAccountP
+from reporting.models import AWSStorageSummaryByRegionP
+from reporting.models import AWSStorageSummaryByServiceP
+from reporting.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
@@ -301,6 +301,35 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(end, DateHelper().last_month_end)
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) >= 28)
+
+    def test_get_time_frame_filter_2_months_ago(self):
+        """Test _get_time_frame_filter for 2 months ago."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=daily"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        start = handler.start_datetime
+        end = handler.end_datetime
+        interval = handler.time_interval
+        dh = DateHelper()
+        self.assertEqual(start, dh.relative_month_start(-2))
+        self.assertEqual(end, dh.relative_month_end(-2))
+        self.assertIsInstance(interval, list)
+        self.assertEqual(len(interval), end.day)
+
+    def test_get_time_frame_filter_90_days_ago(self):
+        """Test _get_time_frame_filter for 90 days ago month."""
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-90&filter[resolution]=daily"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        start = handler.start_datetime.date()
+        end = handler.end_datetime.date()
+        interval = handler.time_interval
+        dh = DateHelper()
+        today = dh.today
+        self.assertEqual(start, dh.n_days_ago(today, 89).date())
+        self.assertEqual(end, dh.today.date())
+        self.assertIsInstance(interval, list)
+        self.assertEqual(len(interval), 90)
 
     def test_get_time_frame_filter_last_ten(self):
         """Test _get_time_frame_filter for last ten days."""
@@ -1861,10 +1890,10 @@ class AWSReportQueryTest(IamTestCase):
         # execute query
         yesterday = self.dh.yesterday.date()
         group_bys = {
-            "account": AWSCostSummaryByAccount,
-            "service": AWSCostSummaryByService,
-            "region": AWSCostSummaryByRegion,
-            "product_family": AWSCostSummaryByService,
+            "account": AWSCostSummaryByAccountP,
+            "service": AWSCostSummaryByServiceP,
+            "region": AWSCostSummaryByRegionP,
+            "product_family": AWSCostSummaryByServiceP,
         }
         for group_by, table in group_bys.items():
             with self.subTest(test=group_by):
@@ -2128,6 +2157,26 @@ class AWSQueryHandlerTest(IamTestCase):
                     for value_item in service_item["values"]:
                         self.assertTrue("tags_exist" in value_item)
 
+    def test_query_cost_type_default(self):
+        """Test "cost_type" is defaulted when not passed in."""
+        url = (
+            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"
+        )  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        cost_type = query_output.get("cost_type")
+        self.assertEqual(cost_type, "unblended_cost")
+
+    def test_query_cost_type_passed_in(self):
+        """Test "cost_type" is recognized when passed in."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        cost_type = query_output.get("cost_type")
+        self.assertEqual(cost_type, "blended_cost")
+
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         with tenant_context(self.tenant):
@@ -2157,37 +2206,37 @@ class AWSQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", AWSCostView, AWSCostSummary),
-            ("?group_by[account]=*", AWSCostView, AWSCostSummaryByAccount),
-            ("?group_by[region]=*", AWSCostView, AWSCostSummaryByRegion),
-            ("?group_by[region]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByRegion),
-            ("?group_by[service]=*", AWSCostView, AWSCostSummaryByService),
-            ("?group_by[service]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByService),
-            ("?", AWSInstanceTypeView, AWSComputeSummary),
-            ("?group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccount),
-            ("?group_by[region]=*", AWSInstanceTypeView, AWSComputeSummaryByRegion),
-            ("?group_by[region]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByRegion),
-            ("?group_by[service]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
-            ("?group_by[service]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
-            ("?group_by[product_family]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
-            ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByService),
-            ("?group_by[instance_type]=*", AWSInstanceTypeView, AWSComputeSummary),
-            ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummary),
-            ("?", AWSStorageView, AWSStorageSummary),
-            ("?group_by[account]=*", AWSStorageView, AWSStorageSummaryByAccount),
-            ("?group_by[region]=*", AWSStorageView, AWSStorageSummaryByRegion),
-            ("?group_by[region]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByRegion),
-            ("?group_by[service]=*", AWSStorageView, AWSStorageSummaryByService),
-            ("?group_by[service]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByService),
-            ("?group_by[product_family]=*", AWSStorageView, AWSStorageSummaryByService),
-            ("?group_by[product_family]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByService),
+            ("?", AWSCostView, AWSCostSummaryP),
+            ("?group_by[account]=*", AWSCostView, AWSCostSummaryByAccountP),
+            ("?group_by[region]=*", AWSCostView, AWSCostSummaryByRegionP),
+            ("?group_by[region]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByRegionP),
+            ("?group_by[service]=*", AWSCostView, AWSCostSummaryByServiceP),
+            ("?group_by[service]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByServiceP),
+            ("?", AWSInstanceTypeView, AWSComputeSummaryP),
+            ("?group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccountP),
+            ("?group_by[region]=*", AWSInstanceTypeView, AWSComputeSummaryByRegionP),
+            ("?group_by[region]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByRegionP),
+            ("?group_by[service]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
+            ("?group_by[service]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
+            ("?group_by[product_family]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
+            ("?group_by[instance_type]=*", AWSInstanceTypeView, AWSComputeSummaryP),
+            ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryP),
+            ("?", AWSStorageView, AWSStorageSummaryP),
+            ("?group_by[account]=*", AWSStorageView, AWSStorageSummaryByAccountP),
+            ("?group_by[region]=*", AWSStorageView, AWSStorageSummaryByRegionP),
+            ("?group_by[region]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByRegionP),
+            ("?group_by[service]=*", AWSStorageView, AWSStorageSummaryByServiceP),
+            ("?group_by[service]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByServiceP),
+            ("?group_by[product_family]=*", AWSStorageView, AWSStorageSummaryByServiceP),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByServiceP),
             (
                 (
                     "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"
                     "AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
                 ),
                 AWSCostView,
-                AWSDatabaseSummary,
+                AWSDatabaseSummaryP,
             ),
             (
                 (
@@ -2195,17 +2244,17 @@ class AWSQueryHandlerTest(IamTestCase):
                     "AmazonNeptune,AmazonRedshift,AmazonDocumentDB&group_by[account]=*"
                 ),
                 AWSCostView,
-                AWSDatabaseSummary,
+                AWSDatabaseSummaryP,
             ),
             (
                 "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway",  # noqa: E501
                 AWSCostView,
-                AWSNetworkSummary,
+                AWSNetworkSummaryP,
             ),
             (
                 "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway&group_by[account]=*",  # noqa: E501
                 AWSCostView,
-                AWSNetworkSummary,
+                AWSNetworkSummaryP,
             ),
         ]
 

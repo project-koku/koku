@@ -9,6 +9,8 @@ from celery import Celery
 from celery import Task
 from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
+from celery.signals import worker_process_init
+from celery.signals import worker_process_shutdown
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -160,7 +162,7 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-LOG.info(f"Source status schedule: {str(source_status_schedule)}")
+print(f"Source status schedule: {source_status_schedule}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
@@ -196,6 +198,12 @@ app.conf.beat_schedule["crawl_account_hierarchy"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used to fetch daily rates
+app.conf.beat_schedule["get_daily_currency_rates"] = {
+    "task": "masu.celery.tasks.get_daily_currency_rates",
+    "schedule": crontab(hour=1, minute=0),
+}
+
 # Beat used to remove stale tenant data
 app.conf.beat_schedule["remove_stale_tenants"] = {
     "task": "masu.processor.tasks.remove_stale_tenants",
@@ -224,6 +232,22 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 
     httpd.RequestHandlerClass.ready = True  # Set `ready` to true to indicate migrations are done.
     httpd.RequestHandlerClass._collector = collect_queue_metrics
+
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    from koku.feature_flags import UNLEASH_CLIENT
+
+    LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
+    UNLEASH_CLIENT.initialize_client()
+
+
+@worker_process_shutdown.connect
+def shutdown_worker(**kwargs):
+    from koku.feature_flags import UNLEASH_CLIENT
+
+    LOG.info("Shutting down UNLEASH_CLIENT for celery worker.")
+    UNLEASH_CLIENT.destroy()
 
 
 def is_task_currently_running(task_name, task_id, check_args=None):

@@ -18,6 +18,7 @@ from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
+from django.db.utils import ProgrammingError
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -35,8 +36,6 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import map_django_field_type_to_python_type
 from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
-from reporting.provider.aws.models import AWSCostEntryProduct
-from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting_common import REPORT_COLUMN_MAP
@@ -213,16 +212,20 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
 
             table_name = AWS_CUR_TABLE_MAP["line_item"]
+            table = get_model(table_name)
+
             query = self.accessor._get_db_obj_query(table_name)
             initial_count = query.count()
             cost_entry = query.first()
 
-            data_dict = self.creator.create_columns_for_table(table_name)
-            data_dict["cost_entry_bill_id"] = cost_entry.cost_entry_bill_id
-            data_dict["cost_entry_id"] = cost_entry.cost_entry_id
-            data_dict["cost_entry_product_id"] = cost_entry.cost_entry_product_id
-            data_dict["cost_entry_pricing_id"] = cost_entry.cost_entry_pricing_id
-            data_dict["cost_entry_reservation_id"] = cost_entry.cost_entry_reservation_id
+            data = {
+                "cost_entry_bill__id": cost_entry.cost_entry_bill_id,
+                "cost_entry__id": cost_entry.cost_entry_id,
+                "cost_entry_product__id": cost_entry.cost_entry_product_id,
+                "cost_entry_pricing__id": cost_entry.cost_entry_pricing_id,
+                "cost_entry_reservation__id": cost_entry.cost_entry_reservation_id,
+            }
+            data_dict = self.creator.create_columns_for_table_with_bakery(table, data)
 
             columns = list(data_dict.keys())
             values = list(data_dict.values())
@@ -245,9 +248,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_nothing_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
         table_name = AWS_CUR_TABLE_MAP["product"]
-        table = AWSCostEntryProduct
+        table = get_model(table_name)
         with schema_context(self.schema):
-            data = self.creator.create_columns_for_table(table_name)
+            data = self.creator.create_columns_for_table_with_bakery(table)
             query = self.accessor._get_db_obj_query(table_name)
 
             initial_count = query.count()
@@ -267,9 +270,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Test that an INSERT succeeds inserting all non-conflicting rows."""
         # table_name = random.choice(self.foreign_key_tables)
         table_name = AWS_CUR_TABLE_MAP["product"]
-        table = AWSCostEntryProduct
+        table = get_model(table_name)
 
-        data = [self.creator.create_columns_for_table(table_name), self.creator.create_columns_for_table(table_name)]
+        data = [
+            self.creator.create_columns_for_table_with_bakery(table),
+            self.creator.create_columns_for_table_with_bakery(table),
+        ]
         query = self.accessor._get_db_obj_query(table_name)
         with schema_context(self.schema):
             previous_count = query.count()
@@ -287,8 +293,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_update_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
         table_name = AWS_CUR_TABLE_MAP["reservation"]
-        table = AWSCostEntryReservation
-        data = self.creator.create_columns_for_table(table_name)
+        table = get_model(table_name)
+        data = self.creator.create_columns_for_table_with_bakery(table)
         query = self.accessor._get_db_obj_query(table)
         with schema_context(self.schema):
             initial_res_count = 1
@@ -315,9 +321,12 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_insert_on_conflict_do_update_without_conflict(self):
         """Test that an INSERT succeeds inserting all non-conflicting rows."""
         table_name = AWS_CUR_TABLE_MAP["reservation"]
-        table = AWSCostEntryReservation
+        table = get_model(table_name)
 
-        data = [self.creator.create_columns_for_table(table_name), self.creator.create_columns_for_table(table_name)]
+        data = [
+            self.creator.create_columns_for_table_with_bakery(table),
+            self.creator.create_columns_for_table_with_bakery(table),
+        ]
         query = self.accessor._get_db_obj_query(table_name)
         with schema_context(self.schema):
             previous_count = query.count()
@@ -337,8 +346,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_get_primary_key(self):
         """Test that a primary key is returned."""
         table_name = random.choice(self.foreign_key_tables)
+        table = get_model(table_name)
         with schema_context(self.schema):
-            data = self.creator.create_columns_for_table(table_name)
+            data = self.creator.create_columns_for_table_with_bakery(table)
             if table_name == AWS_CUR_TABLE_MAP["bill"]:
                 data["provider_id"] = self.aws_provider_uuid
             obj = self.accessor.create_db_object(table_name, data)
@@ -351,24 +361,28 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_get_primary_key_attribute_error(self):
         """Test that an AttributeError is raised on bad primary key lookup."""
         table_name = AWS_CUR_TABLE_MAP["product"]
+        table = get_model(table_name)
         with schema_context(self.schema):
-            data = self.creator.create_columns_for_table(table_name)
+            data = self.creator.create_columns_for_table_with_bakery(table)
             obj = self.accessor.create_db_object(table_name, data)
             obj.save()
 
-            data["sku"] = "".join([random.choice(string.digits) for _ in range(5)])
+            data["sku"] = "".join(random.choice(string.digits) for _ in range(5))
             with self.assertRaises(AttributeError):
                 self.accessor._get_primary_key(table_name, data)
 
     def test_clean_data(self):
         """Test that data cleaning produces proper data types."""
         table_name = random.choice(self.all_tables)
+        table = get_model(table_name)
         column_types = self.report_schema.column_types[table_name]
 
-        data = self.creator.create_columns_for_table(table_name)
+        data = self.creator.create_columns_for_table_with_bakery(table)
         cleaned_data = self.accessor.clean_data(data, table_name)
 
         for key, value in cleaned_data.items():
+            if key not in column_types:
+                continue
             column_type = column_types[key]
             type = map_django_field_type_to_python_type(column_type)
             self.assertIsInstance(value, type)
@@ -816,8 +830,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
         bill_ids = []
         markup_value = Decimal(0.1)
 
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-        project_table = getattr(self.accessor.report_schema, project_summary_table_name)
+        summary_table = get_model(summary_table_name)
+        project_table = get_model(project_summary_table_name)
 
         today = DateAccessor().today_with_timezone("UTC")
         last_month = today - relativedelta.relativedelta(months=1)
@@ -840,7 +854,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
         li_table_name = AWS_CUR_TABLE_MAP["line_item"]
         with schema_context(self.schema):
-            li_table = getattr(self.accessor.report_schema, li_table_name)
+            li_table = get_model(li_table_name)
 
             sum_aws_cost = li_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
 
@@ -948,7 +962,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(self.aws_provider.uuid, 0.1, start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -1161,3 +1175,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider_uuid, self.ocp_on_aws_ocp_provider.uuid, start_date, end_date
         )
         mock_presto.assert_called()
+
+    def test_bad_sql_execution(self):
+        script_file_name = "reporting_ocpallcostlineitem_project_daily_summary_aws.sql"
+        script_file_path = f"{OCPReportDBAccessor.OCP_ON_ALL_SQL_PATH}{script_file_name}"
+        with OCPReportDBAccessor(self.schema_name) as accessor:
+            with self.assertRaises(ProgrammingError):
+                accessor._execute_processing_script("masu.database", script_file_path, {})

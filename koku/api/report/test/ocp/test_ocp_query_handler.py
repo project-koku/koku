@@ -63,6 +63,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
+        with tenant_context(self.tenant):
+            self.namespaces = OCPUsageLineItemDailySummary.objects.values("namespace").distinct()
+            self.namespaces = [entry.get("namespace") for entry in self.namespaces]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""

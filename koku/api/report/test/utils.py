@@ -81,11 +81,14 @@ class NiseDataLoader:
         next_month_str = next_month.strftime("%Y%m%d")
         return f"{base_path}/{this_month_str}-{next_month_str}"
 
-    def process_report(self, report, compression, provider_type, provider, manifest):
+    def process_report(self, report, compression, provider_type, provider, manifest, bill_date=None):
         """Run the report processor on a report."""
         status = baker.make("CostUsageReportStatus", manifest=manifest, report_name=report)
         status.last_started_datetime = self.dh.now
-        ReportProcessor(self.schema, report, compression, provider_type, provider.uuid, manifest.id).process()
+        context = {"start_date": bill_date, "tracing_id": uuid4()}
+        ReportProcessor(
+            self.schema, report, compression, provider_type, provider.uuid, manifest.id, context=context
+        ).process()
         status.last_completed_datetime = self.dh.now
         status.save()
 
@@ -131,7 +134,7 @@ class NiseDataLoader:
                     continue
                 elif "manifest" in report.lower():
                     continue
-                self.process_report(report, "PLAIN", provider_type, provider, manifest)
+                self.process_report(report, "PLAIN", provider_type, provider, manifest, bill_date=bill_date)
             with patch("masu.processor.tasks.chain"):
                 update_summary_tables(
                     self.schema,
@@ -142,10 +145,8 @@ class NiseDataLoader:
                     manifest_id=manifest.id,
                     synchronous=True,
                 )
-        update_cost_model_costs.s(
-            self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True
-        ).apply()
-        refresh_materialized_views.s(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True).apply()
+        update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
         shutil.rmtree(report_path, ignore_errors=True)
 
     def load_aws_data(self, customer, static_data_file, account_id=None, role_arn=None, day_list=None):

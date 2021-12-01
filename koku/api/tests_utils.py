@@ -6,11 +6,12 @@
 import datetime
 import random
 import unittest
-from unittest.mock import patch
 
 import pint
 from dateutil.relativedelta import relativedelta
+from django.conf import settings
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
 
@@ -18,7 +19,6 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from api.utils import merge_dicts
 from api.utils import UnitConverter
-from masu.config import Config
 
 
 class MergeDictsTest(unittest.TestCase):
@@ -53,13 +53,13 @@ class MergeDictsTest(unittest.TestCase):
 class MaterializsedViewStartTest(unittest.TestCase):
     """Test the materialized_view_month_start util."""
 
+    @override_settings(RETAIN_NUM_MONTHS=5)
     def test_materialized_view_month_start(self):
         """Test materialized_view_month_start property."""
-        with patch.object(Config, "MASU_RETAIN_NUM_MONTHS", 5):
-            today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
-            retain_months_ago = today - relativedelta(months=Config.MASU_RETAIN_NUM_MONTHS - 1)
-            expected = retain_months_ago.replace(day=1)
-            self.assertEqual(materialized_view_month_start(), expected)
+        today = timezone.now().replace(microsecond=0, second=0, minute=0, hour=0)
+        retain_months_ago = today - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
+        expected = retain_months_ago.replace(day=1)
+        self.assertEqual(materialized_view_month_start(), expected)
 
 
 class DateHelperTest(TestCase):
@@ -131,6 +131,22 @@ class DateHelperTest(TestCase):
         """Test last_month_end property."""
         expected = datetime.datetime(1969, 12, 31, 0, 0, 0, 0)
         self.assertEqual(self.date_helper.last_month_end, expected)
+
+    def test_relative_month_start_neg(self):
+        expected = datetime.datetime(1969, 10, 1)
+        self.assertEqual(self.date_helper.relative_month_start(-3), expected)
+
+    def test_relative_month_start_pos(self):
+        expected = datetime.datetime(1970, 6, 1)
+        self.assertEqual(self.date_helper.relative_month_start(5), expected)
+
+    def test_relative_month_end_neg(self):
+        expected = datetime.datetime(1969, 9, 30)
+        self.assertEqual(self.date_helper.relative_month_end(-4), expected)
+
+    def test_relative_month_end_pos(self):
+        expected = datetime.datetime(1970, 8, 31)
+        self.assertEqual(self.date_helper.relative_month_end(7), expected)
 
     def test_next_month(self):
         """Test the next_month method."""

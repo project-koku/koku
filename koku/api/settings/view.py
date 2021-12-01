@@ -13,10 +13,11 @@ from rest_framework.serializers import ValidationError
 from rest_framework.views import APIView
 
 from api.common.permissions.settings_access import SettingsAccessPermission
-from api.settings.tag_management import TagManagementSettings
+from api.settings.settings import Settings
 
 LOG = logging.getLogger(__name__)
-SETTINGS_GENERATORS = {"tag-management": TagManagementSettings}
+
+SETTINGS_GENERATORS = {"settings": Settings}
 
 
 class SettingsView(APIView):

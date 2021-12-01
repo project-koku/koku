@@ -6,6 +6,8 @@
 import json
 import logging
 import os
+import pkgutil
+import re
 import threading
 import types
 
@@ -13,6 +15,7 @@ import django
 from django.conf import settings
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
+from django.db import IntegrityError
 from django.db import models
 from django.db import OperationalError
 from django.db import transaction
@@ -22,7 +25,10 @@ from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
+from django.db.utils import ProgrammingError
+from jinjasql import JinjaSql
 from sqlparse import format as format_sql
+from sqlparse import split as sql_split
 
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
@@ -31,6 +37,47 @@ from .migration_sql_helpers import find_db_functions_dir
 
 
 LOG = logging.getLogger(__name__)
+
+
+class FKViolation:
+    """Detect Foreign Key violation verbage from an IntegritiyError or other more generic exception"""
+
+    FK_VIOLATION_REGEX_STR = (
+        r'(.+?) on table "(.+?)" violates foreign key constraint .+?'
+        + r'DETAIL:\s*(.+?) is not present in table "(.+?)".*\n'
+    )
+    FK_VIOLATION_REGEX = re.compile(FK_VIOLATION_REGEX_STR, flags=re.DOTALL)
+
+    def __init__(self, _exception):
+        """Accepts Exception or str"""
+        res = self.FK_VIOLATION_REGEX.findall(_exception if isinstance(_exception, str) else str(_exception))
+        self.__is_fk_violation = bool(res)
+        if not self.__is_fk_violation:
+            res = [(None,) * 4]
+        self.action, self.target_table, self.detected_key_values, self.reference_table = res[0]
+
+    @property
+    def is_fk_violation(self):
+        """Returns bool reflecting fk violation or not based on the regex search of the exception error"""
+        return self.__is_fk_violation
+
+    def __bool__(self):
+        return self.__is_fk_violation
+
+    def __repr__(self):
+        return str(self)
+
+    def __str__(self):
+        if self.__is_fk_violation:
+            msg = (
+                f'{self.action} on table "{self.target_table}" violates foreign key.\n'
+                + f'DETAILS: {self.detected_key_values} is not present in table "{self.reference_table}"'
+            )
+        else:
+            msg = ""
+
+        return msg
+
 
 engines = {
     "sqlite": "django.db.backends.sqlite3",
@@ -46,6 +93,71 @@ PARTITIONED_MODEL_NAMES = [
     "OCPUsageLineItemDailySummary",
     "OCPAllCostLineItemDailySummaryP",
     "OCPAllCostLineItemProjectDailySummaryP",
+    "OCPAllCostSummaryPT",
+    "OCPAllCostSummaryByAccountPT",
+    "OCPAllCostSummaryByServicePT",
+    "OCPAllCostSummaryByRegionPT",
+    "OCPAllComputeSummaryPT",
+    "OCPAllDatabaseSummaryPT",
+    "OCPAllNetworkSummaryPT",
+    "OCPAllStorageSummaryPT",
+    "AWSCostSummaryP",
+    "AWSCostSummaryByServiceP",
+    "AWSCostSummaryByAccountP",
+    "AWSCostSummaryByRegionP",
+    "AWSComputeSummaryP",
+    "AWSComputeSummaryByServiceP",
+    "AWSComputeSummaryByAccountP",
+    "AWSComputeSummaryByRegionP",
+    "AWSStorageSummaryP",
+    "AWSStorageSummaryByServiceP",
+    "AWSStorageSummaryByAccountP",
+    "AWSStorageSummaryByRegionP",
+    "AWSNetworkSummaryP",
+    "AWSDatabaseSummaryP",
+    "OCPCostSummaryP",
+    "OCPCostSummaryByProjectP",
+    "OCPCostSummaryByNodeP",
+    "OCPPodSummaryP",
+    "OCPPodSummaryByProjectP",
+    "OCPVolumeSummaryP",
+    "OCPVolumeSummaryByProjectP",
+    "OCPGCPCostLineItemDailySummaryP",
+    "OCPGCPCostLineItemProjectDailySummaryP",
+    "OCPGCPCostSummaryByAccountP",
+    "OCPGCPCostSummaryByGCPProjectP",
+    "OCPGCPCostSummaryByRegionP",
+    "OCPGCPCostSummaryByServiceP",
+    "OCPGCPCostSummaryP",
+    "OCPGCPComputeSummaryP",
+    "OCPGCPDatabaseSummaryP",
+    "OCPGCPNetworkSummaryP",
+    "OCPGCPStorageSummaryP",
+    "AzureCostSummaryP",
+    "AzureCostSummaryByAccountP",
+    "AzureCostSummaryByLocationP",
+    "AzureCostSummaryByServiceP",
+    "AzureComputeSummaryP",
+    "AzureStorageSummaryP",
+    "AzureNetworkSummaryP",
+    "AzureDatabaseSummaryP",
+    "GCPCostSummaryP",
+    "GCPCostSummaryByAccountP",
+    "GCPCostSummaryByProjectP",
+    "GCPCostSummaryByRegionP",
+    "GCPCostSummaryByServiceP",
+    "GCPComputeSummaryP",
+    "GCPComputeSummaryByProjectP",
+    "GCPComputeSummaryByServiceP",
+    "GCPComputeSummaryByAccountP",
+    "GCPComputeSummaryByRegionP",
+    "GCPStorageSummaryP",
+    "GCPStorageSummaryByProjectP",
+    "GCPStorageSummaryByServiceP",
+    "GCPStorageSummaryByAccountP",
+    "GCPStorageSummaryByRegionP",
+    "GCPNetworkSummaryP",
+    "GCPDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
@@ -154,7 +266,7 @@ def check_migrations():
             verify_migrations_dbfunc(connection)
             res = check_migrations_dbfunc(connection, targets)
         return res
-    except OperationalError:
+    except (IntegrityError, OperationalError):
         return False
 
 
@@ -202,7 +314,11 @@ def execute_compiled_sql(sql, params=None):
 def execute_delete_sql(query):
     """Execute sql directly, returns cursor."""
     sql, params = get_delete_sql(query)
-    return execute_compiled_sql(sql, params=params)
+    try:
+        return execute_compiled_sql(sql, params=params)
+    except Exception as e:
+        LOG.debug(f"The following exception occurred {e}")
+        return 0
 
 
 def execute_update_sql(query, **updatespec):
@@ -491,3 +607,36 @@ def unset_partitioned_schema_editor(schema_editor):
 
 def unset_partition_mode(apps, schema_editor):
     unset_partitioned_schema_editor(schema_editor)
+
+
+class SQLScriptAtomicExecutorMixin:
+    """This mixin accetps a jinja_sql sql script and parameters (dict) and process each statement
+    in the script individually for better logging within PostgreSQL"""
+
+    DEFAULT_SQL_RENDERER = JinjaSql()
+    DEFAULT_SQL_RENDERER_METHOD = DEFAULT_SQL_RENDERER.prepare_query
+
+    def _execute_processing_script(
+        self, base_module, script_file_path, sql_params, sql_renderer=DEFAULT_SQL_RENDERER_METHOD
+    ):
+        conn = transaction.get_connection()
+        sql = pkgutil.get_data(base_module, script_file_path).decode("utf-8")
+        for sql_stmt in sql_split(sql):
+            sql_stmt = sql_stmt.strip()
+            if sql_stmt:
+                sql_stmt, params = sql_renderer(sql_stmt, sql_params)
+                with conn.cursor() as cur:
+                    try:
+                        cur.execute(sql_stmt, params)
+                    except (ProgrammingError, IndexError) as exc:
+                        if isinstance(sql_stmt, bytes):
+                            sql_stmt = sql_stmt.decode("utf-8")
+                        msg = [
+                            f"ERROR in SQL statement: '{exc}'",
+                            f"Script file {os.path.join(base_module.replace('.', os.path.sep), script_file_path)}",
+                            f"STATEMENT: {sql_stmt}",
+                            f"PARAMS: {params}",
+                            f"INPUT_PARAMS: {sql_params}",
+                        ]
+                        LOG.error(os.linesep.join(msg))
+                        raise exc

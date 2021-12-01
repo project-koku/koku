@@ -33,6 +33,7 @@ from sources.kafka_message_processor import KAFKA_SOURCE_DESTROY
 from sources.kafka_message_processor import KAFKA_SOURCE_UPDATE
 from sources.kafka_message_processor import KafkaMessageProcessor
 from sources.kafka_message_processor import SourceDetails
+from sources.kafka_message_processor import SourceMsgProcessor
 from sources.kafka_message_processor import SOURCES_AWS_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_AZURE_SOURCE_NAME
 from sources.kafka_message_processor import SOURCES_GCP_SOURCE_NAME
@@ -185,10 +186,7 @@ class KafkaMessageProcessorTest(IamTestCase):
             {"event_type": KAFKA_APPLICATION_UNPAUSE, "expected": ApplicationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_CREATE, "expected": AuthenticationMsgProcessor},
             {"event_type": KAFKA_AUTHENTICATION_UPDATE, "expected": AuthenticationMsgProcessor},
-            {
-                "event_type": KAFKA_SOURCE_UPDATE,
-                "expected": NoneType,
-            },  # maybe someday we will listen to source.update messages
+            {"event_type": KAFKA_SOURCE_UPDATE, "expected": SourceMsgProcessor},
             {"event_type": KAFKA_SOURCE_DESTROY, "expected": NoneType},
             {"event_type": "Source.create", "expected": NoneType},
             {"event_type": KAFKA_APPLICATION_CREATE, "test_topic": "unknown", "expected": NoneType},
@@ -283,7 +281,7 @@ class KafkaMessageProcessorTest(IamTestCase):
         table = [
             # Source events
             {"processor": KafkaMessageProcessor, "event-type": "Source.create", "expected": False},
-            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_UPDATE, "expected": False},
+            {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_UPDATE, "expected": True},
             {"processor": KafkaMessageProcessor, "event-type": KAFKA_SOURCE_DESTROY, "expected": False},
             # Application events
             {"event-type": KAFKA_APPLICATION_CREATE, "expected": True, "value": test_app_value_is_cost},
