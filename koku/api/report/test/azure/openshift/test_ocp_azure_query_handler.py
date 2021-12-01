@@ -13,11 +13,8 @@ from unittest.mock import PropertyMock
 
 from dateutil.relativedelta import relativedelta
 from django.db import connection
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Sum
-from django.db.models import Value
-from django.db.models.functions import Coalesce
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -1041,43 +1038,30 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             self.assertIn(source_uuid, expected_source_uuids)
 
     def test_ocp_azure_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        expected = {}
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        for service in self.services:
-            with tenant_context(self.tenant):
-                service_holder = (
-                    OCPAzureCostLineItemDailySummary.objects.filter(service_name=service)
-                    .filter(usage_start=yesterday)
-                    .aggregate(
-                        cost=Sum(
-                            Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
-                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                        )
-                    )
-                )
-
-                expected[service] = service_holder["cost"]
-        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
-        correctlst = list(sorted_expected.keys())
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPAzureCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                .values("service_name")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            for service in element.get("service_names"):
-                lst.append(service.get("service_name"))
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_azure_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAzureCostView)
 
