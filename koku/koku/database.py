@@ -158,6 +158,14 @@ PARTITIONED_MODEL_NAMES = [
     "GCPStorageSummaryByRegionP",
     "GCPNetworkSummaryP",
     "GCPDatabaseSummaryP",
+    "OCPAzureCostSummaryP",
+    "OCPAzureCostSummaryByAccountP",
+    "OCPAzureCostSummaryByLocationP",
+    "OCPAzureCostSummaryByServiceP",
+    "OCPAzureComputeSummaryP",
+    "OCPAzureStorageSummaryP",
+    "OCPAzureNetworkSummaryP",
+    "OCPAzureDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
