@@ -21,6 +21,17 @@ VIEWS = (
     "reporting_ocpazure_storage_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_ocpazure_compute_summary_p",
+    "reporting_ocpazure_cost_summary_p",
+    "reporting_ocpazure_cost_summary_by_account_p",
+    "reporting_ocpazure_cost_summary_by_location_p",
+    "reporting_ocpazure_cost_summary_by_service_p",
+    "reporting_ocpazure_database_summary_p",
+    "reporting_ocpazure_network_summary_p",
+    "reporting_ocpazure_storage_summary_p",
+)
+
 
 class OCPAzureCostLineItemDailySummary(models.Model):
     """A summarized view of OCP on Azure cost."""

@@ -147,6 +147,14 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
                     "reporting_ocpall_compute_summary_pt",
                     "reporting_ocpall_cost_summary_pt",
+                    "reporting_ocpazure_cost_summary_p",
+                    "reporting_ocpazure_cost_summary_by_account_p",
+                    "reporting_ocpazure_cost_summary_by_location_p",
+                    "reporting_ocpazure_cost_summary_by_service_p",
+                    "reporting_ocpazure_compute_summary_p",
+                    "reporting_ocpazure_storage_summary_p",
+                    "reporting_ocpazure_network_summary_p",
+                    "reporting_ocpazure_database_summary_p",
                 ),
                 start_date,
                 end_date,
@@ -164,6 +172,14 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             distribution = cost_model_accessor.distribution
 
         # OpenShift on Azure
+        sql_params = {
+            "schema_name": self._schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": azure_provider_uuid,
+            "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
+        }
         with AzureReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
@@ -192,17 +208,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
             accessor.back_populate_ocp_on_azure_daily_summary(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_azure_tags_summary_table(azure_bill_ids, start_date, end_date)
+            accessor.populate_ocp_on_azure_ui_summary_tables(sql_params)
 
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                sql_params = {
-                    "schema_name": self._schema,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "source_uuid": self._provider.uuid,
-                    "cluster_id": cluster_id,
-                    "cluster_alias": cluster_alias,
-                    "source_type": "Azure",
-                }
+                sql_params["source_type"] = "Azure"
                 LOG.info(f"Processing OCP-ALL for Azure (T)  (s={start_date} e={end_date})")
                 ocp_accessor.populate_ocp_on_all_project_daily_summary("azure", sql_params)
                 ocp_accessor.populate_ocp_on_all_daily_summary("azure", sql_params)
