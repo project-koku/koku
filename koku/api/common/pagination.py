@@ -258,3 +258,34 @@ class EmptyResultsSetPagination(StandardResultsSetPagination):
                 "data": self.data_set,
             }
         )
+
+
+class CustomMetaPagination(ListPaginator):
+    """A specialty paginator that allows for passing of meta data."""
+
+    def __init__(self, data, request, others=None):
+        """Set the parameters."""
+        self.data_set = data
+        self.others = others
+        self.request = request
+        self.count = len(data)
+        self.limit = self.get_limit(self.request)
+        self.offset = self.get_offset(self.request)
+
+    def get_paginated_response(self):
+        """Override pagination output."""
+        meta = {"count": self.count}
+        if self.others is not None:
+            for key, value in self.others.items():
+                meta[key] = value
+        response = {
+            "meta": meta,
+            "links": {
+                "first": self.get_first_link(),
+                "next": self.get_next_link(),
+                "previous": self.get_previous_link(),
+                "last": self.get_last_link(),
+            },
+            "data": self.data_set,
+        }
+        return Response(response)
