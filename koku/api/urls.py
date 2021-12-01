@@ -39,7 +39,6 @@ from api.views import GCPRegionView
 from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
-from api.views import get_cost_type
 from api.views import get_currency
 from api.views import metrics
 from api.views import OCPAllCostForecastView
@@ -71,6 +70,7 @@ from api.views import ResourceTypeView
 from api.views import SettingsView
 from api.views import StatusView
 from api.views import UserAccessView
+from api.views import UserCostTypeSettings
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
@@ -87,7 +87,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
-    path("cost-type/", get_cost_type, name="cost-type"),
+    path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
