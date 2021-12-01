@@ -7,7 +7,6 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-from unittest import skip
 from unittest.mock import patch
 
 from django.db.models import Max
@@ -26,6 +25,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from reporting.models import OCPCostSummaryByProject
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -63,6 +63,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_end__lte": self.dh.last_month_end,
         }
+        with tenant_context(self.tenant):
+            self.namespaces = OCPUsageLineItemDailySummary.objects.values("namespace").distinct()
+            self.namespaces = [entry.get("namespace") for entry in self.namespaces]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -605,34 +608,34 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    @skip("This test needs to be re-engineered")
     def test_ocp_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
         handler = OCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+
+        proj_annotations = handler.annotations.get("project")
+        cost_annotations = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPCostSummaryByProject.objects.filter(usage_start=str(yesterday))
+                .annotate(project=proj_annotations)
+                .values("project")
+                .annotate(cost=cost_annotations)
+                .order_by("-cost")
+            )
+        correctlst = [project.get("project") for project in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("projects"):
-                    correctlst.append(service.get("project"))
-        for element in data:
-            # Check if there is any data in services
-            for service in element.get("projects"):
-                lst.append(service.get("project"))
+            lst = [project.get("project") for project in element.get("projects")]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
