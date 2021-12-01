@@ -215,8 +215,12 @@ class DateHelper:
             (List[DateTime]): A list of days from the start date to end date
 
         """
-        end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_midnight = end_date
+        start_midnight = start_date
+        if isinstance(end_date, datetime.datetime):
+            end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(start_date, datetime.datetime):
+            start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         days = (end_midnight - start_midnight + self.one_day).days
 
         # built-in range(start, end, step) requires (start < end) == True
