@@ -227,7 +227,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_capacity = Decimal(0)
         daily_total_capacity = defaultdict(Decimal)
         capacity_by_cluster = defaultdict(Decimal)
-        capacity_by_cluster_month = defaultdict(Decimal)
+        capacity_by_month = defaultdict(Decimal)
+        capacity_by_cluster_month = defaultdict(lambda: defaultdict(Decimal))
         daily_capacity_by_cluster = defaultdict(lambda: defaultdict(Decimal))
 
         q_table = self._mapper.query_table
@@ -246,7 +247,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if cap_value is None:
                     cap_value = 0
                 capacity_by_cluster[cluster_id] += cap_value
-                capacity_by_cluster_month[month] += cap_value
+                capacity_by_month[month] += cap_value
+                capacity_by_cluster_month[month][cluster_id] = cap_value
                 daily_capacity_by_cluster[usage_start][cluster_id] = cap_value
                 daily_total_capacity[usage_start] += cap_value
                 total_capacity += cap_value
@@ -272,9 +274,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     cluster_id = row.get("cluster")
                     row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
                     if cluster_id:
-                        row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
+                        row[cap_key] = capacity_by_cluster_month.get(row_date, {}).get(cluster_id, Decimal(0))
                     else:
-                        row[cap_key] = capacity_by_cluster_month.get(row_date, Decimal(0))
+                        row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
 
         return query_data, {cap_key: total_capacity}
 
