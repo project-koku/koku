@@ -1088,7 +1088,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
-                GCPCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                GCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
                 .annotate(service=svc_annotations)
                 .values("service")
                 .annotate(cost=cost_annotation)
