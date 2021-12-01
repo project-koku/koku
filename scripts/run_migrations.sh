@@ -69,7 +69,7 @@ bash_check()
 #     <app>:<migration>,...
 parse_directive()
 {
-    local _tmp _app _mig _op
+    local _tmp _op
 
     if [[ -n "${_MIGRATION_DIRECTIVE}" ]]; then
         # Set terminating delimiter to ensure that parsing works correctly
@@ -133,6 +133,7 @@ check_migrations()
 process_migrations()
 {
     local -i _rc
+    local _app _mig
 
     _rc=0
 
