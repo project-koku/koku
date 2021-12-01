@@ -3,30 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Settings."""
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from rest_framework import permissions
-from rest_framework.decorators import api_view
-from rest_framework.decorators import permission_classes
-from rest_framework.decorators import renderer_classes
-from rest_framework.renderers import JSONRenderer
-from rest_framework.settings import api_settings
+from rest_framework.views import APIView
 
-from api.common.pagination import ListPaginator
+from api.common.pagination import CustomMetaPagination
 from api.user_settings.settings import COST_TYPES
+from api.utils import get_cost_type
 
 
-@api_view(("GET",))
-@permission_classes((permissions.AllowAny,))
-@renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
-def get_cost_type(request):
-    """Get cost_type Data.
+class UserCostTypeSettings(APIView):
+    """Settings views for user cost_type."""
 
-    This method is responsible for passing request data to the reporting APIs.
+    permission_classes = [permissions.AllowAny]
 
-    Args:
-        request (Request): The HTTP request object
-
-    Returns:
-        (Response): The report in a Response object
-
-    """
-    return ListPaginator(COST_TYPES, request).paginated_response
+    @method_decorator(never_cache)
+    def get(self, request):
+        """Gets a list for all supported cost_typs currently available."""
+        user_preferred_cost = {"cost-type": get_cost_type(request)}
+        return CustomMetaPagination(COST_TYPES, request, user_preferred_cost).get_paginated_response()

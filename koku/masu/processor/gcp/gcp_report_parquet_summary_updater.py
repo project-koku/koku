@@ -10,16 +10,18 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
+from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class GCPReportParquetSummaryUpdater:
+class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     """Class to update GCP report parquet summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -89,6 +91,9 @@ class GCPReportParquetSummaryUpdater:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
         with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
@@ -115,6 +120,7 @@ class GCPReportParquetSummaryUpdater:
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
