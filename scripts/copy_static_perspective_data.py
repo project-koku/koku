@@ -18,7 +18,7 @@ logging.basicConfig(
     datefmt="%m/%d/%Y %I:%M:%S %p",
     level=getattr(logging, os.environ.get("KOKU_LOG_LEVEL", "INFO")),
 )
-LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_ocp_matview_data_console"))
+LOG = logging.getLogger(os.path.basename(sys.argv[0] or "copy_gcp_matview_data_console"))
 
 
 def connect():
@@ -43,7 +43,7 @@ def _execute(conn, sql, params=None):
     return cur
 
 
-def get_ocp_matviews(conn):
+def get_gcp_matviews(conn):
     sql = """
 with matview_info as (
 select m.relname::text as "matview_name",
@@ -54,34 +54,26 @@ select m.relname::text as "matview_name",
    and mc.attnum > 0
  where m.relkind = 'm'
    and m.relnamespace = 'template0'::regnamespace
-   and m.relname ~ '^reporting_ocp_'
+   and m.relname ~ '^reporting_gcp_'
  group
     by m.relname
 ),
 partable_info as (
-select t.oid,
-       t.relname::text as "partable_name",
-       array_agg(tc.attname::text order by tc.attnum) as "partable_cols",
-       (select array_agg(nc.attname::text order by nc.attnum)
-          from pg_attribute nc
-         where nc.attrelid = t.oid
-           and nc.attname = any(array['node', 'namespace']::name[])
-           and nc.attnotnull) as "alter_cols"
+select t.relname::text as "partable_name",
+       array_agg(tc.attname::text order by tc.attnum) as "partable_cols"
   from pg_class t
   join pg_attribute tc
     on tc.attrelid = t.oid
    and tc.attnum > 0
  where t.relkind = 'p'
    and t.relnamespace = 'template0'::regnamespace
-   and t.relname ~ '^reporting_ocp_.*_p$'
+   and t.relname ~ '^reporting_gcp_.*_p$'
  group
-    by t.oid,
-       t.relname
+    by t.relname
 )
 select mi.matview_name,
        pi.partable_name,
-       pi.partable_cols,
-       pi.alter_cols
+       pi.partable_cols
   from partable_info pi
   join matview_info mi
     on mi.matview_name || '_p' = pi.partable_name;
@@ -101,7 +93,7 @@ select t.schema_name
   join public.api_customer c
     on c.schema_name = t.schema_name
  where t.schema_name ~ '^acct'
-   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^OCP')
+   and exists (select 1 from public.api_provider p where p.customer_id = c.id and p.type ~ '^GCP')
  order by 1;
 """
     LOG.info("Getting all customer schemata...")
@@ -253,10 +245,7 @@ def data_exists(conn, schema_name, partable_name):
     return res["data_exists"]
 
 
-def process_ocp_matviews(conn, schemata, matviews):  # noqa
-    LOG.info("This script is part of Jira ticket COST-1976 https://issues.redhat.com/browse/COST-1976")
-    LOG.info("This script is speficically for sub-task COST-1979 https://issues.redhat.com/browse/COST-1979")
-
+def process_gcp_matviews(conn, schemata, matviews):  # noqa
     i = 0
     tot = len(schemata)
     for schema in schemata:
@@ -266,7 +255,7 @@ def process_ocp_matviews(conn, schemata, matviews):  # noqa
         for matview_info in matviews:
             LOG.info(f"Processing {schema}.{matview_info['matview_name']}")
             try:
-                alter_partable(conn, schema, matview_info["partable_name"], matview_info["alter_cols"])
+                # alter_partable(conn, schema, matview_info["partable_name"], matview_info["alter_cols"])
                 if data_exists(conn, schema, matview_info["partable_name"]):
                     LOG.info(f"Materialized view {schema}.{matview_info['matview_name']} has already been processed.")
                     continue
@@ -326,11 +315,11 @@ def process_ocp_matviews(conn, schemata, matviews):  # noqa
 
 def main():
     with connect() as conn:
-        matviews = get_ocp_matviews(conn)
+        matviews = get_gcp_matviews(conn)
         schemata = get_customer_schemata(conn)
         conn.rollback()  # close any open tx from selects
 
-        process_ocp_matviews(conn, schemata, matviews)
+        process_gcp_matviews(conn, schemata, matviews)
 
 
 if __name__ == "__main__":

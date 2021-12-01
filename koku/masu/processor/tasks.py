@@ -49,7 +49,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNo
 from masu.processor.worker_cache import WorkerCache
 from reporting.models import AWS_MATERIALIZED_VIEWS
 from reporting.models import AZURE_MATERIALIZED_VIEWS
-from reporting.models import GCP_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 
@@ -590,8 +589,6 @@ def refresh_materialized_views(  # noqa: C901
         materialized_views = (
             AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS
         )
-    elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        materialized_views = GCP_MATERIALIZED_VIEWS
     try:
         with schema_context(schema_name):
             for view in materialized_views:

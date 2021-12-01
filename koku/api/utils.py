@@ -14,9 +14,24 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+from tenant_schemas.utils import schema_context
+
+from koku.settings import KOKU_DEFAULT_COST_TYPE
+from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
+
+
+def get_cost_type(request):
+    """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
+
+    with schema_context(request.user.customer.schema_name):
+        try:
+            default_cost_type = UserSettings.objects.all().first().settings["cost_type"]
+        except Exception:
+            default_cost_type = KOKU_DEFAULT_COST_TYPE
+    return default_cost_type
 
 
 def merge_dicts(*list_of_dicts):

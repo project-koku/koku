@@ -5,6 +5,7 @@
 """Test the GCPReportDBAccessor utility object."""
 from unittest.mock import patch
 
+from api.utils import DateHelper
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -67,8 +68,9 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
         mock_markup.return_value = markup
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
-
-        self.updater.update_summary_cost_model_costs()
+        dh = DateHelper()
+        end_date = dh.this_month_end.date()
+        self.updater.update_summary_cost_model_costs(bill_date, end_date)
         with GCPReportDBAccessor("acct10001") as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

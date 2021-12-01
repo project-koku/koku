@@ -39,8 +39,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
     infrastructure_usage_cost varchar,
     source varchar,
     year varchar,
-    month varchar
-) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month'])
+    month varchar,
+    day varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
 ;
 
 
@@ -49,8 +50,7 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
 WHERE source = {{source}}
     AND year = {{year}}
     AND month = {{month}}
-    AND usage_start >= TIMESTAMP {{start_date}}
-    AND usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
+    AND day IN ({{days}})
 ;
 
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
@@ -89,7 +89,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     infrastructure_usage_cost,
     source,
     year,
-    month
+    month,
+    day
 )
 -- node label line items by day presto sql
 WITH cte_ocp_node_label_line_item_daily AS (
@@ -227,8 +228,9 @@ SELECT cast(uuid() as varchar) as uuid,
     pua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     {{source}} as source,
-    {{year}} as year,
-    {{month}} as month
+    cast(year(pua.usage_start) as varchar) as year,
+    cast(month(pua.usage_start) as varchar) as month,
+    cast(day(pua.usage_start) as varchar) as day
 FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
@@ -334,8 +336,9 @@ SELECT cast(uuid() as varchar) as uuid,
     sua.source_uuid,
     '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
     {{source}} as source,
-    {{year}} as year,
-    {{month}} as month
+    cast(year(sua.usage_start) as varchar) as year,
+    cast(month(sua.usage_start) as varchar) as month,
+    cast(day(sua.usage_start) as varchar) as day
 FROM (
     SELECT sli.namespace,
         vn.node,
@@ -461,6 +464,5 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lids.month = {{month}}
-    AND lids.usage_start >= TIMESTAMP {{start_date}}
-    AND lids.usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
+    AND lids.day IN ({{days}})
 ;

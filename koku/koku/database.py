@@ -141,6 +141,23 @@ PARTITIONED_MODEL_NAMES = [
     "AzureStorageSummaryP",
     "AzureNetworkSummaryP",
     "AzureDatabaseSummaryP",
+    "GCPCostSummaryP",
+    "GCPCostSummaryByAccountP",
+    "GCPCostSummaryByProjectP",
+    "GCPCostSummaryByRegionP",
+    "GCPCostSummaryByServiceP",
+    "GCPComputeSummaryP",
+    "GCPComputeSummaryByProjectP",
+    "GCPComputeSummaryByServiceP",
+    "GCPComputeSummaryByAccountP",
+    "GCPComputeSummaryByRegionP",
+    "GCPStorageSummaryP",
+    "GCPStorageSummaryByProjectP",
+    "GCPStorageSummaryByServiceP",
+    "GCPStorageSummaryByAccountP",
+    "GCPStorageSummaryByRegionP",
+    "GCPNetworkSummaryP",
+    "GCPDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
@@ -345,33 +362,33 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     )
 
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
-    LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
+    LOG.debug(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
         if related_model in skip_relations:
-            LOG.info(f"SKIPPING RELATION {related_model.__name__} by directive")
+            LOG.debug(f"SKIPPING RELATION {related_model.__name__} by directive")
             continue
 
         if model_relation.on_delete.__name__ == "SET_NULL":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             updatespec = {f"{model_relation.remote_field.column}": None}
-            LOG.info(
+            LOG.debug(
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
             with transaction.atomic():
                 set_constraints_immediate()
                 rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
-                LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+                LOG.debug(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
-            LOG.info(f"    Cascading delete to relations of {related_model.__name__}")
+            LOG.debug(f"    Cascading delete to relations of {related_model.__name__}")
             cascade_delete(
                 related_model, related_pk_values, base_model=base_model, level=level + 1, skip_relations=skip_relations
             )
 
-    LOG.info(f"Level {level}: delete records from {from_model.__name__}")
+    LOG.debug(f"Level {level}: delete records from {from_model.__name__}")
     if level == 0:
         del_query = instance_pk_query
     else:
@@ -381,7 +398,7 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     with transaction.atomic():
         set_constraints_immediate()
         rec_count = execute_delete_sql(del_query)
-        LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+        LOG.debug(f"Deleted {rec_count} records from {from_model.__name__}")
 
 
 def _load_db_models():
