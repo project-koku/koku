@@ -3,7 +3,57 @@
  * This SQL will utilize Presto for the raw line-item data aggregating
  * and store the results into the koku database summary tables.
  */
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid varchar,
+    report_period_id int,
+    cluster_id varchar,
+    cluster_alias varchar,
+    data_source varchar,
+    usage_start date,
+    usage_end date,
+    namespace varchar,
+    node varchar,
+    resource_id varchar,
+    pod_labels varchar,
+    pod_usage_cpu_core_hours double,
+    pod_request_cpu_core_hours double,
+    pod_limit_cpu_core_hours double,
+    pod_usage_memory_gigabyte_hours double,
+    pod_request_memory_gigabyte_hours double,
+    pod_limit_memory_gigabyte_hours double,
+    node_capacity_cpu_cores double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabytes double,
+    node_capacity_memory_gigabyte_hours double,
+    cluster_capacity_cpu_core_hours double,
+    cluster_capacity_memory_gigabyte_hours double,
+    persistentvolumeclaim varchar,
+    persistentvolume varchar,
+    storageclass varchar,
+    volume_labels varchar,
+    persistentvolumeclaim_capacity_gigabyte double,
+    persistentvolumeclaim_capacity_gigabyte_months double,
+    volume_request_storage_gigabyte_months double,
+    persistentvolumeclaim_usage_gigabyte_months double,
+    source_uuid varchar,
+    infrastructure_usage_cost varchar,
+    source varchar,
+    year varchar,
+    month varchar,
+    day varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
+;
+
+
+DELETE
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
+WHERE source = {{source}}
+    AND year = {{year}}
+    AND month = {{month}}
+    AND day IN ({{days}})
+;
+
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
     cluster_id,
@@ -36,7 +86,11 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     source_uuid,
-    infrastructure_usage_cost
+    infrastructure_usage_cost,
+    source,
+    year,
+    month,
+    day
 )
 -- node label line items by day presto sql
 WITH cte_ocp_node_label_line_item_daily AS (
@@ -140,7 +194,7 @@ cte_shared_volume_node_count AS (
  *            POD
  * ====================================
  */
-SELECT uuid() as uuid,
+SELECT cast(uuid() as varchar) as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
@@ -150,7 +204,7 @@ SELECT uuid() as uuid,
     pua.namespace,
     pua.node,
     pua.resource_id,
-    cast(pua.pod_labels as json) as pod_labels,
+    json_format(cast(pua.pod_labels as json)) as pod_labels,
     pua.pod_usage_cpu_core_hours,
     pua.pod_request_cpu_core_hours,
     pua.pod_limit_cpu_core_hours,
@@ -171,8 +225,12 @@ SELECT uuid() as uuid,
     NULL as persistentvolumeclaim_capacity_gigabyte_months,
     NULL as volume_request_storage_gigabyte_months,
     NULL as persistentvolumeclaim_usage_gigabyte_months,
-    cast(pua.source_uuid as UUID) as source_uuid,
-    JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
+    pua.source_uuid,
+    '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    {{source}} as source,
+    cast(year(pua.usage_start) as varchar) as year,
+    cast(month(pua.usage_start) as varchar) as month,
+    cast(day(pua.usage_start) as varchar) as day
 FROM (
     SELECT date(li.interval_start) as usage_start,
         li.namespace,
@@ -228,7 +286,7 @@ UNION
  *            STORAGE
  * ====================================
  */
-SELECT uuid() as uuid,
+SELECT cast(uuid() as varchar) as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
@@ -254,7 +312,7 @@ SELECT uuid() as uuid,
     sua.persistentvolumeclaim,
     sua.persistentvolume,
     sua.storageclass,
-    cast(sua.volume_labels as json) as volume_labels,
+    json_format(cast(sua.volume_labels as json)) as volume_labels,
     (sua.persistentvolumeclaim_capacity_bytes *
         power(2, -30)) as persistentvolumeclaim_capacity_gigabyte,
     (sua.persistentvolumeclaim_capacity_byte_seconds /
@@ -275,8 +333,12 @@ SELECT uuid() as uuid,
             cast(extract(day from last_day_of_month(date(sua.usage_start))) as integer)
         ) *
         power(2, -30)) as persistentvolumeclaim_usage_gigabyte_months,
-    cast(sua.source_uuid as UUID) as source_uuid,
-    JSON '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost
+    sua.source_uuid,
+    '{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' as infrastructure_usage_cost,
+    {{source}} as source,
+    cast(year(sua.usage_start) as varchar) as year,
+    cast(month(sua.usage_start) as varchar) as month,
+    cast(day(sua.usage_start) as varchar) as day
 FROM (
     SELECT sli.namespace,
         vn.node,
@@ -327,4 +389,82 @@ FROM (
             /* The map_filter expression was too complex for presto to use */
         sli.source
 ) as sua
+;
+
+
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    resource_id,
+    pod_labels,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_limit_memory_gigabyte_hours,
+    node_capacity_cpu_cores,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabytes,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    volume_labels,
+    persistentvolumeclaim_capacity_gigabyte,
+    persistentvolumeclaim_capacity_gigabyte_months,
+    volume_request_storage_gigabyte_months,
+    persistentvolumeclaim_usage_gigabyte_months,
+    source_uuid,
+    infrastructure_usage_cost
+)
+SELECT cast(uuid as UUID),
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    resource_id,
+    json_parse(pod_labels),
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_limit_memory_gigabyte_hours,
+    node_capacity_cpu_cores,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabytes,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    json_parse(volume_labels),
+    persistentvolumeclaim_capacity_gigabyte,
+    persistentvolumeclaim_capacity_gigabyte_months,
+    volume_request_storage_gigabyte_months,
+    persistentvolumeclaim_usage_gigabyte_months,
+    cast(source_uuid as UUID),
+    json_parse(infrastructure_usage_cost)
+FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
+WHERE lids.source = {{source}}
+    AND lids.year = {{year}}
+    AND lids.month = {{month}}
+    AND lids.day IN ({{days}})
+    -- AND lids.usage_start >= TIMESTAMP {{start_date}}
+    -- AND lids.usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
 ;
