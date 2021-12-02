@@ -5,7 +5,7 @@ WHERE usage_start >= {{start_date}}::date
     AND invoice_month = {{invoice_month}}
 ;
 
-INSERT INTO reporting_gcp_storage_summary_by_region_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_gcp_storage_summary_by_region_p (
     id,
     usage_start,
     usage_end,
@@ -33,7 +33,7 @@ INSERT INTO reporting_gcp_storage_summary_by_region_p (
         max(source_uuid::text)::uuid as source_uuid,
         invoice_month,
         SUM(credit_amount) AS credit_amount
-    FROM reporting_gcpcostentrylineitem_daily_summary
+    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
