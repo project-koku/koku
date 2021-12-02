@@ -12,8 +12,6 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from dateutil.relativedelta import relativedelta
-from django.db.models import DecimalField
-from django.db import connection
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
@@ -1040,7 +1038,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
-                OCPAzureCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                OCPAzureCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
                 .values("service_name")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
