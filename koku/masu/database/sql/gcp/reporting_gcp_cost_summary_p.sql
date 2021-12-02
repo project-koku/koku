@@ -5,7 +5,7 @@ WHERE usage_start >= {{start_date}}::date
     AND invoice_month = {{invoice_month}}
 ;
 
-INSERT INTO reporting_gcp_cost_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_gcp_cost_summary_p (
     id,
     usage_start,
     usage_end,
@@ -25,7 +25,7 @@ INSERT INTO reporting_gcp_cost_summary_p (
         source_uuid,
         invoice_month,
         SUM(credit_amount) AS credit_amount
-    FROM reporting_gcpcostentrylineitem_daily_summary
+    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
