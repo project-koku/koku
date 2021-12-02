@@ -19,15 +19,15 @@ from api.report.queries import check_view_filter_and_group_by_criteria
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AWSCostEntryBill
-from reporting.models import OCPAWSComputeSummary
+from reporting.models import OCPAWSComputeSummaryP
 from reporting.models import OCPAWSCostLineItemDailySummary
-from reporting.models import OCPAWSCostSummary
-from reporting.models import OCPAWSCostSummaryByAccount
-from reporting.models import OCPAWSCostSummaryByRegion
-from reporting.models import OCPAWSCostSummaryByService
-from reporting.models import OCPAWSDatabaseSummary
-from reporting.models import OCPAWSNetworkSummary
-from reporting.models import OCPAWSStorageSummary
+from reporting.models import OCPAWSCostSummaryByAccountP
+from reporting.models import OCPAWSCostSummaryByRegionP
+from reporting.models import OCPAWSCostSummaryByServiceP
+from reporting.models import OCPAWSCostSummaryP
+from reporting.models import OCPAWSDatabaseSummaryP
+from reporting.models import OCPAWSNetworkSummaryP
+from reporting.models import OCPAWSStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -321,69 +321,69 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummary)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryP)
 
         url = "?group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummaryByAccount)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByAccountP)
 
         url = "?group_by[region]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegionP)
 
         url = "?group_by[region]=*&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegion)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByRegionP)
 
         url = "?group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByServiceP)
 
         url = "?group_by[service]=*&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSCostSummaryByService)
+        self.assertEqual(handler.query_table, OCPAWSCostSummaryByServiceP)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSComputeSummary)
+        self.assertEqual(handler.query_table, OCPAWSComputeSummaryP)
 
         url = "?group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSComputeSummary)
+        self.assertEqual(handler.query_table, OCPAWSComputeSummaryP)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSStorageView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSStorageSummary)
+        self.assertEqual(handler.query_table, OCPAWSStorageSummaryP)
 
         url = "?group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSStorageView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSStorageSummary)
+        self.assertEqual(handler.query_table, OCPAWSStorageSummaryP)
 
         url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
+        self.assertEqual(handler.query_table, OCPAWSNetworkSummaryP)
 
         url = "?filter[service]=AmazonVPC,AmazonCloudFront,AmazonRoute53,AmazonAPIGateway&group_by[account]=*"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSNetworkSummary)
+        self.assertEqual(handler.query_table, OCPAWSNetworkSummaryP)
 
         url = (
             "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
         )
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+        self.assertEqual(handler.query_table, OCPAWSDatabaseSummaryP)
 
         url = (
             "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,AmazonNeptune,AmazonRedshift,AmazonDocumentDB"
@@ -391,7 +391,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         )
         query_params = self.mocked_query_params(url, OCPAWSCostView)
         handler = OCPAWSReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAWSDatabaseSummary)
+        self.assertEqual(handler.query_table, OCPAWSDatabaseSummaryP)
 
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
@@ -432,7 +432,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
-                OCPAWSCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                OCPAWSCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
                 .annotate(service=svc_annotations)
                 .values("service")
                 .annotate(cost=cost_annotation)
