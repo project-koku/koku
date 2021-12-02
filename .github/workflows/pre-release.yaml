@@ -22,7 +22,7 @@ jobs:
           MINOR_VERSION=0
           case $PREV_RELEASE in
             *"$DATE"*)
-              MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
+              MINOR_VERSION=${PREV_RELEASE##*.}
               MINOR_VERSION=$((MINOR_VERSION+1))
               ;;
             *)
