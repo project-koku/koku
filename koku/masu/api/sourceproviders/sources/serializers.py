@@ -19,7 +19,7 @@ class SourceSerializer(serializers.Serializer):
     name = serializers.CharField()
     auth_header = serializers.CharField()
     offset = serializers.IntegerField()
-    account_id = serializers.IntegerField()
+    account_id = serializers.CharField()
     source_type = serializers.CharField()
     authentication = serializers.JSONField()
     billing_source = serializers.JSONField()
