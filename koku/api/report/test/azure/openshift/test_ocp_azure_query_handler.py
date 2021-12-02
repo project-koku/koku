@@ -76,28 +76,6 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "usage_end__lte": self.dh.last_month_end.date(),
         }
 
-    def test_execute_sum_query_instance_types_1(self):
-        """Test that the sum query runs properly for instance-types."""
-        url = "?"
-        query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
-        handler = OCPAzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        self.assertIsNotNone(total.get("cost"))
-        self.assertIsInstance(total.get("cost"), dict)
-        self.assertNotEqual(total.get("cost").get("total", {}).get("value"), 0)
-        self.assertEqual(total.get("cost").get("total", {}).get("units"), "USD")
-        self.assertIsNotNone(total.get("usage"))
-        self.assertIsInstance(total.get("usage"), dict)
-        self.assertNotEqual(total.get("usage").get("value"), 0)
-        self.assertEqual(total.get("usage").get("units"), "Hrs")
-        self.assertIsNotNone(total.get("count"))
-        self.assertIsInstance(total.get("count"), dict)
-        self.assertNotEqual(total.get("count").get("value"), 0)
-        self.assertEqual(total.get("count").get("units"), "instances")
-
 
 class OCPAzureQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
@@ -144,7 +122,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-    def test_execute_sum_query_instance_types_2(self):
+    def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
