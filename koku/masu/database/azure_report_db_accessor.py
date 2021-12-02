@@ -207,16 +207,14 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 date_filters = {}
 
+            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, OCPAzureCostLineItemDailySummary)
             OCPALL_MARKUP = (OCPAllCostLineItemDailySummaryP, *OCP_ON_ALL_PERSPECTIVES)
 
             for bill_id in bill_ids:
-                AzureCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                    markup_cost=(F("pretax_cost") * markup)
-                )
-
-                OCPAzureCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                    markup_cost=(F("pretax_cost") * markup)
-                )
+                for markup_model in MARKUP_MODELS_BILL:
+                    markup_model.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                        markup_cost=(F("pretax_cost") * markup)
+                    )
 
                 for ocpazure_model in OCP_ON_AZURE_PERSPECTIVES:
                     ocpazure_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
