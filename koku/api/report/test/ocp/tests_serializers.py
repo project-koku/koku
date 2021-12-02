@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report serializers."""
-from unittest import TestCase
-
+# from unittest import TestCase
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.serializers import FilterSerializer
 from api.report.ocp.serializers import GroupBySerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
@@ -15,7 +15,7 @@ from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.ocp.serializers import OrderBySerializer
 
 
-class OCPFilterSerializerTest(TestCase):
+class OCPFilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -122,7 +122,7 @@ class OCPFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPGroupBySerializerTest(TestCase):
+class OCPGroupBySerializerTest(IamTestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -176,7 +176,7 @@ class OCPGroupBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPOrderBySerializerTest(TestCase):
+class OCPOrderBySerializerTest(IamTestCase):
     """Tests for the order_by serializer."""
 
     def test_parse_order_by_params_success(self):
@@ -193,7 +193,7 @@ class OCPOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPQueryParamSerializerTest(TestCase):
+class OCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -207,7 +207,7 @@ class OCPQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = OCPQueryParamSerializer(data=query_params)
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -237,20 +237,20 @@ class OCPQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = OCPQueryParamSerializer(data=query_params)
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_units(self):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
-        serializer = OCPQueryParamSerializer(data=query_params)
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
-        serializer = OCPQueryParamSerializer(data=query_params)
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -258,19 +258,19 @@ class OCPQueryParamSerializerTest(TestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
+        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
+        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPInventoryQueryParamSerializerTest(TestCase):
+class OCPInventoryQueryParamSerializerTest(IamTestCase):
     """Tests for the handling inventory query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -285,7 +285,7 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_order_by(self):
@@ -302,85 +302,85 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_delta_success(self):
         """Test that a proper delta value is serialized."""
         query_params = {"delta": "cost"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
         query_params = {"delta": "usage"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
         query_params = {"delta": "request"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_delta_failure(self):
         """Test that a bad delta value is not serialized."""
         query_params = {"delta": "bad_delta"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_current_month_delta_success(self):
         """Test that a proper current month delta value is serialized."""
         query_params = {"delta": "usage__request"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
         query_params = {"delta": "usage__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
         query_params = {"delta": "request__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_current_month_delta_failure(self):
         """Test that a bad current month delta value is not serialized."""
         query_params = {"delta": "bad__delta"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
         query_params = {"delta": "usage__request__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_order_by_delta_with_delta(self):
         """Test that order_by[delta] works with a delta param."""
         query_params = {"delta": "usage__request", "order_by": {"delta": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_delta_without_delta(self):
         """Test that order_by[delta] does not work without a delta param."""
         query_params = {"order_by": {"delta": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_order_by_node_with_groupby(self):
         """Test that order_by[node] works with a matching group-by."""
         query_params = {"group_by": {"node": "asc"}, "order_by": {"node": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_node_without_groupby(self):
         """Test that order_by[node] fails without a matching group-by."""
         query_params = {"order_by": {"node": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params)
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPCostQueryParamSerializerTest(TestCase):
+class OCPCostQueryParamSerializerTest(IamTestCase):
     """Tests for the handling charge query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -395,7 +395,7 @@ class OCPCostQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        serializer = OCPCostQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_order_by_request(self):
@@ -412,7 +412,7 @@ class OCPCostQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = OCPCostQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -430,7 +430,7 @@ class OCPCostQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = OCPCostQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -448,6 +448,6 @@ class OCPCostQueryParamSerializerTest(TestCase):
             },
             "delta": "cost",
         }
-        serializer = OCPCostQueryParamSerializer(data=query_params)
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)

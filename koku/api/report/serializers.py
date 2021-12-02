@@ -8,13 +8,11 @@ import copy
 from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.fields import DateField
-from tenant_schemas.utils import schema_context
 
 from api.currency.currencies import CURRENCIES
 from api.utils import DateHelper
+from api.utils import get_currency
 from api.utils import materialized_view_month_start
-from koku.settings import KOKU_DEFAULT_CURRENCY
-from reporting.user_settings.models import UserSettings
 
 CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
 
@@ -315,19 +313,19 @@ class ParamSerializer(BaseSerializer):
             setattr(self, key, inst)
             self.fields[key] = inst
 
-    def get_currency(self):
-        """Get currency out of the user settings.
+    # def get_currency(self):
+    #     """Get currency out of the user settings.
 
-        Returns:
-            (Str): User set currency or default currency
-        """
-        request = self.context.get("request")
-        with schema_context(request.user.customer.schema_name):
-            try:
-                set_currency = UserSettings.objects.all().first().settings["currency"]
-            except Exception:
-                set_currency = KOKU_DEFAULT_CURRENCY
-        return set_currency
+    #     Returns:
+    #         (Str): User set currency or default currency
+    #     """
+    #     request = self.context.get("request")
+    #     with schema_context(request.user.customer.schema_name):
+    #         try:
+    #             set_currency = UserSettings.objects.all().first().settings["currency"]
+    #         except Exception:
+    #             set_currency = KOKU_DEFAULT_CURRENCY
+    #     return set_currency
 
     def validate(self, data):
         """Validate incoming data.
@@ -341,7 +339,7 @@ class ParamSerializer(BaseSerializer):
 
         """
         super().validate(data)
-        data["currency"] = self.get_currency()
+        data["currency"] = get_currency(self.context.get("request"))
         start_date = data.get("start_date")
         end_date = data.get("end_date")
         time_scope_value = data.get("filter", {}).get("time_scope_value")
