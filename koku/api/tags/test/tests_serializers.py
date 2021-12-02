@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the tag serializer."""
-from unittest import TestCase
-
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.tags.serializers import AWSFilterSerializer
 from api.tags.serializers import AWSTagsQueryParamSerializer
 from api.tags.serializers import FilterSerializer
@@ -16,7 +15,7 @@ from api.tags.serializers import TagsQueryParamSerializer
 from api.utils import DateHelper
 
 
-class FilterSerializerTest(TestCase):
+class FilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -65,7 +64,7 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class AWSFilterSerializerTest(TestCase):
+class AWSFilterSerializerTest(IamTestCase):
     """Tests for the AWS filter serializer."""
 
     def test_parse_filter_params_w_project_success(self):
@@ -95,7 +94,7 @@ class AWSFilterSerializerTest(TestCase):
             self.assertFalse(serializer.is_valid())
 
 
-class OCPFilterSerializerTest(TestCase):
+class OCPFilterSerializerTest(IamTestCase):
     """Tests for the OCP filter serializer."""
 
     def test_parse_filter_params_w_project_success(self):
@@ -134,13 +133,13 @@ class OCPFilterSerializerTest(TestCase):
             self.assertFalse(serializer.is_valid())
 
 
-class TagsQueryParamSerializerTest(TestCase):
+class TagsQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {"filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}}
-        serializer = TagsQueryParamSerializer(data=query_params)
+        serializer = TagsQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_ocp_invalid_fields(self):
@@ -148,7 +147,7 @@ class TagsQueryParamSerializerTest(TestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
-        serializer = OCPTagsQueryParamSerializer(data=query_params)
+        serializer = OCPTagsQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -157,7 +156,7 @@ class TagsQueryParamSerializerTest(TestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
-        serializer = AWSTagsQueryParamSerializer(data=query_params)
+        serializer = AWSTagsQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -181,7 +180,7 @@ class TagsQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = TagsQueryParamSerializer(data=params)
+                serializer = TagsQueryParamSerializer(data=params, context=self.request_context)
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
@@ -215,5 +214,5 @@ class TagsQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = TagsQueryParamSerializer(data=params)
+                serializer = TagsQueryParamSerializer(data=params, context=self.request_context)
                 self.assertFalse(serializer.is_valid())
