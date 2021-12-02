@@ -72,12 +72,9 @@ class ProviderView(viewsets.ModelViewSet):
     def get_providers_by_account_id(self, request, *args, **kwargs):
         """Get Providers By Account Id"""
         accountIdParam = kwargs
-        try:
-            queryset = self.queryset.filter(customer__account_id=accountIdParam["customer"])
-            if not queryset:
-                raise ProviderException("Invalid account id.")
-        except Exception:
-            raise ProviderException("Invalid arguments.")
+        queryset = self.queryset.filter(customer__account_id=accountIdParam["customer"])
+        if not queryset:
+            raise ProviderException("Invalid account id.")
         pagination = self.set_pagination(self, queryset, ProviderSerializer)
         if pagination is not None:
             return self.get_paginated_response(pagination)

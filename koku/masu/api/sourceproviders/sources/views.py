@@ -72,13 +72,9 @@ class SourcesView(viewsets.ModelViewSet):
     def get_sources_by_account_id(self, request, *args, **kwargs):
         """Get source by schema"""
         sourceuuidParam = kwargs
-        try:
-            queryset = self.queryset.filter(account_id=sourceuuidParam["account_id"])
-            if not queryset:
-                raise SourceException("Invalid account id")
-        except Exception:
-            raise SourceException("Invalid source uuid.")
-
+        queryset = self.queryset.filter(account_id=sourceuuidParam["account_id"])
+        if not queryset:
+            raise SourceException("Invalid account id")
         pagination = self.set_pagination(self, queryset, SourceSerializer)
         if pagination is not None:
             return self.get_paginated_response(pagination)
