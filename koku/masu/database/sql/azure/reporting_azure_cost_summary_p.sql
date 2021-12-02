@@ -4,7 +4,7 @@ WHERE usage_start >= {{start_date}}::date
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO reporting_azure_cost_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_azure_cost_summary_p (
     id,
     usage_start,
     usage_end,
@@ -20,7 +20,7 @@ INSERT INTO reporting_azure_cost_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
-    FROM reporting_azurecostentrylineitem_daily_summary
+    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
