@@ -121,6 +121,9 @@ check_migrations()
     if [[ "${RESULT}" == "True" ]]; then
         echo "👍 : Migrations have already been processed"
         _rc=1
+    elif [[ "${RESULT}" == "STOP" ]]; then
+        echo "🛑 : Migrations are verifying or running"
+        _rc=1  # set to bad exit code in case the image has differences from running image
     else
         echo "🤔 : Migrations should be run"
         _rc=0
@@ -165,6 +168,8 @@ process_migrations()
 }
 
 
+export APPLICATION_NAME="koku_db_migration"
+
 # Check to see if any CLI args will override the env var
 arg_check $@
 
@@ -188,5 +193,8 @@ else
     # Error out on bash check fail
     RC=2
 fi
+
+export APPLICATION_NAME=koku
+
 
 exit $RC
