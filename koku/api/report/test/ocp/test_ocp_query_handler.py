@@ -162,13 +162,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
     def test_get_cluster_capacity_monthly_resolution_start_end_date(self):
-        """Test that cluster capacity returns capacity by cluster."""
+        """Test that cluster capacity returns capacity by month."""
         url = f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
+        month_count = 2
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
-        capacity_by_month = defaultdict(Decimal)
         total_capacity = Decimal(0)
         query_filter = handler.query_filter
         query_group_by = ["usage_start"]
@@ -181,9 +181,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
-                month = entry.get("usage_start", "").month
-                capacity_by_month[month] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
+        total_capacity = total_capacity * month_count
 
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
