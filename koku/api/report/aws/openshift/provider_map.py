@@ -16,16 +16,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import OCPAWSComputeSummary
 from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.models import OCPAWSCostLineItemProjectDailySummary
-from reporting.models import OCPAWSCostSummary
-from reporting.models import OCPAWSCostSummaryByAccount
-from reporting.models import OCPAWSCostSummaryByRegion
-from reporting.models import OCPAWSCostSummaryByService
-from reporting.models import OCPAWSDatabaseSummary
-from reporting.models import OCPAWSNetworkSummary
-from reporting.models import OCPAWSStorageSummary
+from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByServiceP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSNetworkSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 
 
 class OCPAWSProviderMap(ProviderMap):
@@ -495,31 +495,31 @@ class OCPAWSProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": OCPAWSCostSummary,
-                ("account",): OCPAWSCostSummaryByAccount,
-                ("service",): OCPAWSCostSummaryByService,
-                ("account", "service"): OCPAWSCostSummaryByService,
-                ("region",): OCPAWSCostSummaryByRegion,
-                ("account", "region"): OCPAWSCostSummaryByRegion,
+                "default": OCPAWSCostSummaryP,
+                ("account",): OCPAWSCostSummaryByAccountP,
+                ("service",): OCPAWSCostSummaryByServiceP,
+                ("account", "service"): OCPAWSCostSummaryByServiceP,
+                ("region",): OCPAWSCostSummaryByRegionP,
+                ("account", "region"): OCPAWSCostSummaryByRegionP,
             },
             "instance_type": {
-                "default": OCPAWSComputeSummary,
-                ("instance_type",): OCPAWSComputeSummary,
-                ("account", "instance_type"): OCPAWSComputeSummary,
-                ("account",): OCPAWSComputeSummary,
+                "default": OCPAWSComputeSummaryP,
+                ("instance_type",): OCPAWSComputeSummaryP,
+                ("account", "instance_type"): OCPAWSComputeSummaryP,
+                ("account",): OCPAWSComputeSummaryP,
             },
-            "storage": {"default": OCPAWSStorageSummary, ("account",): OCPAWSStorageSummary},
+            "storage": {"default": OCPAWSStorageSummaryP, ("account",): OCPAWSStorageSummaryP},
             "database": {
-                "default": OCPAWSDatabaseSummary,
-                ("service",): OCPAWSDatabaseSummary,
-                ("account", "service"): OCPAWSDatabaseSummary,
-                ("account",): OCPAWSDatabaseSummary,
+                "default": OCPAWSDatabaseSummaryP,
+                ("service",): OCPAWSDatabaseSummaryP,
+                ("account", "service"): OCPAWSDatabaseSummaryP,
+                ("account",): OCPAWSDatabaseSummaryP,
             },
             "network": {
-                "default": OCPAWSNetworkSummary,
-                ("service",): OCPAWSNetworkSummary,
-                ("account", "service"): OCPAWSNetworkSummary,
-                ("account",): OCPAWSNetworkSummary,
+                "default": OCPAWSNetworkSummaryP,
+                ("service",): OCPAWSNetworkSummaryP,
+                ("account", "service"): OCPAWSNetworkSummaryP,
+                ("account",): OCPAWSNetworkSummaryP,
             },
         }
         super().__init__(provider, report_type)
