@@ -3,6 +3,21 @@ kind: Template
 metadata:
   name: koku
 objects:
+# ====================================================
+#      koku DB Migrations CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: db-migrate-cji-${DBM_IMAGE_TAG}
+  spec:
+    appName: koku
+    jobs:
+      - db-migrate-cji-${DBM_IMAGE_TAG}
+
+# ====================================================
+#      koku ClowdApp
+# ====================================================
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
@@ -11,6 +26,46 @@ objects:
     database:
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
+
+    # ====================================================
+    #      koku DB Migrations Job
+    # ====================================================
+    jobs:
+    - name: db-migrate-cji-${DBM_IMAGE_TAG}
+      podSpec:
+        image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_CPU_LIMIT}
+            memory: ${KOKU_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_CPU_REQUEST}
+            memory: ${KOKU_MEMORY_REQUEST}
+        args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_migrations.sh
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REDIS_HOST
+          value: ${REDIS_HOST}
+        - name: REDIS_PORT
+          value: ${REDIS_PORT}
+        - name: _MIGRATION_DIRECTIVE
+          value: ${_MIGRATION_DIRECTIVE}
+
+    # ====================================================
+    #      koku App Deployments
+    # ====================================================
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: clowder-api
@@ -2074,6 +2129,18 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- description: DB Migrations Image Tag
+  name: DBM_IMAGE_TAG
+  required: true
+  value: latest
+- description: DB Migrations Image
+  name: DBM_IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- description: DB Migrations Directive
+  name: _MIGRATION_DIRECTIVE
+  required: false
+  value: ""
 - description: Image tag
   name: IMAGE_TAG
   required: true
