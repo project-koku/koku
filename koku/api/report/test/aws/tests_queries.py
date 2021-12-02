@@ -1886,42 +1886,44 @@ class AWSReportQueryTest(IamTestCase):
             self.assertTrue(acc in expected)
 
     def test_aws_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        expected = {}
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSCostView)
-        handler = AWSReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        for service in self.services:
-            with tenant_context(self.tenant):
-                service_holder = (
-                    AWSCostEntryLineItemDailySummary.objects.filter(product_code=service)
-                    .filter(usage_start=yesterday)
-                    .aggregate(
-                        cost=Sum(
-                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                        )
-                    )
-                )
+        group_bys = {
+            "account": AWSCostSummaryByAccountP,
+            "service": AWSCostSummaryByServiceP,
+            "region": AWSCostSummaryByRegionP,
+            "product_family": AWSCostSummaryByServiceP,
+        }
+        for group_by, table in group_bys.items():
+            with self.subTest(test=group_by):
+                url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[{group_by}]=*"
+                query_params = self.mocked_query_params(url, AWSCostView)
+                handler = AWSReportQueryHandler(query_params)
+                query_output = handler.execute_query()
+                data = query_output.get("data")
 
-                expected[service] = service_holder["cost"]
-        sorted_expected = dict(sorted(expected.items(), key=lambda item: item[1], reverse=True))
-        correctlst = list(sorted_expected.keys())
-        for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
-            lst = []
+                gb = group_by
+                group_by_annotations = handler.annotations.get(group_by)
+                cost_annotations = handler.report_annotations.get("cost_total")
+                with tenant_context(self.tenant):
+                    query = table.objects.filter(usage_start=str(yesterday))
+                    if group_by_annotations:
+                        gb = "gb"
+                        query = query.annotate(gb=group_by_annotations)
+                    expected = list(query.values(gb).annotate(cost=cost_annotations).order_by("-cost", gb))
+                correctlst = [field.get(gb) for field in expected]
+                if correctlst and None in correctlst:
+                    ind = correctlst.index(None)
+                    correctlst[ind] = "no-" + group_by
+                for element in data:
+                    lst = [field.get(group_by) for field in element.get(group_by + "s", [])]
+                    if lst and correctlst:
+                        self.assertEqual(correctlst, lst)
 
     def test_aws_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
