@@ -5,7 +5,7 @@ WHERE usage_start >= {{start_date}}::date
     AND invoice_month = {{invoice_month}}
 ;
 
-INSERT INTO reporting_gcp_network_summary_p (
+INSERT INTO {{schema | sqlsafe}}.reporting_gcp_network_summary_p (
     id,
     usage_start,
     usage_end,
@@ -35,7 +35,7 @@ INSERT INTO reporting_gcp_network_summary_p (
         service_alias,
         invoice_month,
         SUM(credit_amount) AS credit_amount
-    FROM reporting_gcpcostentrylineitem_daily_summary
+    FROM {{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary
     WHERE (service_alias LIKE '%%Network%%'
         OR service_alias LIKE '%%VPC%%'
         OR service_alias LIKE '%%Firewall%%'
