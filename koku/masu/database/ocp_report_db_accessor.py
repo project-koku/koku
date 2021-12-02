@@ -658,6 +658,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -671,6 +674,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "source": str(source),
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
         }
 
         LOG.info("PRESTO OCP: Connect")
