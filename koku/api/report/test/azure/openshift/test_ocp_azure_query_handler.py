@@ -12,7 +12,6 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from dateutil.relativedelta import relativedelta
-from django.db import connection
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
@@ -29,15 +28,15 @@ from api.report.azure.openshift.view import OCPAzureStorageView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AzureCostEntryBill
-from reporting.models import OCPAzureComputeSummary
+from reporting.models import OCPAzureComputeSummaryP
 from reporting.models import OCPAzureCostLineItemDailySummary
-from reporting.models import OCPAzureCostSummary
-from reporting.models import OCPAzureCostSummaryByAccount
-from reporting.models import OCPAzureCostSummaryByLocation
-from reporting.models import OCPAzureCostSummaryByService
-from reporting.models import OCPAzureDatabaseSummary
-from reporting.models import OCPAzureNetworkSummary
-from reporting.models import OCPAzureStorageSummary
+from reporting.models import OCPAzureCostSummaryByAccountP
+from reporting.models import OCPAzureCostSummaryByLocationP
+from reporting.models import OCPAzureCostSummaryByServiceP
+from reporting.models import OCPAzureCostSummaryP
+from reporting.models import OCPAzureDatabaseSummaryP
+from reporting.models import OCPAzureNetworkSummaryP
+from reporting.models import OCPAzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -76,37 +75,6 @@ class OCPAzureQueryHandlerTestNoData(IamTestCase):
             "usage_start__gte": self.dh.last_month_start.date(),
             "usage_end__lte": self.dh.last_month_end.date(),
         }
-
-    def test_execute_sum_query_instance_types_1(self):
-        """Test that the sum query runs properly for instance-types."""
-        with tenant_context(self.tenant):
-            OCPAzureCostLineItemDailySummary.objects.all().delete()
-            with connection.cursor() as cursor:
-                cursor.execute("REFRESH MATERIALIZED VIEW reporting_ocpazure_compute_summary")
-        url = "?group_by[subscription_guid]=*"
-        query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
-        handler = OCPAzureReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        self.assertIsNotNone(query_output.get("data"))
-        self.assertIsNotNone(query_output.get("total"))
-        total = query_output.get("total")
-        keys_units = {
-            "cost": "USD",
-            "infrastructure": "USD",
-            "supplementary": "USD",
-            "usage": "Hrs",
-            "count": "instances",
-        }
-        has_total_list = ["cost", "infrastructure", "supplementary"]
-        for key, unit in keys_units.items():
-            self.assertIsNotNone(total.get(key))
-            self.assertIsInstance(total.get(key), dict)
-            if key in has_total_list:
-                self.assertEqual(total.get(key).get("total", {}).get("value"), 0)
-                self.assertEqual(total.get(key).get("total", {}).get("units"), unit)
-            else:
-                self.assertEqual(total.get(key).get("value"), 0)
-                self.assertEqual(total.get(key).get("units"), unit)
 
 
 class OCPAzureQueryHandlerTest(IamTestCase):
@@ -154,7 +122,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-    def test_execute_sum_query_instance_types_2(self):
+    def test_execute_sum_query_instance_types(self):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
@@ -935,52 +903,52 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummary)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryP)
 
         url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByAccount)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByAccountP)
 
         url = "?group_by[resource_location]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocationP)
 
         url = "?group_by[resource_location]=*&group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocation)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByLocationP)
 
         url = "?group_by[service_name]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByServiceP)
 
         url = "?group_by[service_name]=*&group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureCostSummaryByService)
+        self.assertEqual(handler.query_table, OCPAzureCostSummaryByServiceP)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureComputeSummary)
+        self.assertEqual(handler.query_table, OCPAzureComputeSummaryP)
 
         url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureInstanceTypeView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureComputeSummary)
+        self.assertEqual(handler.query_table, OCPAzureComputeSummaryP)
 
         url = "?"
         query_params = self.mocked_query_params(url, OCPAzureStorageView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureStorageSummary)
+        self.assertEqual(handler.query_table, OCPAzureStorageSummaryP)
 
         url = "?group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureStorageView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureStorageSummary)
+        self.assertEqual(handler.query_table, OCPAzureStorageSummaryP)
 
         url = (
             "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager,"
@@ -988,7 +956,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         )
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
+        self.assertEqual(handler.query_table, OCPAzureNetworkSummaryP)
 
         url = (
             "?filter[service_name]=Virtual Network,VPN,DNS,Traffic Manager,"
@@ -997,17 +965,17 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         )
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureNetworkSummary)
+        self.assertEqual(handler.query_table, OCPAzureNetworkSummaryP)
 
         url = "?filter[service_name]=Cosmos DB,Cache for Redis,Database"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)
+        self.assertEqual(handler.query_table, OCPAzureDatabaseSummaryP)
 
         url = "?filter[service_name]=Cosmos DB,Cache for Redis,Database" "&group_by[subscription_guid]=*"
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
-        self.assertEqual(handler.query_table, OCPAzureDatabaseSummary)
+        self.assertEqual(handler.query_table, OCPAzureDatabaseSummaryP)
 
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
@@ -1048,7 +1016,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
-                OCPAzureCostSummaryByService.objects.filter(usage_start=str(yesterday))
+                OCPAzureCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
                 .values("service_name")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
