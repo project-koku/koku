@@ -2,6 +2,8 @@
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
 (
     aws_uuid varchar,
+    cluster_id varchar,
+    cluster_alias varchar,
     data_source varchar,
     namespace varchar,
     node varchar,
@@ -44,6 +46,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
 (
     aws_uuid varchar,
+    cluster_id varchar,
+    cluster_alias varchar,
     data_source varchar,
     namespace varchar,
     node varchar,
@@ -95,6 +99,8 @@ WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
 -- Direct resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
+    cluster_id,
+    cluster_alias,
     data_source,
     namespace,
     node,
@@ -132,6 +138,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
+        max(ocp.cluster_id) as cluster_id,
+        max(ocp.cluster_alias) as cluster_alias,
         'Pod' as data_source,
         ocp.namespace,
         max(ocp.node) as node,
@@ -174,7 +182,8 @@ SELECT aws.uuid as aws_uuid,
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-        AND aws.day IN ({{days}})
+        AND aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
@@ -185,6 +194,8 @@ SELECT aws.uuid as aws_uuid,
 -- Tag matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
+    cluster_id,
+    cluster_alias,
     data_source,
     namespace,
     node,
@@ -222,6 +233,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
+        max(ocp.cluster_id) as cluster_id,
+        max(ocp.cluster_alias) as cluster_alias,
         ocp.data_source,
         ocp.namespace,
         max(ocp.node) as node,
@@ -272,7 +285,8 @@ SELECT aws.uuid as aws_uuid,
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-        AND aws.day IN ({{days}})
+        AND aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
@@ -284,6 +298,8 @@ SELECT aws.uuid as aws_uuid,
 -- Group by to calculate proper cost per project
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary (
     aws_uuid,
+    cluster_id,
+    cluster_alias,
     data_source,
     namespace,
     node,
@@ -318,6 +334,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     day
 )
 SELECT aws_uuid,
+    cluster_id,
+    cluster_alias,
     data_source,
     namespace,
     node,
@@ -369,6 +387,8 @@ SELECT aws_uuid,
     cast(day(usage_start) as varchar) as day
 FROM (
     SELECT pds.aws_uuid,
+        max(pds.cluster_id) as cluster_id,
+        max(pds.cluster_alias) as cluster_alias,
         max(pds.data_source) as data_source,
         pds.namespace,
         max(pds.node) as node,
@@ -445,8 +465,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_d
 )
 SELECT uuid(),
     {{report_period_id | sqlsafe}} as report_period_id,
-    {{cluster_id}} as cluster_id,
-    {{cluster_alias}} as cluster_alias,
+    cluster_id,
+    cluster_alias,
     data_source,
     namespace,
     node,
