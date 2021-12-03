@@ -29,7 +29,9 @@ from api.report.azure.provider_map import AzureProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
+from koku.settings import KOKU_DEFAULT_COST_TYPE
 from reporting.provider.aws.models import AWSOrganizationalUnit
+from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
@@ -51,7 +53,10 @@ class Forecast:
     REPORT_TYPE = "costs"
 
     # ToDo: potentially make the cost_type variable in forecast to the setting chosen in DB
-    COST_TYPE = "unblended_cost"
+    try:
+        COST_TYPE = UserSettings.objects.all().first().settings["cost_type"]
+    except Exception:
+        COST_TYPE = KOKU_DEFAULT_COST_TYPE
 
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.

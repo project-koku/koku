@@ -113,12 +113,6 @@ class ListPaginator(StandardResultsSetPagination):
         return self.get_paginated_response(self.paginated_data_set)
 
 
-class ForecastListPaginator(ListPaginator):
-    """A paginator that applies a default limit based on days in month."""
-
-    default_limit = DateHelper().this_month_end.day
-
-
 class ReportPagination(StandardResultsSetPagination):
     """A specialty paginator for report data."""
 
@@ -187,6 +181,12 @@ class ReportPagination(StandardResultsSetPagination):
         }
         response["meta"].update(data)
         return Response(response)
+
+
+class ForecastListPaginator(ListPaginator):
+    """A paginator that applies a default limit based on days in month."""
+
+    default_limit = DateHelper().this_month_end.day
 
 
 class ReportRankedPagination(ReportPagination):

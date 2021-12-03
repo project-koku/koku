@@ -63,6 +63,11 @@ class ForecastView(APIView):
         output = handler.predict()
         LOG.debug(f"DATA: {output}")
 
+        print("HELLO: ", self)
+
+        # if self.serializer is AWSCostForecastParamSerializer:
+        #     paginator = ForecastListPaginator(output, request)
+        # else:
         paginator = ForecastListPaginator(output, request)
         paginated_result = paginator.paginate_queryset(output, request)
         return paginator.get_paginated_response(paginated_result)
