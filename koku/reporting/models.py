@@ -98,16 +98,16 @@ from reporting.provider.azure.models import AzureNetworkSummaryP
 from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
-from reporting.provider.azure.openshift.models import OCPAzureComputeSummary
+from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
-from reporting.provider.azure.openshift.models import OCPAzureCostSummary
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocation
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByService
-from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
-from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
-from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccountP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocationP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByServiceP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureNetworkSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureStorageSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.gcp.models import GCPComputeSummary
 from reporting.provider.gcp.models import GCPComputeSummaryByAccount
@@ -243,15 +243,16 @@ OCP_ON_AWS_PERSPECTIVES = (
     OCPAWSStorageSummaryP,
 )
 
-OCP_ON_AZURE_MATERIALIZED_VIEWS = (
-    OCPAzureCostSummary,
-    OCPAzureCostSummaryByAccount,
-    OCPAzureCostSummaryByService,
-    OCPAzureCostSummaryByLocation,
-    OCPAzureComputeSummary,
-    OCPAzureStorageSummary,
-    OCPAzureNetworkSummary,
-    OCPAzureDatabaseSummary,
+# These are partitioned tables
+OCP_ON_AZURE_PERSPECTIVES = (
+    OCPAzureCostSummaryP,
+    OCPAzureCostSummaryByAccountP,
+    OCPAzureCostSummaryByServiceP,
+    OCPAzureCostSummaryByLocationP,
+    OCPAzureComputeSummaryP,
+    OCPAzureStorageSummaryP,
+    OCPAzureNetworkSummaryP,
+    OCPAzureDatabaseSummaryP,
 )
 
 GCP_MATERIALIZED_VIEWS = (
