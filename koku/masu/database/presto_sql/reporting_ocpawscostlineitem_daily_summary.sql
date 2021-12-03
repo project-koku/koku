@@ -174,13 +174,11 @@ SELECT aws.uuid as aws_uuid,
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-        AND aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND aws.day IN ({{days}})
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
-        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.day IN ({{days}})
     GROUP BY aws.uuid, ocp.namespace
 ;
 
@@ -265,7 +263,7 @@ SELECT aws.uuid as aws_uuid,
             AND (
                 json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
                     OR json_extract_scalar(aws.resourcetags, '$.openshift_node') = lower(ocp.node)
-                    OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower({{cluster_id}}), lower({{cluster_alias}}))
+                    OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
@@ -274,13 +272,11 @@ SELECT aws.uuid as aws_uuid,
     WHERE aws.source = '{{aws_source_uuid | sqlsafe}}'
         AND aws.year = {{year}}
         AND aws.month = {{month}}
-        AND aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND aws.day IN ({{days}})
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
-        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.day IN ({{days}})
         AND pds.aws_uuid IS NULL
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
 ;
