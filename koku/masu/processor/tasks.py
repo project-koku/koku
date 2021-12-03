@@ -22,8 +22,6 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from koku import celery_app
 from koku.cache import invalidate_view_cache_for_tenant_and_source_type
-from koku.feature_flags import fallback_true
-from koku.feature_flags import UNLEASH_CLIENT
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -47,10 +45,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
-from reporting.models import AWS_MATERIALIZED_VIEWS
-from reporting.models import AZURE_MATERIALIZED_VIEWS
-from reporting.models import OCP_ON_AWS_MATERIALIZED_VIEWS
-from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 
 
 LOG = logging.getLogger(__name__)
@@ -386,17 +380,17 @@ def update_summary_tables(  # noqa: C901
         updater.update_summary_tables(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
-            log_json(
-                tracing_id,
-                f"Failed to correlate OpenShift metrics for provider: {str(provider_uuid)}. Error: {str(ex)}",
-            )
+            log_json(tracing_id, f"Failed to correlate OpenShift metrics for provider: {provider_uuid}. Error: {ex}")
         )
+
     except ReportSummaryUpdaterProviderNotFoundError as pnf_ex:
         LOG.warning(
             log_json(
                 tracing_id,
-                f"{str(pnf_ex)} Possible source/provider delete during processing. "
-                + "Processing for this provier will halt.",
+                (
+                    f"{pnf_ex} Possible source/provider delete during processing. "
+                    + "Processing for this provier will halt."
+                ),
             )
         )
         if not synchronous:
@@ -406,7 +400,6 @@ def update_summary_tables(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
-
     if not provider_uuid:
         refresh_materialized_views.s(
             schema_name, provider, manifest_id=manifest_id, queue_name=queue_name, tracing_id=tracing_id
@@ -574,21 +567,6 @@ def refresh_materialized_views(  # noqa: C901
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=600)
     materialized_views = ()
-    if provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-        materialized_views = (OCP_ON_AWS_MATERIALIZED_VIEWS)
-        if UNLEASH_CLIENT.is_enabled("cost-aws-materialized-views", fallback_function=fallback_true):
-            materialized_views = (
-                AWS_MATERIALIZED_VIEWS + OCP_ON_AWS_MATERIALIZED_VIEWS
-            )
-    elif provider_type in (Provider.PROVIDER_OCP):
-        materialized_views = (
-            OCP_ON_AWS_MATERIALIZED_VIEWS
-            + OCP_ON_AZURE_MATERIALIZED_VIEWS
-        )
-    elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        materialized_views = (
-            AZURE_MATERIALIZED_VIEWS + OCP_ON_AZURE_MATERIALIZED_VIEWS
-        )
     try:
         with schema_context(schema_name):
             for view in materialized_views:

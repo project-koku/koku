@@ -1,13 +1,16 @@
-DELETE FROM {{schema | sqlsafe}}.reporting_azure_storage_summary_p
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpazure_database_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
+    AND cluster_id = {{cluster_id}}
     AND source_uuid = {{source_uuid}}
 ;
 
-INSERT INTO {{schema | sqlsafe}}.reporting_azure_storage_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpazure_database_summary_p (
     id,
     usage_start,
     usage_end,
+    cluster_id,
+    cluster_alias,
     subscription_guid,
     service_name,
     usage_quantity,
@@ -20,6 +23,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_storage_summary_p (
     SELECT uuid_generate_v4() as id,
         usage_start as usage_start,
         usage_start as usage_end,
+        {{cluster_id}},
+        {{cluster_alias}},
         subscription_guid,
         service_name,
         sum(usage_quantity) as usage_quantity,
@@ -28,11 +33,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_azure_storage_summary_p (
         sum(markup_cost) as markup_cost,
         max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
-    FROM {{schema | sqlsafe}}.reporting_azurecostentrylineitem_daily_summary
-    WHERE service_name LIKE '%%Storage%%'
-        AND unit_of_measure = 'GB-Mo'
+    FROM reporting_ocpazurecostlineitem_daily_summary
+    WHERE service_name IN ('Cosmos DB','Cache for Redis') OR service_name ILIKE '%%database%%'
         AND usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
+        AND cluster_id = {{cluster_id}}
         AND source_uuid = {{source_uuid}}
     GROUP BY usage_start, subscription_guid, service_name
 ;
