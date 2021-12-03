@@ -15,7 +15,8 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.common.permissions.openshift_access import OpenShiftProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 
 
@@ -37,7 +38,7 @@ class OCPProjectsView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for Openshift projects namespace,displays values related to the users access
-        supported_query_params = ["search", "limit", "cloud"]
+        supported_query_params = ["search", "limit", "cloud", "aws", "aws2"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -49,12 +50,19 @@ class OCPProjectsView(generics.ListAPIView):
                 elif key == "cloud":
                     cloud = self.request.query_params.get("cloud")
                     if cloud == "true":
-                        self.queryset = (
-                            OCPAllCostLineItemDailySummaryP.objects.annotate(**{"value": F("namespace")})
+                        self.awsqueryset = (
+                            OCPAWSCostLineItemProjectDailySummary.objects.annotate(**{"value": F("namespace")})
                             .values("value")
                             .distinct()
                             .filter(namespace__isnull=False)
                         )
+                        self.azurequeryset = (
+                            OCPAzureCostLineItemProjectDailySummary.objects.annotate(**{"value": F("namespace")})
+                            .values("value")
+                            .distinct()
+                            .filter(namespace__isnull=False)
+                        )
+                        self.queryset = self.awsqueryset.union(self.azurequeryset, all=True)
         if request.user.admin:
             return super().list(request)
         if request.user.access:

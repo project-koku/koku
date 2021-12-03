@@ -15,7 +15,8 @@ from rest_framework.response import Response
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
-from reporting.provider.all.openshift.models import OCPAllCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryP
 
 
@@ -51,17 +52,29 @@ class OCPClustersView(generics.ListAPIView):
                 elif key == "cloud":
                     cloud = self.request.query_params.get("cloud")
                     if cloud == "true":
-                        self.queryset = (
-                            OCPAllCostLineItemDailySummaryP.objects.annotate(
+                        self.awsqueryset = (
+                            OCPAWSCostLineItemDailySummary.objects.annotate(
                                 **{
                                     "value": F("cluster_id"),
                                     "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
                                 }
                             )
-                            .values("value", "ocp_cluster_alias")
+                            .values("value")
                             .distinct()
-                            .filter(cluster_id__isnull=False)
+                            .filter(namespace__isnull=False)
                         )
+                        self.azurequeryset = (
+                            OCPAzureCostLineItemDailySummary.objects.annotate(
+                                **{
+                                    "value": F("cluster_id"),
+                                    "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
+                                }
+                            )
+                            .values("value")
+                            .distinct()
+                            .filter(namespace__isnull=False)
+                        )
+                        self.queryset = self.awsqueryset.union(self.azurequeryset, all=True)
         if request.user.admin:
             return super().list(request)
         if request.user.access:
