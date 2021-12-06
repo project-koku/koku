@@ -31,8 +31,8 @@ class ForecastParamSerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
 
         """
-        if not data.get("cost_type"):
-            data["cost_type"] = get_cost_type(self.context.get("request"))
+        # if not data.get("cost_type"):
+        #     data["cost_type"] = get_cost_type(self.context.get("request"))
         handle_invalid_fields(self, data)
         return data
 
@@ -46,6 +46,22 @@ class AWSCostForecastParamSerializer(ForecastParamSerializer):
         ("savingsplan_effective_cost", "savingsplan_effective_cost"),
     )
     cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
+
+    def validate(self, data):
+        """Validate incoming data to including cost_type.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if field inputs are invalid
+
+        """
+        if not data.get("cost_type"):
+            data["cost_type"] = get_cost_type(self.context.get("request"))
+        handle_invalid_fields(self, data)
+        return data
 
     def validate_cost_type(self, value):
         """Validate incoming cost_type value based on path."""
