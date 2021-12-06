@@ -308,7 +308,7 @@ class AzureReportProcessor(ReportProcessorBase):
         modified_header = self._replace_name_in_header("usagedatetime", ["date"], modified_header)
         modified_header = self._replace_name_in_header("usagequantity", ["quantity"], modified_header)
         modified_header = self._replace_name_in_header("pretaxcost", ["costinbillingcurrency"], modified_header)
-        modified_header = self._replace_name_in_header("instanceid", ["resourceid"], modified_header)
+        modified_header = self._replace_name_in_header("instanceid", ["resourceid", "instancename"], modified_header)
         modified_header = self._replace_name_in_header("subscriptionguid", ["subscriptionid"], modified_header)
         modified_header = self._replace_name_in_header("servicename", ["metercategory"], modified_header)
 
