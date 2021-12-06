@@ -12,6 +12,7 @@ from decimal import InvalidOperation
 
 from celery import chain
 from dateutil import parser
+from django.conf import settings
 from django.db import connection
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
@@ -45,7 +46,6 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
-from reporting.models import OCP_ON_AZURE_MATERIALIZED_VIEWS
 
 
 LOG = logging.getLogger(__name__)
@@ -362,7 +362,7 @@ def update_summary_tables(  # noqa: C901
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=3600)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
 
     stmt = (
         f"update_summary_tables called with args: "
@@ -512,7 +512,7 @@ def update_cost_model_costs(
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
 
     worker_stats.COST_MODEL_COST_UPDATE_ATTEMPTS_COUNTER.inc()
 
@@ -566,12 +566,8 @@ def refresh_materialized_views(  # noqa: C901
                 tracing_id=tracing_id
             ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=600)
+        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
     materialized_views = ()
-    if provider_type in (Provider.PROVIDER_OCP):
-        materialized_views = OCP_ON_AZURE_MATERIALIZED_VIEWS
-    elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-        materialized_views = OCP_ON_AZURE_MATERIALIZED_VIEWS
     try:
         with schema_context(schema_name):
             for view in materialized_views:
