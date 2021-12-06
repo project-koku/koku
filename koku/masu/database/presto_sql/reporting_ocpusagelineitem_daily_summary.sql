@@ -465,6 +465,4 @@ WHERE lids.source = {{source}}
     AND lids.year = {{year}}
     AND lids.month = {{month}}
     AND lids.day IN ({{days}})
-    -- AND lids.usage_start >= TIMESTAMP {{start_date}}
-    -- AND lids.usage_start < date_add('day', 1, TIMESTAMP {{end_date}})
 ;

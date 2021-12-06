@@ -144,7 +144,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_called_with(mock_start, mock_end)
+        mock_cloud.assert_not_called()
 
     @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
