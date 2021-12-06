@@ -154,7 +154,7 @@ class ResourceTypesViewTestOpenshiftProjects(IamTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        qs = "?cloud=true"
+        qs = "?cloud=true&limit=200"
         url = reverse("openshift-projects") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
