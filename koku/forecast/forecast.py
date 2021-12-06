@@ -52,12 +52,6 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    # ToDo: potentially make the cost_type variable in forecast to the setting chosen in DB
-    try:
-        COST_TYPE = UserSettings.objects.all().first().settings["cost_type"]
-    except Exception:
-        COST_TYPE = KOKU_DEFAULT_COST_TYPE
-
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -69,6 +63,14 @@ class Forecast:
         """
         self.dh = DateHelper()
         self.params = query_params
+        print("COST_TYPE: ", query_params.get("cost_type"))
+        try:
+            if query_params.get("cost_type"):
+                self.cost_type = query_params.get("cost_type")
+            else:
+                self.cost_type = UserSettings.objects.all().first().settings["cost_type"]
+        except Exception:
+            self.cost_type = KOKU_DEFAULT_COST_TYPE
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -106,7 +108,7 @@ class Forecast:
         """Return the provider map instance."""
         current_provider = self
         if current_provider.provider is Provider.PROVIDER_AWS:
-            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.COST_TYPE)
+            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
