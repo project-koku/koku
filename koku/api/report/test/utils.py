@@ -119,7 +119,7 @@ class NiseDataLoader:
                 _fill_optional=True,
                 provider=provider,
                 billing_period_start_datetime=bill_date,
-                num_total_files=3,
+                num_total_files=4,
             )
             with open(static_data_path, "w") as f:
                 f.write(template.render(start_date=start_date, end_date=end_date))
