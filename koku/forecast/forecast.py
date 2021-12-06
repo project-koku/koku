@@ -63,7 +63,7 @@ class Forecast:
         """
         self.dh = DateHelper()
         self.params = query_params
-        print("COST_TYPE: ", query_params.get("cost_type"))
+
         try:
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
