@@ -64,16 +64,16 @@ from reporting.provider.aws.models import AWSStorageSummaryByService
 from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.aws.openshift.models import OCPAWSComputeSummary
+from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
-from reporting.provider.aws.openshift.models import OCPAWSCostSummary
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegion
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByService
-from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummary
-from reporting.provider.aws.openshift.models import OCPAWSNetworkSummary
-from reporting.provider.aws.openshift.models import OCPAWSStorageSummary
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByServiceP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSNetworkSummaryP
+from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSTagsSummary
 from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureComputeSummaryP
@@ -98,16 +98,16 @@ from reporting.provider.azure.models import AzureNetworkSummaryP
 from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
-from reporting.provider.azure.openshift.models import OCPAzureComputeSummary
+from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
-from reporting.provider.azure.openshift.models import OCPAzureCostSummary
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccount
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocation
-from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByService
-from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummary
-from reporting.provider.azure.openshift.models import OCPAzureNetworkSummary
-from reporting.provider.azure.openshift.models import OCPAzureStorageSummary
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccountP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocationP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByServiceP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureDatabaseSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureNetworkSummaryP
+from reporting.provider.azure.openshift.models import OCPAzureStorageSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.gcp.models import GCPComputeSummary
 from reporting.provider.gcp.models import GCPComputeSummaryByAccount
@@ -231,26 +231,28 @@ OCP_ON_ALL_PERSPECTIVES = (
     OCPAllStorageSummaryPT,
 )
 
-OCP_ON_AWS_MATERIALIZED_VIEWS = (
-    OCPAWSCostSummary,
-    OCPAWSCostSummaryByAccount,
-    OCPAWSCostSummaryByService,
-    OCPAWSCostSummaryByRegion,
-    OCPAWSComputeSummary,
-    OCPAWSStorageSummary,
-    OCPAWSNetworkSummary,
-    OCPAWSDatabaseSummary,
+# These are partitioned tables
+OCP_ON_AWS_PERSPECTIVES = (
+    OCPAWSComputeSummaryP,
+    OCPAWSCostSummaryP,
+    OCPAWSCostSummaryByAccountP,
+    OCPAWSCostSummaryByServiceP,
+    OCPAWSCostSummaryByRegionP,
+    OCPAWSDatabaseSummaryP,
+    OCPAWSNetworkSummaryP,
+    OCPAWSStorageSummaryP,
 )
 
-OCP_ON_AZURE_MATERIALIZED_VIEWS = (
-    OCPAzureCostSummary,
-    OCPAzureCostSummaryByAccount,
-    OCPAzureCostSummaryByService,
-    OCPAzureCostSummaryByLocation,
-    OCPAzureComputeSummary,
-    OCPAzureStorageSummary,
-    OCPAzureNetworkSummary,
-    OCPAzureDatabaseSummary,
+# These are partitioned tables
+OCP_ON_AZURE_PERSPECTIVES = (
+    OCPAzureCostSummaryP,
+    OCPAzureCostSummaryByAccountP,
+    OCPAzureCostSummaryByServiceP,
+    OCPAzureCostSummaryByLocationP,
+    OCPAzureComputeSummaryP,
+    OCPAzureStorageSummaryP,
+    OCPAzureNetworkSummaryP,
+    OCPAzureDatabaseSummaryP,
 )
 
 GCP_MATERIALIZED_VIEWS = (
