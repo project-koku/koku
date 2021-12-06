@@ -11,6 +11,8 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 
 
@@ -115,6 +117,38 @@ class ResourceTypesViewTestOpenshiftNodes(IamTestCase):
             )
         self.assertTrue(expected)
         url = reverse("openshift-nodes")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(len(json_result.get("data")), expected)
+
+    def test_openshift_nodes_on_cloud_view(self):
+        """Test endpoint runs with a customer owner."""
+        with schema_context(self.schema_name):
+            expected = (
+                (
+                    OCPAWSCostLineItemDailySummary.objects.annotate(**{"value": F("node")})
+                    .values("value")
+                    .distinct()
+                    .filter(node__isnull=False)
+                )
+                .union(
+                    (
+                        OCPAzureCostLineItemDailySummary.objects.annotate(**{"value": F("node")})
+                        .values("value")
+                        .distinct()
+                        .filter(node__isnull=False)
+                    ),
+                    all=True,
+                )
+                .count()
+            )
+        # check that the expected is not zero
+        self.assertTrue(expected)
+        qs = "?cloud=true&limit=200"
+        url = reverse("openshift-nodes") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()

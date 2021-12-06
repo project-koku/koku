@@ -50,19 +50,20 @@ class OCPProjectsView(generics.ListAPIView):
                 elif key == "cloud":
                     cloud = self.request.query_params.get("cloud")
                     if cloud == "true":
-                        self.awsqueryset = (
+                        self.queryset = (
                             OCPAWSCostLineItemProjectDailySummary.objects.annotate(**{"value": F("namespace")})
                             .values("value")
                             .distinct()
                             .filter(namespace__isnull=False)
+                        ).union(
+                            (
+                                OCPAzureCostLineItemProjectDailySummary.objects.annotate(**{"value": F("namespace")})
+                                .values("value")
+                                .distinct()
+                                .filter(namespace__isnull=False)
+                            ),
+                            all=True,
                         )
-                        self.azurequeryset = (
-                            OCPAzureCostLineItemProjectDailySummary.objects.annotate(**{"value": F("namespace")})
-                            .values("value")
-                            .distinct()
-                            .filter(namespace__isnull=False)
-                        )
-                        self.queryset = self.awsqueryset.union(self.azurequeryset, all=True)
         if request.user.admin:
             return super().list(request)
         if request.user.access:

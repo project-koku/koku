@@ -12,6 +12,8 @@ from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 from reporting.provider.ocp.models import OCPCostSummaryP
 
 
@@ -39,6 +41,45 @@ class ResourceTypesViewTestOpenshiftClusters(IamTestCase):
         # check that the expected is not zero
         self.assertTrue(expected)
         url = reverse("openshift-clusters")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(len(json_result.get("data")), expected)
+
+    def test_openshift_clusters_on_cloud_view(self):
+        """Test endpoint runs with a customer owner."""
+        with schema_context(self.schema_name):
+            expected = (
+                (
+                    OCPAWSCostLineItemDailySummary.objects.annotate(
+                        **{"value": F("cluster_id"), "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id")}
+                    )
+                    .values("value")
+                    .distinct()
+                    .filter(cluster_id__isnull=False)
+                )
+                .union(
+                    (
+                        OCPAzureCostLineItemDailySummary.objects.annotate(
+                            **{
+                                "value": F("cluster_id"),
+                                "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
+                            }
+                        )
+                        .values("value")
+                        .distinct()
+                        .filter(cluster_id__isnull=False)
+                    ),
+                    all=True,
+                )
+                .count()
+            )
+        # check that the expected is not zero
+        self.assertTrue(expected)
+        qs = "?cloud=true&limit=200"
+        url = reverse("openshift-clusters") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()

@@ -50,19 +50,20 @@ class OCPNodesView(generics.ListAPIView):
                 elif key == "cloud":
                     cloud = self.request.query_params.get("cloud")
                     if cloud == "true":
-                        self.awsqueryset = (
+                        self.queryset = (
                             OCPAWSCostLineItemDailySummary.objects.annotate(**{"value": F("node")})
                             .values("value")
                             .distinct()
-                            .filter(namespace__isnull=False)
+                            .filter(node__isnull=False)
+                        ).union(
+                            (
+                                OCPAzureCostLineItemDailySummary.objects.annotate(**{"value": F("node")})
+                                .values("value")
+                                .distinct()
+                                .filter(node__isnull=False)
+                            ),
+                            all=True,
                         )
-                        self.azurequeryset = (
-                            OCPAzureCostLineItemDailySummary.objects.annotate(**{"value": F("node")})
-                            .values("value")
-                            .distinct()
-                            .filter(namespace__isnull=False)
-                        )
-                        self.queryset = self.awsqueryset.union(self.azurequeryset, all=True)
         if request.user.admin:
             return super().list(request)
         if request.user.access:

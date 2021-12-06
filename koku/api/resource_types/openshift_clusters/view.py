@@ -52,29 +52,30 @@ class OCPClustersView(generics.ListAPIView):
                 elif key == "cloud":
                     cloud = self.request.query_params.get("cloud")
                     if cloud == "true":
-                        self.awsqueryset = (
+                        self.queryset = (
                             OCPAWSCostLineItemDailySummary.objects.annotate(
                                 **{
                                     "value": F("cluster_id"),
                                     "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
                                 }
                             )
-                            .values("value")
+                            .values("value", "ocp_cluster_alias")
                             .distinct()
-                            .filter(namespace__isnull=False)
+                            .filter(cluster_id__isnull=False)
+                        ).union(
+                            (
+                                OCPAzureCostLineItemDailySummary.objects.annotate(
+                                    **{
+                                        "value": F("cluster_id"),
+                                        "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
+                                    }
+                                )
+                                .values("value", "ocp_cluster_alias")
+                                .distinct()
+                                .filter(cluster_id__isnull=False)
+                            ),
+                            all=True,
                         )
-                        self.azurequeryset = (
-                            OCPAzureCostLineItemDailySummary.objects.annotate(
-                                **{
-                                    "value": F("cluster_id"),
-                                    "ocp_cluster_alias": Coalesce(F("cluster_alias"), "cluster_id"),
-                                }
-                            )
-                            .values("value")
-                            .distinct()
-                            .filter(namespace__isnull=False)
-                        )
-                        self.queryset = self.awsqueryset.union(self.azurequeryset, all=True)
         if request.user.admin:
             return super().list(request)
         if request.user.access:
