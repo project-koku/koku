@@ -14,6 +14,7 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -386,6 +387,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         # Default to cpu distribution
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
@@ -399,6 +403,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
