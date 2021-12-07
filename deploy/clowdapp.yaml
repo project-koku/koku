@@ -2039,7 +2039,7 @@ objects:
     featureFlags: true
     inMemoryDb: true
     jobs:
-    - name: db-migrate-cji-${DBM_IMAGE_TAG}
+    - name: db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
       podSpec:
         args:
         - /bin/bash
@@ -2052,6 +2052,12 @@ objects:
           value: ${DEVELOPMENT}
         - name: PROMETHEUS_MULTIPROC_DIR
           value: ${PROMETHEUS_DIR}
+        - name: DBM_IMAGE
+          value: ${DBM_IMAGE}
+        - name: DBM_IMAGE_TAG
+          value: ${DBM_IMAGE_TAG}
+        - name: DBM_INVOCATION
+          value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
         image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
@@ -2077,11 +2083,11 @@ objects:
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: db-migrate-cji-${DBM_IMAGE_TAG}
+    name: db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
   spec:
     appName: koku
     jobs:
-    - db-migrate-cji-${DBM_IMAGE_TAG}
+    - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
@@ -2135,6 +2141,10 @@ parameters:
   name: DBM_IMAGE
   required: true
   value: quay.io/cloudservices/koku
+- description: DB Invocation Iterator
+  name: DBM_INVOCATION
+  required: true
+  value: "00"
 - description: DB Migrations Directive
   name: _MIGRATION_DIRECTIVE
   required: false
