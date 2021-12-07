@@ -64,13 +64,14 @@ class Forecast:
         self.dh = DateHelper()
         self.params = query_params
 
-        try:
-            if query_params.get("cost_type"):
-                self.cost_type = query_params.get("cost_type")
-            else:
-                self.cost_type = UserSettings.objects.all().first().settings["cost_type"]
-        except Exception:
-            self.cost_type = KOKU_DEFAULT_COST_TYPE
+        if self.provider is Provider.PROVIDER_AWS:
+            try:
+                if query_params.get("cost_type"):
+                    self.cost_type = query_params.get("cost_type")
+                else:
+                    self.cost_type = UserSettings.objects.all().first().settings["cost_type"]
+            except Exception:
+                self.cost_type = KOKU_DEFAULT_COST_TYPE
 
         # select appropriate model based on access
         access = query_params.get("access", {})
