@@ -261,11 +261,11 @@ class GeneralUtilsTest(IamTestCase):
     """Test general functions in utils"""
 
     def test_get_cost_type(self):
-        """Test materialized_view_month_start property."""
+        """Test the get_cost_type function in utils."""
         with schema_context(self.schema_name):
             query_settings = UserSettings.objects.all().first()
             if not query_settings:
-                self.assertEqual(get_cost_type(self.request_context), KOKU_DEFAULT_COST_TYPE)
+                self.assertEqual(get_cost_type(self.request_context["request"]), KOKU_DEFAULT_COST_TYPE)
             else:
                 cost_type = query_settings.settings["cost_type"]
-                self.assertEqual(get_cost_type(self.request_context), cost_type)
+                self.assertEqual(get_cost_type(self.request_context["request"]), cost_type)
