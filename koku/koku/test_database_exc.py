@@ -31,7 +31,7 @@ class TestDatabaseExc(IamTestCase):
                 try:
                     cur.execute(sql)
                 except DivisionByZero as x:
-                    eexc = dbex.get_extended_exception_by_type(x)(x)
+                    eexc = dbex.get_extended_exception_by_type(x)
 
             self.assertEqual(type(eexc), dbex.ExtendedDBException)
             self.assertEqual(eexc.query, sql)
@@ -56,7 +56,7 @@ class TestDatabaseExc(IamTestCase):
             + "Process 56  transaction 78  blocked by process 12"
             + os.linesep
         )
-        eexc = dbex.get_extended_exception_by_type(ddexc)(ddexc)
+        eexc = dbex.get_extended_exception_by_type(ddexc)
 
         self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
         self.assertEqual(DeadlockDetected, eexc.db_exception_type)
@@ -72,12 +72,12 @@ class TestDatabaseExc(IamTestCase):
 
         exc = BadException("It's really bad!")
         with self.assertRaises(TypeError):
-            _ = dbex.get_extended_exception_by_type(exc)(exc)
+            _ = dbex.get_extended_exception_by_type(exc)
 
     def test_django_exception(self):
         dxc = IntegrityError("It's really bad!")
         dxc.__cause__ = DivisionByZero("Don't do it!")
-        eexc = dbex.get_extended_exception_by_type(dxc)(dxc)
+        eexc = dbex.get_extended_exception_by_type(dxc)
         self.assertEqual(type(eexc), dbex.ExtendedDBException)
 
     def test_excpetion_subclass(self):

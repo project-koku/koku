@@ -213,7 +213,7 @@ def get_extended_exception_by_type(db_exception):
     _db_exception = get_driver_exception(db_exception)
     key = f"Extended{type(_db_exception).__name__}"
     if key in __EXCEPTION_REGISTER:
-        return locals()[key]
+        return locals()[key](db_exception)
     else:
         return get_extended_exception_by_base_type(_db_exception)
 
@@ -221,6 +221,6 @@ def get_extended_exception_by_type(db_exception):
 def get_extended_exception_by_base_type(db_exception):
     _db_exception = get_driver_exception(db_exception)
     if isinstance(_db_exception, DeadlockDetected):
-        return ExtendedDeadlockDetected
+        return ExtendedDeadlockDetected(db_exception)
     else:
-        return ExtendedDBException
+        return ExtendedDBException(db_exception)

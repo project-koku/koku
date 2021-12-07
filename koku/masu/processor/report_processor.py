@@ -186,7 +186,7 @@ class ReportProcessor:
         except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(str(err))
         except OperationalError as o_err:
-            db_exc = get_extended_exception_by_type(o_err)(o_err)
+            db_exc = get_extended_exception_by_type(o_err)
             LOG.error(log_json(self.tracing_id, str(db_exc), context=db_exc.as_dict()))
             raise db_exc
         except Exception as err:
