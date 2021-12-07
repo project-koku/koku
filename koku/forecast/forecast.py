@@ -29,9 +29,8 @@ from api.report.azure.provider_map import AzureProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
-from koku.settings import KOKU_DEFAULT_COST_TYPE
+from api.utils import get_cost_type
 from reporting.provider.aws.models import AWSOrganizationalUnit
-from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
@@ -65,13 +64,10 @@ class Forecast:
         self.params = query_params
 
         if self.provider is Provider.PROVIDER_AWS:
-            try:
-                if query_params.get("cost_type"):
-                    self.cost_type = query_params.get("cost_type")
-                else:
-                    self.cost_type = UserSettings.objects.all().first().settings["cost_type"]
-            except Exception:
-                self.cost_type = KOKU_DEFAULT_COST_TYPE
+            if query_params.get("cost_type"):
+                self.cost_type = query_params.get("cost_type")
+            else:
+                self.cost_type = get_cost_type(self.request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
