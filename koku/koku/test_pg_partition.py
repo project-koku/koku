@@ -110,6 +110,28 @@ drop table if exists {cls.SCHEMA_NAME}.{cls.PARTITIONED_TABLE_NAME} ;
 
             dp.delete()
 
+    def test_call_with_default(self):
+        """Test input dict value scrubbing"""
+        with schema_context(self.SCHEMA_NAME):
+            part_rec = {
+                "schema_name": self.SCHEMA_NAME,
+                "table_name": self.PARTITIONED_TABLE_NAME + "_default",
+                "partition_of_table_name": self.PARTITIONED_TABLE_NAME,
+                "partition_parameters": {"default": True},
+                "active": True,
+            }
+            default_partition, _ = PartitionedTable.objects.get_or_create(
+                schema_name=self.SCHEMA_NAME,
+                table_name=part_rec["table_name"],
+                partition_parameters__default=True,
+                defaults=part_rec,
+            )
+            dp, dc = ppart.get_or_create_partition(part_rec, _default_partition=default_partition)
+            self.assertTrue(dp == default_partition, "get_or_create_partition did not return the default partition")
+            self.assertFalse(dc, "get_or_create_partition with default says it created a default partition")
+
+            dp.delete()
+
     def test_create_default_partition(self):
         """Test that a default partition can be explicitly created"""
         with schema_context(self.SCHEMA_NAME):

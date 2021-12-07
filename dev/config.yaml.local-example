@@ -44,7 +44,7 @@ apps:
       path: deploy/clowdapp.yaml
       ref: main
       parameters:
-        IMAGE_TAG: 2.3.3-003
+        IMAGE_TAG: 2.3.3-004
         S3_BUCKET_NAME: koku-eph-s3
     - name: presto
       host: github
