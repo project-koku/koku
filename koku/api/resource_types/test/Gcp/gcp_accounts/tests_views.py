@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Resource Types views."""
+"""Test the Resource Types views for gcp accounts endpoint."""
 from unittest.mock import patch
 from uuid import uuid4
 

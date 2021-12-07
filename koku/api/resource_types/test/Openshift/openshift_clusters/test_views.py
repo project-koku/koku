@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Resource Types views."""
+"""Test the Resource Types views for openshift clusters endpoint."""
 from django.db.models import F
 from django.db.models.functions.comparison import Coalesce
 from django.urls import reverse

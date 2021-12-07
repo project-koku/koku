@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Resource Types views."""
+"""Test the Resource Types views for gcp services endpoint."""
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -18,7 +18,7 @@ from masu.test import MasuTestCase
 from reporting.provider.gcp.models import GCPTopology
 
 
-class ResourceTypesViewTestGcpProjects(MasuTestCase):
+class ResourceTypesViewTestGcpServices(MasuTestCase):
     """Tests the resource types views."""
 
     @classmethod
@@ -33,7 +33,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
 
     @RbacPermissions({"gcp.project": {"read": ["*"]}, "gcp.account": {"read": ["example_account_id"]}})
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
-    def test_gcp_projects_view_with_gcp_project_wildcard_and_account_access(self, mock_get_topo):
+    def test_gcp_services_view_with_gcp_project_wildcard_and_account_access(self, mock_get_topo):
         """Test endpoint runs with a customer owner."""
         source_uuid = uuid4()
         mock_topo_record = [
@@ -63,7 +63,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
         self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
         with schema_context(self.schema_name):
             expected = (
-                GCPTopology.objects.annotate(**{"value": F("account_id")})
+                GCPTopology.objects.annotate(**{"value": F("service_alias")})
                 .values("value")
                 .distinct()
                 .filter(account_id="example_account_id")
@@ -71,7 +71,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        url = reverse("gcp-projects")
+        url = reverse("gcp-services")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -81,7 +81,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
 
     @RbacPermissions({"gcp.project": {"read": ["example-project-id"]}, "gcp.account": {"read": ["*"]}})
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
-    def test_gcp_projects_view_with_gcp_account_wildcard_and_project_access(self, mock_get_topo):
+    def test_gcp_services_view_with_gcp_account_wildcard_and_project_access(self, mock_get_topo):
         """Test endpoint runs with a customer owner."""
         source_uuid = uuid4()
         mock_topo_record = [
@@ -111,7 +111,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
         self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
         with schema_context(self.schema_name):
             expected = (
-                GCPTopology.objects.annotate(**{"value": F("project_id")})
+                GCPTopology.objects.annotate(**{"value": F("service_alias")})
                 .values("value")
                 .distinct()
                 .filter(project_id="example-project-id")
@@ -119,7 +119,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        url = reverse("gcp-projects")
+        url = reverse("gcp-services")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()

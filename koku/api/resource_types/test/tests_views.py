@@ -133,17 +133,6 @@ class ResourceTypesViewTest(IamTestCase):
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
 
-    @RbacPermissions({"aws.account": {"read": ["*"]}})
-    def test_aws_accounts_ocp_view(self):
-        """Test endpoint runs with a customer owner."""
-        qs = "?openshift=true"
-        url = reverse("aws-accounts") + qs
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
     @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
     def test_azure_endpoints_view(self):
         """Test endpoint runs with a customer owner."""
@@ -155,61 +144,6 @@ class ResourceTypesViewTest(IamTestCase):
                 json_result = response.json()
                 self.assertIsNotNone(json_result.get("data"))
                 self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_subscriptions_guids_ocp_view(self):
-        """Test endpoint runs with a customer owner."""
-        qs = "?openshift=true"
-        url = reverse("azure-subscription-guids") + qs
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_regions_ocp_view(self):
-        """Test endpoint runs with a customer owner."""
-        qs = "?openshift=true"
-        url = reverse("azure-regions") + qs
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"azure.subscription_guid": {"read": ["*"]}})
-    def test_azure_services_ocp_view(self):
-        """Test endpoint runs with a customer owner."""
-        qs = "?openshift=true"
-        url = reverse("azure-services") + qs
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"aws.organizational_unit": {"read": ["OU_001"]}})
-    def test_rbacpermissions_aws_org_unit_data(self):
-        """Test that OpenShift endpoints accept valid OpenShift permissions."""
-        url = reverse("aws-organizational-units")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertTrue(len(json_result.get("data")) > 0)
-
-    @RbacPermissions({"aws.account": {"read": ["1234", "6789"]}})
-    def test_rbacpermissions_aws_account_data(self):
-        """Test that OpenShift endpoints accept valid OpenShift permissions."""
-        url = reverse("aws-accounts")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(json_result.get("data"), [])
 
     def test_incorrect_query_all_endpoints(self):
         """Test invalid delta value."""
@@ -308,23 +242,3 @@ class ResourceTypesViewTest(IamTestCase):
                 url = reverse(endpoint)
                 response = self.client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-    @RbacPermissions({"openshift.project": {"read": ["1234"]}})
-    def test_openshift_project_with_project_access_view(self):
-        """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-projects")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-
-    @RbacPermissions({"openshift.cluster": {"read": ["1234"]}})
-    def test_openshift_project_with_cluster_access_view(self):
-        """Test endpoint runs with a customer owner."""
-        url = reverse("openshift-projects")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
