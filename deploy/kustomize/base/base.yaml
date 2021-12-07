@@ -177,6 +177,10 @@ parameters:
   displayName: cached views
   name: CACHED_VIEWS_DISABLED
   value: "False"
+- description: How long to store a task in the worker cache
+  displayName: Worker cache timeout
+  name: WORKER_CACHE_TIMEOUT
+  value: "21600" # 6 hour default
 
 - description: Demo account JSON
   displayName: Demo account JSON

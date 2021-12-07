@@ -131,7 +131,7 @@ class ManifestViewTests(IamTestCase):
         manifest = CostUsageReportManifest.objects.first()
         provider_uuid = manifest.provider_id
         manifest_id = manifest.id
-        report = CostUsageReportStatus.objects.get(manifest=manifest_id)
+        report = CostUsageReportStatus.objects.filter(manifest=manifest_id).first()
         file_id = report.id
         url = reverse(
             "get_one_manifest_file", kwargs=dict(source_uuid=provider_uuid, manifest_id=manifest_id, id=file_id)
