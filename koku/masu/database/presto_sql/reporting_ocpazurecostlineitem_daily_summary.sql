@@ -195,7 +195,6 @@ SELECT azure.uuid as azure_uuid,
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY azure.uuid, ocp.namespace
 ;
--- I should check with Andrew to see why we removed the ocp.data_source from the group_by
 
 -- Tag matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
