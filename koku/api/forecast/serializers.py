@@ -31,8 +31,6 @@ class ForecastParamSerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
 
         """
-        # if not data.get("cost_type"):
-        #     data["cost_type"] = get_cost_type(self.context.get("request"))
         handle_invalid_fields(self, data)
         return data
 
