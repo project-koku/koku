@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on Cloud Report serializers."""
-
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
