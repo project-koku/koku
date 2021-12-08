@@ -3,6 +3,9 @@ kind: Template
 metadata:
   name: koku
 objects:
+# ====================================================
+#      koku ClowdApp
+# ====================================================
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdApp
   metadata:
@@ -41,9 +44,55 @@ objects:
     testing:
       iqePlugin: cost-management
 
+    # ====================================================
+    #      koku DB Migrations Job
+    # ====================================================
+    jobs:
+    - name: db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+      podSpec:
+        image: ${DBM_IMAGE}:${DBM_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_CPU_LIMIT}
+            memory: ${KOKU_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_CPU_REQUEST}
+            memory: ${KOKU_MEMORY_REQUEST}
+        args:
+        - /bin/bash
+        - -c
+        - $HOME/scripts/run_migrations.sh
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: DBM_IMAGE
+          value: ${DBM_IMAGE}
+        - name: DBM_IMAGE_TAG
+          value: ${DBM_IMAGE_TAG}
+        - name: DBM_INVOCATION
+          value: ${DBM_INVOCATION}
+        - name: _MIGRATION_DIRECTIVE
+          value: ${_MIGRATION_DIRECTIVE}
+
     # The bulk of your App. This is where your running apps will live
     deployments:
     -
+
+# ====================================================
+#      koku DB Migrations CJI
+# ====================================================
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+  spec:
+    appName: koku
+    jobs:
+      - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
@@ -91,6 +140,23 @@ parameters:
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
+
+- description: DB Migrations Image Tag
+  name: DBM_IMAGE_TAG
+  required: true
+  value: latest
+- description: DB Migrations Image
+  name: DBM_IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- description: DB Invocation Iterator
+  name: DBM_INVOCATION
+  required: true
+  value: "00"
+- description: DB Migrations Directive
+  name: _MIGRATION_DIRECTIVE
+  required: false
+  value: ""
 
 - displayName: App domain
   name: APP_DOMAIN
