@@ -7,12 +7,14 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from rest_framework import serializers
+from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.openshift.serializers import OCPAWSFilterSerializer
 from api.report.aws.openshift.serializers import OCPAWSGroupBySerializer
 from api.report.aws.openshift.serializers import OCPAWSOrderBySerializer
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
+from reporting.user_settings.models import UserSettings
 
 
 class OCPAWSFilterSerializerTest(TestCase):
@@ -123,9 +125,13 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
 
     def setUp(self):
         """setting up a user to test with."""
+        self.path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            self.create_mock_customer_data(), self.user_data, create_tenant=True, path=""
+            {"account_id": "10001", "schema_name": self.schema_name},
+            self.user_data,
+            create_tenant=True,
+            path=self.path,
         )
 
     def test_parse_query_params_success(self):
@@ -177,7 +183,13 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             },
             "delta": "usage",
         }
-        serializer = OCPAWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
+        context = self._create_request_context(
+            {"account_id": "10001", "schema_name": self.schema_name},
+            self._create_user_data(),
+            create_tenant=True,
+            path="",
+        )
+        serializer = OCPAWSQueryParamSerializer(data=query_params, context=context)
         serializer.is_valid(raise_exception=True)
 
     def test_query_params_valid_cost_delta(self):
@@ -193,12 +205,10 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             },
             "delta": "cost",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/")
-        serializer = OCPAWSQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPAWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
         serializer.is_valid(raise_exception=True)
         query_params["delta"] = "cost_total"
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/")
-        serializer = OCPAWSQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPAWSQueryParamSerializer(data=query_params, context=self.alt_request_context)
         serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_cost_type(self):
