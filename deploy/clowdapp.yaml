@@ -2818,4 +2818,4 @@ parameters:
 - displayName: Worker Queue
   name: WORKER_HCS_WORKER_QUEUE
   required: true
-  value: summary
+  value: hcs
