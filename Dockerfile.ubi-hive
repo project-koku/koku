@@ -1,4 +1,4 @@
-FROM quay.io/cloudservices/ubi-hive:2.3.3-002
+FROM quay.io/cloudservices/ubi-hive:2.3.3-004
 
 ARG USER_ID=1000
 
