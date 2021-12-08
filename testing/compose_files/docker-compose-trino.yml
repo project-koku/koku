@@ -37,7 +37,7 @@ services:
   hive-metastore:
     container_name: hive-metastore
     #image: quay.io/cloudservices/ubi-hive:2.3.3-002
-    image: local-ubi-hive:2.3.3-002
+    image: local-ubi-hive:2.3.3-004
     build:
         context: .
         dockerfile: ../../Dockerfile.ubi-hive

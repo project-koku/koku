@@ -57,7 +57,7 @@ class ProviderBuilderTest(IamTestCase):
     def test_create_provider(self):
         """Test to create a provider."""
         # Delete tenants
-        Tenant.objects.all().delete()
+        Tenant.objects.filter(schema_name="acct12345").delete()  # filtering avoids migrating the template0 again
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source = MockSourceObject(self.name, self.provider_type, self.authentication, self.billing_source)
@@ -67,7 +67,7 @@ class ProviderBuilderTest(IamTestCase):
     def test_create_provider_ocp_cluster_register(self):
         """Test to create an OCP provider with a System identity."""
         # Delete tenants
-        Tenant.objects.all().delete()
+        Tenant.objects.filter(schema_name="acct12345").delete()  # filtering avoids migrating the template0 again
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_CLUSTER_HEADER)
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
             mock_source_auth = {"credentials": {"cluster_id": "0bb29135-d6d1-478b-b5b6-6bd129cb6d5d1001"}}
