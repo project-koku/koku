@@ -4,17 +4,14 @@
 #
 """Test the OCP on AWS Report serializers."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from rest_framework import serializers
-from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.openshift.serializers import OCPAWSFilterSerializer
 from api.report.aws.openshift.serializers import OCPAWSGroupBySerializer
 from api.report.aws.openshift.serializers import OCPAWSOrderBySerializer
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
-from reporting.user_settings.models import UserSettings
 
 
 class OCPAWSFilterSerializerTest(TestCase):
