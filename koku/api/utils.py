@@ -27,11 +27,12 @@ def get_cost_type(request):
     """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
 
     with schema_context(request.user.customer.schema_name):
-        try:
-            default_cost_type = UserSettings.objects.all().first().settings["cost_type"]
-        except Exception:
-            default_cost_type = KOKU_DEFAULT_COST_TYPE
-    return default_cost_type
+        query_settings = UserSettings.objects.all().first()
+        if not query_settings:
+            cost_type = KOKU_DEFAULT_COST_TYPE
+        else:
+            cost_type = query_settings.settings["cost_type"]
+    return cost_type
 
 
 def merge_dicts(*list_of_dicts):
