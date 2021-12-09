@@ -521,7 +521,6 @@ class ReportQueryHandler(QueryHandler):
         output = copy.deepcopy(parameters.parameters)
         # remove access from the output
         output.pop("access")
-        output.update(parameters.display_parameters)
 
         return output
 
