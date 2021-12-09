@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the organizations serializer."""
-from unittest import TestCase
-
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.serializers import AWSOrgFilterSerializer
 from api.organizations.serializers import FilterSerializer
 from api.organizations.serializers import OrgQueryParamSerializer
@@ -14,7 +13,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
 
-class FilterSerializerTest(TestCase):
+class FilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -63,7 +62,7 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class AWSFilterSerializerTest(TestCase):
+class AWSFilterSerializerTest(IamTestCase):
     """Tests for the AWS filter serializer."""
 
     def test_parse_filter_params_w_project_success(self):
@@ -93,7 +92,7 @@ class AWSFilterSerializerTest(TestCase):
             self.assertFalse(serializer.is_valid())
 
 
-class OrgQueryParamSerializerTest(TestCase):
+class OrgQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -103,13 +102,13 @@ class OrgQueryParamSerializerTest(TestCase):
             "limit": "5",
             "offset": "3",
         }
-        serializer = OrgQueryParamSerializer(data=query_params)
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {"invalid": "invalid"}
-        serializer = OrgQueryParamSerializer(data=query_params)
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -133,7 +132,7 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params)
+                serializer = OrgQueryParamSerializer(data=params, context=self.request_context)
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
@@ -166,5 +165,5 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params)
+                serializer = OrgQueryParamSerializer(data=params, context=self.request_context)
                 self.assertFalse(serializer.is_valid())
