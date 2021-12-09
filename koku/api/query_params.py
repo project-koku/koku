@@ -354,7 +354,8 @@ class QueryParameters:
     @parameters.setter
     def parameters(self, dikt):
         """Parameters setter."""
-        self._display_parameters = dikt
+        # This is used to convert the order_by[infrastructure]
+        # to the provider map choices aka infrastructure = infra_total
         modified_param_dict = copy.deepcopy(dikt)
         for param, param_value in dikt.items():
             if isinstance(param_value, dict):
@@ -372,11 +373,6 @@ class QueryParameters:
                 modified_param_dict[param] = new_param_value
 
         self._parameters = modified_param_dict
-
-    @property
-    def display_parameters(self):
-        """Return display_parameters property."""
-        return self._display_parameters
 
     @property
     def tenant(self):

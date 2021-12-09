@@ -248,7 +248,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     cap_value = 0
                 capacity_by_cluster[cluster_id] += cap_value
                 capacity_by_month[month] += cap_value
-                capacity_by_cluster_month[month][cluster_id] = cap_value
+                capacity_by_cluster_month[month][cluster_id] += cap_value
                 daily_capacity_by_cluster[usage_start][cluster_id] = cap_value
                 daily_total_capacity[usage_start] += cap_value
                 total_capacity += cap_value

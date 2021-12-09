@@ -7,8 +7,10 @@ import json
 import logging
 import os
 import pkgutil
+import random
 import re
 import threading
+import time
 import types
 
 import django
@@ -37,6 +39,7 @@ from .migration_sql_helpers import find_db_functions_dir
 
 
 LOG = logging.getLogger(__name__)
+MIGRATION_APP_NAME = "koku_db_migration"
 
 
 class FKViolation:
@@ -179,15 +182,6 @@ DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
 
 
-def _cert_config(db_config, database_cert):
-    """Add certificate configuration as needed."""
-    if database_cert:
-        cert_file = CONFIGURATOR.get_database_ca_file()
-        db_options = {"OPTIONS": {"sslmode": "verify-full", "sslrootcert": cert_file}}
-        db_config.update(db_options)
-    return db_config
-
-
 def config():
     """Database config."""
     service_name = ENVIRONMENT.get_value("DATABASE_SERVICE_NAME", default="").upper().replace("-", "_")
@@ -208,10 +202,16 @@ def config():
         "PASSWORD": CONFIGURATOR.get_database_password(),
         "HOST": CONFIGURATOR.get_database_host(),
         "PORT": CONFIGURATOR.get_database_port(),
+        "OPTIONS": {"application_name": ENVIRONMENT.get_value("APPLICATION_NAME", default="koku")},
     }
 
     database_cert = CONFIGURATOR.get_database_ca()
-    return _cert_config(db_config, database_cert)
+    if database_cert:
+        cert_file = CONFIGURATOR.get_database_ca_file()
+        db_config["OPTIONS"]["sslmode"] = "verify-full"
+        db_config["OPTIONS"]["sslrootcert"] = cert_file
+
+    return db_config
 
 
 def dbfunc_exists(connection, function_schema, function_name, function_signature):
@@ -265,6 +265,25 @@ def check_migrations_dbfunc(connection, targets):
     return ret
 
 
+def migrations_running(conn):
+    """Determine how many pids have the application_name MIGRATION_APP_NMAE. Don't count yourself!!"""
+    mig_pids = None
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+select array_agg(pid)
+  from pg_stat_activity
+ where pid != pg_backend_pid()
+   and application_name = %s ;
+""",
+            (MIGRATION_APP_NAME,),
+        )
+        mig_pids = cur.fetchone()[0]
+
+    return bool(mig_pids)
+
+
 def check_migrations():
     """
     Check the status of database migrations.
@@ -277,6 +296,13 @@ def check_migrations():
     try:
         connection = connections[DEFAULT_DB_ALIAS]
         connection.prepare_database()
+
+        random.seed(time.time())
+        time.sleep(random.random())
+        if migrations_running(connection):
+            LOG.info("Migrations are currently running.")
+            return "STOP"
+
         targets = MigrationLoader(None).graph.leaf_nodes()
         with transaction.atomic():
             verify_migrations_dbfunc(connection)
