@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Azure Provider serializers."""
-from unittest import TestCase
 from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.azure.openshift.serializers import OCPAzureFilterSerializer
 from api.report.azure.openshift.serializers import OCPAzureGroupBySerializer
 from api.report.azure.openshift.serializers import OCPAzureOrderBySerializer
@@ -17,7 +17,7 @@ from api.report.azure.openshift.serializers import OCPAzureQueryParamSerializer
 FAKE = Faker()
 
 
-class OCPAzureFilterSerializerTest(TestCase):
+class OCPAzureFilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -131,7 +131,7 @@ class OCPAzureFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPAzureGroupBySerializerTest(TestCase):
+class OCPAzureGroupBySerializerTest(IamTestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -203,7 +203,7 @@ class OCPAzureGroupBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPAzureOrderBySerializerTest(TestCase):
+class OCPAzureOrderBySerializerTest(IamTestCase):
     """Tests for the order_by serializer."""
 
     def test_order_by_project(self):
@@ -238,7 +238,7 @@ class OCPAzureOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPAzureQueryParamSerializerTest(TestCase):
+class OCPAzureQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_azure_params_success(self):
@@ -252,7 +252,7 @@ class OCPAzureQueryParamSerializerTest(TestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
@@ -268,7 +268,7 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             },
             "units": "byte",
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -283,7 +283,7 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -298,20 +298,20 @@ class OCPAzureQueryParamSerializerTest(TestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_units(self):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -319,14 +319,14 @@ class OCPAzureQueryParamSerializerTest(TestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -363,13 +363,13 @@ class OCPAzureQueryParamSerializerTest(TestCase):
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service_name] works with a matching group-by."""
         query_params = {"group_by": {"service_name": "asc"}, "order_by": {"service_name": "asc"}}
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -382,7 +382,7 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -395,6 +395,6 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = OCPAzureQueryParamSerializer(data=query_params)
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
