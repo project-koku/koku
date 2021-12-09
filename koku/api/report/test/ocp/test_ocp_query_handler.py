@@ -211,7 +211,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 cluster_id = entry.get("cluster_id", "")
                 month = entry.get("usage_start", "").month
-                capacity_by_month_cluster[month][cluster_id] = entry.get(cap_key, 0)
+                capacity_by_month_cluster[month][cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
 
         for entry in query_data.get("data", []):
