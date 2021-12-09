@@ -16,8 +16,8 @@ HCS_QUEUE = "hcs"
 QUEUE_LIST = [HCS_QUEUE]
 
 
-@celery_app.task(name="masu.hcs.tasks.update_hcs_data", queue=HCS_QUEUE)
-def get_hcs_report(start_date, end_date=None):
+@celery_app.task(name="masu.hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
+def collect_hcs_report_data(start_date, end_date=None):
     """Update Hybrid Committed Spend report.
 
     Args:
