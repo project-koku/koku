@@ -57,6 +57,6 @@ def hcs_report_data(request):
         months[i] = (start_date, end_date)
 
     LOG.info("Calling collect_hcs_report_data async task.")
-    async_result = collect_hcs_report_data(start_date, end_date).apply_async(queue=HCS_QUEUE)
+    async_result = collect_hcs_report_data.s(start_date, end_date).apply_async(queue=HCS_QUEUE)
 
     return Response({"Report Data Task ID": str(async_result)})
