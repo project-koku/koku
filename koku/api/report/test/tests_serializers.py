@@ -644,7 +644,7 @@ class QueryParamSerializerTest(IamTestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params)
+                serializer = QueryParamSerializer(data=params, context=self.alt_request_context)
                 self.assertFalse(serializer.is_valid())
 
 
