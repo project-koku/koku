@@ -113,18 +113,19 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _apply_total_exchange(self, data):
         """Overwrite this function because the structure is different for ocp."""
-        exchange_rate = self._get_exchange_rate()
-        for key, value in data.items():
-            if (
-                key.endswith("raw")
-                or key.endswith("usage")
-                or key.endswith("distributed")
-                or key.endswith("markup")
-                or key.endswith("total")
-            ):
-                data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
-            elif key.endswith("units"):
-                data[key] = self.currency
+        if self._report_type == "costs":
+            exchange_rate = self._get_exchange_rate()
+            for key, value in data.items():
+                if (
+                    key.endswith("raw")
+                    or key.endswith("usage")
+                    or key.endswith("distributed")
+                    or key.endswith("markup")
+                    or key.endswith("total")
+                ):
+                    data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
+                elif key.endswith("units"):
+                    data[key] = self.currency
         return data
 
     def execute_query(self):  # noqa: C901
