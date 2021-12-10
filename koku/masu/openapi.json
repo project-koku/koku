@@ -27,6 +27,10 @@
       "description": "Operations about summarizing report data"
     },
     {
+      "name": "HCS Report Data",
+      "description": "Operations about HCS report data"
+    },
+    {
       "name": "Update Cost Model Cost",
       "description": "Operations about updating cost model costs"
     },
@@ -206,6 +210,51 @@
         ]
       },
       "parameters": []
+    },
+    "/collect_hcs_data/": {
+      "get": {
+        "operationId": "getHCSReportData",
+        "description": "Collect HCS report data.",
+        "parameters": [
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "The date to begin summarizing",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HCS Report Data"
+        ]
+      }
     },
     "/report_data/": {
       "get": {
@@ -1321,6 +1370,16 @@
         ]
       },
       "ReportDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "HCSDataGetResponse": {
         "type": "object",
         "properties": {
           "Report Data Task ID": {

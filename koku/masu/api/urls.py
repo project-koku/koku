@@ -25,6 +25,7 @@ urlpatterns = [
     path("update_exchange_rates/", update_exchange_rates, name="update_exchange_rates"),
     path("enabled_tags/", enabled_tags, name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
+    path("hcs_report_data/", expired_data, name="hcs_report_data"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
