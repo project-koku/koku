@@ -19,7 +19,7 @@ LOG = logging.getLogger(__name__)
 
 
 @never_cache
-@api_view(http_method_names=["POST"])
+@api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def hcs_report_data(request):
