@@ -4,6 +4,8 @@
 #
 """Test the Report serializers."""
 # from unittest import TestCase
+from unittest.mock import Mock
+
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -412,6 +414,7 @@ class OCPCostQueryParamSerializerTest(IamTestCase):
             },
             "invalid": "param",
         }
+        self.request_context["request"] = Mock(path="/api/cost-management/v1/openshift/infrastructures/aws/costs/")
         serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
