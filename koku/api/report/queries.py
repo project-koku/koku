@@ -583,12 +583,14 @@ class ReportQueryHandler(QueryHandler):
 
     def _get_exchange_rate(self):
         """Look up the exchange rate for the target currency."""
-        # Since we store everything in USD we only need the exchange rate for the target
+        # TODO: Need to figure out if there is something else we can do here except log the error
+        # Do not wanna return a default for wrong conversions
         try:
             exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower())
+            return exchange_rate.exchange_rate
         except Exception as e:
             LOG.error(e)
-        return exchange_rate.exchange_rate
+        return 1
 
     def _apply_total_exchange(self, data):
         exchange_rate = self._get_exchange_rate()
