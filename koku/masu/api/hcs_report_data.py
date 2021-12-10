@@ -19,6 +19,7 @@ from rest_framework.settings import api_settings
 
 from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data
+from hcs.tasks import HCS_QUEUE
 
 # flake8: noqa
 
@@ -56,6 +57,6 @@ def hcs_report_data(request):
         months[i] = (start_date, end_date)
 
     LOG.info("Calling collect_hcs_report_data async task.")
-    async_result = collect_hcs_report_data(start_date, end_date)
+    async_result = collect_hcs_report_data(start_date, end_date).apply_async(queue=HCS_QUEUE)
 
     return Response({"Report Data Task ID": str(async_result)})
