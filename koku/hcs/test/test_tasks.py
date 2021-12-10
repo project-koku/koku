@@ -7,13 +7,13 @@ import logging
 from datetime import timedelta
 
 from api.utils import DateHelper
-from masu.hcs.tasks import collect_hcs_report_data
-from masu.test import MasuTestCase
+from hcs.tasks import collect_hcs_report_data
+from hcs.test import HCSTestCase
 
 LOG = logging.getLogger(__name__)
 
 
-class TestHCSTasks(MasuTestCase):
+class TestHCSTasks(HCSTestCase):
     """Test cases for Processor Celery tasks."""
 
     @classmethod
@@ -25,7 +25,7 @@ class TestHCSTasks(MasuTestCase):
 
     def test_get_report_dates(self):
         """Test raising download warning is handled."""
-        with self.assertLogs("masu.hcs.tasks", "INFO") as _logs:
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
             end_date = self.today
             collect_hcs_report_data(start_date, end_date)
@@ -34,7 +34,7 @@ class TestHCSTasks(MasuTestCase):
 
     def test_get_report_no_end_date(self):
         """Test raising download warning is handled."""
-        with self.assertLogs("masu.hcs.tasks", "INFO") as _logs:
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
             collect_hcs_report_data(start_date)
 

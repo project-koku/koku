@@ -2,7 +2,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Asynchronous tasks."""
+"""Tasks for Hybrid Committed Spend (HCS)"""
 import logging
 
 from koku import celery_app
@@ -16,7 +16,7 @@ HCS_QUEUE = "hcs"
 QUEUE_LIST = [HCS_QUEUE]
 
 
-@celery_app.task(name="masu.hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
+@celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
 def collect_hcs_report_data(start_date, end_date=None):
     """Update Hybrid Committed Spend report.
 
