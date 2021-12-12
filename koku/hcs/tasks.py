@@ -4,6 +4,7 @@
 #
 """Tasks for Hybrid Committed Spend (HCS)"""
 import logging
+import time
 
 from koku import celery_app
 
@@ -31,5 +32,7 @@ def collect_hcs_report_data(start_date, end_date=None):
     # TODO: implement for HCS
     if end_date:
         LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
+        time.sleep(30)
     else:
         LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}")
+        time.sleep(30)
