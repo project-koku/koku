@@ -30,8 +30,6 @@ from reporting.provider.aws.models import AWSComputeSummaryByAccount
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
 from reporting.provider.aws.models import AWSComputeSummaryByRegion
 from reporting.provider.aws.models import AWSComputeSummaryByRegionP
-from reporting.provider.aws.models import AWSComputeSummaryByService
-from reporting.provider.aws.models import AWSComputeSummaryByServiceP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -59,9 +57,6 @@ from reporting.provider.aws.models import AWSStorageSummary
 from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
 from reporting.provider.aws.models import AWSStorageSummaryByRegion
-from reporting.provider.aws.models import AWSStorageSummaryByRegionP
-from reporting.provider.aws.models import AWSStorageSummaryByService
-from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
@@ -181,11 +176,16 @@ from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.user_settings.models import UserSettings
 
+# from reporting.provider.aws.models import AWSComputeSummaryByService
+# from reporting.provider.aws.models import AWSComputeSummaryByServiceP
+# from reporting.provider.aws.models import AWSStorageSummaryByRegionP
+# from reporting.provider.aws.models import AWSStorageSummaryByService
+# from reporting.provider.aws.models import AWSStorageSummaryByServiceP
+
 AWS_MATERIALIZED_VIEWS = (
     AWSComputeSummary,
     AWSComputeSummaryByAccount,
     AWSComputeSummaryByRegion,
-    AWSComputeSummaryByService,
     AWSCostSummary,
     AWSCostSummaryByAccount,
     AWSCostSummaryByRegion,
@@ -195,7 +195,6 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummary,
     AWSStorageSummaryByAccount,
     AWSStorageSummaryByRegion,
-    AWSStorageSummaryByService,
 )
 
 AZURE_MATERIALIZED_VIEWS = (
