@@ -26,6 +26,16 @@ from hcs.tasks import HCS_QUEUE
 LOG = logging.getLogger(__name__)
 
 
+def is_valid_date(date):
+    result = True
+    try:
+        datetime.datetime(date)
+    except ValueError:
+        result = False
+
+    return result
+
+
 @never_cache
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
@@ -38,6 +48,14 @@ def hcs_report_data(request):
     if start_date is None:
         errmsg = "start_date is a required parameter."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not is_valid_date(start_date):
+        LOG.info(f"Invalid date: {start_date}")
+        return Response({"Error": f"Invalid date: {start_date}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if end_date and not is_valid_date(end_date):
+        LOG.info(f"Invalid date: {end_date}")
+        return Response({"Error": f"Invalid date: {end_date}"}, status=status.HTTP_400_BAD_REQUEST)
 
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
     end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
