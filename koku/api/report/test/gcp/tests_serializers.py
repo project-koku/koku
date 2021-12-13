@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test GCP Serializer."""
-from unittest.mock import Mock
-
 from faker import Faker
 from rest_framework import serializers
 
@@ -266,10 +264,13 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "/api/cost-management/v1/reports/gcp/storage/": ["usage"],
         }
         for url, delta_list in valid_delta_map.items():
-            req = Mock(path=url)
+            user_data = self._create_user_data()
+            alt_request_context = self._create_request_context(
+                {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=url
+            )
             for valid_delta in delta_list:
                 query_params = {"delta": valid_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+                serializer = GCPQueryParamSerializer(data=query_params, context=alt_request_context)
                 self.assertTrue(serializer.is_valid())
 
     def test_invalid_deltas(self):
@@ -280,10 +281,13 @@ class GCPQueryParamSerializerTest(IamTestCase):
             "/api/cost-management/v1/reports/gcp/storage/": ["cost", "cost_total", "bad_delta"],
         }
         for url, delta_list in bad_delta_map.items():
-            req = Mock(path=url)
+            user_data = self._create_user_data()
+            alt_request_context = self._create_request_context(
+                {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=url
+            )
             for bad_delta in delta_list:
                 query_params = {"delta": bad_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+                serializer = GCPQueryParamSerializer(data=query_params, context=alt_request_context)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.is_valid(raise_exception=True)
 
