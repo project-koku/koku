@@ -593,18 +593,19 @@ class ReportQueryHandler(QueryHandler):
         return 1
 
     def _apply_total_exchange(self, data):
-        exchange_rate = self._get_exchange_rate()
-        for key, value in data.items():
-            if key in ["infrastructure", "supplementary", "cost"]:
-                for in_key, in_value in value.items():
-                    for this_key, this_value in in_value.items():
-                        if this_key in ["units"]:
-                            # change to currency code
-                            in_value[this_key] = self.currency
-                        elif this_key in ["value"]:
-                            in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
-                            # multiply and override
-                        value[in_key] = in_value
+        if self._report_type == "costs":
+            exchange_rate = self._get_exchange_rate()
+            for key, value in data.items():
+                if key in ["infrastructure", "supplementary", "cost"]:
+                    for in_key, in_value in value.items():
+                        for this_key, this_value in in_value.items():
+                            if this_key in ["units"]:
+                                # change to currency code
+                                in_value[this_key] = self.currency
+                            elif this_key in ["value"]:
+                                in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
+                                # multiply and override
+                            value[in_key] = in_value
 
         return data
 
