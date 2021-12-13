@@ -313,20 +313,6 @@ class ParamSerializer(BaseSerializer):
             setattr(self, key, inst)
             self.fields[key] = inst
 
-    # def get_currency(self):
-    #     """Get currency out of the user settings.
-
-    #     Returns:
-    #         (Str): User set currency or default currency
-    #     """
-    #     request = self.context.get("request")
-    #     with schema_context(request.user.customer.schema_name):
-    #         try:
-    #             set_currency = UserSettings.objects.all().first().settings["currency"]
-    #         except Exception:
-    #             set_currency = KOKU_DEFAULT_CURRENCY
-    #     return set_currency
-
     def validate(self, data):
         """Validate incoming data.
 

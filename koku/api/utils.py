@@ -37,13 +37,14 @@ def get_cost_type(request):
 
 
 def get_currency(request):
-    """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
+    """get currency from the DB user settings table or sets currency to default if table is empty."""
     with schema_context(request.user.customer.schema_name):
-        try:
-            default_currency = UserSettings.objects.all().first().settings["currency"]
-        except Exception:
-            default_currency = KOKU_DEFAULT_CURRENCY
-        return default_currency
+        query_settings = UserSettings.objects.all().first()
+        if not query_settings:
+            currency = KOKU_DEFAULT_CURRENCY
+        else:
+            currency = query_settings.settings["currency"]
+    return currency
 
 
 def merge_dicts(*list_of_dicts):
