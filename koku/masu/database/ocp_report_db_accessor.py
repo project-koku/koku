@@ -633,6 +633,33 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
+    def delete_ocp_hive_partition_by_day(self, days, source, year, month):
+        """Deletes partitions individually for each day in days list."""
+        table = self._table_map["line_item_daily_summary"]
+        LOG.info(
+            "Deleting partitions for the following: \n\tSchema: %s "
+            "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+            self.schema,
+            source,
+            table,
+            year,
+            month,
+            days,
+        )
+        if self.table_exists_trino(table):
+            final_sql_list = []
+            for day in days:
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                WHERE source = '{source}'
+                AND year = '{year}'
+                AND month = '{month}'
+                AND day = '{day}';
+                """
+                final_sql_list.append(sql)
+            final_sql = "".join(final_sql_list)
+            self._execute_presto_multipart_sql_query(self.schema, final_sql)
+
     def populate_line_item_daily_summary_table_presto(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):
@@ -660,7 +687,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
-
+        days_list = [str(day.day) for day in days]
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -672,8 +702,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
             "days": days_str,
         }
 
