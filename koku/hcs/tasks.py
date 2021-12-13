@@ -30,7 +30,7 @@ def collect_hcs_report_data(start_date=DateHelper().today, end_date=None):
 
     """
     # TODO: implement for HCS
-    if end_date and start_date:
+    if end_date:
         LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
     else:
         LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}")
