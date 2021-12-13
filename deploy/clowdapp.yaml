@@ -2852,7 +2852,7 @@ parameters:
 - displayName: Minimum replicas
   name: WORKER_HCS_MIN_REPLICAS
   required: true
-  value: "2"
+  value: "1"
 - displayName: Memory Request
   name: WORKER_HCS_MEMORY_REQUEST
   required: true
