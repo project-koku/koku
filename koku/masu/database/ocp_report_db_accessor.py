@@ -636,17 +636,17 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = self._table_map["line_item_daily_summary"]
-        LOG.info(
-            "Deleting partitions for the following: \n\tSchema: %s "
-            "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
-            self.schema,
-            source,
-            table,
-            year,
-            month,
-            days,
-        )
         if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+                self.schema,
+                source,
+                table,
+                year,
+                month,
+                days,
+            )
             final_sql_list = []
             for day in days:
                 sql = f"""
