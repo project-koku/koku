@@ -211,7 +211,7 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
 }
 
 # Beat used to get Hybrid Committed Spend(HCS) data
-hcs_status_schedule = crontab(hour="*", minute="*")
+hcs_status_schedule = crontab(hour=0, minute=0)
 print(f"HCS status schedule: {hcs_status_schedule}")
 
 app.conf.beat_schedule["collect_hcs_report_data"] = {
