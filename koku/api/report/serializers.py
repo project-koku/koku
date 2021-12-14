@@ -325,7 +325,8 @@ class ParamSerializer(BaseSerializer):
 
         """
         super().validate(data)
-        data["currency"] = get_currency(self.context.get("request"))
+        if not data.get("currency"):
+            data["currency"] = get_currency(self.context.get("request"))
         start_date = data.get("start_date")
         end_date = data.get("end_date")
         time_scope_value = data.get("filter", {}).get("time_scope_value")
