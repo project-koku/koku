@@ -19,7 +19,7 @@ QUEUE_LIST = [HCS_QUEUE]
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
-def collect_hcs_report_data(start_date=DateHelper().today, end_date=None):
+def collect_hcs_report_data(start_date=None, end_date=None):
     """Update Hybrid Committed Spend report.
 
     Args:
@@ -31,6 +31,10 @@ def collect_hcs_report_data(start_date=DateHelper().today, end_date=None):
 
     """
     # TODO: implement for HCS
+
+    if start_date is None:
+        start_date = DateHelper().today
+
     if end_date:
         LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
         time.sleep(30)
