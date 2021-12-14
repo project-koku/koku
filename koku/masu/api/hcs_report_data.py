@@ -25,13 +25,15 @@ from hcs.tasks import HCS_QUEUE
 
 LOG = logging.getLogger(__name__)
 
+date_err = "Incorrect data format, should be YYYYMMDD"
 
-def is_valid_date(date):
+
+def is_valid_date(date_text):
     result = True
     try:
-        datetime.datetime(date)
+        datetime.datetime.strptime(date_text, "%Y%m%d")
     except ValueError:
-        result = False
+        result = True
 
     return result
 
@@ -50,12 +52,18 @@ def hcs_report_data(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     if not is_valid_date(start_date):
-        LOG.info(f"Invalid date: {start_date}")
-        return Response({"Error": f"Invalid date: {start_date}"}, status=status.HTTP_400_BAD_REQUEST)
+        LOG.info(f"Invalid date format: {start_date}")
+        return Response(
+            {"Error": f"Incorrect data format {start_date}, should be in the form of YYYYMMDD"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if end_date and not is_valid_date(end_date):
-        LOG.info(f"Invalid date: {end_date}")
-        return Response({"Error": f"Invalid date: {end_date}"}, status=status.HTTP_400_BAD_REQUEST)
+        LOG.info(f"Invalid date format: {end_date}")
+        return Response(
+            {"Error": f"Incorrect data format {end_date}, should be in the form of YYYYMMDD"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
     end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
