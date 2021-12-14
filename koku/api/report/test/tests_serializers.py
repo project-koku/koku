@@ -364,7 +364,7 @@ class QueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            self.create_mock_customer_data(), self.user_data, create_tenant=True
+            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True
         )
 
     def test_parse_query_params_success(self):
@@ -576,17 +576,6 @@ class QueryParamSerializerTest(IamTestCase):
                 "end_date": dh.today.date(),
                 "filter": {"resolution": "daily"},
             },
-        ]
-
-        for params in scenarios:
-            with self.subTest(params=params):
-                serializer = QueryParamSerializer(data=params, context=self.alt_request_context)
-                self.assertTrue(serializer.is_valid(raise_exception=True))
-
-    def test_parse_filter_dates_invalid_resolution(self):
-        """Test parse of a filter date-based param with monthly presolution should not succeed."""
-        dh = DateHelper()
-        scenarios = [
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
@@ -601,12 +590,11 @@ class QueryParamSerializerTest(IamTestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                with self.assertRaises(ValidationError):
-                    serializer = QueryParamSerializer(data=params)
-                    serializer.is_valid(raise_exception=True)
+                serializer = QueryParamSerializer(data=params, context=self.alt_request_context)
+                self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid_delta_pairing(self):
-        """Test parse of a filter date-based param with monthly presolution should not succeed."""
+        """Test parse of a filter date-based param with delta should not succeed."""
         dh = DateHelper()
         scenarios = [
             {"end_date": dh.this_month_start.date(), "delta": "cost"},

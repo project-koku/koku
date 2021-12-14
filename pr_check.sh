@@ -5,6 +5,9 @@
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
 COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 IMAGE="quay.io/cloudservices/koku"
+IMAGE_TAG=$(git rev-parse --short=7 HEAD)
+DBM_IMAGE=${IMAGE}
+DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
@@ -43,9 +46,12 @@ function run_smoke_tests() {
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
 
-    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id" | @base64d' < aws-creds.json)
-    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key" | @base64d' < aws-creds.json)
+    AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -d)
+    AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
     GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
+
+    # This sets the image tag for the migrations Job to be the current koku image tag
+    DBM_IMAGE_TAG=${IMAGE_TAG}
 
     bonfire deploy \
         ${APP_NAME} \
@@ -61,10 +67,8 @@ function run_smoke_tests() {
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
-        --set-parameter host-inventory/REPLICAS_PMIN=0 \
-        --set-parameter host-inventory/REPLICAS_P1=0 \
-        --set-parameter host-inventory/REPLICAS_SP=0 \
-        --set-parameter host-inventory/REPLICAS_SVC=0 \
+        --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
+        --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh

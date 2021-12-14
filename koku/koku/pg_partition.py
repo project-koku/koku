@@ -1806,7 +1806,7 @@ DELETE
     return (cp_recs, dl_recs)
 
 
-def get_or_create_partition(part_rec):
+def get_or_create_partition(part_rec, _default_partition=None):
     """
     Get or create an existing partition.
     Creating:
@@ -1837,7 +1837,11 @@ def get_or_create_partition(part_rec):
 
     with schema_context(part_rec["schema_name"]):
         # Find or create the default partition
-        default_partition, default_created = _get_or_create_default_partition(part_rec)
+        if _default_partition:
+            default_partition, default_created = _default_partition, False
+        else:
+            default_partition, default_created = _get_or_create_default_partition(part_rec)
+
         if part_rec.get("partition_parameters", {}).get("default") or "default" in part_rec.get("table_name"):
             return default_partition, default_created
 
@@ -1885,14 +1889,17 @@ class PartitionHandlerMixin:
             table_names = [table_names]
 
         for table_name in table_names:
-            tmplpart = PartitionedTable.objects.filter(
-                schema_name=schema_name, partition_of_table_name=table_name, partition_type=PartitionedTable.RANGE
+            default_part = PartitionedTable.objects.filter(
+                schema_name=schema_name,
+                partition_of_table_name=table_name,
+                partition_type=PartitionedTable.RANGE,
+                partition_parameters__default=True,
             ).first()
-            if tmplpart:
+            if default_part:
                 partition_start = start_date.replace(day=1)
                 month_interval = relativedelta(months=1)
                 needed_partition = None
-                partition_col = tmplpart.partition_col
+                partition_col = default_part.partition_col
                 newpart_vals = dict(
                     schema_name=schema_name,
                     table_name=None,
@@ -1913,12 +1920,7 @@ class PartitionHandlerMixin:
                     newpart_vals["partition_parameters"]["from"] = str(needed_partition)
                     newpart_vals["partition_parameters"]["to"] = str(needed_partition + month_interval)
                     # Successfully creating a new record will also create the partition
-                    newpart, created = PartitionedTable.objects.get_or_create(
-                        defaults=newpart_vals,
-                        schema_name=schema_name,
-                        partition_of_table_name=table_name,
-                        table_name=partition_name,
-                    )
+                    newpart, created = get_or_create_partition(newpart_vals, _default_partition=default_part)
                     LOG.debug(f"partition = {newpart}")
                     LOG.debug(f"created = {created}")
                     if created:

@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on Cloud Report serializers."""
-from unittest.mock import Mock
-
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -18,7 +16,7 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            self.create_mock_customer_data(), self.user_data, create_tenant=True, path=""
+            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True, path=""
         )
 
     def test_parse_query_params_success(self):
@@ -85,12 +83,16 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
             },
             "delta": "cost",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/")
-        serializer = OCPAllQueryParamSerializer(data=query_params, context={"request": req})
+        context = self._create_request_context(
+            {"account_id": "10001", "schema_name": self.schema_name},
+            self._create_user_data(),
+            create_tenant=True,
+            path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/",
+        )
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=context)
         serializer.is_valid(raise_exception=True)
         query_params["delta"] = "cost_total"
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/")
-        serializer = OCPAllQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPAllQueryParamSerializer(data=query_params, context=context)
         serializer.is_valid(raise_exception=True)
 
     def test_query_params_valid_cost_type(self):
