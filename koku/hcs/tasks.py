@@ -5,6 +5,7 @@
 """Tasks for Hybrid Committed Spend (HCS)"""
 import logging
 
+from api.utils import DateHelper
 from koku import celery_app
 
 
@@ -17,7 +18,7 @@ QUEUE_LIST = [HCS_QUEUE]
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
-def collect_hcs_report_data(start_date, end_date=None):
+def collect_hcs_report_data(start_date=DateHelper().today, end_date=None):
     """Update Hybrid Committed Spend report.
 
     Args:
