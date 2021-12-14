@@ -927,6 +927,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_CELERY_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1094,6 +1096,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1263,6 +1267,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1430,6 +1436,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_OCP_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1599,6 +1607,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1766,6 +1776,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_REFRESH_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1935,6 +1947,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2104,6 +2118,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_HCS_WORKER_QUEUE}
+        - name: worker_proc_alive_timeout
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2623,6 +2639,10 @@ parameters:
   name: SCHEDULER_CPU_LIMIT
   required: true
   value: 100m
+- displayName: Worker Proc Alive Timeout
+  required: true
+  name: WORKER_PROC_ALIVE_TIMEOUT
+  value: "4"
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
