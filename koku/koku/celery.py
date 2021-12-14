@@ -213,7 +213,7 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
 # Beat used to get Hybrid Committed Spend(HCS) data
 app.conf.beat_schedule["collect_hcs_report_data"] = {
     "task": "hcs.tasks.collect_hcs_report_data",
-    "schedule": crontab(),
+    "schedule": crontab(hour=0, minute=0),
 }
 
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
