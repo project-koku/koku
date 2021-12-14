@@ -50,7 +50,6 @@ def hcs_report_data(request):
     num_months = len(months)
     first_month = months[0]
     months[0] = (start_date, first_month[1])
-
     last_month = months[num_months - 1]
     months[num_months - 1] = (last_month[0], end_date)
 
