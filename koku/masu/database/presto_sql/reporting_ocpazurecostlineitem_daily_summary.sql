@@ -81,18 +81,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 ;
 
-DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
-WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
-    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
-    AND year = {{year}}
-    AND month = {{month}}
-    AND day in ({{days}})
-
-;
-
 -- Directly resource_id matching
--- TODO: I didn't include the multiplier in this because I couldn't tell where its being used.
---    The todo is to figure out if we need the multiplier field anymore or not.
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
     azure_uuid,
     cluster_id,
@@ -188,11 +177,13 @@ SELECT azure.uuid as azure_uuid,
         AND azure.month = {{month}}
         AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND (azure.resourceid IS NOT NULL AND azure.resourceid != '')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND ocp.month = {{month}}
         AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     GROUP BY azure.uuid, ocp.namespace
 ;
 
