@@ -91,6 +91,17 @@ VIEWS = (
     "reporting_azure_storage_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_azure_compute_summary_p",
+    "reporting_azure_cost_summary_p",
+    "reporting_azure_cost_summary_by_account_p",
+    "reporting_azure_cost_summary_by_location_p",
+    "reporting_azure_cost_summary_by_service_p",
+    "reporting_azure_database_summary_p",
+    "reporting_azure_network_summary_p",
+    "reporting_azure_storage_summary_p",
+)
+
 
 class AzureCostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.
@@ -140,7 +151,7 @@ class AzureCostEntryProductService(models.Model):
 class AzureMeter(models.Model):
     """The Azure meter."""
 
-    meter_id = models.UUIDField(editable=False, unique=True, null=False)
+    meter_id = models.TextField(editable=False, unique=True, null=False)
     meter_name = models.TextField(null=False)
     meter_category = models.TextField(null=True)
     meter_subcategory = models.TextField(null=True)
@@ -457,3 +468,276 @@ class AzureEnabledTagKeys(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+
+
+# ======================================================
+#  Partitioned Models to replace matviews
+# ======================================================
+
+
+class AzureCostSummaryP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureCostSummaryP."""
+
+        db_table = "reporting_azure_cost_summary_p"
+        indexes = [models.Index(fields=["usage_start"], name="azurecostsumm_usage_start")]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureCostSummaryByAccountP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureCostSummaryByServiceP."""
+
+        db_table = "reporting_azure_cost_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurecostsumm_acc_usage_start"),
+            models.Index(fields=["subscription_guid"], name="azurecostsumm_acc_sub_guid"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureCostSummaryByLocationP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by location.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureCostSummaryByServiceP."""
+
+        db_table = "reporting_azure_cost_summary_by_location_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurecostsumm_loc_usage_start"),
+            models.Index(fields=["resource_location"], name="azurecostsumm_loc_res_loc"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    resource_location = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureCostSummaryByServiceP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureCostSummaryByServiceP."""
+
+        db_table = "reporting_azure_cost_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurecostsumm_svc_usage_start"),
+            models.Index(fields=["service_name"], name="azurecostsumm_svc_svc_name"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=False)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureComputeSummaryP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureComputeSummaryP."""
+
+        db_table = "reporting_azure_compute_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurecompsumm_usage_start"),
+            models.Index(fields=["instance_type"], name="azurecompsumm_insttyp"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    instance_type = models.TextField(null=True)
+    instance_ids = ArrayField(models.TextField(), null=True)
+    instance_count = models.IntegerField(null=True)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureStorageSummaryP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureStorageSummaryP."""
+
+        db_table = "reporting_azure_storage_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurestorsumm_usage_start"),
+            models.Index(fields=["service_name"], name="azurestorsumm_svc_name"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureNetworkSummaryP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureNetworkSummaryP."""
+
+        db_table = "reporting_azure_network_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azurenetsumm_usage_start"),
+            models.Index(fields=["service_name"], name="azurenetsumm_svc_name"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class AzureDatabaseSummaryP(models.Model):
+    """A Summarized Partitioned Table specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for AzureDatabaseSummaryP."""
+
+        db_table = "reporting_azure_database_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="azuredbsumm_usage_start"),
+            models.Index(fields=["service_name"], name="azuredbsumm_svc_name"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=False)
+    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )

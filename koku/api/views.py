@@ -65,4 +65,4 @@ from api.tags.azure.view import AzureTagView
 from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
-from api.user_settings.views import get_cost_type
+from api.user_settings.views import UserCostTypeSettings

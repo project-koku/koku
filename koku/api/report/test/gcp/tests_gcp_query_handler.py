@@ -7,10 +7,10 @@ import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from django.urls import reverse
@@ -27,10 +27,10 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
-from reporting.models import GCPCostSummary
-from reporting.models import GCPCostSummaryByAccount
-from reporting.models import GCPCostSummaryByProject
-from reporting.models import GCPCostSummaryByService
+from reporting.models import GCPCostSummaryByAccountP
+from reporting.models import GCPCostSummaryByProjectP
+from reporting.models import GCPCostSummaryByServiceP
+from reporting.models import GCPCostSummaryP
 from reporting.models import GCPTagsSummary
 
 LOG = logging.getLogger(__name__)
@@ -68,6 +68,9 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.dh.last_month_start, self.dh.last_month_end
             )
         }
+        with tenant_context(self.tenant):
+            self.services = GCPCostEntryLineItemDailySummary.objects.values("service_alias").distinct()
+            self.services = [entry.get("service_alias") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -575,16 +578,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-        with tenant_context(self.tenant):
-            tag_count = (
-                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-                .values(handler._mapper.tag_column)
-                .distinct()
-                .count()
-            )
-
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
+        self.assertEqual(len(data), 1)
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
@@ -594,7 +589,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly by account with limt as csv."""
         mock_accept.return_value = "text/csv"
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[account]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -608,24 +603,12 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-        with tenant_context(self.tenant):
-            tag_count = (
-                GCPCostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
-                .values(handler._mapper.tag_column)
-                .distinct()
-                .count()
-            )
-
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
-        accounts = set()
+        self.assertEqual(len(data), 1)
         for data_item in data:
-            accounts.add(data_item.get("account"))
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
-        self.assertEqual(len(accounts), 1)
 
-    @skip("Skipping for now due to beginning of month failure")
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
         path = reverse("reports-gcp-costs")
@@ -652,12 +635,18 @@ class GCPReportQueryHandlerTest(IamTestCase):
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
                 curr = GCPCostEntryLineItemDailySummary.objects.filter(
-                    invoice_month__in=current_invoice_month, account_id=account.get("account")
+                    invoice_month__in=current_invoice_month,
+                    account_id=account.get("account"),
+                    usage_start__gte=self.dh.this_month_start,
+                    usage_start__lte=self.dh.today,
                 ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = GCPCostEntryLineItemDailySummary.objects.filter(
-                    invoice_month__in=last_invoice_month, account_id=account.get("account")
+                    invoice_month__in=last_invoice_month,
+                    account_id=account.get("account"),
+                    usage_start__gte=self.dh.last_month_start,
+                    usage_start__lte=self.dh.today - relativedelta(months=1),
                 ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
@@ -675,14 +664,18 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            curr = GCPCostEntryLineItemDailySummary.objects.filter(invoice_month__in=current_invoice_month).aggregate(
-                value=Sum(F("unblended_cost") + F("markup_cost"))
-            )
+            curr = GCPCostEntryLineItemDailySummary.objects.filter(
+                invoice_month__in=current_invoice_month,
+                usage_start__gte=self.dh.this_month_start,
+                usage_start__lte=self.dh.today,
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
-            prev = GCPCostEntryLineItemDailySummary.objects.filter(invoice_month__in=last_invoice_month).aggregate(
-                value=Sum(F("unblended_cost") + F("markup_cost"))
-            )
+            prev = GCPCostEntryLineItemDailySummary.objects.filter(
+                invoice_month__in=last_invoice_month,
+                usage_start__gte=self.dh.last_month_start,
+                usage_start__lte=self.dh.today - relativedelta(months=1),
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -885,26 +878,26 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", GCPCostView, GCPCostSummary),
-            ("?group_by[account]=*", GCPCostView, GCPCostSummaryByAccount),
-            ("?group_by[gcp_project]=*", GCPCostView, GCPCostSummaryByProject),
-            ("?group_by[gcp_project]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByProject),
-            ("?group_by[service]=*", GCPCostView, GCPCostSummaryByService),
-            ("?group_by[service]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByService),
+            ("?", GCPCostView, GCPCostSummaryP),
+            ("?group_by[account]=*", GCPCostView, GCPCostSummaryByAccountP),
+            ("?group_by[gcp_project]=*", GCPCostView, GCPCostSummaryByProjectP),
+            ("?group_by[gcp_project]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByProjectP),
+            ("?group_by[service]=*", GCPCostView, GCPCostSummaryByServiceP),
+            ("?group_by[service]=*&group_by[account]=*", GCPCostView, GCPCostSummaryByServiceP),
             (
                 "?filter[service]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[account]=*",
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
             (
                 "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
             (
                 "?filter[service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[account]=*",  # noqa: E501
                 GCPCostView,
-                GCPCostSummaryByService,
+                GCPCostSummaryByServiceP,
             ),
         ]
 
@@ -1094,33 +1087,33 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     service_checked = True
         self.assertTrue(service_checked)
 
-    @skip("This test needs to be re-engineered")
     def test_gcp_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
-        # execute query
+        """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+        svc_annotations = handler.annotations.get("service")
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                GCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .annotate(service=svc_annotations)
+                .values("service")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service") for service in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
-        for element in data:
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
 

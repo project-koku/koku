@@ -37,7 +37,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self._mapper = OCPProviderMap(provider=self.provider, report_type=parameters.report_type)
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
-        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
         # We need to overwrite the default pack definitions with these
         # Order of the keys matters in how we see it in the views.
@@ -151,6 +150,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
+            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -190,7 +190,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            if self.is_csv_output:
+            if is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
@@ -227,6 +227,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_capacity = Decimal(0)
         daily_total_capacity = defaultdict(Decimal)
         capacity_by_cluster = defaultdict(Decimal)
+        capacity_by_month = defaultdict(Decimal)
+        capacity_by_cluster_month = defaultdict(lambda: defaultdict(Decimal))
         daily_capacity_by_cluster = defaultdict(lambda: defaultdict(Decimal))
 
         q_table = self._mapper.query_table
@@ -238,12 +240,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
             for entry in cap_data:
                 cluster_id = entry.get("cluster_id", "")
                 usage_start = entry.get("usage_start", "")
+                month = entry.get("usage_start", "").month
                 if isinstance(usage_start, datetime.date):
                     usage_start = usage_start.isoformat()
                 cap_value = entry.get(cap_key, 0)
                 if cap_value is None:
                     cap_value = 0
                 capacity_by_cluster[cluster_id] += cap_value
+                capacity_by_month[month] += cap_value
+                capacity_by_cluster_month[month][cluster_id] += cap_value
                 daily_capacity_by_cluster[usage_start][cluster_id] = cap_value
                 daily_total_capacity[usage_start] += cap_value
                 total_capacity += cap_value
@@ -257,12 +262,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 else:
                     row[cap_key] = daily_total_capacity.get(date, Decimal(0))
         elif self.resolution == "monthly":
-            for row in query_data:
-                cluster_id = row.get("cluster")
-                if cluster_id:
-                    row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
-                else:
-                    row[cap_key] = total_capacity
+            if not self.parameters.get("start_date"):
+                for row in query_data:
+                    cluster_id = row.get("cluster")
+                    if cluster_id:
+                        row[cap_key] = capacity_by_cluster.get(cluster_id, Decimal(0))
+                    else:
+                        row[cap_key] = total_capacity
+            else:
+                for row in query_data:
+                    cluster_id = row.get("cluster")
+                    row_date = datetime.datetime.strptime(row.get("date"), "%Y-%m").month
+                    if cluster_id:
+                        row[cap_key] = capacity_by_cluster_month.get(row_date, {}).get(cluster_id, Decimal(0))
+                    else:
+                        row[cap_key] = capacity_by_month.get(row_date, Decimal(0))
 
         return query_data, {cap_key: total_capacity}
 

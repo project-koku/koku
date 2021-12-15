@@ -16,16 +16,16 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import OCPAzureComputeSummary
+from reporting.models import OCPAzureComputeSummaryP
 from reporting.models import OCPAzureCostLineItemDailySummary
 from reporting.models import OCPAzureCostLineItemProjectDailySummary
-from reporting.models import OCPAzureCostSummary
-from reporting.models import OCPAzureCostSummaryByAccount
-from reporting.models import OCPAzureCostSummaryByLocation
-from reporting.models import OCPAzureCostSummaryByService
-from reporting.models import OCPAzureDatabaseSummary
-from reporting.models import OCPAzureNetworkSummary
-from reporting.models import OCPAzureStorageSummary
+from reporting.models import OCPAzureCostSummaryByAccountP
+from reporting.models import OCPAzureCostSummaryByLocationP
+from reporting.models import OCPAzureCostSummaryByServiceP
+from reporting.models import OCPAzureCostSummaryP
+from reporting.models import OCPAzureDatabaseSummaryP
+from reporting.models import OCPAzureNetworkSummaryP
+from reporting.models import OCPAzureStorageSummaryP
 
 
 class OCPAzureProviderMap(ProviderMap):
@@ -504,31 +504,31 @@ class OCPAzureProviderMap(ProviderMap):
 
         self.views = {
             "costs": {
-                "default": OCPAzureCostSummary,
-                ("subscription_guid",): OCPAzureCostSummaryByAccount,
-                ("service_name",): OCPAzureCostSummaryByService,
-                ("service_name", "subscription_guid"): OCPAzureCostSummaryByService,
-                ("resource_location",): OCPAzureCostSummaryByLocation,
-                ("resource_location", "subscription_guid"): OCPAzureCostSummaryByLocation,
+                "default": OCPAzureCostSummaryP,
+                ("subscription_guid",): OCPAzureCostSummaryByAccountP,
+                ("service_name",): OCPAzureCostSummaryByServiceP,
+                ("service_name", "subscription_guid"): OCPAzureCostSummaryByServiceP,
+                ("resource_location",): OCPAzureCostSummaryByLocationP,
+                ("resource_location", "subscription_guid"): OCPAzureCostSummaryByLocationP,
             },
             "instance_type": {
-                "default": OCPAzureComputeSummary,
-                ("instance_type",): OCPAzureComputeSummary,
-                ("instance_type", "subscription_guid"): OCPAzureComputeSummary,
-                ("subscription_guid",): OCPAzureComputeSummary,
+                "default": OCPAzureComputeSummaryP,
+                ("instance_type",): OCPAzureComputeSummaryP,
+                ("instance_type", "subscription_guid"): OCPAzureComputeSummaryP,
+                ("subscription_guid",): OCPAzureComputeSummaryP,
             },
-            "storage": {"default": OCPAzureStorageSummary, ("subscription_guid",): OCPAzureStorageSummary},
+            "storage": {"default": OCPAzureStorageSummaryP, ("subscription_guid",): OCPAzureStorageSummaryP},
             "database": {
-                "default": OCPAzureDatabaseSummary,
-                ("service_name",): OCPAzureDatabaseSummary,
-                ("service_name", "subscription_guid"): OCPAzureDatabaseSummary,
-                ("subscription_guid",): OCPAzureDatabaseSummary,
+                "default": OCPAzureDatabaseSummaryP,
+                ("service_name",): OCPAzureDatabaseSummaryP,
+                ("service_name", "subscription_guid"): OCPAzureDatabaseSummaryP,
+                ("subscription_guid",): OCPAzureDatabaseSummaryP,
             },
             "network": {
-                "default": OCPAzureNetworkSummary,
-                ("service_name",): OCPAzureNetworkSummary,
-                ("service_name", "subscription_guid"): OCPAzureNetworkSummary,
-                ("subscription_guid",): OCPAzureNetworkSummary,
+                "default": OCPAzureNetworkSummaryP,
+                ("service_name",): OCPAzureNetworkSummaryP,
+                ("service_name", "subscription_guid"): OCPAzureNetworkSummaryP,
+                ("subscription_guid",): OCPAzureNetworkSummaryP,
             },
         }
         super().__init__(provider, report_type)

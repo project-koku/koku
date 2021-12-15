@@ -9,16 +9,18 @@ import logging
 
 from tenant_schemas.utils import schema_context
 
+from koku.pg_partition import PartitionHandlerMixin
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.azure.common import get_bills_from_provider
 from masu.util.common import date_range_pair
+from reporting.provider.azure.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
 
 
-class AzureReportSummaryUpdater:
+class AzureReportSummaryUpdater(PartitionHandlerMixin):
     """Class to update Azure report summary data."""
 
     def __init__(self, schema, provider, manifest):
@@ -85,6 +87,10 @@ class AzureReportSummaryUpdater:
         """
         LOG.info("update_summary_tables for: %s-%s", str(start_date), str(end_date))
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+
+        with schema_context(self._schema):
+            self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
+
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
@@ -107,6 +113,7 @@ class AzureReportSummaryUpdater:
                     end,
                 )
                 accessor.populate_line_item_daily_summary_table(start, end, bill_ids)
+                accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:

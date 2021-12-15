@@ -54,8 +54,14 @@ export PGPASSWORD="${DATABASE_PASSWORD}"
 export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
 export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
 export PGUSER="${DATABASE_USER}"
+export OS="$(uname)"
 
-START_DATE=${1:-$(date +'%Y-%m-01')}  # defaults to first-of-month
+if [[ $OS = "Darwin" ]]; then
+    START_DATE=${1:-$(date -v '-1m' +'%Y-%m-01')}
+else
+    START_DATE=${1:-$(date --date='last month' +'%Y-%m-01')}
+fi
+
 END_DATE=${2:-$(date +'%Y-%m-%d')}    # defaults to today
 debug_echo "Start date: ${START_DATE}, End date: ${END_DATE}"
 

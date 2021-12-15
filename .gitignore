@@ -150,3 +150,5 @@ dev/*.yml
 
 #sonarqube
 sonarqube/
+/koku.iml
+/view.prof

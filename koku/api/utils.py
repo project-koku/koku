@@ -14,9 +14,25 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
 from pint.errors import UndefinedUnitError
+from tenant_schemas.utils import schema_context
+
+from koku.settings import KOKU_DEFAULT_COST_TYPE
+from reporting.user_settings.models import UserSettings
 
 
 LOG = logging.getLogger(__name__)
+
+
+def get_cost_type(request):
+    """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
+
+    with schema_context(request.user.customer.schema_name):
+        query_settings = UserSettings.objects.all().first()
+        if not query_settings:
+            cost_type = KOKU_DEFAULT_COST_TYPE
+        else:
+            cost_type = query_settings.settings["cost_type"]
+    return cost_type
 
 
 def merge_dicts(*list_of_dicts):
@@ -200,8 +216,12 @@ class DateHelper:
             (List[DateTime]): A list of days from the start date to end date
 
         """
-        end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_midnight = end_date
+        start_midnight = start_date
+        if isinstance(end_date, datetime.datetime):
+            end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(start_date, datetime.datetime):
+            start_midnight = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         days = (end_midnight - start_midnight + self.one_day).days
 
         # built-in range(start, end, step) requires (start < end) == True

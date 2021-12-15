@@ -108,8 +108,6 @@ class ReportQueryHandler(QueryHandler):
     def query_table(self):
         """Return the database table or view to query against."""
         query_table = self._mapper.query_table
-        if self.is_csv_output:
-            return query_table
         report_type = self._report_type
         report_group = "default"
 
@@ -353,22 +351,13 @@ class ReportQueryHandler(QueryHandler):
         for filter_map in self._mapper._report_type_map.get("filter"):
             filters.add(**filter_map)
 
-        if self.query_table == self._mapper.query_table and "gcp/storage" in self.parameters.request.path:
-            filters.add(
-                **{
-                    "field": "service_alias",
-                    "operation": "in",
-                    "parameter": ["Filestore", "Storage", "Cloud Storage", "Data Transfer"],
-                }
-            )
-
         # define filter parameters using API query params.
         composed_filters = self._get_search_filter(filters)
 
         LOG.debug(f"_get_filter: {composed_filters}")
         return composed_filters
 
-    def _get_group_by(self):  # noqa: C901
+    def _get_group_by(self):
         """Create list for group_by parameters."""
         group_by = []
         for item in self.group_by_options:
@@ -401,14 +390,7 @@ class ReportQueryHandler(QueryHandler):
         inherent_group_by = self._mapper._report_type_map.get("group_by")
         if inherent_group_by and not (group_by and self._limit):
             group_by = group_by + list(set(inherent_group_by) - set(group_by))
-        if self.is_csv_output:
-            add_tags = True
-            for entry in group_by:
-                if self._mapper.tag_column in entry:
-                    # There is already a specific tag group_by
-                    add_tags = False
-            if add_tags:
-                group_by.append(self._mapper.tag_column)
+
         return group_by
 
     def _get_tag_group_by(self):
@@ -537,7 +519,6 @@ class ReportQueryHandler(QueryHandler):
         output = copy.deepcopy(parameters.parameters)
         # remove access from the output
         output.pop("access")
-        output.update(parameters.display_parameters)
 
         return output
 

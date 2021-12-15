@@ -8,7 +8,6 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
@@ -30,17 +29,17 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
-from reporting.models import AzureComputeSummary
+from reporting.models import AzureComputeSummaryP
 from reporting.models import AzureCostEntryBill
 from reporting.models import AzureCostEntryLineItemDailySummary
 from reporting.models import AzureCostEntryProductService
-from reporting.models import AzureCostSummary
-from reporting.models import AzureCostSummaryByAccount
-from reporting.models import AzureCostSummaryByLocation
-from reporting.models import AzureCostSummaryByService
-from reporting.models import AzureDatabaseSummary
-from reporting.models import AzureNetworkSummary
-from reporting.models import AzureStorageSummary
+from reporting.models import AzureCostSummaryByAccountP
+from reporting.models import AzureCostSummaryByLocationP
+from reporting.models import AzureCostSummaryByServiceP
+from reporting.models import AzureCostSummaryP
+from reporting.models import AzureDatabaseSummaryP
+from reporting.models import AzureNetworkSummaryP
+from reporting.models import AzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -59,6 +58,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_start__lte": self.dh.last_month_end,
         }
+        with tenant_context(self.tenant):
+            self.services = AzureCostEntryLineItemDailySummary.objects.values("service_name").distinct()
+            self.services = [entry.get("service_name") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -667,18 +669,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-        with tenant_context(self.tenant):
-            tag_count = (
-                AzureCostEntryLineItemDailySummary.objects.filter(
-                    resource_location__icontains=location, usage_start__gte=self.dh.this_month_start
-                )
-                .values(handler._mapper.tag_column)
-                .distinct()
-                .count()
-            )
-
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
+        self.assertEqual(len(data), 1)
         for data_item in data:
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
@@ -688,7 +680,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
         mock_accept.return_value = "text/csv"
 
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[subscription_guid]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -705,19 +697,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-        with tenant_context(self.tenant):
-            tag_count = (
-                AzureCostEntryLineItemDailySummary.objects.values(handler._mapper.tag_column).distinct().count()
-            )
-
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
-        subs = set()
+        self.assertEqual(len(data), 1)
         for data_item in data:
-            subs.add(data_item.get("subscription_guid"))
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
-        self.assertEqual(len(subs), 1)
 
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
@@ -1150,35 +1134,35 @@ class AzureReportQueryHandlerTest(IamTestCase):
     def test_query_table(self):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
-            ("?", AzureCostView, AzureCostSummary),
-            ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccount),
-            ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocation),
+            ("?", AzureCostView, AzureCostSummaryP),
+            ("?group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByAccountP),
+            ("?group_by[resource_location]=*", AzureCostView, AzureCostSummaryByLocationP),
             (
                 "?group_by[resource_location]=*&group_by[subscription_guid]=*",
                 AzureCostView,
-                AzureCostSummaryByLocation,
+                AzureCostSummaryByLocationP,
             ),
-            ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByService),
-            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByService),
-            ("?", AzureInstanceTypeView, AzureComputeSummary),
-            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummary),
-            ("?", AzureStorageView, AzureStorageSummary),
-            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummary),
-            ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummary),
+            ("?group_by[service_name]=*", AzureCostView, AzureCostSummaryByServiceP),
+            ("?group_by[service_name]=*&group_by[subscription_guid]=*", AzureCostView, AzureCostSummaryByServiceP),
+            ("?", AzureInstanceTypeView, AzureComputeSummaryP),
+            ("?group_by[subscription_guid]=*", AzureInstanceTypeView, AzureComputeSummaryP),
+            ("?", AzureStorageView, AzureStorageSummaryP),
+            ("?group_by[subscription_guid]=*", AzureStorageView, AzureStorageSummaryP),
+            ("?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis", AzureCostView, AzureDatabaseSummaryP),
             (
                 "?filter[service_name]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[subscription_guid]=*",
                 AzureCostView,
-                AzureDatabaseSummary,
+                AzureDatabaseSummaryP,
             ),
             (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
                 AzureCostView,
-                AzureNetworkSummary,
+                AzureNetworkSummaryP,
             ),
             (
                 "?filter[service_name]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[subscription_guid]=*",  # noqa: E501
                 AzureCostView,
-                AzureNetworkSummary,
+                AzureNetworkSummaryP,
             ),
         ]
 
@@ -1249,34 +1233,36 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    @skip("This test needs to be re-engineered")
     def test_azure_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("service_names"):
-                    correctlst.append(service.get("service_name"))
+                correctlst = [service.get("service_name") for service in element.get("service_names", [])]
+
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                AzureCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .values("service_name")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            # Check if there is any data in services
-            for service in element.get("service_names"):
-                lst.append(service.get("service_name"))
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
 
