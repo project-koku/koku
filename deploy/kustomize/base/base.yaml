@@ -235,7 +235,7 @@ parameters:
   required: true
   value: "5"
 
-- description: Flag to use account enhanced prometheus metrics
+- description: Flag to use account enhanced prometheus metricsworker
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
   value: "False"
@@ -247,6 +247,11 @@ parameters:
   displayName: Worker cache timeout
   name: WORKER_CACHE_TIMEOUT
   value: "21600" # 6 hour default
+
+- description: Timeout threshold for worker process to initialize
+  displayName: Worker Proc Alive Timeout
+  name: WORKER_PROC_ALIVE_TIMEOUT
+  value: "4"
 
 - description: Demo account JSON
   displayName: Demo account JSON
