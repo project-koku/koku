@@ -29,7 +29,7 @@ from reporting.provider.gcp.models import GCPCostEntryProductService
 from reporting.provider.gcp.models import GCPProject
 from reporting.provider.gcp.models import GCPTopology
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
-from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES
+from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportStatus
 
 LOG = logging.getLogger(__name__)
@@ -482,9 +482,11 @@ class GCPReportDBAccessor(ReportDBAccessorBase):
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
-    def populate_ui_summary_tables(self, start_date, end_date, ocp_provider_uuid, gcp_provider_uuid, report_period_id):
+    def populate_ocp_on_gcp_ui_summary_tables(
+        self, start_date, end_date, ocp_provider_uuid, gcp_provider_uuid, report_period_id
+    ):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in UI_SUMMARY_TABLES:
+        for table_name in OCPGCP_UI_SUMMARY_TABLES:
             summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
             summary_sql = summary_sql.decode("utf-8")
             summary_sql_params = {
