@@ -93,6 +93,10 @@ HCS_BACKLOG = Gauge(
     "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
 )
 
+HCS_BACKLOG = Gauge(
+    "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
+)
+
 QUEUES = {
     "download": DOWNLOAD_BACKLOG,
     "summary": SUMMARY_BACKLOG,
