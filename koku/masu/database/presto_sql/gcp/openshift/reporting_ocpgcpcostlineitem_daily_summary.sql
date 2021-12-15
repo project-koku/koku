@@ -225,7 +225,7 @@ SELECT uuid(),
     ocp_gcp.unblended_cost / pc.project_count / dsc.data_source_count as pod_cost,
     json_parse(ocp_gcp.tags) as tags,
     UUID '{{gcp_source_uuid | sqlsafe}}' as source_uuid,
-    ocp_gcp.credit_amount as credit_amount,
+    ocp_gcp.credit_amount / pc.project_count / dsc.data_source_count as credit_amountt,
     ocp_gcp.invoice_month as invoice_month
 FROM cte_ocp_on_gcp_joined as ocp_gcp
 JOIN cte_project_counts AS pc
