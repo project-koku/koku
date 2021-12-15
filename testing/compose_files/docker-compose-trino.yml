@@ -41,10 +41,10 @@ services:
       - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - MINIO_HOST=kokuminio
-      - MINIO_PORT=9000
-      - MINIO_ROOT_USER=kokuminioaccess
-      - MINIO_ROOT_PASSWORD=kokuminiosecret
+      - S3_HOST=kokuminio
+      - S3_PORT=9000
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
+      - S3_SECRET=${S3_SECRET-kokuminiosecret}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
       - S3_BUCKET_PATH=${S3_BUCKET_PATH-data}
       - POSTGRES_SQL_SERVICE_HOST=db
