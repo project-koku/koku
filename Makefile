@@ -436,7 +436,7 @@ docker-trino-setup:
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
 
 docker-trino-up: docker-trino-setup
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml --build up -d
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up --build -d
 
 docker-trino-up-no-build: docker-trino-setup
 	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up -d $(build)
