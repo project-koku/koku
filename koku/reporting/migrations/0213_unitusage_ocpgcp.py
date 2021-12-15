@@ -5,7 +5,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0201_ocp_partables")]
+    dependencies = [("reporting", "0212_auto_20211203_1640")]
 
     operations = [
         migrations.AddField(
