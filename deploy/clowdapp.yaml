@@ -927,6 +927,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_CELERY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1094,6 +1096,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1263,6 +1267,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1430,6 +1436,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_OCP_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1599,6 +1607,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1766,6 +1776,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_REFRESH_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1935,6 +1947,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2104,6 +2118,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_HCS_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2393,7 +2409,7 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
-- description: Flag to use account enhanced prometheus metrics
+- description: Flag to use account enhanced prometheus metricsworker
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
   value: "False"
@@ -2405,6 +2421,10 @@ parameters:
   displayName: Worker cache timeout
   name: WORKER_CACHE_TIMEOUT
   value: "21600"
+- description: Timeout threshold for worker process to initialize
+  displayName: Worker Proc Alive Timeout
+  name: WORKER_PROC_ALIVE_TIMEOUT
+  value: "4"
 - description: Demo account JSON
   displayName: Demo account JSON
   name: DEMO_ACCOUNTS
