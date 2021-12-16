@@ -99,6 +99,11 @@ LOG.info("Celery autodiscover tasks.")
 MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
 app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 
+# Timeout threshold for a worker process to startup
+WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
+app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
+LOG.info(f"Celery worker alive timeout = {app.conf.worker_proc_alive_timeout}")
+
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
