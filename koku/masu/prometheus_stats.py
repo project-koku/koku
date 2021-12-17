@@ -89,9 +89,6 @@ DEFAULT_BACKLOG = Gauge(
 OCP_BACKLOG = Gauge(
     "ocp_backlog", "Number of celery tasks in the OCP queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
 )
-HCS_BACKLOG = Gauge(
-    "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"
-)
 
 HCS_BACKLOG = Gauge(
     "hcs_backlog", "Number of celery tasks in the HCS queue", registry=WORKER_REGISTRY, multiprocess_mode="livesum"

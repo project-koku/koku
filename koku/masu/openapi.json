@@ -211,11 +211,42 @@
       },
       "parameters": []
     },
-    "/collect_hcs_data/": {
+    "/hcs_report_data/": {
       "get": {
         "operationId": "getHCSReportData",
         "description": "Collect HCS report data.",
         "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "description": "The provider type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "AWS"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          },
           {
             "name": "start_date",
             "in": "query",
