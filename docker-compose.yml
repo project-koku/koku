@@ -5,7 +5,7 @@ services:
     image: koku_base
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.min
       args:
         PIPENV_DEV: "True"
     depends_on:
@@ -14,11 +14,12 @@ services:
       - unleash
 
   koku-server:
+    user: "1000000"
     container_name: koku_server
     image: koku_base
-    working_dir: /koku
-    entrypoint:
-      - /koku/run_server.sh
+    # working_dir: /koku_base
+    # entrypoint:
+    #   - /koku_base/run_server.sh
     environment:
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -58,12 +59,14 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - CURRENCY_URL=${CURRENCY_URL}
-    privileged: true
+    # privileged: true
     ports:
       - 8000:8000
       - 8001:9000
     volumes:
-      - '.:/koku/'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+
     depends_on:
       - koku-base
 
