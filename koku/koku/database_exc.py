@@ -181,24 +181,28 @@ class ExtendedDeadlockDetected(ExtendedDBException):
     def get_extended_info(self):
         super().get_extended_info()
 
-        try:
-            with self.connect() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("select pg_current_logfile() as curr_log;")
-                    res = cur.fetchone()
-                    self.current_log_file = res["curr_log"] if res else None
-        except DatabaseError as e:
-            LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")
-            self.current_log_file = "<Unknown> (DB connect error)"
+        # Commented-out because it would be nice to figure out how to successfully get the current log file
+        # There's just not a super-pressing need for it currently.
+        # try:
+        #     with self.connect() as conn:
+        #         with conn.cursor() as cur:
+        #             cur.execute("select pg_current_logfile() as curr_log;")
+        #             res = cur.fetchone()
+        #             self.current_log_file = res["curr_log"] if res else None
+        # except DatabaseError as e:
+        #     LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")
+        #     self.current_log_file = "<Unknown> (DB connect error)"
 
-        self.args = (
-            f"CURRENT DB LOG FILE: {self.current_log_file}",
-            f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",
-        ) + self.args
+        # self.args = (
+        #     f"CURRENT DB LOG FILE: {self.current_log_file}",
+        #     f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",
+        # ) + self.args
+
+        self.args = (f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",) + self.args
 
     def as_dict(self):
         data = super().as_dict()
-        data["current_db_log_file"] = self.current_log_file
+        # data["current_db_log_file"] = self.current_log_file
         data["process1_pid"] = self.process1
         data["transxation1"] = self.txaction1
         data["process2_pid"] = self.process2
