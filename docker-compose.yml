@@ -313,7 +313,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ['celery', '--pidfile=', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY

@@ -11,13 +11,13 @@ ENV PYTHON_VERSION=3.8 \
     PYTHONIOENCODING=UTF-8 \
     LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
-    PIP_NO_CACHE_DIR=off \
+    PIP_NO_CACHE_DIR=1 \
     PIPENV_VENV_IN_PROJECT=1 \
     PIPENV_VERBOSITY=-1 \
     APP_ROOT=/koku \
     APP_HOME=/koku/koku \
     HOME=/koku \
-    VIRTUAL_ENV=/koku/.venv \
+    VIRTUAL_ENV_DIR=/koku/.venv \
     GIT_COMMIT=${GIT_COMMIT} \
     PLATFORM="el8"
 
@@ -55,25 +55,30 @@ ENV PATH="/pipenv-venv/bin:$PATH"
 
 RUN \
     pip install --upgrade pip && \
-    pip install pipenv && \
-    mkdir -p $VIRTUAL_ENV/bin
+    pip install pipenv
 
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
-RUN pipenv install --deploy
+RUN \
+    # install the dependencies into the working dir
+    pipenv install --deploy && \
+    # delete the pipenv cache
+    pipenv --clear
+
+# create the koku user
+RUN adduser koku -u ${USER_ID} -g 0
 
 # Runtime env variables:
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH"
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp
 
-COPY . .
+COPY --chown=koku:koku . .
 RUN python koku/manage.py collectstatic --noinput
 
 RUN \
-    adduser koku -u ${USER_ID} -g 0 && \
-    chown -R koku ${HOME}/koku && \
     chmod g+w /etc/passwd && \
-    chmod -R g+rwx ${HOME}/koku
+    chmod -R g+rwx ${HOME} && \
+    chmod -R g+rwx /tmp
 
 USER koku
 EXPOSE 8000
