@@ -53,6 +53,7 @@ from api.resource_types.azure_subscription_guid.view import AzureSubscriptionGui
 from api.resource_types.cost_models.view import CostModelResourceTypesView
 from api.resource_types.gcp_accounts.view import GCPAccountView
 from api.resource_types.gcp_projects.view import GCPProjectsView
+from api.resource_types.gcp_projects.view import OCPGCPNamespaceView
 from api.resource_types.gcp_regions.view import GCPRegionView
 from api.resource_types.gcp_services.view import GCPServiceView
 from api.resource_types.openshift_clusters.view import OCPClustersView
