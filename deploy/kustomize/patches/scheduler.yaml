@@ -123,6 +123,8 @@
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
       resources:
         limits:
           cpu: ${SCHEDULER_CPU_LIMIT}
