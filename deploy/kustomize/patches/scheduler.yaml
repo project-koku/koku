@@ -15,9 +15,7 @@
       command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
         - /bin/bash
         - -c
-        - >
-          PYTHONPATH=/opt/app-root/src/koku
-          celery -A koku beat -l $CELERY_LOG_LEVEL
+        - celery -A koku beat -l $CELERY_LOG_LEVEL
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
