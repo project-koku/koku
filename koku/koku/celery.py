@@ -237,7 +237,9 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 
     httpd = start_probe_server(WorkerProbeServer)
 
-    while not check_migrations():
+    # This is a special case because check_migrations() returns three values
+    # True means migrations are up-to-date
+    while check_migrations() != True:  # noqa
         LOG.warning("Migrations not done. Sleeping")
         time.sleep(5)
 
