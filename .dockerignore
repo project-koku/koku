@@ -6,7 +6,6 @@
 !Pipfile.lock
 !koku/
 !docs/source/specs/
-!.git/
 !db_functions/
 !scripts/entrypoint.sh
 !scripts/run_migrations.sh

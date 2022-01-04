@@ -7,6 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile.min
       args:
+        GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
     depends_on:
       - db
@@ -17,9 +18,8 @@ services:
     user: "1000000"
     container_name: koku_server
     image: koku_base
-    # working_dir: /koku_base
-    # entrypoint:
-    #   - /koku_base/run_server.sh
+    entrypoint:
+      - /koku/run_server.sh
     environment:
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
@@ -66,6 +66,7 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './run_server.sh:/koku/run_server.sh'
 
     depends_on:
       - koku-base
@@ -75,7 +76,7 @@ services:
     image: koku_base
     working_dir: /koku
     entrypoint:
-      - /koku/run_internal.sh
+      - /koku/run_server.sh
     environment:
       - MASU=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -119,7 +120,9 @@ services:
       - 5042:8000
       - 5001:9000
     volumes:
-      - '.:/koku/'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './run_server.sh:/koku/run_server.sh'
     depends_on:
       - koku-base
 
@@ -184,7 +187,8 @@ services:
     ports:
       - 6001-6020:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
@@ -207,8 +211,9 @@ services:
     container_name: koku_listener
     image: koku_base
     working_dir: /koku/
-    entrypoint: ['python', 'koku/manage.py', 'listener']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
     environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
@@ -260,8 +265,10 @@ services:
     image: koku_base
     restart: on-failure:25
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', /koku/run_sources.sh]
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'sources']
     environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - SOURCES=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
