@@ -2646,7 +2646,7 @@ parameters:
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
-  value: cost_model,download,ocp,priority,refresh,summary
+  value: cost_model,download,hcs,ocp,priority,refresh,summary
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
