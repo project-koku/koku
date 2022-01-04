@@ -556,6 +556,8 @@ objects:
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
