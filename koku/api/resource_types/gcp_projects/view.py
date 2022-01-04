@@ -69,7 +69,7 @@ class OCPGCPNamespaceView(generics.ListAPIView):
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for GCP project id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "openshift"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
