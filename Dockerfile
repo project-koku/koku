@@ -72,7 +72,7 @@ RUN adduser koku -u ${USER_ID} -g 0
 ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH"
 ENV PROMETHEUS_MULTIPROC_DIR=/tmp
 
-COPY --chown=koku . .
+COPY --chown=koku:root . .
 RUN python koku/manage.py collectstatic --noinput
 
 RUN \
