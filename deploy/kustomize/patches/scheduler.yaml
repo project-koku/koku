@@ -12,10 +12,12 @@
         enabled: false
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+      command:
         - /bin/bash
         - -c
-        - celery -A koku beat -l $CELERY_LOG_LEVEL
+        - >
+          PYTHONPATH=/koku/koku
+          celery -A koku beat -l $CELERY_LOG_LEVEL
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
