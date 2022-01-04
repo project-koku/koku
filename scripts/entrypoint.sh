@@ -2,8 +2,11 @@
 
 set -e
 
+echo $(id -u)
+
 # enable container user without requiring nss_wrapper
-if [ `id -u` -ge 10000 ]; then
+if [ $(id -u) -ge 10000 ]; then
+    echo "adding user $(id -u) to /etc/passwd"
     cat /etc/passwd | sed -e "s/^koku:/builder:/" > /tmp/passwd
     echo "koku:x:`id -u`:`id -g`:Koku User:${HOME}:/bin/bash" >> /tmp/passwd
     cat /tmp/passwd > /etc/passwd
