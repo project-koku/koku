@@ -53,7 +53,9 @@ class Command(BaseCommand):
         httpd = start_probe_server(SourcesProbeServer)
 
         timeout = 5
-        while not check_migrations():
+        # This is a special case because check_migrations() returns three values
+        # True means migrations are up-to-date
+        while check_migrations() != True:  # noqa
             LOG.warning(f"Migrations not done. Sleeping {timeout} seconds.")
             time.sleep(timeout)
 
