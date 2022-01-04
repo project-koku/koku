@@ -69,8 +69,11 @@ ENV PROMETHEUS_MULTIPROC_DIR=/tmp
 COPY . .
 RUN python koku/manage.py collectstatic --noinput
 
-RUN adduser koku -u ${USER_ID} -g 0
-RUN chown -R koku ${HOME}/koku && chmod g+w /etc/passwd
+RUN \
+    adduser koku -u ${USER_ID} -g 0 && \
+    chown -R koku ${HOME}/koku && \
+    chmod g+w /etc/passwd && \
+    chmod -R g+rwx ${HOME}/koku
 
 USER koku
 EXPOSE 8000
