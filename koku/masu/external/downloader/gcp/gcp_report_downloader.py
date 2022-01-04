@@ -163,7 +163,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.etag = self._generate_etag()
         except ValidationError as ex:
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
-            LOG.error(log_json(self.tracing_id, msg, self.context))
+            LOG.warning(log_json(self.tracing_id, msg, self.context))
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
 

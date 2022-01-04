@@ -8,7 +8,6 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
@@ -59,6 +58,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
             "usage_start__gte": self.dh.last_month_start,
             "usage_start__lte": self.dh.last_month_end,
         }
+        with tenant_context(self.tenant):
+            self.services = AzureCostEntryLineItemDailySummary.objects.values("service_name").distinct()
+            self.services = [entry.get("service_name") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
         """Return the total aggregates for a time period."""
@@ -1231,34 +1233,36 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    @skip("This test needs to be re-engineered")
     def test_azure_date_order_by_cost_desc(self):
-        """Test execute_query with order by date for correct order of services."""
+        """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service_name]=*"
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
         for element in data:
             if element.get("date") == str(yesterday):
-                for service in element.get("service_names"):
-                    correctlst.append(service.get("service_name"))
+                correctlst = [service.get("service_name") for service in element.get("service_names", [])]
+
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                AzureCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .values("service_name")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            # Check if there is any data in services
-            for service in element.get("service_names"):
-                lst.append(service.get("service_name"))
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
-        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
 

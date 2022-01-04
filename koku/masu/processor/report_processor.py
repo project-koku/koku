@@ -15,6 +15,7 @@ from requests.exceptions import InvalidURL
 
 from api.common import log_json
 from api.models import Provider
+from koku.database_exc import get_extended_exception_by_type
 from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.azure.azure_report_processor import AzureReportProcessor
@@ -182,8 +183,12 @@ class ReportProcessor:
                 except (ConnectTimeout, InvalidURL, ConnectionError):
                     pass
             return self._processor.process()
-        except (InterfaceError, DjangoInterfaceError, OperationalError) as err:
+        except (InterfaceError, DjangoInterfaceError) as err:
             raise ReportProcessorDBError(str(err))
+        except OperationalError as o_err:
+            db_exc = get_extended_exception_by_type(o_err)
+            LOG.error(log_json(self.tracing_id, str(db_exc), context=db_exc.as_dict()))
+            raise db_exc
         except Exception as err:
             raise ReportProcessorError(str(err))
 

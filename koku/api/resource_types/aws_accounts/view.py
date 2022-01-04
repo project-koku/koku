@@ -16,7 +16,7 @@ from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
-from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccount
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 
 
 class AWSAccountView(generics.ListAPIView):
@@ -57,7 +57,7 @@ class AWSAccountView(generics.ListAPIView):
                     openshift = self.request.query_params.get("openshift")
                     if openshift == "true":
                         self.queryset = (
-                            OCPAWSCostSummaryByAccount.objects.annotate(
+                            OCPAWSCostSummaryByAccountP.objects.annotate(
                                 **{
                                     "value": F("usage_account_id"),
                                     "alias": Coalesce(F("account_alias__account_alias"), "usage_account_id"),

@@ -79,6 +79,8 @@
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -123,6 +125,8 @@
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
       livenessProbe:
         httpGet:
           path: /livez

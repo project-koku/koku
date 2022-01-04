@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     "django_prometheus",
     # local apps
     "api",
+    "hcs",
     "masu",
     "reporting",
     "reporting_common",
@@ -180,6 +181,7 @@ TEMPLATES = [
 WSGI_APPLICATION = "koku.wsgi.application"
 
 WORKER_CACHE_KEY = "worker"
+WORKER_CACHE_TIMEOUT = ENVIRONMENT.get_value("WORKER_CACHE_TIMEOUT", default=3600)
 CACHE_MIDDLEWARE_SECONDS = ENVIRONMENT.get_value("CACHE_TIMEOUT", default=3600)
 
 HOSTNAME = ENVIRONMENT.get_value("HOSTNAME", default="localhost")

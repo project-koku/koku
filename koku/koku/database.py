@@ -7,8 +7,10 @@ import json
 import logging
 import os
 import pkgutil
+import random
 import re
 import threading
+import time
 import types
 
 import django
@@ -37,6 +39,7 @@ from .migration_sql_helpers import find_db_functions_dir
 
 
 LOG = logging.getLogger(__name__)
+MIGRATION_APP_NAME = "koku_db_migration"
 
 
 class FKViolation:
@@ -122,6 +125,14 @@ PARTITIONED_MODEL_NAMES = [
     "OCPPodSummaryByProjectP",
     "OCPVolumeSummaryP",
     "OCPVolumeSummaryByProjectP",
+    "OCPAWSComputeSummaryP",
+    "OCPAWSCostSummaryP",
+    "OCPAWSCostSummaryByAccountP",
+    "OCPAWSCostSummaryByServiceP",
+    "OCPAWSCostSummaryByRegionP",
+    "OCPAWSStorageSummaryP",
+    "OCPAWSNetworkSummaryP",
+    "OCPAWSDatabaseSummaryP",
     "OCPGCPCostLineItemDailySummaryP",
     "OCPGCPCostLineItemProjectDailySummaryP",
     "OCPGCPCostSummaryByAccountP",
@@ -141,18 +152,34 @@ PARTITIONED_MODEL_NAMES = [
     "AzureStorageSummaryP",
     "AzureNetworkSummaryP",
     "AzureDatabaseSummaryP",
+    "GCPCostSummaryP",
+    "GCPCostSummaryByAccountP",
+    "GCPCostSummaryByProjectP",
+    "GCPCostSummaryByRegionP",
+    "GCPCostSummaryByServiceP",
+    "GCPComputeSummaryP",
+    "GCPComputeSummaryByProjectP",
+    "GCPComputeSummaryByServiceP",
+    "GCPComputeSummaryByAccountP",
+    "GCPComputeSummaryByRegionP",
+    "GCPStorageSummaryP",
+    "GCPStorageSummaryByProjectP",
+    "GCPStorageSummaryByServiceP",
+    "GCPStorageSummaryByAccountP",
+    "GCPStorageSummaryByRegionP",
+    "GCPNetworkSummaryP",
+    "GCPDatabaseSummaryP",
+    "OCPAzureCostSummaryP",
+    "OCPAzureCostSummaryByAccountP",
+    "OCPAzureCostSummaryByLocationP",
+    "OCPAzureCostSummaryByServiceP",
+    "OCPAzureComputeSummaryP",
+    "OCPAzureStorageSummaryP",
+    "OCPAzureNetworkSummaryP",
+    "OCPAzureDatabaseSummaryP",
 ]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
-
-
-def _cert_config(db_config, database_cert):
-    """Add certificate configuration as needed."""
-    if database_cert:
-        cert_file = CONFIGURATOR.get_database_ca_file()
-        db_options = {"OPTIONS": {"sslmode": "verify-full", "sslrootcert": cert_file}}
-        db_config.update(db_options)
-    return db_config
 
 
 def config():
@@ -175,10 +202,16 @@ def config():
         "PASSWORD": CONFIGURATOR.get_database_password(),
         "HOST": CONFIGURATOR.get_database_host(),
         "PORT": CONFIGURATOR.get_database_port(),
+        "OPTIONS": {"application_name": ENVIRONMENT.get_value("APPLICATION_NAME", default="koku")},
     }
 
     database_cert = CONFIGURATOR.get_database_ca()
-    return _cert_config(db_config, database_cert)
+    if database_cert:
+        cert_file = CONFIGURATOR.get_database_ca_file()
+        db_config["OPTIONS"]["sslmode"] = "verify-full"
+        db_config["OPTIONS"]["sslrootcert"] = cert_file
+
+    return db_config
 
 
 def dbfunc_exists(connection, function_schema, function_name, function_signature):
@@ -232,6 +265,25 @@ def check_migrations_dbfunc(connection, targets):
     return ret
 
 
+def migrations_running(conn):
+    """Determine how many pids have the application_name MIGRATION_APP_NMAE. Don't count yourself!!"""
+    mig_pids = None
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+select array_agg(pid)
+  from pg_stat_activity
+ where pid != pg_backend_pid()
+   and application_name = %s ;
+""",
+            (MIGRATION_APP_NAME,),
+        )
+        mig_pids = cur.fetchone()[0]
+
+    return bool(mig_pids)
+
+
 def check_migrations():
     """
     Check the status of database migrations.
@@ -244,6 +296,13 @@ def check_migrations():
     try:
         connection = connections[DEFAULT_DB_ALIAS]
         connection.prepare_database()
+
+        random.seed(time.time())
+        time.sleep(random.random())
+        if migrations_running(connection):
+            LOG.info("Migrations are currently running.")
+            return "STOP"
+
         targets = MigrationLoader(None).graph.leaf_nodes()
         with transaction.atomic():
             verify_migrations_dbfunc(connection)
@@ -345,33 +404,33 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     )
 
     instance_pk_query = instance_pk_query.values_list("pk").order_by()
-    LOG.info(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
+    LOG.debug(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
         if related_model in skip_relations:
-            LOG.info(f"SKIPPING RELATION {related_model.__name__} by directive")
+            LOG.debug(f"SKIPPING RELATION {related_model.__name__} by directive")
             continue
 
         if model_relation.on_delete.__name__ == "SET_NULL":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             updatespec = {f"{model_relation.remote_field.column}": None}
-            LOG.info(
+            LOG.debug(
                 f"    Executing SET NULL constraint action on {related_model.__name__}"
                 f" relation of {from_model.__name__}"
             )
             with transaction.atomic():
                 set_constraints_immediate()
                 rec_count = execute_update_sql(related_model.objects.filter(**filterspec), **updatespec)
-                LOG.info(f"    Updated {rec_count} records in {related_model.__name__}")
+                LOG.debug(f"    Updated {rec_count} records in {related_model.__name__}")
         elif model_relation.on_delete.__name__ == "CASCADE":
             filterspec = {f"{model_relation.remote_field.column}__in": models.Subquery(instance_pk_query)}
             related_pk_values = related_model.objects.filter(**filterspec).values_list(related_model._meta.pk.name)
-            LOG.info(f"    Cascading delete to relations of {related_model.__name__}")
+            LOG.debug(f"    Cascading delete to relations of {related_model.__name__}")
             cascade_delete(
                 related_model, related_pk_values, base_model=base_model, level=level + 1, skip_relations=skip_relations
             )
 
-    LOG.info(f"Level {level}: delete records from {from_model.__name__}")
+    LOG.debug(f"Level {level}: delete records from {from_model.__name__}")
     if level == 0:
         del_query = instance_pk_query
     else:
@@ -381,7 +440,7 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     with transaction.atomic():
         set_constraints_immediate()
         rec_count = execute_delete_sql(del_query)
-        LOG.info(f"Deleted {rec_count} records from {from_model.__name__}")
+        LOG.debug(f"Deleted {rec_count} records from {from_model.__name__}")
 
 
 def _load_db_models():

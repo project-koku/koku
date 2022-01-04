@@ -14,6 +14,7 @@ from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -21,6 +22,10 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
+from reporting.models import OCP_ON_AWS_PERSPECTIVES
+from reporting.models import OCPAllCostLineItemDailySummaryP
+from reporting.models import OCPAllCostLineItemProjectDailySummaryP
+from reporting.models import OCPAWSCostLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -31,6 +36,8 @@ from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
+from reporting.provider.aws.openshift.models import UI_SUMMARY_TABLES as OCPAWS_UI_SUMMARY_TABLES
+
 
 LOG = logging.getLogger(__name__)
 
@@ -350,6 +357,42 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
+    def populate_ocp_on_aws_ui_summary_tables(self, sql_params, tables=OCPAWS_UI_SUMMARY_TABLES):
+        """Populate our UI summary tables (formerly materialized views)."""
+        for table_name in tables:
+            summary_sql = pkgutil.get_data("masu.database", f"sql/aws/openshift/{table_name}.sql")
+            summary_sql = summary_sql.decode("utf-8")
+            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
+            self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
+
+    def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
+        """Deletes partitions individually for each day in days list."""
+        table = self._table_map["ocp_on_aws_project_daily_summary"]
+        if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tAWS Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+                self.schema,
+                ocp_source,
+                aws_source,
+                table,
+                year,
+                month,
+                days,
+            )
+            final_sql_list = []
+            for day in days:
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                    WHERE aws_source = '{aws_source}'
+                    AND ocp_source = '{ocp_source}'
+                    AND year = '{year}'
+                    AND month = '{month}'
+                    AND day = '{day}';"""
+                final_sql_list.append(sql)
+            final_sql = "".join(final_sql_list)
+            self._execute_presto_multipart_sql_query(self.schema, final_sql)
+
     def populate_ocp_on_aws_cost_daily_summary_presto(
         self,
         start_date,
@@ -372,6 +415,15 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         """
         # Default to cpu distribution
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+        days_list = [str(day.day) for day in days]
+        self.delete_ocp_on_aws_hive_partition_by_day(
+            days_list, aws_provider_uuid, openshift_provider_uuid, year, month
+        )
+
         pod_column = "pod_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
@@ -383,8 +435,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql_params = {
             "schema": self.schema,
             "start_date": start_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
+            "days": days_str,
             "end_date": end_date,
             "aws_source_uuid": aws_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
@@ -431,29 +484,27 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 date_filters = {}
 
-            # Models that are linked via the billing id
-            MARKUP_MODELS_BILL_AWS = AWSCostEntryLineItemDailySummary
-            MARKUP_MODELS_BILL_OCP_AWS = get_model("OCPAWSCostLineItemDailySummary")
-            # Models that are linked via the provider_id (uuid)
-            MARKUP_MODELS_PROVIDER = (get_model("OCPALLCostLineItemDailySummaryP"), *OCP_ON_ALL_PERSPECTIVES)
-            # Linked by provider, model for project
-            MARKUP_PROJECT_MODEL_PROVIDER = get_model("OCPALLCostLineItemProjectDailySummaryP")
+            OCPALL_MARKUP = (OCPAllCostLineItemDailySummaryP, *OCP_ON_ALL_PERSPECTIVES)
             for bill_id in bill_ids:
-                MARKUP_MODELS_BILL_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                AWSCostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                     markup_cost=(F("unblended_cost") * markup),
                     markup_cost_blended=(F("blended_cost") * markup),
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                 )
 
-                MARKUP_MODELS_BILL_OCP_AWS.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                     markup_cost=(F("unblended_cost") * markup)
                 )
+                for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:
+                    ocpaws_model.objects.filter(source_uuid=provider_uuid, **date_filters).update(
+                        markup_cost=(F("unblended_cost") * markup)
+                    )
 
-                MARKUP_PROJECT_MODEL_PROVIDER.objects.filter(
+                OCPAllCostLineItemProjectDailySummaryP.objects.filter(
                     source_uuid=provider_uuid, source_type="AWS", **date_filters
                 ).update(project_markup_cost=(F("pod_cost") * markup))
 
-                for markup_model in MARKUP_MODELS_PROVIDER:
+                for markup_model in OCPALL_MARKUP:
                     markup_model.objects.filter(source_uuid=provider_uuid, source_type="AWS", **date_filters).update(
                         markup_cost=(F("unblended_cost") * markup)
                     )
