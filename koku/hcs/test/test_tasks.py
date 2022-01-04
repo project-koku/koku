@@ -32,6 +32,14 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}", _logs.output[0])
 
+    def test_get_report_no_start_date(self):
+        """Test raising download warning is handled."""
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            start_date = self.today
+            collect_hcs_report_data()
+
+            self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}", _logs.output[0])
+
     def test_get_report_no_end_date(self):
         """Test raising download warning is handled."""
         with self.assertLogs("hcs.tasks", "INFO") as _logs:

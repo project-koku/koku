@@ -18,7 +18,7 @@ class HCSDataTests(TestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_hcs_report_data_schema_missing(self, _):
-        """Test GET report_data endpoint returns a 400 for missing schema."""
+        """Test GET hcs_report_data endpoint returns a 400 for missing schema."""
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {"start_date": start_date, "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
         expected_key = "Error"
