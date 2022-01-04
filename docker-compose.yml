@@ -5,7 +5,7 @@ services:
     image: koku_base
     build:
       context: .
-      dockerfile: Dockerfile.min
+      # dockerfile: Dockerfile.min
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
@@ -59,7 +59,6 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - CURRENCY_URL=${CURRENCY_URL}
-    # privileged: true
     ports:
       - 8000:8000
       - 8001:9000
@@ -115,7 +114,6 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
-    privileged: true
     ports:
       - 5042:8000
       - 5001:9000
@@ -183,7 +181,6 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 6001-6020:9000
     volumes:
@@ -252,11 +249,11 @@ services:
       - ENABLE_TRINO_SOURCE_TYPE
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 7001-7020:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
     depends_on:
       - koku-base
 
@@ -302,12 +299,12 @@ services:
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 4000:8000
       - 4001:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
     depends_on:
       - koku-base
 
@@ -341,9 +338,9 @@ services:
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
     depends_on:
         - koku-base
 
@@ -456,15 +453,15 @@ services:
     depends_on:
       - db
 
-  koku-rabbit:
-    container_name: koku_rabbit
-    hostname: rabbit
-    image: rabbitmq:latest
-    environment:
-        - RABBITMQ_DEFAULT_USER=guest
-        - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "${RABBITMQ_PORT-5674}:5672"
+  # koku-rabbit:
+  #   container_name: koku_rabbit
+  #   hostname: rabbit
+  #   image: rabbitmq:latest
+  #   environment:
+  #       - RABBITMQ_DEFAULT_USER=guest
+  #       - RABBITMQ_DEFAULT_PASS=guest
+  #   ports:
+  #     - "${RABBITMQ_PORT-5674}:5672"
 
   unleash:
     container_name: koku-unleash
