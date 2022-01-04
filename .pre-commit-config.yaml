@@ -2,7 +2,7 @@ default_language_version:
   python: python3
 repos:
 - repo: https://github.com/asottile/reorder_python_imports
-  rev: v2.6.0
+  rev: v1.6.0
   hooks:
   - id: reorder-python-imports
     args: [--py3-plus, --application-directories, "koku"]
