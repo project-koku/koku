@@ -54,3 +54,7 @@ patches:
   target:
     version: v1
     kind: Template
+- path: patches/worker-hcs.yaml
+  target:
+    version: v1
+    kind: Template

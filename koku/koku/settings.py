@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "django_prometheus",
     # local apps
     "api",
+    "hcs",
     "masu",
     "reporting",
     "reporting_common",
