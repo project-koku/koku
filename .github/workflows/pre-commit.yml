@@ -15,4 +15,4 @@ jobs:
         python-version: '3.8'
     - uses: pre-commit/action@v2.0.3
       env:
-        - SETUPTOOLS_USE_DISTUTILS: stdlib
+        SETUPTOOLS_USE_DISTUTILS: stdlib
