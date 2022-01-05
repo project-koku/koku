@@ -10,6 +10,7 @@ import re
 import uuid
 
 import ciso8601
+import numpy as np
 import pandas as pd
 from tenant_schemas.utils import schema_context
 
@@ -147,6 +148,9 @@ def azure_post_processor(data_frame):
     columns = set(list(data_frame))
     columns = set(PRESTO_COLUMNS).union(columns)
     columns = sorted(columns)
+
+    data_frame["billingperiodstartdate"] = data_frame["billingperiodstartdate"].replace(r"^\s*$", np.nan, regex=True)
+    data_frame["billingperiodenddate"] = data_frame["billingperiodenddate"].replace(r"^\s*$", np.nan, regex=True)
 
     data_frame = data_frame.reindex(columns=columns)
 
