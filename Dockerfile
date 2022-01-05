@@ -70,14 +70,14 @@ ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
     PROMETHEUS_MULTIPROC_DIR=/tmp
 
 COPY . .
-RUN python koku/manage.py collectstatic --noinput
-
 # create the koku user
 RUN \
     adduser koku -u ${USER_ID} -g 0 && \
-    chmod g+rw /etc/passwd ${HOME} ${HOME}/koku /tmp
+    chmod ug+rw ${HOME} ${HOME}/koku ${HOME}/koku/static /tmp
 
 USER koku
+RUN python koku/manage.py collectstatic --noinput
+
 EXPOSE 8000
 
 # Set the default CMD to print the usage of the language image.
