@@ -17,10 +17,8 @@ ENV PYTHON_VERSION=3.8 \
     PIP_NO_CACHE_DIR=1 \
     PIPENV_VENV_IN_PROJECT=1 \
     PIPENV_VERBOSITY=-1 \
-    APP_ROOT=/koku \
-    APP_HOME=/koku/koku \
-    HOME=/koku \
-    VIRTUAL_ENV_DIR=/koku/.venv \
+    APP_ROOT=/opt/koku \
+    APP_HOME=/opt/koku/koku \
     GIT_COMMIT=${GIT_COMMIT} \
     PLATFORM="el8"
 
@@ -48,8 +46,6 @@ RUN INSTALL_PKGS="python38 python38-devel glibc-langpack-en gcc shadow-utils" &&
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
-WORKDIR ${HOME}
-
 # Create a Python virtual environment for use by any application to avoid
 # potential conflicts with Python packages preinstalled in the main Python
 # installation.
@@ -60,20 +56,23 @@ RUN \
     pip install --upgrade pip && \
     pip install pipenv
 
+WORKDIR ${APP_ROOT}
+
 # install dependencies
 COPY Pipfile .
 COPY Pipfile.lock .
 RUN \
-    # install the dependencies into the working dir (i.e. /koku/.venv)
+    # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
     pipenv install --deploy && \
     # delete the pipenv cache
     pipenv --clear
 
 # Runtime env variables:
+ENV VIRTUAL_ENV=${APP_ROOT}/.venv
 ENV \
     # Add the koku virtual env bin to the front of PATH.
     # This activates the virtual env for all subsequent python calls.
-    PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
+    PATH="$VIRTUAL_ENV/bin:$PATH" \
     PROMETHEUS_MULTIPROC_DIR=/tmp
 
 # copy the src files into the workdir
@@ -82,7 +81,7 @@ COPY . .
 # create the koku user
 RUN \
     adduser koku -u ${USER_ID} -g 0 && \
-    chmod ug+rw ${HOME} ${HOME}/koku ${HOME}/koku/static /tmp
+    chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
 USER koku
 
 # create the static files
@@ -91,7 +90,7 @@ RUN \
     # This `app.log` file is created during the `collectstatic` step. We need to
     # remove it else the random OCP user will not be able to access it. This file
     # will be recreated by the Pod when the application starts.
-    rm ${HOME}/koku/app.log
+    rm ${APP_HOME}/app.log
 
 EXPOSE 8000
 

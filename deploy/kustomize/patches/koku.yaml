@@ -13,7 +13,7 @@
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
-        - command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+        - command:
             - /bin/bash
             - -c
             - $HOME/scripts/run_migrations.sh

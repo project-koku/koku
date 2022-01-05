@@ -16,6 +16,7 @@ services:
   koku-server:
     container_name: koku_server
     image: koku_base
+    working_dir: /koku
     entrypoint:
       - /koku/run_server.sh
     environment:
@@ -63,6 +64,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
     depends_on:
       - koku-base
@@ -117,6 +120,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
     depends_on:
       - koku-base
@@ -183,6 +188,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
@@ -251,6 +258,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
       - koku-base
 
@@ -302,6 +311,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
       - koku-base
 
@@ -338,6 +349,8 @@ services:
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
         - koku-base
 

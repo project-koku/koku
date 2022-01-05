@@ -450,7 +450,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku beat -l $CELERY_LOG_LEVEL
+          PYTHONPATH=${APP_HOME} celery -A koku beat -l $CELERY_LOG_LEVEL
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -861,7 +861,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1030,7 +1030,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1201,7 +1201,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1370,7 +1370,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1541,7 +1541,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1710,7 +1710,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1881,7 +1881,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -2052,7 +2052,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/koku/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
