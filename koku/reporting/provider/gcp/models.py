@@ -1710,7 +1710,7 @@ class GCPStorageSummaryByRegionP(models.Model):
 
 
 class GCPNetworkSummaryP(models.Model):
-    """A MATERIALIZED VIEW specifically for UI API queries.
+    """A summarized partitioned tablespecifically for UI API queries.
 
     This table gives a daily breakdown of network usage.
 
@@ -1761,7 +1761,7 @@ class GCPNetworkSummaryP(models.Model):
 
 
 class GCPDatabaseSummaryP(models.Model):
-    """A MATERIALIZED VIEW specifically for UI API queries.
+    """A summarized partitioned table specifically for UI API queries.
 
     This table gives a daily breakdown of database usage.
 
