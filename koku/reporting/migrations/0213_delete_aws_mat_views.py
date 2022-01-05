@@ -14,32 +14,50 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0212_auto_20211203_1640")]
 
     operations = [
-        migrations.RunSQL(sql=drop_matview_sql("AWSComputeSummary"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_compute_summary"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSComputeSummaryByAccount"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_compute_summary_by_account"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSComputeSummaryByRegion"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_compute_summary_by_region"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSComputeSummaryByService"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_compute_summary_by_service"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSCostSummary"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_cost_summary"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSCostSummaryByAccount"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_cost_summary_by_account"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSCostSummaryByRegion"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_cost_summary_by_region"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSCostSummaryByService"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_cost_summary_by_service"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSDatabaseSummary"), reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=drop_matview_sql("reporting_aws_compute_summary"), reverse_sql=migrations.RunSQL.noop),
+        migrations.DeleteModel(name="AWSComputeSummary"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_compute_summary_by_account"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSComputeSummaryByAccount"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_compute_summary_by_region"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSComputeSummaryByRegion"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_compute_summary_by_service"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSComputeSummaryByService"),
+        migrations.RunSQL(sql=drop_matview_sql("reporting_aws_cost_summary"), reverse_sql=migrations.RunSQL.noop),
+        migrations.DeleteModel(name="AWSCostSummary"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_cost_summary_by_account"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSCostSummaryByAccount"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_cost_summary_by_region"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSCostSummaryByRegion"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_cost_summary_by_service"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSCostSummaryByService"),
+        migrations.RunSQL(sql=drop_matview_sql("reporting_aws_database_summary"), reverse_sql=migrations.RunSQL.noop),
         migrations.DeleteModel(name="AWSDatabaseSummary"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSNetworkSummary"), reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=drop_matview_sql("reporting_aws_network_summary"), reverse_sql=migrations.RunSQL.noop),
         migrations.DeleteModel(name="AWSNetworkSummary"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSStorageSummary"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_storage_summary"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSStorageSummaryByAccount"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_storage_summary_by_account"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSStorageSummaryByRegion"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_storage_summary_by_region"),
-        migrations.RunSQL(sql=drop_matview_sql("AWSStorageSummaryByService"), reverse_sql=migrations.RunSQL.noop),
-        migrations.DeleteModel(name="reporting_aws_storage_summary_by_service"),
+        migrations.RunSQL(sql=drop_matview_sql("reporting_aws_storage_summary"), reverse_sql=migrations.RunSQL.noop),
+        migrations.DeleteModel(name="AWSStorageSummary"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_storage_summary_by_account"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSStorageSummaryByAccount"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_storage_summary_by_region"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSStorageSummaryByRegion"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_aws_storage_summary_by_service"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="AWSStorageSummaryByService"),
     ]
