@@ -52,7 +52,9 @@ class Command(BaseCommand):
         # Koku API server is responsible for running all database migrations. The sources client
         # server and kafka listener thread should only be started if migration execution is
         # complete.
-        while not check_migrations():
+        # This is a special case because check_migrations() returns three values
+        # True means migrations are up-to-date
+        while check_migrations() != True:  # noqa
             LOG.warning(f"Migrations not done. Sleeping {timeout} seconds.")
             time.sleep(timeout)
 
