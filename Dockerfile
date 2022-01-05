@@ -86,12 +86,12 @@ RUN \
 USER koku
 
 # create the static files
-RUN python koku/manage.py collectstatic --noinput
-
-# This `app.log` file is created during the `collectstatic` step. We need to
-# remove it else the random OCP user will not be able to access it. This file
-# will be recreated by the Pod when the application starts.
-RUN rm ${HOME}/koku/app.log
+RUN \
+    python koku/manage.py collectstatic --noinput && \
+    # This `app.log` file is created during the `collectstatic` step. We need to
+    # remove it else the random OCP user will not be able to access it. This file
+    # will be recreated by the Pod when the application starts.
+    rm ${HOME}/koku/app.log
 
 EXPOSE 8000
 
