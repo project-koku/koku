@@ -29,14 +29,11 @@ jobs:
             .github/scripts/check_migrations.sh
             .github/workflows/unittests.yml
 
-      - name: check-files
+      - id: check-files
         run: |
           if [ ! -z ${{ steps.changed-files.outputs.all_changed_and_modified_files }} ]; then
             echo "::set-output name=run-tests::true"
           fi
-
-      - name: Display build environment
-        run: printenv
 
   unit-tests:
     needs: setup
@@ -50,6 +47,14 @@ jobs:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Display build environment
+        run: printenv
+
       - name: Start the postgres DB
         run: docker-compose up -d db
 
