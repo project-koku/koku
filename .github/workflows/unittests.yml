@@ -27,8 +27,6 @@ jobs:
         id: changed-files
         uses: tj-actions/changed-files@v13
         with:
-          since_last_remote_commit: "true"
-
           files: |
             db_functions
             koku
