@@ -65,15 +65,17 @@ RUN \
     # delete the pipenv cache
     pipenv --clear
 
-# create the koku user
-RUN adduser koku -u ${USER_ID} -g 0 && chmod g+rw /etc/passwd ${HOME} /tmp
-
 # Runtime env variables:
 ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
     PROMETHEUS_MULTIPROC_DIR=/tmp
 
 COPY . .
 RUN python koku/manage.py collectstatic --noinput
+
+# create the koku user
+RUN \
+    adduser koku -u ${USER_ID} -g 0 && \
+    chmod g+rw /etc/passwd ${HOME} ${HOME}/koku /tmp
 
 USER koku
 EXPOSE 8000
