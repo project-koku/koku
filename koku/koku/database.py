@@ -88,7 +88,6 @@ engines = {
     "mysql": "django.db.backends.mysql",
 }
 
-# TODO: Remove partition model here?
 PARTITIONED_MODEL_NAMES = [
     "AWSCostEntryLineItemDailySummary",
     "AzureCostEntryLineItemDailySummary",
