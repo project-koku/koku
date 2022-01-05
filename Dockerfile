@@ -1,6 +1,9 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+# GIT_COMMIT is added during build in `build_deploy.sh`
 ARG GIT_COMMIT=undefined
+# PIPENV_DEV is set to true in the docker-compose allowing
+# local builds to install the dev dependencies
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
@@ -47,18 +50,19 @@ RUN INSTALL_PKGS="python38 python38-devel glibc-langpack-en gcc shadow-utils" &&
 
 WORKDIR ${HOME}
 
-# - Create a Python virtual environment for use by any application to avoid
-#   potential conflicts with Python packages preinstalled in the main Python
-#   installation.
+# Create a Python virtual environment for use by any application to avoid
+# potential conflicts with Python packages preinstalled in the main Python
+# installation.
 RUN python3.8 -m venv /pipenv-venv
 ENV PATH="/pipenv-venv/bin:$PATH"
-
+# Install pipenv into the virtual env
 RUN \
     pip install --upgrade pip && \
     pip install pipenv
 
-COPY Pipfile Pipfile
-COPY Pipfile.lock Pipfile.lock
+# install dependencies
+COPY Pipfile .
+COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. /koku/.venv)
     pipenv install --deploy && \
@@ -66,24 +70,30 @@ RUN \
     pipenv --clear
 
 # Runtime env variables:
-ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
+ENV \
+    # Add the koku virtual env bin to the front of PATH.
+    # This activates the virtual env for all subsequent python calls.
+    PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
     PROMETHEUS_MULTIPROC_DIR=/tmp
 
+# copy the src files into the workdir
 COPY . .
+
 # create the koku user
 RUN \
     adduser koku -u ${USER_ID} -g 0 && \
     chmod ug+rw ${HOME} ${HOME}/koku ${HOME}/koku/static /tmp
-
 USER koku
+
+# create the static files
 RUN python koku/manage.py collectstatic --noinput
 
-# This file is created during the `collectstatic` step. We need to remove it
-# else the random OCP user will not be able to access it. This file will be
-# recreated by the Pod when the application starts.
+# This `app.log` file is created during the `collectstatic` step. We need to
+# remove it else the random OCP user will not be able to access it. This file
+# will be recreated by the Pod when the application starts.
 RUN rm ${HOME}/koku/app.log
 
 EXPOSE 8000
 
-# Set the default CMD to print the usage of the language image.
+# Set the default CMD.
 CMD ["./scripts/entrypoint.sh"]

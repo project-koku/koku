@@ -2,18 +2,6 @@
 
 set -e
 
-echo $(id -u)
-
-# enable container user without requiring nss_wrapper
-# modifying /etc/passwd should not be required on OCP 4
-# if [ $(id -u) -ge 10000 ]; then
-#     echo "adding user $(id -u) to /etc/passwd"
-#     cat /etc/passwd | sed -e "s/^koku:/builder:/" > /tmp/passwd
-#     echo "koku:x:$(id -u):$(id -g):KokuUser:${HOME}:/bin/bash" >> /tmp/passwd
-#     cat /tmp/passwd > /etc/passwd
-#     rm /tmp/passwd
-# fi
-
 if [[ -z "${ACG_CONFIG}" ]]; then
     CLOWDER_PORT=8000
 else
