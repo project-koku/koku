@@ -60,25 +60,20 @@ RUN \
 COPY Pipfile Pipfile
 COPY Pipfile.lock Pipfile.lock
 RUN \
-    # install the dependencies into the working dir
+    # install the dependencies into the working dir (i.e. /koku/.venv)
     pipenv install --deploy && \
     # delete the pipenv cache
     pipenv --clear
 
 # create the koku user
-RUN adduser koku -u ${USER_ID} -g 0
+RUN adduser koku -u ${USER_ID} -g 0 && chmod g+rw /etc/passwd ${HOME} /tmp
 
 # Runtime env variables:
-ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH"
-ENV PROMETHEUS_MULTIPROC_DIR=/tmp
+ENV PATH="$VIRTUAL_ENV_DIR/bin:$PATH" \
+    PROMETHEUS_MULTIPROC_DIR=/tmp
 
-COPY --chown=koku:root . .
+COPY . .
 RUN python koku/manage.py collectstatic --noinput
-
-RUN \
-    chmod g+w /etc/passwd && \
-    chmod -R g+rwx ${HOME} && \
-    chmod -R g+rwx /tmp
 
 USER koku
 EXPOSE 8000
