@@ -88,7 +88,7 @@ engines = {
     "mysql": "django.db.backends.mysql",
 }
 
-
+# TODO: Remove partition model here?
 PARTITIONED_MODEL_NAMES = [
     "AWSCostEntryLineItemDailySummary",
     "AzureCostEntryLineItemDailySummary",
@@ -109,13 +109,9 @@ PARTITIONED_MODEL_NAMES = [
     "AWSCostSummaryByAccountP",
     "AWSCostSummaryByRegionP",
     "AWSComputeSummaryP",
-    "AWSComputeSummaryByServiceP",
     "AWSComputeSummaryByAccountP",
-    "AWSComputeSummaryByRegionP",
     "AWSStorageSummaryP",
-    "AWSStorageSummaryByServiceP",
     "AWSStorageSummaryByAccountP",
-    "AWSStorageSummaryByRegionP",
     "AWSNetworkSummaryP",
     "AWSDatabaseSummaryP",
     "OCPCostSummaryP",
