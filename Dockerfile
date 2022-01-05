@@ -78,6 +78,11 @@ RUN \
 USER koku
 RUN python koku/manage.py collectstatic --noinput
 
+# This file is created during the `collectstatic` step. We need to remove it
+# else the random OCP user will not be able to access it. This file will be
+# recreated by the Pod when the application starts.
+RUN rm ${HOME}/koku/app.log
+
 EXPOSE 8000
 
 # Set the default CMD to print the usage of the language image.
