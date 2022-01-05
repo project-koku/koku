@@ -5,7 +5,6 @@ services:
     image: koku_base
     build:
       context: .
-      # dockerfile: Dockerfile.min
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
@@ -15,7 +14,6 @@ services:
       - unleash
 
   koku-server:
-    user: "1000000"
     container_name: koku_server
     image: koku_base
     entrypoint:
@@ -66,7 +64,6 @@ services:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'
       - './run_server.sh:/koku/run_server.sh'
-
     depends_on:
       - koku-base
 
