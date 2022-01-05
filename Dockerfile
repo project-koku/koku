@@ -1,22 +1,28 @@
-FROM registry.access.redhat.com/ubi8/python-38:latest
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
+# GIT_COMMIT is added during build in `build_deploy.sh`
+ARG GIT_COMMIT=undefined
+# PIPENV_DEV is set to true in the docker-compose allowing
+# local builds to install the dev dependencies
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
-# needed for successful collectstatic
-ARG PROMETHEUS_MULTIPROC_DIR=/tmp
+USER root
 
-ENV LC_ALL=en_US.UTF-8 \
+ENV PYTHON_VERSION=3.8 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    LC_ALL=en_US.UTF-8 \
     LANG=en_US.UTF-8 \
-    PIP_NO_CACHE_DIR=off \
-    ENABLE_PIPENV=true \
-    PIN_PIPENV_VERSION="2018.11.26" \
-    APP_HOME="/opt/app-root/src/koku" \
-    APP_MODULE="koku.wsgi" \
-    APP_CONFIG="gunicorn_conf.py" \
-    DISABLE_MIGRATE=true \
-    DJANGO_READ_DOT_ENV_FILE=false \
-    SUMMARY="Koku is the Cost Management application" \
+    PIP_NO_CACHE_DIR=1 \
+    PIPENV_VENV_IN_PROJECT=1 \
+    PIPENV_VERBOSITY=-1 \
+    APP_ROOT=/opt/koku \
+    APP_HOME=/opt/koku/koku \
+    GIT_COMMIT=${GIT_COMMIT} \
+    PLATFORM="el8"
+
+ENV SUMMARY="Koku is the Cost Management application" \
     DESCRIPTION="Koku is the Cost Management application"
 
 LABEL summary="$SUMMARY" \
@@ -28,33 +34,65 @@ LABEL summary="$SUMMARY" \
     com.redhat.component="python38-docker" \
     name="Koku" \
     version="1" \
-    maintainer="Red Hat Cost Management Services"
+    maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
 
-USER root
+# Very minimal set of packages
+# glibc-langpack-en is needed to set locale to en_US and disable warning about it
+# gcc to compile some python packages (e.g. ciso8601)
+# shadow-utils to make useradd available
+RUN INSTALL_PKGS="python38 python38-devel glibc-langpack-en gcc shadow-utils" && \
+    microdnf --nodocs -y upgrade && \
+    microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
+    microdnf -y clean all --enablerepo='*'
 
-# Get latest packages
-# RUN dnf -y upgrade
-
-COPY ./.s2i/bin/ $STI_SCRIPTS_PATH
-
-# Copy application files to the image.
-COPY . /tmp/src/.
-
-
+# Create a Python virtual environment for use by any application to avoid
+# potential conflicts with Python packages preinstalled in the main Python
+# installation.
+RUN python3.8 -m venv /pipenv-venv
+ENV PATH="/pipenv-venv/bin:$PATH"
+# Install pipenv into the virtual env
 RUN \
-    /usr/bin/fix-permissions /tmp/src && \
-    chmod 755 $STI_SCRIPTS_PATH/assemble $STI_SCRIPTS_PATH/run && \
-    groupadd -g ${USER_ID} koku && \
-    useradd -m -s /bin/bash -g ${USER_ID} -u ${USER_ID} -G root koku && \
-    chmod g+rwx /opt
+    pip install --upgrade pip && \
+    pip install pipenv
 
+WORKDIR ${APP_ROOT}
+
+# install dependencies
+COPY Pipfile .
+COPY Pipfile.lock .
+RUN \
+    # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
+    pipenv install --deploy && \
+    # delete the pipenv cache
+    pipenv --clear
+
+# Runtime env variables:
+ENV VIRTUAL_ENV=${APP_ROOT}/.venv
+ENV \
+    # Add the koku virtual env bin to the front of PATH.
+    # This activates the virtual env for all subsequent python calls.
+    PATH="$VIRTUAL_ENV/bin:$PATH" \
+    PROMETHEUS_MULTIPROC_DIR=/tmp
+
+# copy the src files into the workdir
+COPY . .
+
+# create the koku user
+RUN \
+    adduser koku -u ${USER_ID} -g 0 && \
+    chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
 USER koku
 
-RUN umask u=rwx,g=rwx,o=rx
+# create the static files
+RUN \
+    python koku/manage.py collectstatic --noinput && \
+    # This `app.log` file is created during the `collectstatic` step. We need to
+    # remove it else the random OCP user will not be able to access it. This file
+    # will be recreated by the Pod when the application starts.
+    rm ${APP_HOME}/app.log
 
-EXPOSE 8080
+EXPOSE 8000
 
-RUN $STI_SCRIPTS_PATH/assemble
-
-# Set the default CMD
-CMD $STI_SCRIPTS_PATH/run
+# Set the default CMD.
+CMD ["./scripts/entrypoint.sh"]
