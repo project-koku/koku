@@ -39,54 +39,57 @@ def hcs_report_data(request):
     provider_uuid = params.get("provider_uuid")
     provider_type = params.get("provider_type")
     schema = params.get("schema")
+    async_results = []
 
-    report_data_msg_key = "Report Data Task ID"
+    report_data_msg_key = "HCS Report Data Task ID"
     error_msg_key = "Error"
 
-    if start_date is None:
-        return Response({error_msg_key: "start_date is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == "GET":
+        if provider_uuid is None and provider_type is None:
+            errmsg = "provider_uuid or provider_type must be supplied as a parameter"
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    if schema is None:
-        return Response({error_msg_key: "schema is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
+        if provider_uuid:
+            with ProviderDBAccessor(provider_uuid) as provider_accessor:
+                print(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
+                provider = provider_accessor.get_type()
+        else:
+            provider = provider_type
 
-    if provider_uuid is None and provider_type is None:
-        return Response(
-            {error_msg_key: "provider_uuid or provider_type must be supplied as a parameter"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        if start_date is None:
+            return Response({error_msg_key: "start_date is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
 
-    if provider_uuid:
-        with ProviderDBAccessor(provider_uuid) as provider_accessor:
-            provider = provider_accessor.get_type()
-    else:
-        provider = provider_type
-
-    if provider_type and provider_type != provider:
-        return Response(
-            {error_msg_key: "provider_uuid and provider_type have mismatched provider types"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    try:
         start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
         end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
-    except ValueError as err:
-        return Response({error_msg_key: f"Invalid date format: {err}"}, status=status.HTTP_400_BAD_REQUEST)
+        months = DateHelper().list_month_tuples(start_date, end_date)
+        num_months = len(months)
+        first_month = months[0]
+        months[0] = (start_date, first_month[1])
 
-    months = DateHelper().list_month_tuples(start_date, end_date)
-    num_months = len(months)
-    first_month = months[0]
-    months[0] = (start_date, first_month[1])
-    last_month = months[num_months - 1]
-    months[num_months - 1] = (last_month[0], end_date)
+        last_month = months[num_months - 1]
+        months[num_months - 1] = (last_month[0], end_date)
 
-    # need to format all the date times into strings with the format "%Y-%m-%d" for the celery task
-    for i, month in enumerate(months):
-        start, end = month
-        start_date = start.date().strftime("%Y-%m-%d")
-        end_date = end.date().strftime("%Y-%m-%d")
-        months[i] = (start_date, end_date)
+        # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+        for i, month in enumerate(months):
+            start, end = month
+            start_date = start.date().strftime("%Y-%m-%d")
+            end_date = end.date().strftime("%Y-%m-%d")
+            months[i] = (start_date, end_date)
 
-    async_result = collect_hcs_report_data.s(start_date, end_date).apply_async(queue=HCS_QUEUE)
+        if schema is None:
+            return Response({error_msg_key: "schema is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({report_data_msg_key: str(async_result)})
+        if provider is None:
+            return Response({error_msg_key: "unable to determine provider type"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if provider_type and provider_type != provider:
+            return Response(
+                {error_msg_key: "provider_uuid and provider_type have mismatched provider types"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for month in months:
+            async_result = collect_hcs_report_data.s(start_date, end_date).apply_async(queue=HCS_QUEUE)
+            async_results.append({str(month): str(async_result)})
+
+        return Response({report_data_msg_key: async_results})

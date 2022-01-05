@@ -3,18 +3,44 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the hcs_report_data endpoint view."""
+from unittest.mock import call
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.models import Provider
 from api.utils import DateHelper
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
 class HCSDataTests(TestCase):
     """Test Cases for the hcs_report_data endpoint."""
+
+    ENDPOINT = "hcs_report_data"
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.hcs_report_data.ProviderDBAccessor")
+    @patch("masu.api.hcs_report_data.collect_hcs_report_data")
+    def test_get_report_data(self, mock_celery, mock_accessor, _):
+        """Test the GET report_data endpoint."""
+        provider_type = Provider.PROVIDER_AWS
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
+        params = {
+            "schema": "acct10001",
+            "start_date": start_date,
+            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+        }
+        expected_key = "HCS Report Data Task ID"
+
+        response = self.client.get(reverse(self.ENDPOINT), params)
+        body = response.json()
+        expected_calls = [call(params["start_date"], params["start_date"])]
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_celery.s.assert_has_calls(expected_calls, any_order=True)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_hcs_report_data_schema_missing(self, _):
@@ -24,7 +50,7 @@ class HCSDataTests(TestCase):
         expected_key = "Error"
         expected_message = "schema is a required parameter"
 
-        response = self.client.get(reverse("hcs_report_data"), params)
+        response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
@@ -40,7 +66,7 @@ class HCSDataTests(TestCase):
         expected_key = "Error"
         expected_message = "provider_uuid or provider_type must be supplied as a parameter"
 
-        response = self.client.get(reverse("hcs_report_data"), params)
+        response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
@@ -54,7 +80,7 @@ class HCSDataTests(TestCase):
         expected_key = "Error"
         expected_message = "start_date is a required parameter"
 
-        response = self.client.get(reverse("hcs_report_data"), params)
+        response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
 
         self.assertEqual(response.status_code, 400)
