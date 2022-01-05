@@ -490,7 +490,7 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summar
 WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND year = {{year}}
-    AND month = replace({{month}}, '0')
+    AND month = replace(ltrim(replace({{month}}, '0', ' ')),' ', '0')
     AND day IN ({{days}})
 ;
 
