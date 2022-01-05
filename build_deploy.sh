@@ -6,7 +6,7 @@ set -exv
 DOCKERFILE=${DOCKERFILE:="Dockerfile"}
 IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
-GIT_COMMIT=$(git rev-parse HEAD)
+GIT_COMMIT=$(git rev-parse --short HEAD)
 
 if [[ -z "$QUAY_USER" || -z "$QUAY_TOKEN" ]]; then
     echo "QUAY_USER and QUAY_TOKEN must be set"
