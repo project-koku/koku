@@ -2225,7 +2225,7 @@ objects:
         args:
         - /bin/bash
         - -c
-        - $HOME/scripts/run_migrations.sh
+        - $APP_ROOT/scripts/run_migrations.sh
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
