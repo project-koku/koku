@@ -12,11 +12,11 @@
         enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+      command:
         - /bin/bash
         - -c
-        - >
-          PYTHONPATH=/opt/app-root/src/koku
+        - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
+          PYTHONPATH=${APP_HOME}
           celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED

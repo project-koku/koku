@@ -10,6 +10,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from django.test import override_settings
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -41,13 +42,10 @@ class StatusModelTest(TestCase):
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
 
-    @patch("subprocess.run")
-    def test_commit_with_subprocess(self, mock_subprocess):
-        """Test the commit method via subprocess."""
+    @override_settings(GIT_COMMIT="buildnum")
+    def test_commit(self):
+        """Test the commit method via django settings."""
         expected = "buildnum"
-        run = Mock()
-        run.stdout = b"buildnum"
-        mock_subprocess.return_value = run
         result = self.status_info.commit
         self.assertEqual(result, expected)
 
