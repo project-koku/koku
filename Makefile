@@ -314,7 +314,7 @@ endif
 ###############################
 
 docker-down:
-	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	$(PREFIX) make clear-testing
 
 docker-down-db:
@@ -445,7 +445,7 @@ docker-trino-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
 
 docker-trino-down:
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down
