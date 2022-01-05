@@ -16,7 +16,7 @@
         - command:
             - /bin/bash
             - -c
-            - $HOME/scripts/run_migrations.sh
+            - $APP_ROOT/scripts/run_migrations.sh
           image: ${IMAGE}:${IMAGE_TAG}
           inheritEnv: true
       env:
