@@ -46,7 +46,9 @@ class Command(BaseCommand):
         """Initialize the prometheus exporter and koku-listener."""
         httpd = start_probe_server(ListenerProbeServer)
 
-        while not check_migrations():
+        # This is a special case because check_migrations() returns three values
+        # True means migrations are up-to-date
+        while check_migrations() != True:  # noqa
             LOG.warning("Migrations not done. Sleeping")
             time.sleep(5)
 
