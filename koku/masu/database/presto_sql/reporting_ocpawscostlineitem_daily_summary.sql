@@ -86,16 +86,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp
 ;
 
-DELETE
-FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary
-WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
-    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
-    AND year = {{year}}
-    AND month = {{month}}
-    AND day IN ({{days}})
-
-;
-
 -- Direct resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp (
     aws_uuid,
