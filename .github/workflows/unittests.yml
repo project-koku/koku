@@ -64,7 +64,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pipenv
-        run: sudo python3 -m pip install pipenv==2018.11.26
+        run: sudo python3 -m pip install pipenv
 
       - name: Cache dependencies
         id: cache-dependencies
@@ -117,3 +117,12 @@ jobs:
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+  unit-tests-result:
+    needs: unit-tests
+    if: |
+      always() &&
+      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
+    runs-on: ubuntu-20.04
+    steps:
+      - run: echo "Unit tests and migration check were `{{ needs.unit-tests.result }}`"
