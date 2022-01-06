@@ -75,27 +75,19 @@ from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSNetworkSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSTagsSummary
-from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureComputeSummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
-from reporting.provider.azure.models import AzureCostSummary
-from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
-from reporting.provider.azure.models import AzureCostSummaryByLocation
 from reporting.provider.azure.models import AzureCostSummaryByLocationP
-from reporting.provider.azure.models import AzureCostSummaryByService
 from reporting.provider.azure.models import AzureCostSummaryByServiceP
 from reporting.provider.azure.models import AzureCostSummaryP
-from reporting.provider.azure.models import AzureDatabaseSummary
 from reporting.provider.azure.models import AzureDatabaseSummaryP
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureMeter
-from reporting.provider.azure.models import AzureNetworkSummary
 from reporting.provider.azure.models import AzureNetworkSummaryP
-from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
@@ -196,17 +188,6 @@ AWS_MATERIALIZED_VIEWS = (
     AWSStorageSummaryByAccount,
     AWSStorageSummaryByRegion,
     AWSStorageSummaryByService,
-)
-
-AZURE_MATERIALIZED_VIEWS = (
-    AzureCostSummary,
-    AzureCostSummaryByAccount,
-    AzureCostSummaryByLocation,
-    AzureCostSummaryByService,
-    AzureComputeSummary,
-    AzureStorageSummary,
-    AzureNetworkSummary,
-    AzureDatabaseSummary,
 )
 
 OCP_MATERIALIZED_VIEWS = (
