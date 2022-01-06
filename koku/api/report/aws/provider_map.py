@@ -18,8 +18,6 @@ from django.db.models.functions.comparison import NullIf
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
-from reporting.provider.aws.models import AWSComputeSummaryByRegionP
-from reporting.provider.aws.models import AWSComputeSummaryByServiceP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
@@ -29,8 +27,6 @@ from reporting.provider.aws.models import AWSCostSummaryP
 from reporting.provider.aws.models import AWSDatabaseSummaryP
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
-from reporting.provider.aws.models import AWSStorageSummaryByRegionP
-from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 
 
@@ -348,25 +344,10 @@ class AWSProviderMap(ProviderMap):
             "instance_type": {
                 "default": AWSComputeSummaryP,
                 ("account",): AWSComputeSummaryByAccountP,
-                ("region",): AWSComputeSummaryByRegionP,
-                ("account", "region"): AWSComputeSummaryByRegionP,
-                ("service",): AWSComputeSummaryByServiceP,
-                ("account", "service"): AWSComputeSummaryByServiceP,
-                ("product_family",): AWSComputeSummaryByServiceP,
-                ("account", "product_family"): AWSComputeSummaryByServiceP,
                 ("instance_type",): AWSComputeSummaryP,
                 ("account", "instance_type"): AWSComputeSummaryByAccountP,
             },
-            "storage": {
-                "default": AWSStorageSummaryP,
-                ("account",): AWSStorageSummaryByAccountP,
-                ("region",): AWSStorageSummaryByRegionP,
-                ("account", "region"): AWSStorageSummaryByRegionP,
-                ("service",): AWSStorageSummaryByServiceP,
-                ("account", "service"): AWSStorageSummaryByServiceP,
-                ("product_family",): AWSStorageSummaryByServiceP,
-                ("account", "product_family"): AWSStorageSummaryByServiceP,
-            },
+            "storage": {"default": AWSStorageSummaryP, ("account",): AWSStorageSummaryByAccountP},
             "database": {
                 "default": AWSDatabaseSummaryP,
                 ("service",): AWSDatabaseSummaryP,

@@ -12,11 +12,11 @@
         enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+      command:
         - /bin/bash
         - -c
-        - >
-          PYTHONPATH=/opt/app-root/src/koku
+        - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
+          PYTHONPATH=${APP_HOME}
           celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
       env:
         - name: CLOWDER_ENABLED
@@ -79,6 +79,8 @@
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_CELERY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY

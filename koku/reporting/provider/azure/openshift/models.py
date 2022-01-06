@@ -10,16 +10,6 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-VIEWS = (
-    "reporting_ocpazure_compute_summary",
-    "reporting_ocpazure_cost_summary",
-    "reporting_ocpazure_cost_summary_by_account",
-    "reporting_ocpazure_cost_summary_by_location",
-    "reporting_ocpazure_cost_summary_by_service",
-    "reporting_ocpazure_database_summary",
-    "reporting_ocpazure_network_summary",
-    "reporting_ocpazure_storage_summary",
-)
 
 UI_SUMMARY_TABLES = (
     "reporting_ocpazure_compute_summary_p",

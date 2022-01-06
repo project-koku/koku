@@ -25,7 +25,7 @@ from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
-from reporting.models import OCPCostSummaryByProject
+from reporting.models import OCPCostSummaryByProjectP
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
@@ -211,7 +211,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 cluster_id = entry.get("cluster_id", "")
                 month = entry.get("usage_start", "").month
-                capacity_by_month_cluster[month][cluster_id] = entry.get(cap_key, 0)
+                capacity_by_month_cluster[month][cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
 
         for entry in query_data.get("data", []):
@@ -682,7 +682,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         cost_annotations = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
-                OCPCostSummaryByProject.objects.filter(usage_start=str(yesterday))
+                OCPCostSummaryByProjectP.objects.filter(usage_start=str(yesterday))
                 .annotate(project=proj_annotations)
                 .values("project")
                 .annotate(cost=cost_annotations)

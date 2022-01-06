@@ -12,7 +12,7 @@
         enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+      command:
         - /bin/bash
         - -c
         - python koku/manage.py sources_listener
