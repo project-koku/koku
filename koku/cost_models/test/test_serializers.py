@@ -96,7 +96,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test rate and markup for valid entries."""
         with tenant_context(self.tenant):
             instance = None
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             self.assertIn(instance.source_type, SOURCE_TYPE_MAP.keys())
@@ -115,7 +115,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error with an invalid provider id."""
         self.ocp_data.update({"source_uuids": ["1dd7204c-72c4-4ec4-95bc-d5c447688b27"]})
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -127,7 +127,7 @@ class CostModelSerializerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             instance = None
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
             self.assertIsNotNone(instance)
@@ -138,7 +138,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["source_type"] = "invalid-source"
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -148,7 +148,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["source_type"] = Provider.PROVIDER_AWS
         self.ocp_data["markup"] = {}
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -158,7 +158,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["source_type"] = Provider.PROVIDER_AWS
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -167,7 +167,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test error on an invalid metric rate."""
         self.ocp_data.get("rates", [])[0]["metric"]["name"] = "invalid_metric"
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -177,7 +177,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["tiered_rates"][0]["usage"] = {"usage_start": 5, "usage_end": None}
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -187,7 +187,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["tiered_rates"][0]["usage"] = {"usage_start": None, "usage_end": 5}
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -197,7 +197,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0].pop("tiered_rates")
         self.ocp_data["rates"][0]["bad_rates"] = []
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -207,7 +207,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["tiered_rates"][0]["value"] = float(round(Decimal(random.random()), 6) * -1)
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -217,7 +217,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["tiered_rates"] = []
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -229,7 +229,7 @@ class CostModelSerializerTest(IamTestCase):
             "usage_end": 20.0,
         }
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -242,7 +242,7 @@ class CostModelSerializerTest(IamTestCase):
         }
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -252,7 +252,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["tiered_rates"][0]["usage"] = {"usage_start": 10.0, "usage_end": 3.0}
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -266,7 +266,7 @@ class CostModelSerializerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             instance = None
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
 
@@ -281,7 +281,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -294,7 +294,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -324,7 +324,7 @@ class CostModelSerializerTest(IamTestCase):
 
             with tenant_context(self.tenant):
                 instance = None
-                serializer = CostModelSerializer(data=ocp_data)
+                serializer = CostModelSerializer(data=ocp_data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
                     instance = serializer.save()
                 self.assertIsNotNone(instance)
@@ -347,7 +347,7 @@ class CostModelSerializerTest(IamTestCase):
 
             with tenant_context(self.tenant):
                 instance = None
-                serializer = CostModelSerializer(data=ocp_data)
+                serializer = CostModelSerializer(data=ocp_data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
                     instance = serializer.save()
                 self.assertIsNotNone(instance)
@@ -362,7 +362,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -377,7 +377,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -402,7 +402,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"].append(rate)
         result_metric_count = 0
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             valid_rates = serializer.validate_rates(self.ocp_data["rates"])
             for valid_rate in valid_rates:
                 if valid_rate.get("metric", {}).get("name") == expected_metric_name:
@@ -421,7 +421,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
@@ -435,7 +435,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
@@ -444,7 +444,7 @@ class CostModelSerializerTest(IamTestCase):
         self.ocp_data["rates"][0]["cost_type"] = "Infrastructurez"
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data)
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 if serializer.is_valid(raise_exception=True):
                     serializer.save()
@@ -454,7 +454,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_values_kwargs = [{"default": True}, {"tag_value": "value_two", "value": 0.3, "default": True}]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         print(serializer.errors)
@@ -467,7 +467,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_values_kwargs = [{"value": -0.2}]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"]["value"][0]
@@ -479,7 +479,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_values_kwargs = [{"usage_start": -5}]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"]["usage"][0]
@@ -491,7 +491,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_values_kwargs = [{"usage_end": -5}]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"]["usage"][0]
@@ -503,7 +503,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_values_kwargs = [{"usage_start": 10, "usage_end": 2}]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"]["usage"][0]
@@ -514,7 +514,7 @@ class CostModelSerializerTest(IamTestCase):
         """Test that tag_values can not be an empty list."""
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[])
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["tag_values"][0]
@@ -532,7 +532,7 @@ class CostModelSerializerTest(IamTestCase):
             tag_rates_list.append(rate)
         self.basic_model["rates"] = tag_rates_list
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             self.assertTrue(serializer.is_valid(raise_exception=True))
             serializer.save()
             data = serializer.data
@@ -559,7 +559,7 @@ class CostModelSerializerTest(IamTestCase):
         ]
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=value_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             self.assertTrue(serializer.is_valid(raise_exception=True))
             serializer.save()
             data = serializer.data
@@ -578,7 +578,7 @@ class CostModelSerializerTest(IamTestCase):
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         self.basic_model["rates"][0]["tiered_rates"] = tiered_rate
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = serializer.errors["rates"][0]["non_field_errors"][0]
@@ -602,7 +602,7 @@ class CostModelSerializerTest(IamTestCase):
         cost_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         cost_model["rates"][1]["tag_rates"] = format_tag_rate(tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=cost_model)
+            serializer = CostModelSerializer(data=cost_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = str(serializer.errors["rates"])
@@ -626,7 +626,7 @@ class CostModelSerializerTest(IamTestCase):
         cost_model["rates"][0]["tag_rates"] = format_tag_rate(tag_key="k1", tag_values=tag_values_kwargs)
         cost_model["rates"][1]["tag_rates"] = format_tag_rate(tag_key="k2", tag_values=tag_values_kwargs)
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=cost_model)
+            serializer = CostModelSerializer(data=cost_model, context=self.request_context)
             self.assertTrue(serializer.is_valid(raise_exception=True))
             serializer.save()
             serializer.data
@@ -660,7 +660,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_value = {"tag_value": "key_one", "value": 0.2}
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value, tag_value])
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
         result_err_msg = str(serializer.errors["rates"])
@@ -672,7 +672,7 @@ class CostModelSerializerTest(IamTestCase):
         tag_value = {"tag_value": "key_one", "value": 0.2}
         self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value])
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.basic_model)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 serializer.validate_source_uuids([uuid4()])
 
@@ -684,7 +684,7 @@ class CostModelSerializerTest(IamTestCase):
             self.assertEqual(self.ocp_data["distribution"], good_input)
             with tenant_context(self.tenant):
                 instance = None
-                serializer = CostModelSerializer(data=self.ocp_data)
+                serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
                 if serializer.is_valid(raise_exception=True):
                     instance = serializer.save()
                 self.assertIsNotNone(instance)
@@ -697,6 +697,6 @@ class CostModelSerializerTest(IamTestCase):
             self.ocp_data["distribution"] = bad_input
             self.assertEqual(self.ocp_data["distribution"], bad_input)
             with tenant_context(self.tenant):
-                serializer = CostModelSerializer(data=self.ocp_data)
+                serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.validate_distribution(bad_input)
