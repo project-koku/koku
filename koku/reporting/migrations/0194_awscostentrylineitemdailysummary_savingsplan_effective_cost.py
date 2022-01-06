@@ -6,7 +6,8 @@ from django.db import migrations
 from django.db import models
 
 
-def no_op(apps, schema_editor):
+def add_aws_views(apps, schema_editor):
+    """no-op"""
     pass
 
 
@@ -20,5 +21,5 @@ class Migration(migrations.Migration):
             name="savingsplan_effective_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
-        migrations.RunPython(no_op),
+        migrations.RunPython(add_aws_views),
     ]

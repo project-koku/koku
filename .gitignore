@@ -150,5 +150,7 @@ dev/*.yml
 
 #sonarqube
 sonarqube/
+
+# performance profiling
 /koku.iml
 /view.prof

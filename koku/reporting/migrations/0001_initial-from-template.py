@@ -56,7 +56,6 @@ def unset_partitioned_mode(apps, schema_editor):
 
 def apply_views(apps, schema_editor):
     conn = schema_editor.connection
-
     for view in AZURE_MATERIALIZED_VIEWS:
         LOG.info(f"Applying materialized view {view}")
         LOG.info(f"Path: reporting/provider/azure/sql/views/{view}.sql")
