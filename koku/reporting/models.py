@@ -25,12 +25,8 @@ from reporting.provider.all.openshift.models import OCPAllNetworkSummaryPT
 from reporting.provider.all.openshift.models import OCPAllStorageSummaryP
 from reporting.provider.all.openshift.models import OCPAllStorageSummaryPT
 from reporting.provider.aws.models import AWSAccountAlias
-from reporting.provider.aws.models import AWSComputeSummary
-from reporting.provider.aws.models import AWSComputeSummaryByAccount
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
-from reporting.provider.aws.models import AWSComputeSummaryByRegion
 from reporting.provider.aws.models import AWSComputeSummaryByRegionP
-from reporting.provider.aws.models import AWSComputeSummaryByService
 from reporting.provider.aws.models import AWSComputeSummaryByServiceP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntry
@@ -41,26 +37,16 @@ from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSCostEntryPricing
 from reporting.provider.aws.models import AWSCostEntryProduct
 from reporting.provider.aws.models import AWSCostEntryReservation
-from reporting.provider.aws.models import AWSCostSummary
-from reporting.provider.aws.models import AWSCostSummaryByAccount
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
-from reporting.provider.aws.models import AWSCostSummaryByRegion
 from reporting.provider.aws.models import AWSCostSummaryByRegionP
-from reporting.provider.aws.models import AWSCostSummaryByService
 from reporting.provider.aws.models import AWSCostSummaryByServiceP
 from reporting.provider.aws.models import AWSCostSummaryP
-from reporting.provider.aws.models import AWSDatabaseSummary
 from reporting.provider.aws.models import AWSDatabaseSummaryP
 from reporting.provider.aws.models import AWSEnabledTagKeys
-from reporting.provider.aws.models import AWSNetworkSummary
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
-from reporting.provider.aws.models import AWSStorageSummary
-from reporting.provider.aws.models import AWSStorageSummaryByAccount
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
-from reporting.provider.aws.models import AWSStorageSummaryByRegion
 from reporting.provider.aws.models import AWSStorageSummaryByRegionP
-from reporting.provider.aws.models import AWSStorageSummaryByService
 from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
@@ -75,27 +61,19 @@ from reporting.provider.aws.openshift.models import OCPAWSDatabaseSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSNetworkSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSStorageSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSTagsSummary
-from reporting.provider.azure.models import AzureComputeSummary
 from reporting.provider.azure.models import AzureComputeSummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureCostEntryProductService
-from reporting.provider.azure.models import AzureCostSummary
-from reporting.provider.azure.models import AzureCostSummaryByAccount
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
-from reporting.provider.azure.models import AzureCostSummaryByLocation
 from reporting.provider.azure.models import AzureCostSummaryByLocationP
-from reporting.provider.azure.models import AzureCostSummaryByService
 from reporting.provider.azure.models import AzureCostSummaryByServiceP
 from reporting.provider.azure.models import AzureCostSummaryP
-from reporting.provider.azure.models import AzureDatabaseSummary
 from reporting.provider.azure.models import AzureDatabaseSummaryP
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureMeter
-from reporting.provider.azure.models import AzureNetworkSummary
 from reporting.provider.azure.models import AzureNetworkSummaryP
-from reporting.provider.azure.models import AzureStorageSummary
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
@@ -181,33 +159,6 @@ from reporting.provider.ocp.models import OCPVolumeSummary
 from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.user_settings.models import UserSettings
 
-AWS_MATERIALIZED_VIEWS = (
-    AWSComputeSummary,
-    AWSComputeSummaryByAccount,
-    AWSComputeSummaryByRegion,
-    AWSComputeSummaryByService,
-    AWSCostSummary,
-    AWSCostSummaryByAccount,
-    AWSCostSummaryByRegion,
-    AWSCostSummaryByService,
-    AWSDatabaseSummary,
-    AWSNetworkSummary,
-    AWSStorageSummary,
-    AWSStorageSummaryByAccount,
-    AWSStorageSummaryByRegion,
-    AWSStorageSummaryByService,
-)
-
-AZURE_MATERIALIZED_VIEWS = (
-    AzureCostSummary,
-    AzureCostSummaryByAccount,
-    AzureCostSummaryByLocation,
-    AzureCostSummaryByService,
-    AzureComputeSummary,
-    AzureStorageSummary,
-    AzureNetworkSummary,
-    AzureDatabaseSummary,
-)
 
 OCP_MATERIALIZED_VIEWS = (
     OCPPodSummary,

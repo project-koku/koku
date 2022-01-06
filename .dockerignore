@@ -6,9 +6,13 @@
 !Pipfile.lock
 !koku/
 !docs/source/specs/
-!.git/
-!.s2i/
 !db_functions/
+!scripts/entrypoint.sh
 !scripts/run_migrations.sh
 !scripts/job_script.sh
 !scripts/copy_static_perspective_data.py
+
+# keep the test files out of the final image
+**/*test*
+**/__pycache__
+**/*.log
