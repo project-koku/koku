@@ -30,8 +30,8 @@ from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
 from koku.database import get_model
-from reporting.models import OCP_MATERIALIZED_VIEWS
-from reporting.provider.aws.models import UI_SUMMARY_TABLES
+from reporting.provider.aws.models import UI_SUMMARY_TABLES as AWS_UI_SUMMARY_TABLES
+from reporting.provider.ocp.models import UI_SUMMARY_TABLES as OCP_UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -276,9 +276,10 @@ class ProviderManagerTest(IamTestCase):
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
                 manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
-        for view in OCP_MATERIALIZED_VIEWS:
+        for view in OCP_UI_SUMMARY_TABLES:
             with tenant_context(customer):
-                self.assertFalse(view.objects.count())
+                model = get_model(view)
+                self.assertFalse(model.objects.count())
 
     def test_remove_all_aws_providers(self):
         """Remove all AWS providers."""
@@ -290,7 +291,7 @@ class ProviderManagerTest(IamTestCase):
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
                 manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
-        for view in UI_SUMMARY_TABLES:
+        for view in AWS_UI_SUMMARY_TABLES:
             with tenant_context(customer):
                 model = get_model(view)
                 self.assertFalse(model.objects.count())
