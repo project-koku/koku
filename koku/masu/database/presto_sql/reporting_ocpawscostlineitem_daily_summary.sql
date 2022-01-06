@@ -490,7 +490,7 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summar
 WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND year = {{year}}
-    AND month = {{month}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN ({{days}})
 ;
 
