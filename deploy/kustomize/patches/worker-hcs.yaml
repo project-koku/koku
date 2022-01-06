@@ -1,8 +1,8 @@
 - op: add
   path: /objects/0/spec/deployments/-
   value:
-    name: clowder-worker-ocp
-    minReplicas: ${{WORKER_OCP_MIN_REPLICAS}}
+    name: clowder-worker-hcs
+    minReplicas: ${{WORKER_HCS_MIN_REPLICAS}}
     webServices:
       public:
         enabled: false
@@ -78,7 +78,7 @@
         - name: DEMO_ACCOUNTS
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
-          value: ${WORKER_OCP_WORKER_QUEUE}
+          value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
@@ -149,11 +149,11 @@
         timeoutSeconds: 10
       resources:
         limits:
-          cpu: ${WORKER_OCP_CPU_LIMIT}
-          memory: ${WORKER_OCP_MEMORY_LIMIT}
+          cpu: ${WORKER_HCS_CPU_LIMIT}
+          memory: ${WORKER_HCS_MEMORY_LIMIT}
         requests:
-          cpu: ${WORKER_OCP_CPU_REQUEST}
-          memory: ${WORKER_OCP_MEMORY_REQUEST}
+          cpu: ${WORKER_HCS_CPU_REQUEST}
+          memory: ${WORKER_HCS_MEMORY_REQUEST}
       volumeMounts:
       - mountPath: /var/tmp/masu/
         name: koku-worker-data
@@ -178,41 +178,41 @@
   path: /parameters/-
   value:
     displayName: Minimum replicas
-    name: WORKER_OCP_MIN_REPLICAS
+    name: WORKER_HCS_MIN_REPLICAS
     required: true
-    value: '2'
+    value: '1'
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Request
-    name: WORKER_OCP_MEMORY_REQUEST
+    name: WORKER_HCS_MEMORY_REQUEST
     required: true
     value: 256Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
-    name: WORKER_OCP_MEMORY_LIMIT
+    name: WORKER_HCS_MEMORY_LIMIT
     required: true
     value: 512Mi
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Request
-    name: WORKER_OCP_CPU_REQUEST
+    name: WORKER_HCS_CPU_REQUEST
     required: true
     value: 100m
 - op: add
   path: /parameters/-
   value:
     displayName: CPU Limit
-    name: WORKER_OCP_CPU_LIMIT
+    name: WORKER_HCS_CPU_LIMIT
     required: true
     value: 200m
 - op: add
   path: /parameters/-
   value:
     displayName: Worker Queue
-    name: WORKER_OCP_WORKER_QUEUE
+    name: WORKER_HCS_WORKER_QUEUE
     required: true
-    value: 'ocp'
+    value: 'hcs'
