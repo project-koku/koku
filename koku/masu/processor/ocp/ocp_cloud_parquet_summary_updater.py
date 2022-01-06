@@ -242,6 +242,8 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             end_date = parser.parse(end_date).date()
 
         cluster_id = get_cluster_id_from_provider(openshift_provider_uuid)
+        cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
+
         with OCPReportDBAccessor(self._schema) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
@@ -274,6 +276,14 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             distribution = cost_model_accessor.distribution
 
         # OpenShift on GCP
+        sql_params = {
+            "schema_name": self._schema,
+            "start_date": start_date,
+            "end_date": end_date,
+            "source_uuid": gcp_provider_uuid,
+            "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
+        }
         with GCPReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
@@ -302,7 +312,16 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     distribution,
                 )
             accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, current_ocp_report_period_id)
-            accessor.populate_ocp_on_gcp_ui_summary_tables(
-                start_date, end_date, openshift_provider_uuid, gcp_provider_uuid, current_ocp_report_period_id
-            )
+            accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
+
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                sql_params["source_type"] = "GCP"
+                LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
+                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+
+                ocp_accessor.populate_ui_summary_tables(
+                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+                )

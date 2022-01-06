@@ -508,24 +508,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
-    def populate_ocp_on_gcp_ui_summary_tables(
-        self, start_date, end_date, ocp_provider_uuid, gcp_provider_uuid, report_period_id
-    ):
+    def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in OCPGCP_UI_SUMMARY_TABLES:
+        for table_name in tables:
             summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
             summary_sql = summary_sql.decode("utf-8")
-            summary_sql_params = {
-                "start_date": start_date,
-                "end_date": end_date,
-                "schema": self.schema,
-                "gcp_source_uuid": gcp_provider_uuid,
-                "ocp_source_uuid": ocp_provider_uuid,
-                "year": start_date.strftime("%Y"),
-                "month": start_date.strftime("%m"),
-                "report_period_id": report_period_id,
-            }
-            self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+            self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=sql_params)
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
