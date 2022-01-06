@@ -19,7 +19,6 @@ from koku.database import set_partitioned_schema_editor
 from koku.database import unset_partitioned_schema_editor
 from reporting.provider.aws.openshift.models import VIEWS as OCP_ON_AWS_MATERIALIZED_VIEWS
 from reporting.provider.azure.openshift.models import VIEWS as OCP_ON_AZURE_MATERIALIZED_VIEWS
-from reporting.provider.ocp.models import VIEWS as OCP_MATERIALIZED_VIEWS
 
 
 LOG = logging.getLogger(__name__)
@@ -54,16 +53,6 @@ def unset_partitioned_mode(apps, schema_editor):
 
 def apply_views(apps, schema_editor):
     conn = schema_editor.connection
-
-    for view in OCP_MATERIALIZED_VIEWS:
-        version = "_20210615"
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/ocp/sql/views/{version}/{view}{version}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.ocp", f"sql/views/{version}/{view}{version}.sql").decode(
-            "utf-8"
-        )
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
 
     for view in OCP_ON_AWS_MATERIALIZED_VIEWS:
         LOG.info(f"Applying materialized view {view}")
