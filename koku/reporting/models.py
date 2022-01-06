@@ -146,14 +146,9 @@ from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
 from reporting.provider.ocp.costs.models import CostSummary
-from reporting.provider.ocp.models import OCPCostSummary
-from reporting.provider.ocp.models import OCPCostSummaryByNode
-from reporting.provider.ocp.models import OCPCostSummaryByProject
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
-from reporting.provider.ocp.models import OCPPodSummary
-from reporting.provider.ocp.models import OCPPodSummaryByProject
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
@@ -163,8 +158,6 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
-from reporting.provider.ocp.models import OCPVolumeSummary
-from reporting.provider.ocp.models import OCPVolumeSummaryByProject
 from reporting.user_settings.models import UserSettings
 
 
@@ -177,16 +170,6 @@ AZURE_MATERIALIZED_VIEWS = (
     AzureStorageSummary,
     AzureNetworkSummary,
     AzureDatabaseSummary,
-)
-
-OCP_MATERIALIZED_VIEWS = (
-    OCPPodSummary,
-    OCPPodSummaryByProject,
-    OCPVolumeSummary,
-    OCPVolumeSummaryByProject,
-    OCPCostSummary,
-    OCPCostSummaryByProject,
-    OCPCostSummaryByNode,
 )
 
 # These are partitioned tables

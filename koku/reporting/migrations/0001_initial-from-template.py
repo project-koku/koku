@@ -21,7 +21,6 @@ from reporting.provider.aws.openshift.models import VIEWS as OCP_ON_AWS_MATERIAL
 from reporting.provider.azure.models import VIEWS as AZURE_MATERIALIZED_VIEWS
 from reporting.provider.azure.openshift.models import VIEWS as OCP_ON_AZURE_MATERIALIZED_VIEWS
 from reporting.provider.gcp.models import VIEWS as GCP_MATERIALIZED_VIEWS
-from reporting.provider.ocp.models import VIEWS as OCP_MATERIALIZED_VIEWS
 
 
 LOG = logging.getLogger(__name__)
@@ -68,16 +67,6 @@ def apply_views(apps, schema_editor):
         LOG.info(f"Applying materialized view {view}")
         LOG.info(f"Path: reporting/provider/gcp/sql/views/{version}/{view}.sql")
         view_sql = pkgutil.get_data("reporting.provider.gcp", f"sql/views/{version}/{view}{version}.sql").decode(
-            "utf-8"
-        )
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in OCP_MATERIALIZED_VIEWS:
-        version = "_20210615"
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/ocp/sql/views/{version}/{view}{version}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.ocp", f"sql/views/{version}/{view}{version}.sql").decode(
             "utf-8"
         )
         with conn.cursor() as cur:
