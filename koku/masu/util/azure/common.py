@@ -108,13 +108,16 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
 def azure_date_converter(date):
     """Convert Azure date fields properly."""
-    try:
-        new_date = ciso8601.parse_datetime(date)
-    except ValueError:
-        date_split = date.split("/")
-        new_date_str = date_split[2] + date_split[0] + date_split[1]
-        new_date = ciso8601.parse_datetime(new_date_str)
-    return new_date
+    if date:
+        try:
+            new_date = ciso8601.parse_datetime(date)
+        except ValueError:
+            date_split = date.split("/")
+            new_date_str = date_split[2] + date_split[0] + date_split[1]
+            new_date = ciso8601.parse_datetime(new_date_str)
+        return new_date
+    else:
+        return np.nan
 
 
 def azure_json_converter(tag_str):
@@ -149,9 +152,6 @@ def azure_post_processor(data_frame):
     columns = set(PRESTO_COLUMNS).union(columns)
     columns = sorted(columns)
 
-    data_frame["billingperiodstartdate"] = data_frame["billingperiodstartdate"].replace(r"^\s*$", np.nan, regex=True)
-    data_frame["billingperiodenddate"] = data_frame["billingperiodenddate"].replace(r"^\s*$", np.nan, regex=True)
-
     data_frame = data_frame.reindex(columns=columns)
 
     return data_frame
@@ -162,18 +162,28 @@ def get_column_converters():
     return {
         "UsageDateTime": azure_date_converter,
         "Date": azure_date_converter,
+        "date": azure_date_converter,
         "BillingPeriodStartDate": azure_date_converter,
+        "billingPeriodStartDate": azure_date_converter,
         "BillingPeriodEndDate": azure_date_converter,
+        "billingPeriodEndDate": azure_date_converter,
         "UsageQuantity": safe_float,
         "Quantity": safe_float,
+        "quantity": safe_float,
         "ResourceRate": safe_float,
         "PreTaxCost": safe_float,
+        "costInBillingCurrency": safe_float,
         "CostInBillingCurrency": safe_float,
         "EffectivePrice": safe_float,
+        "effectivePrice": safe_float,
         "UnitPrice": safe_float,
+        "unitPrice": safe_float,
         "PayGPrice": safe_float,
+        "payGPrice": safe_float,
         "Tags": azure_json_converter,
+        "tags": azure_json_converter,
         "AdditionalInfo": azure_json_converter,
+        "additionalInfo": azure_json_converter,
     }
 
 
