@@ -21,6 +21,17 @@ VIEWS = (
     "reporting_ocpazure_storage_summary",
 )
 
+UI_SUMMARY_TABLES = (
+    "reporting_ocpazure_compute_summary_p",
+    "reporting_ocpazure_cost_summary_p",
+    "reporting_ocpazure_cost_summary_by_account_p",
+    "reporting_ocpazure_cost_summary_by_location_p",
+    "reporting_ocpazure_cost_summary_by_service_p",
+    "reporting_ocpazure_database_summary_p",
+    "reporting_ocpazure_network_summary_p",
+    "reporting_ocpazure_storage_summary_p",
+)
+
 
 class OCPAzureCostLineItemDailySummary(models.Model):
     """A summarized view of OCP on Azure cost."""
@@ -433,3 +444,299 @@ class OCPAzureDatabaseSummary(models.Model):
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency = models.TextField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
+
+
+# ======================================================
+#  Partitioned Models to replace matviews
+# ======================================================
+
+
+class OCPAzureCostSummaryP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryP."""
+
+        db_table = "reporting_ocpazure_cost_summary_p"
+        indexes = [models.Index(fields=["usage_start"], name="ocpazcostsumm_usage_start")]
+        indexes = [models.Index(fields=["cluster_id"], name="ocpazcostsumm_clust_id")]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureCostSummaryByAccountP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by account.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByAccountP."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_account_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazcostsumm_acc_usage_start"),
+            models.Index(fields=["subscription_guid"], name="ocpazcostsumm_acc_sub_guid"),
+            models.Index(fields=["cluster_id"], name="ocpazcostsumm_acc_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureCostSummaryByLocationP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by location.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByLocationP."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_location_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazcostsumm_loc_usage_start"),
+            models.Index(fields=["resource_location"], name="ocpazcostsumm_loc_res_loc"),
+            models.Index(fields=["cluster_id"], name="ocpazcostsumm_loc_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    resource_location = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureCostSummaryByServiceP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of total cost by service.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureCostSummaryByServiceP."""
+
+        db_table = "reporting_ocpazure_cost_summary_by_service_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazcostsumm_svc_usage_start"),
+            models.Index(fields=["service_name"], name="ocpazcostsumm_svc_svc_name"),
+            models.Index(fields=["cluster_id"], name="ocpazcostsumm_svc_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureComputeSummaryP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of compute usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureComputeSummaryP."""
+
+        db_table = "reporting_ocpazure_compute_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazcompsumm_usage_start"),
+            models.Index(fields=["instance_type"], name="ocpazcompsumm_insttyp"),
+            models.Index(fields=["cluster_id"], name="ocpazcompsumm_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    instance_type = models.TextField(null=True)
+    resource_id = models.CharField(max_length=253, null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureStorageSummaryP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of storage usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureStorageSummaryP."""
+
+        db_table = "reporting_ocpazure_storage_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazstorsumm_usage_start"),
+            models.Index(fields=["service_name"], name="ocpazstorsumm_svc_name"),
+            models.Index(fields=["cluster_id"], name="ocpazstorsumm_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureNetworkSummaryP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of network usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureNetworkSummaryP."""
+
+        db_table = "reporting_ocpazure_network_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpaznetsumm_usage_start"),
+            models.Index(fields=["service_name"], name="ocpaznetsumm_svc_name"),
+            models.Index(fields=["cluster_id"], name="ocpaznetsumm_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )
+
+
+class OCPAzureDatabaseSummaryP(models.Model):
+    """A Summarized Partitioned table specifically for UI API queries.
+
+    This table gives a daily breakdown of database usage.
+
+    """
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
+    class Meta:
+        """Meta for OCPAzureDatabaseSummaryP."""
+
+        db_table = "reporting_ocpazure_database_summary_p"
+        indexes = [
+            models.Index(fields=["usage_start"], name="ocpazdbsumm_usage_start"),
+            models.Index(fields=["service_name"], name="ocpazdbsumm_svc_name"),
+            models.Index(fields=["cluster_id"], name="ocpazdbsumm_clust_id"),
+        ]
+
+    id = models.UUIDField(primary_key=True)
+    usage_start = models.DateField(null=False)
+    usage_end = models.DateField(null=False)
+    cluster_id = models.CharField(max_length=50, null=True)
+    cluster_alias = models.CharField(max_length=256, null=True)
+    subscription_guid = models.TextField(null=False)
+    service_name = models.TextField(null=True)
+    usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    unit_of_measure = models.TextField(null=True)
+    pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+    currency = models.TextField(null=True)
+    source_uuid = models.ForeignKey(
+        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
+    )

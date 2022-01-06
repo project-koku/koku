@@ -17,7 +17,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Run our database check_migratons function."""
 
-        if check_migrations():
-            self.stdout.write("True")
-        else:
-            self.stdout.write("False")
+        self.stdout.write(str(check_migrations()))
+
+        # if check_migrations():
+        #     self.stdout.write("True")
+        # else:
+        #     self.stdout.write("False")

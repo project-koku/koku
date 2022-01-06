@@ -29,6 +29,7 @@ from api.report.azure.provider_map import AzureProviderMap
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
+from api.utils import get_cost_type
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -50,9 +51,6 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    # ToDo: potentially make the cost_type variable in forecast to the setting chosen in DB
-    COST_TYPE = "unblended_cost"
-
     def __init__(self, query_params):  # noqa: C901
         """Class Constructor.
 
@@ -64,6 +62,12 @@ class Forecast:
         """
         self.dh = DateHelper()
         self.params = query_params
+
+        if self.provider is Provider.PROVIDER_AWS:
+            if query_params.get("cost_type"):
+                self.cost_type = query_params.get("cost_type")
+            else:
+                self.cost_type = get_cost_type(self.request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -101,7 +105,7 @@ class Forecast:
         """Return the provider map instance."""
         current_provider = self
         if current_provider.provider is Provider.PROVIDER_AWS:
-            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.COST_TYPE)
+            return self.provider_map_class(self.provider, self.REPORT_TYPE, self.cost_type)
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
