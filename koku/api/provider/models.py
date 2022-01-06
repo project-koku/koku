@@ -222,6 +222,8 @@ class Sources(RunTextFieldValidators, models.Model):
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
 
+    provider = models.ForeignKey("Provider", null=True, on_delete=models.DO_NOTHING)
+
     # This field indicates if the source is paused.
     paused = models.BooleanField(default=False)
 
