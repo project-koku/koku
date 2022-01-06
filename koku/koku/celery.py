@@ -99,6 +99,11 @@ LOG.info("Celery autodiscover tasks.")
 MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
 app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 
+# Timeout threshold for a worker process to startup
+WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
+app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
+LOG.info(f"Celery worker alive timeout = {app.conf.worker_proc_alive_timeout}")
+
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     # The interval to scan for new reports.
@@ -210,6 +215,15 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used to get Hybrid Committed Spend(HCS) data
+hcs_status_schedule = crontab(hour=0, minute=0)
+print(f"HCS status schedule: {hcs_status_schedule}")
+
+app.conf.beat_schedule["collect_hcs_report_data"] = {
+    "task": "hcs.tasks.collect_hcs_report_data",
+    "schedule": hcs_status_schedule,
+}
+
 # Celery timeout if broker is unavaiable to avoid blocking indefintely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
@@ -226,7 +240,9 @@ def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
 
     httpd = start_probe_server(WorkerProbeServer)
 
-    while not check_migrations():
+    # This is a special case because check_migrations() returns three values
+    # True means migrations are up-to-date
+    while check_migrations() != True:  # noqa
         LOG.warning("Migrations not done. Sleeping")
         time.sleep(5)
 

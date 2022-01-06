@@ -10,6 +10,7 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
+SCRIPTDIR = $(TOPDIR)/scripts
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -234,7 +235,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(DJANGO_MANAGE) migrate_schemas $(applabel) $(migration)
+	$(SCRIPTDIR)/run_migrations.sh $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
@@ -313,7 +314,7 @@ endif
 ###############################
 
 docker-down:
-	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	$(PREFIX) make clear-testing
 
 docker-down-db:
@@ -471,7 +472,7 @@ docker-presto-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps
 
 docker-presto-down:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
+	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v --remove-orphans
 	make clear-trino
 
 docker-presto-down-all: docker-presto-down docker-down
@@ -492,7 +493,7 @@ docker-trino-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
 
 docker-trino-down:
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down

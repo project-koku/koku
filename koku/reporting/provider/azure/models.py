@@ -151,7 +151,7 @@ class AzureCostEntryProductService(models.Model):
 class AzureMeter(models.Model):
     """The Azure meter."""
 
-    meter_id = models.UUIDField(editable=False, unique=True, null=False)
+    meter_id = models.TextField(editable=False, unique=True, null=False)
     meter_name = models.TextField(null=False)
     meter_category = models.TextField(null=True)
     meter_subcategory = models.TextField(null=True)
