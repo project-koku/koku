@@ -4,10 +4,10 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
-from masu.api.sourceproviders.providers.views import ProviderView
-from masu.api.sourceproviders.sources.views import SourcesView
+from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
@@ -21,6 +21,9 @@ from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
+
+ROUTER = DefaultRouter()
+ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 urlpatterns = [
     path("status/", get_status, name="server-status"),
@@ -57,16 +60,6 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
-    path("sources/", SourcesView.as_view({"get": "get_all_sources"}), name="sources"),
-    path(
-        "sources/<int:account_id>/",
-        SourcesView.as_view({"get": "get_sources_by_account_id"}),
-        name="get_sources_by_account_id",
-    ),
-    path(
-        "providers/<int:customer>/",
-        ProviderView.as_view({"get": "get_providers_by_account_id"}),
-        name="get_providers_by_account_id",
-    ),
-    path("providers/", ProviderView.as_view({"get": "get_all_providers"}), name="providers"),
 ]
+
+urlpatterns += ROUTER.urls
