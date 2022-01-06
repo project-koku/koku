@@ -19,10 +19,11 @@ jobs:
       run: |
           DATE=$(date +"%Y.%m.%d")
           PREV_RELEASE=$(git tag --list | tail -1)
+          PREV_DATE="${PREV_RELEASE%.*}"
           MINOR_VERSION=0
-          case $PREV_RELEASE in
+          case $PREV_DATE in
             *"$DATE"*)
-              MINOR_VERSION="$PREV_RELEASE" | cut -d'.' -f5
+              MINOR_VERSION=${PREV_RELEASE##*.}
               MINOR_VERSION=$((MINOR_VERSION+1))
               ;;
             *)
