@@ -138,9 +138,14 @@ from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
 from reporting.provider.ocp.costs.models import CostSummary
+from reporting.provider.ocp.models import OCPCostSummaryByNodeP
+from reporting.provider.ocp.models import OCPCostSummaryByProjectP
+from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 from reporting.provider.ocp.models import OCPNodeLabelLineItem
 from reporting.provider.ocp.models import OCPNodeLabelLineItemDaily
+from reporting.provider.ocp.models import OCPPodSummaryByProjectP
+from reporting.provider.ocp.models import OCPPodSummaryP
 from reporting.provider.ocp.models import OCPStorageLineItem
 from reporting.provider.ocp.models import OCPStorageLineItemDaily
 from reporting.provider.ocp.models import OCPStorageVolumeLabelSummary
@@ -150,6 +155,8 @@ from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 from reporting.provider.ocp.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPUsageReport
 from reporting.provider.ocp.models import OCPUsageReportPeriod
+from reporting.provider.ocp.models import OCPVolumeSummaryByProjectP
+from reporting.provider.ocp.models import OCPVolumeSummaryP
 from reporting.user_settings.models import UserSettings
 
 
