@@ -29,8 +29,9 @@ from api.provider.provider_manager import ProviderManagerError
 from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModelMap
-from reporting.models import AWS_MATERIALIZED_VIEWS
+from koku.database import get_model
 from reporting.models import OCP_MATERIALIZED_VIEWS
+from reporting.provider.aws.models import UI_SUMMARY_TABLES
 from reporting_common.models import CostUsageReportManifest
 
 
@@ -289,9 +290,10 @@ class ProviderManagerTest(IamTestCase):
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
                 manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
-        for view in AWS_MATERIALIZED_VIEWS:
+        for view in UI_SUMMARY_TABLES:
             with tenant_context(customer):
-                self.assertFalse(view.objects.count())
+                model = get_model(view)
+                self.assertFalse(model.objects.count())
 
     def test_remove_aws_auth_billing_remain(self):
         """Remove aws provider."""
