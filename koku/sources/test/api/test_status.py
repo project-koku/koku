@@ -8,16 +8,14 @@ import re
 from collections import namedtuple
 from datetime import datetime
 from http import HTTPStatus
-from subprocess import CompletedProcess
-from subprocess import PIPE
 from unittest.mock import ANY
 from unittest.mock import Mock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from django.db import InterfaceError
+from django.test import override_settings
 from django.test import TestCase
-from django.test.utils import override_settings
 from django.urls import reverse
 
 from sources.api.status import ApplicationStatus
@@ -106,33 +104,12 @@ class StatusAPITest(TestCase):
             result = check_sources_connection()
             self.assertIsNone(result)
 
-    @patch("sources.api.status.subprocess.run")
-    def test_commit_with_subprocess(self, mock_subprocess):
-        """Test the commit method via subprocess."""
+    @override_settings(GIT_COMMIT="buildnum")
+    def test_commit(self):
+        """Test the commit method via django settings."""
         expected = "buildnum"
-
-        args = {
-            "args": ["git", "rev-parse", "--short", "HEAD"],
-            "returncode": 0,
-            "stdout": bytes(expected, encoding="UTF-8"),
-        }
-        mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
-
         result = ApplicationStatus().commit
-
-        mock_subprocess.assert_called_with(args["args"], stdout=PIPE)
         self.assertEqual(result, expected)
-
-    @patch("sources.api.status.subprocess.run")
-    def test_commit_with_subprocess_nostdout(self, mock_subprocess):
-        """Test the commit method via subprocess when stdout is none."""
-        args = {"args": ["git", "rev-parse", "--short", "HEAD"], "returncode": 0, "stdout": None}
-        mock_subprocess.return_value = Mock(spec=CompletedProcess, **args)
-
-        result = ApplicationStatus().commit
-
-        mock_subprocess.assert_called_with(args["args"], stdout=PIPE)
-        self.assertIsNone(result.stdout)
 
     @patch("sources.api.status.platform.uname")
     def test_platform_info(self, mock_platform):

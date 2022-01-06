@@ -6,10 +6,10 @@
 import logging
 import platform
 import socket
-import subprocess
 import sys
 from http import HTTPStatus
 
+from django.conf import settings
 from django.db import connection
 from django.db import InterfaceError
 from django.db import NotSupportedError
@@ -102,10 +102,7 @@ class ApplicationStatus:
         :returns: A build number
 
         """
-        commit_info = subprocess.run(["git", "rev-parse", "--short", "HEAD"], stdout=subprocess.PIPE)
-        if commit_info.stdout:
-            commit_info = commit_info.stdout.decode("utf-8").strip()
-        return commit_info
+        return settings.GIT_COMMIT
 
     @property
     def database_status(self):
