@@ -5,7 +5,9 @@
 """Views for Masu sources API."""
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django_filters import BooleanFilter
 from django_filters import FilterSet
+from django_filters import UUIDFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins
 from rest_framework import viewsets
@@ -27,28 +29,47 @@ class SourceFilter(FilterSet):
     name = CharListFilter(field_name="name", lookup_expr="name__icontains")
     type = CharListFilter(field_name="source_type", lookup_expr="source_type__icontains")
     account_id = CharListFilter(field_name="account_id", lookup_expr="account_id__icontains")
+    schema_name = CharListFilter(
+        field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
+    )
+    infrastructure_provider_id = UUIDFilter(field_name="provider__infrastructure__infrastructure_provider_id")
+    cluster_id = CharListFilter(
+        field_name="authentication__credentials__cluster_id",
+        lookup_expr="authentication__credentials__cluster_id__icontains",
+    )
+    active = BooleanFilter(field_name="provider__active")
+    paused = BooleanFilter(field_name="provider__paused")
+    pending_delete = BooleanFilter(field_name="pending_delete")
+    pending_update = BooleanFilter(field_name="pending_update")
+    out_of_order_delete = BooleanFilter(field_name="out_of_order_delete")
 
     class Meta:
         model = Sources
-        fields = ["source_type", "name", "account_id"]
+        fields = [
+            "source_type",
+            "name",
+            "account_id",
+            "schema_name",
+            "infrastructure_provider_id",
+            "cluster_id",
+            "active",
+            "paused",
+            "pending_delete",
+            "pending_update",
+            "out_of_order_delete",
+        ]
 
 
 class SourcesViewSet(*MIXIN_LIST):
     """Source View class."""
 
+    queryset = Sources.objects.all()
     serializer_class = SourceSerializer
     lookup_fields = ("source_id", "source_uuid")
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
-
-    def get_queryset(self):
-        """Get a queryset with Provider added in."""
-        queryset = Sources.objects.all()
-        queryset = queryset.extra(tables=["api_provider"], where=["api_sources.koku_uuid::uuid = api_provider.uuid"])
-
-        return queryset
 
     def get_object(self):
         queryset = self.get_queryset()
