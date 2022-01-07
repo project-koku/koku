@@ -89,95 +89,6 @@ engines = {
 }
 
 
-PARTITIONED_MODEL_NAMES = [
-    "AWSCostEntryLineItemDailySummary",
-    "AzureCostEntryLineItemDailySummary",
-    "GCPCostEntryLineItemDailySummary",
-    "OCPUsageLineItemDailySummary",
-    "OCPAllCostLineItemDailySummaryP",
-    "OCPAllCostLineItemProjectDailySummaryP",
-    "OCPAllCostSummaryPT",
-    "OCPAllCostSummaryByAccountPT",
-    "OCPAllCostSummaryByServicePT",
-    "OCPAllCostSummaryByRegionPT",
-    "OCPAllComputeSummaryPT",
-    "OCPAllDatabaseSummaryPT",
-    "OCPAllNetworkSummaryPT",
-    "OCPAllStorageSummaryPT",
-    "AWSCostSummaryP",
-    "AWSCostSummaryByServiceP",
-    "AWSCostSummaryByAccountP",
-    "AWSCostSummaryByRegionP",
-    "AWSComputeSummaryP",
-    "AWSComputeSummaryByServiceP",
-    "AWSComputeSummaryByAccountP",
-    "AWSComputeSummaryByRegionP",
-    "AWSStorageSummaryP",
-    "AWSStorageSummaryByServiceP",
-    "AWSStorageSummaryByAccountP",
-    "AWSStorageSummaryByRegionP",
-    "AWSNetworkSummaryP",
-    "AWSDatabaseSummaryP",
-    "OCPCostSummaryP",
-    "OCPCostSummaryByProjectP",
-    "OCPCostSummaryByNodeP",
-    "OCPPodSummaryP",
-    "OCPPodSummaryByProjectP",
-    "OCPVolumeSummaryP",
-    "OCPVolumeSummaryByProjectP",
-    "OCPAWSComputeSummaryP",
-    "OCPAWSCostSummaryP",
-    "OCPAWSCostSummaryByAccountP",
-    "OCPAWSCostSummaryByServiceP",
-    "OCPAWSCostSummaryByRegionP",
-    "OCPAWSStorageSummaryP",
-    "OCPAWSNetworkSummaryP",
-    "OCPAWSDatabaseSummaryP",
-    "OCPGCPCostLineItemDailySummaryP",
-    "OCPGCPCostLineItemProjectDailySummaryP",
-    "OCPGCPCostSummaryByAccountP",
-    "OCPGCPCostSummaryByGCPProjectP",
-    "OCPGCPCostSummaryByRegionP",
-    "OCPGCPCostSummaryByServiceP",
-    "OCPGCPCostSummaryP",
-    "OCPGCPComputeSummaryP",
-    "OCPGCPDatabaseSummaryP",
-    "OCPGCPNetworkSummaryP",
-    "OCPGCPStorageSummaryP",
-    "AzureCostSummaryP",
-    "AzureCostSummaryByAccountP",
-    "AzureCostSummaryByLocationP",
-    "AzureCostSummaryByServiceP",
-    "AzureComputeSummaryP",
-    "AzureStorageSummaryP",
-    "AzureNetworkSummaryP",
-    "AzureDatabaseSummaryP",
-    "GCPCostSummaryP",
-    "GCPCostSummaryByAccountP",
-    "GCPCostSummaryByProjectP",
-    "GCPCostSummaryByRegionP",
-    "GCPCostSummaryByServiceP",
-    "GCPComputeSummaryP",
-    "GCPComputeSummaryByProjectP",
-    "GCPComputeSummaryByServiceP",
-    "GCPComputeSummaryByAccountP",
-    "GCPComputeSummaryByRegionP",
-    "GCPStorageSummaryP",
-    "GCPStorageSummaryByProjectP",
-    "GCPStorageSummaryByServiceP",
-    "GCPStorageSummaryByAccountP",
-    "GCPStorageSummaryByRegionP",
-    "GCPNetworkSummaryP",
-    "GCPDatabaseSummaryP",
-    "OCPAzureCostSummaryP",
-    "OCPAzureCostSummaryByAccountP",
-    "OCPAzureCostSummaryByLocationP",
-    "OCPAzureCostSummaryByServiceP",
-    "OCPAzureComputeSummaryP",
-    "OCPAzureStorageSummaryP",
-    "OCPAzureNetworkSummaryP",
-    "OCPAzureDatabaseSummaryP",
-]
 DB_MODELS_LOCK = threading.Lock()
 DB_MODELS = {}
 
@@ -478,18 +389,12 @@ def p_table_sql(self, model):
     # Use default model class for the original django SQL generation
     sql, params = self.o_table_sql(model)
 
-    # Based on model name match, get the defined model from the app
-    # For some reason, this differs from the model class passed into this method
-    # from the django migration processing
-    if model.__name__ in PARTITIONED_MODEL_NAMES:
-        pmodel = get_model(model.__name__)
-    else:
-        pmodel = None
+    pmodel = get_model(model.__name__)
 
     # If there was a partition name match and the class has the required attribute,
     # use this information to add the partition clause to the create table sql
     # Otherwise, return the original sql and params
-    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+    if hasattr(pmodel, "PartitionInfo"):
         LOG.info(f"*** Creating PARTITIONED TABLE {pmodel._meta.db_table}")
         partition_cols = pmodel.PartitionInfo.partition_cols
         sparams = {
@@ -536,16 +441,31 @@ def p_table_sql(self, model):
     else:
         LOG.info(f"Creating TABLE {model._meta.db_table}")
 
+    # See if we have any deferred PG sql statements
+    if hasattr(pmodel, "DeferredSQL"):
+        create_sql = getattr(pmodel.DeferredSQL, "create_sql", [])
+        if create_sql:
+            LOG.info(f"Queueing post-create-model SQL... ({len(create_sql)} statements)")
+            with self.connection.cursor() as cur:
+                for d_sql, d_params in create_sql:
+                    self.deferred_sql.append(cur.mogrify(d_sql, d_params).decode("utf-8"))
+
     return sql, params
 
 
 def p_delete_model(self, model):
-    if model.__name__ in PARTITIONED_MODEL_NAMES:
-        pmodel = get_model(model.__name__)
-    else:
-        pmodel = None
+    pmodel = get_model(model.__name__)
 
-    if pmodel is not None and hasattr(pmodel, "PartitionInfo"):
+    if hasattr(pmodel, "DeferredSQL"):
+        drop_sql = getattr(pmodel.DeferredSQL, "drop_sql", [])
+        if drop_sql:
+            LOG.info(f"Executing pre-delete-model SQL... ({len(drop_sql)} statements)")
+            for d_sql, d_params in drop_sql:
+                with self.connection.cursor() as cur:
+                    d_stmt = cur.mogrify(d_sql, d_params).decode("utf-8")
+                self.execute(d_stmt)
+
+    if hasattr(pmodel, "PartitionInfo"):
         sparams = {"partitioned_table_name": pmodel._meta.db_table}
         with self.connection.cursor() as cur:
             drop_partitions_sql = cur.mogrify(self.sql_drop_partitions, sparams).decode("utf-8")
@@ -554,7 +474,7 @@ def p_delete_model(self, model):
     self.o_delete_model(model)
 
 
-def set_partitioned_schema_editor(schema_editor):
+def set_pg_extended_schema_editor(schema_editor):
     """
     Add attributes and override method of given schema_editor to allow partition table sql statements
     to be emitted.
@@ -618,11 +538,11 @@ DELETE
         setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
 
 
-def set_partition_mode(apps, schema_editor):
-    set_partitioned_schema_editor(schema_editor)
+def set_pg_extended_mode(apps, schema_editor):
+    set_pg_extended_schema_editor(schema_editor)
 
 
-def unset_partitioned_schema_editor(schema_editor):
+def unset_pg_extended_schema_editor(schema_editor):
     # Delete partition template attributes, if present
     if not hasattr(schema_editor, "sql_partitioned_table"):
         delattr(schema_editor, "sql_partitioned_table")
@@ -647,8 +567,8 @@ def unset_partitioned_schema_editor(schema_editor):
         delattr(schema_editor, "o_delete_model")
 
 
-def unset_partition_mode(apps, schema_editor):
-    unset_partitioned_schema_editor(schema_editor)
+def unset_pg_extended_mode(apps, schema_editor):
+    unset_pg_extended_schema_editor(schema_editor)
 
 
 class SQLScriptAtomicExecutorMixin:
