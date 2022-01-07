@@ -17,6 +17,7 @@ from pint.errors import UndefinedUnitError
 from tenant_schemas.utils import schema_context
 
 from koku.settings import KOKU_DEFAULT_COST_TYPE
+from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
 
 
@@ -33,6 +34,18 @@ def get_cost_type(request):
         else:
             cost_type = query_settings.settings["cost_type"]
     return cost_type
+
+
+def get_currency(request):
+    """get currency from the DB user settings table or sets currency to default if table is empty."""
+
+    with schema_context(request.user.customer.schema_name):
+        query_settings = UserSettings.objects.all().first()
+        if not query_settings:
+            currency = KOKU_DEFAULT_CURRENCY
+        else:
+            currency = query_settings.settings["currency"]
+    return currency
 
 
 def merge_dicts(*list_of_dicts):
