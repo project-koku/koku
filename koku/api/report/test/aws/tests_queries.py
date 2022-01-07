@@ -36,8 +36,6 @@ from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AWSComputeSummaryByAccountP
-from reporting.models import AWSComputeSummaryByRegionP
-from reporting.models import AWSComputeSummaryByServiceP
 from reporting.models import AWSComputeSummaryP
 from reporting.models import AWSCostEntryBill
 from reporting.models import AWSCostEntryLineItemDailySummary
@@ -49,8 +47,6 @@ from reporting.models import AWSCostSummaryP
 from reporting.models import AWSDatabaseSummaryP
 from reporting.models import AWSNetworkSummaryP
 from reporting.models import AWSStorageSummaryByAccountP
-from reporting.models import AWSStorageSummaryByRegionP
-from reporting.models import AWSStorageSummaryByServiceP
 from reporting.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -2214,22 +2210,22 @@ class AWSQueryHandlerTest(IamTestCase):
             ("?group_by[service]=*&group_by[account]=*", AWSCostView, AWSCostSummaryByServiceP),
             ("?", AWSInstanceTypeView, AWSComputeSummaryP),
             ("?group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccountP),
-            ("?group_by[region]=*", AWSInstanceTypeView, AWSComputeSummaryByRegionP),
-            ("?group_by[region]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByRegionP),
-            ("?group_by[service]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
-            ("?group_by[service]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
-            ("?group_by[product_family]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
-            ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByServiceP),
+            ("?group_by[region]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[region]=*&group_by[account]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[service]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[service]=*&group_by[account]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[product_family]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSInstanceTypeView, AWSCostEntryLineItemDailySummary),
             ("?group_by[instance_type]=*", AWSInstanceTypeView, AWSComputeSummaryP),
             ("?group_by[instance_type]=*&group_by[account]=*", AWSInstanceTypeView, AWSComputeSummaryByAccountP),
             ("?", AWSStorageView, AWSStorageSummaryP),
             ("?group_by[account]=*", AWSStorageView, AWSStorageSummaryByAccountP),
-            ("?group_by[region]=*", AWSStorageView, AWSStorageSummaryByRegionP),
-            ("?group_by[region]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByRegionP),
-            ("?group_by[service]=*", AWSStorageView, AWSStorageSummaryByServiceP),
-            ("?group_by[service]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByServiceP),
-            ("?group_by[product_family]=*", AWSStorageView, AWSStorageSummaryByServiceP),
-            ("?group_by[product_family]=*&group_by[account]=*", AWSStorageView, AWSStorageSummaryByServiceP),
+            ("?group_by[region]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[region]=*&group_by[account]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[service]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[service]=*&group_by[account]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[product_family]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
+            ("?group_by[product_family]=*&group_by[account]=*", AWSStorageView, AWSCostEntryLineItemDailySummary),
             (
                 (
                     "?filter[service]=AmazonRDS,AmazonDynamoDB,AmazonElastiCache,"

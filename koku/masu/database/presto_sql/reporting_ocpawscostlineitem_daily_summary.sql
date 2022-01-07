@@ -266,9 +266,9 @@ SELECT aws.uuid as aws_uuid,
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON aws.lineitem_usagestartdate = ocp.usage_start
             AND (
-                json_extract_scalar(aws.resourcetags, '$.openshift_project') = lower(ocp.namespace)
-                    OR json_extract_scalar(aws.resourcetags, '$.openshift_node') = lower(ocp.node)
-                    OR json_extract_scalar(aws.resourcetags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
+                (strpos(aws.resourcetags, 'openshift_project') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
+                    OR (strpos(aws.resourcetags, 'openshift_node') != 0 AND strpos(aws.resourcetags, lower(ocp.node)) != 0)
+                    OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
@@ -490,7 +490,7 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summar
 WHERE aws_source = '{{aws_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND year = {{year}}
-    AND month = {{month}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day IN ({{days}})
 ;
 
