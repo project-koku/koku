@@ -36,14 +36,19 @@ class SourceFilter(FilterSet):
 class SourcesViewSet(*MIXIN_LIST):
     """Source View class."""
 
-    queryset = Sources.objects.all()
-
     serializer_class = SourceSerializer
     lookup_fields = ("source_id", "source_uuid")
     permission_classes = (AllowAny,)
     filter_backends = (DjangoFilterBackend,)
     filterset_class = SourceFilter
     http_method_names = HTTP_METHOD_LIST
+
+    def get_queryset(self):
+        """Get a queryset with Provider added in."""
+        queryset = Sources.objects.all()
+        queryset = queryset.extra(tables=["api_provider"], where=["api_sources.koku_uuid::uuid = api_provider.uuid"])
+
+        return queryset
 
     def get_object(self):
         queryset = self.get_queryset()
