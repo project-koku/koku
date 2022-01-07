@@ -90,6 +90,7 @@ urlpatterns = [
     path("currency/", get_currency, name="currency"),
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("user-settings/", AllUserSettings.as_view(), name="user-settings"),
+    path("user-settings/<str:setting>/", AllUserSettings.as_view(), name="get-specific-setting"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),
