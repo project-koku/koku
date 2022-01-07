@@ -143,6 +143,10 @@ class Migration(migrations.Migration):
         ),
         migrations.DeleteModel(name="GCPStorageSummaryByService"),
         migrations.RunSQL(
+            sql=drop_matview_sql("reporting_ocpall_compute_summary"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="OCPAllComputeSummary"),
+        migrations.RunSQL(
             sql=drop_matview_sql("reporting_ocpall_compute_summary_p"), reverse_sql=migrations.RunSQL.noop
         ),
         migrations.DeleteModel(name="OCPAllComputeSummaryP"),
@@ -175,13 +179,25 @@ class Migration(migrations.Migration):
         migrations.RunSQL(sql=drop_matview_sql("reporting_ocpall_cost_summary_p"), reverse_sql=migrations.RunSQL.noop),
         migrations.DeleteModel(name="OCPAllCostSummaryP"),
         migrations.RunSQL(
+            sql=drop_matview_sql("reporting_ocpall_database_summary"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="OCPAllDatabaseSummary"),
+        migrations.RunSQL(
             sql=drop_matview_sql("reporting_ocpall_database_summary_p"), reverse_sql=migrations.RunSQL.noop
         ),
         migrations.DeleteModel(name="OCPAllDatabaseSummaryP"),
         migrations.RunSQL(
+            sql=drop_matview_sql("reporting_ocpall_network_summary"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="OCPAllNetworkSummary"),
+        migrations.RunSQL(
             sql=drop_matview_sql("reporting_ocpall_network_summary_p"), reverse_sql=migrations.RunSQL.noop
         ),
         migrations.DeleteModel(name="OCPAllNetworkSummaryP"),
+        migrations.RunSQL(
+            sql=drop_matview_sql("reporting_ocpall_storage_summary"), reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.DeleteModel(name="OCPAllStorageSummary"),
         migrations.RunSQL(
             sql=drop_matview_sql("reporting_ocpall_storage_summary_p"), reverse_sql=migrations.RunSQL.noop
         ),
