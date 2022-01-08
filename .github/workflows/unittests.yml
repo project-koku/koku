@@ -31,7 +31,7 @@ jobs:
 
       - id: check-files
         run: |
-          if [ ! -z ${{ steps.changed-files.outputs.all_changed_and_modified_files }} ]; then
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
             echo "::set-output name=run-tests::true"
           fi
 
