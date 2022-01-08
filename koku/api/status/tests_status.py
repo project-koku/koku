@@ -4,6 +4,7 @@
 #
 """Test the status API."""
 import logging
+import sys
 from collections import namedtuple
 from unittest.mock import ANY
 from unittest.mock import Mock
@@ -41,6 +42,11 @@ class StatusModelTest(TestCase):
         """Create test case setup."""
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
+
+    # TODO: only used to demo github-actino workflow
+    def test_python_version_github_action(self):
+        """Testing unit-test workflow"""
+        self.assertEqual(sys.version_info.minor, 8)
 
     @override_settings(GIT_COMMIT="buildnum")
     def test_commit(self):
