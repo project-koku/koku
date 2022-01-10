@@ -32,6 +32,7 @@ class SourceFilter(FilterSet):
     schema_name = CharListFilter(
         field_name="provider__customer__schema_name", lookup_expr="provider__customer__schema_name__icontains"
     )
+    ocp_on_cloud = BooleanFilter(field_name="provider__infrastructure_id", lookup_expr="isnull", exclude=True)
     infrastructure_provider_id = UUIDFilter(field_name="provider__infrastructure__infrastructure_provider_id")
     cluster_id = CharListFilter(
         field_name="authentication__credentials__cluster_id",
@@ -50,6 +51,7 @@ class SourceFilter(FilterSet):
             "name",
             "account_id",
             "schema_name",
+            "ocp_on_cloud",
             "infrastructure_provider_id",
             "cluster_id",
             "active",
