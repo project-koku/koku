@@ -177,7 +177,7 @@ SELECT aws.uuid as aws_uuid,
         AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
-        AND ocp.month = {{month}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     GROUP BY aws.uuid, ocp.namespace
@@ -268,7 +268,7 @@ SELECT aws.uuid as aws_uuid,
             AND (
                 (strpos(aws.resourcetags, 'openshift_project') != 0 AND strpos(aws.resourcetags, lower(ocp.namespace)) != 0)
                     OR (strpos(aws.resourcetags, 'openshift_node') != 0 AND strpos(aws.resourcetags, lower(ocp.node)) != 0)
-                    OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0)
+                    OR (strpos(aws.resourcetags, 'openshift_cluster') != 0 AND (strpos(aws.resourcetags, lower(ocp.cluster_id)) != 0 OR strpos(aws.resourcetags, lower(ocp.cluster_alias)) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (aws.matched_tag != '' AND any_match(split(aws.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
@@ -281,7 +281,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
-        AND ocp.month = {{month}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND pds.aws_uuid IS NULL
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source
