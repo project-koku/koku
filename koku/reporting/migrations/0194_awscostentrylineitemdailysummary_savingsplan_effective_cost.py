@@ -7,21 +7,8 @@ from django.db import models
 
 
 def add_aws_views(apps, schema_editor):
-    """Create the AWS Materialized views from files."""
-    version = "_20210910"
-    views = {
-        f"sql/views/{version}/reporting_aws_compute_summary": ["", "_by_account", "_by_region", "_by_service"],
-        f"sql/views/{version}/reporting_aws_cost_summary": ["", "_by_account", "_by_region", "_by_service"],
-        f"sql/views/{version}/reporting_aws_storage_summary": ["", "_by_account", "_by_region", "_by_service"],
-        f"sql/views/{version}/reporting_aws_database_summary": [""],
-        f"sql/views/{version}/reporting_aws_network_summary": [""],
-    }
-    for base_path, view_tuple in views.items():
-        for view in view_tuple:
-            view_sql = pkgutil.get_data("reporting.provider.aws", f"{base_path}{view}{version}.sql")
-            view_sql = view_sql.decode("utf-8")
-            with connection.cursor() as cursor:
-                cursor.execute(view_sql)
+    """no-op"""
+    pass
 
 
 class Migration(migrations.Migration):
