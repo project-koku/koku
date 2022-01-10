@@ -29,5 +29,5 @@ class Migration(migrations.Migration):
             name="credit_amount",
             field=models.DecimalField(blank=True, decimal_places=9, max_digits=24, null=True),
         ),
-        migrations.RunPython(no_op),
+        migrations.RunPython(add_gcp_views),
     ]
