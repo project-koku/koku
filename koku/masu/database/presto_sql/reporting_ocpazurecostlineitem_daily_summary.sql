@@ -180,7 +180,7 @@ SELECT azure.uuid as azure_uuid,
         AND (azure.resourceid IS NOT NULL AND azure.resourceid != '')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
-        AND ocp.month = {{month}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
@@ -274,9 +274,9 @@ SELECT azure.uuid as azure_uuid,
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
         AND (
-                    json_extract_scalar(azure.tags, '$.openshift_project') = lower(ocp.namespace)
-                    OR json_extract_scalar(azure.tags, '$.openshift_node') = lower(ocp.node)
-                    OR json_extract_scalar(azure.tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
+                    (strpos(azure.tags, 'openshift_project') !=0 AND strpos(azure.tags, lower(ocp.namespace)) != 0)
+                    OR (strpos(azure.tags, 'openshift_node') != 0 AND strpos(azure.tags,lower(ocp.node)) != 0)
+                    OR (strpos(azure.tags, 'openshift_cluster') != 0 AND (strpos(azure.tags, lower(ocp.cluster_id)) != 0 OR strpos(azure.tags, lower(ocp.cluster_alias)) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                     OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
@@ -287,6 +287,9 @@ SELECT azure.uuid as azure_uuid,
         AND azure.month = {{month}}
         AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND pds.azure_uuid is NULL
@@ -482,7 +485,7 @@ FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summ
 WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
     AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
     AND year = {{year}}
-    AND month = {{month}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND day in ({{days}})
 ;
 

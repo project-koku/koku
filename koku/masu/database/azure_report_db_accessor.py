@@ -343,7 +343,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHERE azure_source = '{az_source}'
                     AND ocp_source = '{ocp_source}'
                     AND year = '{year}'
-                    AND month = '{month}'
+                    AND lpad(month, 2, '0') = '{month}'
                     AND day = '{day}';"""
                 final_sql_list.append(sql)
             final_sql = "".join(final_sql_list)
