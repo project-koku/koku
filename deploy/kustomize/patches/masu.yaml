@@ -12,8 +12,6 @@
         enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
-        - /usr/libexec/s2i/run
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}

@@ -6,7 +6,8 @@ from django.db import migrations
 from django.db import models
 
 
-def no_op(apps, schema_editor):
+def add_gcp_views(apps, schema_editor):
+    """no-op."""
     pass
 
 
