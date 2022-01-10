@@ -13,7 +13,7 @@ from koku.database import unset_pg_extended_mode
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0212_auto_20211203_1640")]
+    dependencies = [("reporting", "0213_delete_mat_views")]
 
     operations = [
         migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
