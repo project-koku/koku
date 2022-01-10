@@ -307,15 +307,23 @@ def process_ocpawsazure_tables(schema_queue):  # noqa
 
 def main():
     # get customer schemata
+    schemata = tables = None
     with connect() as conn:
         schemata = get_customer_schemata(conn)
         tables = get_ocpawsazure_tables(conn)
-        conn.rollback()  # close any open tx from selects
 
     if schemata:
+        # Combine for the individual job work
         target_tables = [{"schema": schema, "table_info": table_info} for schema in schemata for table_info in tables]
+        t_tot = len(target_tables)
+        del schemata
+        del tables
+
         # start worker processes
         max_workers = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("NUM_JOB_WORKERS", 1))
+        if max_workers > t_tot:
+            max_workers = t_tot
+
         schema_queues = []
         workers = []
         for wnum in range(max_workers):
@@ -329,7 +337,6 @@ def main():
 
         # load worker queues
         LOG.info("Filling worker queues")
-        t_tot = len(target_tables)
         for t_num, data in enumerate(target_tables):
             q_num = t_num % max_workers
             data["table_num"] = t_num + 1
