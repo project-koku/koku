@@ -16,6 +16,7 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 from tenant_schemas.utils import schema_context
 
+from api.user_settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.user_settings.models import UserSettings
@@ -46,6 +47,17 @@ def get_currency(request):
         else:
             currency = query_settings.settings["currency"]
     return currency
+
+
+def get_user_settings(request):
+    """Returns users settings from the schema or the default settings"""
+    with schema_context(request.user.customer.schema_name):
+        query_settings = UserSettings.objects.all().first()
+    if not query_settings:
+        user_settings = USER_SETTINGS
+    else:
+        user_settings = query_settings.settings
+    return user_settings
 
 
 def merge_dicts(*list_of_dicts):
