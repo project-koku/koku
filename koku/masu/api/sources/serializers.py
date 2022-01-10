@@ -45,7 +45,7 @@ class ProviderSerializer(serializers.Serializer):
     active = serializers.BooleanField()
     paused = serializers.BooleanField()
     customer = CustomerSerializer()
-    infrastructure = ProviderInfrastructureSerializer()
+    infrastructure = ProviderInfrastructureSerializer(required=False)
 
 
 class SourceSerializer(serializers.Serializer):
