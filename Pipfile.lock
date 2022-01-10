@@ -422,9 +422,7 @@
             "version": "==4.0.1"
         },
         "google-api-core": {
-            "extras": [
-                "grpc"
-            ],
+            "extras": [],
             "hashes": [
                 "sha256:3c562d393aed7e3d2011fcd1f103b490c411dcf5644b6312ca11a166a6ea8faf",
                 "sha256:c8889f45cf58deca522888ae1d39b2a25e93e7d1b019ae8cee6456d5c726a40c"
@@ -1843,11 +1841,11 @@
         },
         "crc-bonfire": {
             "hashes": [
-                "sha256:0b288164e3dcc429e2388b97661985bb33df13f22aff17f8c05e0e3f2825d4a7",
-                "sha256:1c43a424782f369e5804f8614698e95415339ddef4df591470f5b00cc07d6afd"
+                "sha256:391cc8d0f89091929ae7a8f2f8c8fdd9b4791d2d8dd188b175444c5c7f51660d",
+                "sha256:d28b1f4f982244022077ace270d277b9acf1611ece0fbbd3459a73d5285849aa"
             ],
             "index": "pypi",
-            "version": "==2.18.5"
+            "version": "==3.1.0"
         },
         "cryptography": {
             "hashes": [
@@ -1981,9 +1979,7 @@
             "version": "==4.28.5"
         },
         "google-api-core": {
-            "extras": [
-                "grpc"
-            ],
+            "extras": [],
             "hashes": [
                 "sha256:3c562d393aed7e3d2011fcd1f103b490c411dcf5644b6312ca11a166a6ea8faf",
                 "sha256:c8889f45cf58deca522888ae1d39b2a25e93e7d1b019ae8cee6456d5c726a40c"
