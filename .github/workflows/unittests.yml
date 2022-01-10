@@ -126,4 +126,4 @@ jobs:
       (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
     runs-on: ubuntu-20.04
     steps:
-      - run: echo "Unit tests and migration check were '{{ needs.unit-tests.result }}'"
+      - run: echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
