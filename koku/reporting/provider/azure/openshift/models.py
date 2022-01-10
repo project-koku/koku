@@ -737,6 +737,10 @@ class OCPAzureDatabaseSummaryP(models.Model):
 class OCPAzureCostLineItemDailySummaryP(models.Model):
     """A summarized partitioned table of OCP on Azure cost."""
 
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
+
     class DeferredSQL:
         create_sql = [
             (
@@ -828,6 +832,10 @@ class OCPAzureCostLineItemDailySummaryP(models.Model):
 
 class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
     """A summarized parititoned table of OCP on Azure cost by OpenShift project."""
+
+    class PartitionInfo:
+        partition_type = "RANGE"
+        partition_cols = ["usage_start"]
 
     class Meta:
         """Meta for OCPAzureCostLineItemProjectDailySummaryP."""
