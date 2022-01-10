@@ -387,7 +387,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     WHERE aws_source = '{aws_source}'
                     AND ocp_source = '{ocp_source}'
                     AND year = '{year}'
-                    AND lpad(month, 2, '0') = '{month}'
+                    AND (month = replace(ltrim(replace('{{month}}', '0', ' ')),' ', '0') OR month = '{{month}}')
                     AND day = '{day}';"""
                 final_sql_list.append(sql)
             final_sql = "".join(final_sql_list)
