@@ -26,9 +26,11 @@ COST_TYPES = [
 ]
 
 """Default users settings"""
-USER_SETTINGS = {
+USER_SETTINGS = {"settings":
+    {
         'currency': KOKU_DEFAULT_CURRENCY,
         'cost_type': KOKU_DEFAULT_COST_TYPE
     }
+}
 
 # fmt: on
