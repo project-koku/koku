@@ -36,35 +36,23 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    #image: quay.io/cloudservices/ubi-hive:2.3.3-002
-    image: local-ubi-hive:2.3.3-004
-    build:
-        context: .
-        dockerfile: ../../Dockerfile.ubi-hive
-    entrypoint:  ["/hive-scripts/entrypoint.sh", "/opt/hive/bin/hive", "--service", "metastore"]
+    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-005
     ports:
-      - "9083:9083"
+      - 9083:8000
     environment:
       - HIVE_LOGLEVEL=INFO
-      - AWS_ACCESS_KEY_ID=${S3_ACCESS_KEY-kokuminioaccess}
-      - AWS_SECRET_ACCESS_KEY=${S3_SECRET-kokuminiosecret}
-      - S3_ENDPOINT=${S3_ENDPOINT-http://kokuminio:9000}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_HOST=kokuminio
+      - S3_PORT=9000
       - S3_ACCESS_KEY=${S3_ACCESS_KEY-kokuminioaccess}
       - S3_SECRET=${S3_SECRET-kokuminiosecret}
-      - DATABASE_NAME=${DATABASE_NAME-postgres}
-      - DATABASE_USER=${DATABASE_USER-postgres}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
-    volumes:
-      - ./../../.trino/metastore/hive-config:/hive-config
-      - ./../../.trino/metastore/hive-scripts:/hive-scripts
-      - ./../../.trino/metastore/hive-jmx-config:/opt/jmx_exporter/config
-      - ./../../.trino/metastore/db-data:/var/lib/hive
-      - ./../../.trino/hadoop/hadoop-dfs-name:/hadoop/dfs/name
-      - ./../../.trino/hadoop/hadoop-dfs-data:/hadoop/dfs/data
-      - ./../../.trino/hadoop/hadoop-logs:/opt/hadoop/logs
-      - ./../../.trino/hadoop/hadoop-config:/hadoop-config
-      - ./../../.trino/hadoop/hadoop-starting-config:/hadoop-starting-config
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME-koku-bucket}
+      - S3_BUCKET_PATH=${S3_BUCKET_PATH-data}
+      - POSTGRES_SQL_SERVICE_HOST=db
+      - POSTGRES_SQL_SERVICE_PORT=5432
+      - DATABASE_NAME=${DATABASE_NAME-hive}
+      - DATABASE_USER=${DATABASE_USER-hive}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD-hive}
+
 
   trino:
     container_name: trino
