@@ -653,7 +653,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 DELETE FROM hive.{self.schema}.{table}
                 WHERE source = '{source}'
                 AND year = '{year}'
-                AND month = '{month}'
+                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                 AND day = '{day}';
                 """
                 final_sql_list.append(sql)
