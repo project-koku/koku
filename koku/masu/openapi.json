@@ -1151,8 +1151,8 @@
             "type": "integer",
             "example": 3
           },
-          "celery": {
-            "type": "hcs",
+          "hcs": {
+            "type": "integer",
             "example": 1
           }
         }
