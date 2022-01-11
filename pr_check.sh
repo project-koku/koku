@@ -41,7 +41,7 @@ function build_image() {
 function run_smoke_tests() {
     run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 2)
+    export NAMESPACE=$(bonfire namespace reserve --duration 2h)
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
@@ -55,7 +55,6 @@ function run_smoke_tests() {
 
     bonfire deploy \
         ${APP_NAME} \
-        --source=appsre \
         --ref-env insights-stage \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \

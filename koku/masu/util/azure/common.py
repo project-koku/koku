@@ -10,6 +10,7 @@ import re
 import uuid
 
 import ciso8601
+import numpy as np
 import pandas as pd
 from tenant_schemas.utils import schema_context
 
@@ -107,13 +108,16 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
 def azure_date_converter(date):
     """Convert Azure date fields properly."""
-    try:
-        new_date = ciso8601.parse_datetime(date)
-    except ValueError:
-        date_split = date.split("/")
-        new_date_str = date_split[2] + date_split[0] + date_split[1]
-        new_date = ciso8601.parse_datetime(new_date_str)
-    return new_date
+    if date:
+        try:
+            new_date = ciso8601.parse_datetime(date)
+        except ValueError:
+            date_split = date.split("/")
+            new_date_str = date_split[2] + date_split[0] + date_split[1]
+            new_date = ciso8601.parse_datetime(new_date_str)
+        return new_date
+    else:
+        return np.nan
 
 
 def azure_json_converter(tag_str):
@@ -156,20 +160,20 @@ def azure_post_processor(data_frame):
 def get_column_converters():
     """Return source specific parquet column converters."""
     return {
-        "UsageDateTime": azure_date_converter,
-        "Date": azure_date_converter,
-        "BillingPeriodStartDate": azure_date_converter,
-        "BillingPeriodEndDate": azure_date_converter,
-        "UsageQuantity": safe_float,
-        "Quantity": safe_float,
-        "ResourceRate": safe_float,
-        "PreTaxCost": safe_float,
-        "CostInBillingCurrency": safe_float,
-        "EffectivePrice": safe_float,
-        "UnitPrice": safe_float,
-        "PayGPrice": safe_float,
-        "Tags": azure_json_converter,
-        "AdditionalInfo": azure_json_converter,
+        "usagedatetime": azure_date_converter,
+        "date": azure_date_converter,
+        "billingperiodstartdate": azure_date_converter,
+        "billingperiodenddate": azure_date_converter,
+        "usagequantity": safe_float,
+        "quantity": safe_float,
+        "resourcerate": safe_float,
+        "pretaxcost": safe_float,
+        "costinbillingcurrency": safe_float,
+        "effectiveprice": safe_float,
+        "unitprice": safe_float,
+        "paygprice": safe_float,
+        "tags": azure_json_converter,
+        "additionalinfo": azure_json_converter,
     }
 
 
