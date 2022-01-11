@@ -67,7 +67,7 @@ select c.oid
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'TRUNCATE TABLE %s ;', OLD.table_name
+                    'TRUNCATE TABLE %I.%I ;', OLD.schema_name, OLD.table_name
                 )
             );
             messages = array_append(messages, format('TRUNCATE TABLE %I.%I', OLD.schema_name, OLD.table_name));
@@ -75,12 +75,12 @@ select c.oid
             action_stmts = array_append(
                 action_stmts,
                 format(
-                    'DROP TABLE IF EXISTS %s ;', OLD.table_name
+                    'DROP TABLE IF EXISTS %I.%I ;', OLD.schema_name, OLD.table_name
                 )
             );
             messages = array_append(messages, format('DROP TABLE IF EXISTS %I.%I', OLD.schema_name, OLD.table_name));
         ELSE
-            RAISE NOTICE 'Table %s.%s does not exist. No partition actions taken', OLD.schema_name, OLD.table_name;
+            RAISE NOTICE 'Table %.% does not exist. No partition actions taken', OLD.schema_name, OLD.table_name;
         END IF;
     ELSIF ( TG_OP = 'UPDATE' )
     THEN
