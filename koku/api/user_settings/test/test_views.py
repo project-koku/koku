@@ -28,7 +28,7 @@ class UserSettingsViewTest(IamTestCase):
         """Test grabbing a user settings"""
         url = reverse("user-settings")
         client = APIClient()
-        expected = {"currency": "JPY", "cost_type": "savingsplan_effective_cost"}
+        expected = {"data": {"settings": {"cost_type": "savingsplan_effective_cost", "currency": "JPY"}}}
         new_cost_type = "savingsplan_effective_cost"
         new_currency = "JPY"
         with schema_context(self.schema_name):
@@ -56,7 +56,7 @@ class UserSettingsViewTest(IamTestCase):
         """Test grabbing a specified user setting"""
         url = url = "%scurrency/" % reverse("user-settings")
         client = APIClient()
-        expected = {"currency": "USD"}
+        expected = {"data": {"settings": {"currency": "USD"}}}
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
