@@ -7,39 +7,8 @@ from django.db import models
 
 
 def add_gcp_views(apps, schema_editor):
-    """Create the GCP Materialized views from files."""
-    version = "_20210816"
-    views = {
-        f"sql/views/{version}/reporting_gcp_compute_summary": [
-            "",
-            "_by_account",
-            "_by_project",
-            "_by_region",
-            "_by_service",
-        ],
-        f"sql/views/{version}/reporting_gcp_cost_summary": [
-            "",
-            "_by_account",
-            "_by_project",
-            "_by_region",
-            "_by_service",
-        ],
-        f"sql/views/{version}/reporting_gcp_storage_summary": [
-            "",
-            "_by_account",
-            "_by_project",
-            "_by_region",
-            "_by_service",
-        ],
-        f"sql/views/{version}/reporting_gcp_database_summary": [""],
-        f"sql/views/{version}/reporting_gcp_network_summary": [""],
-    }
-    for base_path, view_tuple in views.items():
-        for view in view_tuple:
-            view_sql = pkgutil.get_data("reporting.provider.gcp", f"{base_path}{view}{version}.sql")
-            view_sql = view_sql.decode("utf-8")
-            with connection.cursor() as cursor:
-                cursor.execute(view_sql)
+    """no-op."""
+    pass
 
 
 class Migration(migrations.Migration):
