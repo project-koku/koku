@@ -542,13 +542,13 @@ class OCPAzureCostLineItemDailySummaryP(models.Model):
         db_table = "reporting_ocpazurecostlineitem_daily_summary_p"
 
         indexes = [
-            models.Index(fields=["usage_start"], name="p_ocpazure_usage_start_idx"),
-            models.Index(fields=["namespace"], name="p_ocpazure_namespace_idx"),
-            models.Index(fields=["node"], name="p_ocpazure_node_idx", opclasses=["varchar_pattern_ops"]),
-            models.Index(fields=["resource_id"], name="p_ocpazure_resource_idx"),
-            GinIndex(fields=["tags"], name="p_ocpazure_tags_idx"),
-            models.Index(fields=["service_name"], name="p_ocpazure_service_name_idx"),
-            models.Index(fields=["instance_type"], name="p_ocpazure_instance_type_idx"),
+            models.Index(fields=["usage_start"], name="p_ocpaz_use_strt_idx"),
+            models.Index(fields=["namespace"], name="p_ocpaz_nspc_idx"),
+            models.Index(fields=["node"], name="p_ocpaz_nde_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["resource_id"], name="p_ocpaz_rsrc_idx"),
+            GinIndex(fields=["tags"], name="p_ocpaz_tags_idx"),
+            models.Index(fields=["service_name"], name="p_ocpaz_svc_name_idx"),
+            models.Index(fields=["instance_type"], name="p_ocpaz_inst_typ_idx"),
             # The next 1 would only work for Django 4
             # GinIndex(Upper("service_name"), opclasses=["gin_trgm_ops"], name="p_ix_ocpazure_service_name_ilike"),
             # A GIN functional index named "ix_ocpazure_service_name_ilike" was created manually
@@ -628,13 +628,13 @@ class OCPAzureCostLineItemProjectDailySummaryP(models.Model):
         db_table = "reporting_ocpazurecostlineitem_project_daily_summary_p"
 
         indexes = [
-            models.Index(fields=["usage_start"], name="p_ocpazure_prj_usage_strt_idx"),
-            models.Index(fields=["namespace"], name="p_ocpazure_prj_namespace_idx", opclasses=["varchar_pattern_ops"]),
-            models.Index(fields=["node"], name="p_ocpazure_prj_node_idx", opclasses=["varchar_pattern_ops"]),
-            models.Index(fields=["resource_id"], name="p_ocpazure_prj_rsrc_id_idx"),
-            GinIndex(fields=["pod_labels"], name="p_ocpazure_prj_pod_labels_idx"),
-            models.Index(fields=["service_name"], name="p_ocpazure_prj_srvc_name_idx"),
-            models.Index(fields=["instance_type"], name="p_ocpazure_prj_inst_type_idx"),
+            models.Index(fields=["usage_start"], name="p_ocpaz_prj_use_strt_idx"),
+            models.Index(fields=["namespace"], name="p_ocpaz_prj_nspc_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="p_ocpaz_prj_nde_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["resource_id"], name="p_ocpaz_prj_rsrc_idx"),
+            GinIndex(fields=["pod_labels"], name="p_ocpaz_prj_pod_lbl_idx"),
+            models.Index(fields=["service_name"], name="p_ocpaz_prj_srvc_name_idx"),
+            models.Index(fields=["instance_type"], name="p_ocpaz_prj_inst_typ_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
