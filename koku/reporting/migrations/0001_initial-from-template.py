@@ -15,8 +15,8 @@ from jinjasql import JinjaSql
 
 import reporting.partition.models
 from koku import migration_sql_helpers as msh
-from koku.database import set_pg_extended_schema_editor
-from koku.database import unset_pg_extended_schema_editor
+from koku.database import set_partitioned_schema_editor
+from koku.database import unset_partitioned_schema_editor
 
 
 LOG = logging.getLogger(__name__)
@@ -42,11 +42,11 @@ def apply_partitioned_tables_trigger(apps, schema_editor):
 
 
 def set_partitioned_mode(apps, schema_editor):
-    set_pg_extended_schema_editor(schema_editor)
+    set_partitioned_schema_editor(schema_editor)
 
 
 def unset_partitioned_mode(apps, schema_editor):
-    unset_pg_extended_schema_editor(schema_editor)
+    unset_partitioned_schema_editor(schema_editor)
 
 
 def apply_views(apps, schema_editor):

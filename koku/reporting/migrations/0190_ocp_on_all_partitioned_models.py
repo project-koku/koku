@@ -7,8 +7,8 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-from koku.database import set_pg_extended_mode
-from koku.database import unset_pg_extended_mode
+from koku.database import set_partition_mode
+from koku.database import unset_partition_mode
 
 
 def create_new_ocpall_matviews(apps, schema_editor):
@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0001_initial-from-template")]
 
     operations = [
-        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
+        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
         migrations.CreateModel(
             name="OCPAllCostLineItemProjectDailySummaryP",
             fields=[
@@ -169,7 +169,7 @@ ALTER TABLE reporting_ocpallcostlineitem_daily_summary_p
             model_name="ocpallcostlineitemdailysummaryp",
             index=models.Index(fields=["instance_type"], name="ocpall_p_instance_type_idx"),
         ),
-        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
+        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
         migrations.RunPython(code=create_new_ocpall_matviews, reverse_code=drop_new_ocpall_matviews),
         migrations.CreateModel(
             name="OCPAllComputeSummaryP",
