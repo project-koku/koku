@@ -4,8 +4,8 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-from koku.database import set_partition_mode
-from koku.database import unset_partition_mode
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
 
 
 class Migration(migrations.Migration):
@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     dependencies = [("api", "0050_exchangerates"), ("reporting", "0197_usersettings")]
 
     operations = [
-        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.CreateModel(
             name="AWSStorageSummaryP",
             fields=[
@@ -520,5 +520,5 @@ class Migration(migrations.Migration):
             sql="ALTER TABLE reporting_aws_compute_summary_by_account_p ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
             reverse_sql="select 1",
         ),
-        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
