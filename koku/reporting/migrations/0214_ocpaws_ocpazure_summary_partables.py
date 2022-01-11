@@ -221,121 +221,117 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="p_ocpazure_prj_usage_strt_idx"),
+            index=models.Index(fields=["usage_start"], name="p_ocpaz_prj_use_strt_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(
-                fields=["namespace"], name="p_ocpazure_prj_namespace_idx", opclasses=["varchar_pattern_ops"]
-            ),
+            index=models.Index(fields=["namespace"], name="p_ocpaz_prj_nspc_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["node"], name="p_ocpazure_prj_node_idx", opclasses=["varchar_pattern_ops"]),
+            index=models.Index(fields=["node"], name="p_ocpaz_prj_nde_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="p_ocpazure_prj_rsrc_id_idx"),
+            index=models.Index(fields=["resource_id"], name="p_ocpaz_prj_rsrc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(
-                fields=["pod_labels"], name="p_ocpazure_prj_pod_labels_idx"
-            ),
+            index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="p_ocpaz_prj_pod_lbl_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["service_name"], name="p_ocpazure_prj_srvc_name_idx"),
+            index=models.Index(fields=["service_name"], name="p_ocpaz_prj_srvc_name_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="p_ocpazure_prj_inst_type_idx"),
+            index=models.Index(fields=["instance_type"], name="p_ocpaz_prj_inst_typ_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="p_ocpazure_usage_start_idx"),
+            index=models.Index(fields=["usage_start"], name="p_ocpaz_use_strt_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["namespace"], name="p_ocpazure_namespace_idx"),
+            index=models.Index(fields=["namespace"], name="p_ocpaz_nspc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["node"], name="p_ocpazure_node_idx", opclasses=["varchar_pattern_ops"]),
+            index=models.Index(fields=["node"], name="p_ocpaz_nde_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="p_ocpazure_resource_idx"),
+            index=models.Index(fields=["resource_id"], name="p_ocpaz_rsrc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="p_ocpazure_tags_idx"),
+            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="p_ocpaz_tags_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["service_name"], name="p_ocpazure_service_name_idx"),
+            index=models.Index(fields=["service_name"], name="p_ocpaz_svc_name_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="p_ocpazure_instance_type_idx"),
+            index=models.Index(fields=["instance_type"], name="p_ocpaz_inst_typ_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="p_cost_proj_sum_ocp_usage_idx"),
+            index=models.Index(fields=["usage_start"], name="p_cost_prj_sum_ocp_use_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
             index=models.Index(
-                fields=["namespace"], name="p_cost__proj_sum_namespace_idx", opclasses=["varchar_pattern_ops"]
+                fields=["namespace"], name="p_cost_prj_sum_nspc_idx", opclasses=["varchar_pattern_ops"]
             ),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["node"], name="p_cost_proj_sum_node_idx", opclasses=["varchar_pattern_ops"]),
+            index=models.Index(fields=["node"], name="p_cost_prj_sum_nd_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="p_cost_proj_sum_resource_idx"),
+            index=models.Index(fields=["resource_id"], name="p_cost_prj_sum_rsrc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="p_cost_proj_pod_labels_idx"),
+            index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="p_cost_prj_pod_lbls_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["product_family"], name="p_ocp_aws_proj_prod_fam_idx"),
+            index=models.Index(fields=["product_family"], name="p_ocpaws_prj_prd_fam_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemprojectdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="p_ocp_aws_proj_inst_type_idx"),
+            index=models.Index(fields=["instance_type"], name="p_ocpaws_prj_inst_typ_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["usage_start"], name="p_cost_summary_ocp_usage_idx"),
+            index=models.Index(fields=["usage_start"], name="p_cost_sum_ocpaws_use_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["namespace"], name="p_cost_summary_namespace_idx"),
+            index=models.Index(fields=["namespace"], name="p_cost_sum_ocpaws_nspc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["node"], name="p_cost_summary_node_idx", opclasses=["varchar_pattern_ops"]),
+            index=models.Index(fields=["node"], name="p_cost_sum_ocpaws_nde_idx", opclasses=["varchar_pattern_ops"]),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["resource_id"], name="p_cost_summary_resource_idx"),
+            index=models.Index(fields=["resource_id"], name="p_cost_sum_ocpaws_rsrc_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="p_cost_tags_idx"),
+            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="p_cost_ocpaws_tags_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["product_family"], name="p_ocp_aws_product_family_idx"),
+            index=models.Index(fields=["product_family"], name="p_ocpaws_prod_fam_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
-            index=models.Index(fields=["instance_type"], name="p_ocp_aws_instance_type_idx"),
+            index=models.Index(fields=["instance_type"], name="p_ocpaws_inst_typ_idx"),
         ),
         migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]

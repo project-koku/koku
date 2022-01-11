@@ -646,13 +646,13 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
     class DeferredSQL:
         create_sql = [
             (
-                """CREATE INDEX "p_ix_ocp_aws_product_family_ilike"
+                """CREATE INDEX "p_ix_ocpaws_prod_fam_ilike"
     ON "reporting_ocpawscostlineitem_daily_summary_p"
  USING GIN ((upper("product_family")) gin_trgm_ops) ;""",
                 None,
             ),
             (
-                """CREATE INDEX "p_ix_ocp_aws_product_code_ilike"
+                """CREATE INDEX "p_ix_ocpaws_prod_code_ilike"
     ON "reporting_ocpawscostlineitem_daily_summary_p"
  USING GIN ((upper("product_code")) gin_trgm_ops) ;""",
                 None,
@@ -665,13 +665,13 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
         db_table = "reporting_ocpawscostlineitem_daily_summary_p"
 
         indexes = [
-            models.Index(fields=["usage_start"], name="p_cost_summary_ocp_usage_idx"),
-            models.Index(fields=["namespace"], name="p_cost_summary_namespace_idx"),
-            models.Index(fields=["node"], name="p_cost_summary_node_idx", opclasses=["varchar_pattern_ops"]),
-            models.Index(fields=["resource_id"], name="p_cost_summary_resource_idx"),
-            GinIndex(fields=["tags"], name="p_cost_tags_idx"),
-            models.Index(fields=["product_family"], name="p_ocp_aws_product_family_idx"),
-            models.Index(fields=["instance_type"], name="p_ocp_aws_instance_type_idx"),
+            models.Index(fields=["usage_start"], name="p_cost_sum_ocpaws_use_idx"),
+            models.Index(fields=["namespace"], name="p_cost_sum_ocpaws_nspc_idx"),
+            models.Index(fields=["node"], name="p_cost_sum_ocpaws_nde_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["resource_id"], name="p_cost_sum_ocpaws_rsrc_idx"),
+            GinIndex(fields=["tags"], name="p_cost_ocpaws_tags_idx"),
+            models.Index(fields=["product_family"], name="p_ocpaws_prod_fam_idx"),
+            models.Index(fields=["instance_type"], name="p_ocpaws_inst_typ_idx"),
             # The next 2 would only work for Django 4
             # GinIndex(Upper("product_family"), opclasses=["gin_trgm_ops"], name="p_ix_ocp_aws_product_family_ilike"),
             # GinIndex(Upper("product_code"), opclasses=["gin_trgm_ops"], name="p_ix_ocp_aws_product_code_ilike"),
@@ -763,15 +763,13 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
         db_table = "reporting_ocpawscostlineitem_project_daily_summary_p"
 
         indexes = [
-            models.Index(fields=["usage_start"], name="p_cost_proj_sum_ocp_usage_idx"),
-            models.Index(
-                fields=["namespace"], name="p_cost__proj_sum_namespace_idx", opclasses=["varchar_pattern_ops"]
-            ),
-            models.Index(fields=["node"], name="p_cost_proj_sum_node_idx", opclasses=["varchar_pattern_ops"]),
-            models.Index(fields=["resource_id"], name="p_cost_proj_sum_resource_idx"),
-            GinIndex(fields=["pod_labels"], name="p_cost_proj_pod_labels_idx"),
-            models.Index(fields=["product_family"], name="p_ocp_aws_proj_prod_fam_idx"),
-            models.Index(fields=["instance_type"], name="p_ocp_aws_proj_inst_type_idx"),
+            models.Index(fields=["usage_start"], name="p_cost_prj_sum_ocp_use_idx"),
+            models.Index(fields=["namespace"], name="p_cost_prj_sum_nspc_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["node"], name="p_cost_prj_sum_nd_idx", opclasses=["varchar_pattern_ops"]),
+            models.Index(fields=["resource_id"], name="p_cost_prj_sum_rsrc_idx"),
+            GinIndex(fields=["pod_labels"], name="p_cost_prj_pod_lbls_idx"),
+            models.Index(fields=["product_family"], name="p_ocpaws_prj_prd_fam_idx"),
+            models.Index(fields=["instance_type"], name="p_ocpaws_prj_inst_typ_idx"),
         ]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
