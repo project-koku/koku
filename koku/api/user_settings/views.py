@@ -13,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.common.pagination import CustomMetaPagination
+from api.common.pagination import ListPaginator
+from api.user_settings.serializer import UserSettingSerializer
 from api.user_settings.settings import COST_TYPES
 from api.utils import get_cost_type
 from api.utils import get_currency
@@ -41,8 +43,10 @@ class AllUserSettings(APIView):
         else:
             setting = param["setting"]
             self.validate_setting(setting)
-            user_settings = self.get_user_setting(request, setting)
-        return Response(user_settings)
+            user_settings = self.get_user_setting(request, setting).data
+        user_settings = UserSettingSerializer(user_settings, many=False).data
+        paginated = ListPaginator(user_settings, request)
+        return paginated.get_paginated_response(user_settings)
 
     @staticmethod
     def validate_setting(setting):
@@ -54,10 +58,11 @@ class AllUserSettings(APIView):
     def get_user_setting(self, request, setting):
         """Returns specific setting that is being filtered"""
         if setting == "cost-type":
-            users_setting = {"cost_type": get_cost_type(request)}
+            users_setting = {"settings": {"cost_type": get_cost_type(request)}}
         elif setting == "currency":
-            users_setting = {"currency": get_currency(request)}
-        return users_setting
+            users_setting = {"settings": {"currency": get_currency(request)}}
+        users_setting = UserSettingSerializer(users_setting, many=False).data
+        return Response(users_setting)
 
 
 class UserCostTypeSettings(APIView):

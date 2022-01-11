@@ -56,7 +56,7 @@ def get_user_settings(request):
     if not query_settings:
         user_settings = USER_SETTINGS
     else:
-        user_settings = query_settings.settings
+        user_settings = query_settings
     return user_settings
 
 
