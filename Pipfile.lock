@@ -1859,11 +1859,11 @@
         },
         "crc-bonfire": {
             "hashes": [
-                "sha256:04ade086fa4fddf01cfc833a15da5137ec78de46ae9c1cdf6c439c6bd96fda33",
-                "sha256:0bacea516e8e2e0e12138a6344ede0b9c9e36c1fdabdeb0adc81ca4390eca3a0"
+                "sha256:391cc8d0f89091929ae7a8f2f8c8fdd9b4791d2d8dd188b175444c5c7f51660d",
+                "sha256:d28b1f4f982244022077ace270d277b9acf1611ece0fbbd3459a73d5285849aa"
             ],
             "index": "pypi",
-            "version": "==2.20.3"
+            "version": "==3.1.0"
         },
         "cryptography": {
             "hashes": [

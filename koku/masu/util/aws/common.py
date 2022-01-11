@@ -494,20 +494,20 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 def get_column_converters():
     """Return source specific parquet column converters."""
     return {
-        "bill/BillingPeriodStartDate": ciso8601.parse_datetime,
-        "bill/BillingPeriodEndDate": ciso8601.parse_datetime,
-        "lineItem/UsageStartDate": ciso8601.parse_datetime,
-        "lineItem/UsageEndDate": ciso8601.parse_datetime,
-        "lineItem/UsageAmount": safe_float,
-        "lineItem/NormalizationFactor": safe_float,
-        "lineItem/NormalizedUsageAmount": safe_float,
-        "lineItem/UnblendedRate": safe_float,
-        "lineItem/UnblendedCost": safe_float,
-        "lineItem/BlendedRate": safe_float,
-        "lineItem/BlendedCost": safe_float,
-        "pricing/publicOnDemandCost": safe_float,
-        "pricing/publicOnDemandRate": safe_float,
-        "savingsPlan/SavingsPlanEffectiveCost": safe_float,
+        "bill/billingperiodstartdate": ciso8601.parse_datetime,
+        "bill/billingperiodenddate": ciso8601.parse_datetime,
+        "lineitem/usagestartdate": ciso8601.parse_datetime,
+        "lineitem/usageenddate": ciso8601.parse_datetime,
+        "lineitem/usageamount": safe_float,
+        "lineitem/normalizationfactor": safe_float,
+        "lineitem/normalizedusageamount": safe_float,
+        "lineitem/unblendedrate": safe_float,
+        "lineitem/unblendedcost": safe_float,
+        "lineitem/blendedrate": safe_float,
+        "lineitem/blendedcost": safe_float,
+        "pricing/publicondemandcost": safe_float,
+        "pricing/publicondemandrate": safe_float,
+        "savingsplan/savingsplaneffectivecost": safe_float,
     }
 
 
