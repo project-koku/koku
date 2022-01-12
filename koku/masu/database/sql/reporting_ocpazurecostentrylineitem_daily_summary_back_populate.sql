@@ -1,5 +1,5 @@
 -- Clear out old entries first
-DELETE FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary
+DELETE FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p
 WHERE usage_start >= {{start_date}}::date
     AND usage_start <= {{end_date}}::date
     AND report_period_id = {{report_period_id | sqlsafe}}
@@ -7,7 +7,7 @@ WHERE usage_start >= {{start_date}}::date
 
 
 -- Populate the daily aggregate line item data
-INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
+INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p (
     uuid,
     report_period_id,
     cluster_id,
@@ -53,7 +53,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary (
         max(unit_of_measure) as unit_of_measure,
         count(DISTINCT namespace) as shared_projects,
         source_uuid
-    FROM reporting_ocpazurecostlineitem_project_daily_summary
+    FROM reporting_ocpazurecostlineitem_project_daily_summary_p
     WHERE report_period_id = {{report_period_id | sqlsafe}}
         AND usage_start >= date({{start_date}})
         AND usage_start <= date({{end_date}})
@@ -153,7 +153,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months
-    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary AS ocp_azure
+    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p AS ocp_azure
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_azure.cluster_id = rp.cluster_id
             AND DATE_TRUNC('month', ocp_azure.usage_start)::date  = date(rp.report_period_start)
