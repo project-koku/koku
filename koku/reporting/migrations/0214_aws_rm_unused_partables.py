@@ -13,7 +13,7 @@ TARGET_PARTABLES = (
 
 
 def drop_partitions(app, schema_editor):
-    PartitionedTables.objects.filter(partition_of_table_name__in=TARGET_TABLES).delete()
+    PartitionedTables.objects.filter(partition_of_table_name__in=TARGET_PARTABLES).delete()
 
 
 class Migration(migrations.Migration):
