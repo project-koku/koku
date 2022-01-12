@@ -480,6 +480,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+        days_list = [str(day.day) for day in days]
+        self.delete_ocp_on_gcp_hive_partition_by_day(
+            days_list, gcp_provider_uuid, openshift_provider_uuid, year, month
+        )
+
         # Default to cpu distribution
         node_column = "node_capacity_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
@@ -494,8 +503,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql_params = {
             "schema": self.schema,
             "start_date": start_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
+            "days": days_str,
             "end_date": end_date,
             "gcp_source_uuid": gcp_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
@@ -514,6 +524,34 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
             summary_sql = summary_sql.decode("utf-8")
             self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=sql_params)
+
+    def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
+        """Deletes partitions individually for each day in days list."""
+        table = self._table_map["ocp_on_gcp_project_daily_summary"]
+        if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+                self.schema,
+                ocp_source,
+                gcp_source,
+                table,
+                year,
+                month,
+                days,
+            )
+            final_sql_list = []
+            for day in days:
+                sql = f"""
+                DELETE FROM hive.{self.schema}.{table}
+                    WHERE gcp_source = '{gcp_source}'
+                    AND ocp_source = '{ocp_source}'
+                    AND year = '{year}'
+                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                    AND day = '{day}';"""
+                final_sql_list.append(sql)
+            final_sql = "".join(final_sql_list)
+            self._execute_presto_multipart_sql_query(self.schema, final_sql)
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
