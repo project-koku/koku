@@ -30,6 +30,8 @@ from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
+from koku.settings import KOKU_DEFAULT_CURRENCY
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
 
 LOG = logging.getLogger(__name__)
 
@@ -73,7 +75,6 @@ class ReportQueryHandler(QueryHandler):
         """
         LOG.debug(f"Query Params: {parameters}")
         super().__init__(parameters)
-
         self._tag_keys = parameters.tag_keys
         if not hasattr(self, "_report_type"):
             self._report_type = parameters.report_type
@@ -581,20 +582,41 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def _get_exchange_rate(self):
-        """Look up the exchange rate for the target currency."""
-        # TODO: Need to figure out if there is something else we can do here except log the error
-        # Do not wanna return a default for wrong conversions
+    def _get_base_currency(self, source_uuid):
+        """Look up the report base currency."""
+        provider_table_map = {
+            Provider.PROVIDER_AWS: AWSCostSummaryByAccountP
+            # extend this to the other providers
+        }
         try:
-            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower())
-            return exchange_rate.exchange_rate
+            base_currency = provider_table_map.get(self.provider).objects.filter(source_uuid=source_uuid).first()
+            return base_currency.currency_code
         except Exception as e:
             LOG.error(e)
-        return 1
+        return KOKU_DEFAULT_CURRENCY
+
+    def _get_exchange_rate(self, base_currency):
+        """Look up the exchange rate for the target currency."""
+        # TODO: Need to figure out if there is something else we can do here except log the error
+        exchange_rates = {}
+        for currency in [self.currency, base_currency]:
+            try:
+                exchange_rate = ExchangeRates.objects.get(currency_type=currency.lower())
+                exchange_rates[currency] = exchange_rate.exchange_rate
+            except Exception as e:
+                LOG.error(e)
+                return 1
+        if base_currency and base_currency != self.currency:
+            return Decimal(exchange_rates[self.currency] / exchange_rates[base_currency])
+        return Decimal(exchange_rates[self.currency])
 
     def _apply_total_exchange(self, data):
+        source_uuid = data.get("source_uuid")
+        base_currency = KOKU_DEFAULT_CURRENCY
+        if source_uuid:
+            base_currency = self._get_base_currency(source_uuid[0])
         if self._report_type == "costs":
-            exchange_rate = self._get_exchange_rate()
+            exchange_rate = self._get_exchange_rate(base_currency)
             for key, value in data.items():
                 if key in ["infrastructure", "supplementary", "cost"]:
                     for in_key, in_value in value.items():
