@@ -88,9 +88,9 @@ class OCPAzureCostLineItemDailySummary(models.Model):
 
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
 
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
 
     # This is a count of the number of projects that share an AWS resource
     # It is used to divide cost evenly among projects
@@ -165,9 +165,9 @@ class OCPAzureCostLineItemProjectDailySummary(models.Model):
 
     usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
 
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
 
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
 
     pretax_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
 
@@ -251,7 +251,7 @@ class OCPAzureCostSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -286,7 +286,7 @@ class OCPAzureCostSummaryByAccountP(models.Model):
     subscription_guid = models.TextField(null=False)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -322,7 +322,7 @@ class OCPAzureCostSummaryByLocationP(models.Model):
     resource_location = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -358,7 +358,7 @@ class OCPAzureCostSummaryByServiceP(models.Model):
     service_name = models.TextField(null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -394,10 +394,10 @@ class OCPAzureComputeSummaryP(models.Model):
     instance_type = models.TextField(null=True)
     resource_id = models.CharField(max_length=253, null=True)
     usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -432,10 +432,10 @@ class OCPAzureStorageSummaryP(models.Model):
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
     usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -470,10 +470,10 @@ class OCPAzureNetworkSummaryP(models.Model):
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
     usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
@@ -508,10 +508,10 @@ class OCPAzureDatabaseSummaryP(models.Model):
     subscription_guid = models.TextField(null=False)
     service_name = models.TextField(null=True)
     usage_quantity = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    unit_of_measure = models.TextField(null=True)
+    unit_of_measure = models.CharField(max_length=20, null=True)
     pretax_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
     markup_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    currency = models.TextField(null=True)
+    currency = models.CharField(max_length=10, null=True)
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
