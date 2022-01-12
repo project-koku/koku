@@ -421,7 +421,9 @@ class ReportDBAccessorBase(KokuDBAccess):
         if created:
             LOG.info(f"Created a new partition for {newpart.partition_of_table_name} : {newpart.table_name}")
 
-    def delete_line_item_daily_summary_entries_for_date_range(self, source_uuid, start_date, end_date, table=None):
+    def delete_line_item_daily_summary_entries_for_date_range(
+        self, source_uuid, start_date, end_date, table=None, filters=None
+    ):
         if table is None:
             table = self.line_item_daily_summary_table
         msg = f"Deleting records from {table} from {start_date} to {end_date}"
@@ -429,6 +431,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         select_query = table.objects.filter(
             source_uuid=source_uuid, usage_start__gte=start_date, usage_start__lte=end_date
         )
+        if filters:
+            select_query = select_query.filter(**filters)
         with schema_context(self.schema):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
