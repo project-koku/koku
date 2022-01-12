@@ -253,8 +253,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, GCP_REPORT_TABLE_MAP)
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_gcp_cost_daily_summary_presto(self, mock_presto):
+    def test_populate_ocp_on_gcp_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -281,6 +282,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
+        mock_delete.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
@@ -344,16 +346,26 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_trino.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ui_summary_tables(self, mock_presto):
+    def test_populate_ocp_gcp_ui_summary_tables(self, mock_presto):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
-        report_period_id = 4
-
-        self.accessor.populate_ui_summary_tables(
-            start_date, end_date, self.ocp_provider_uuid, self.gcp_provider_uuid, report_period_id
-        )
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "days": days_str,
+            "end_date": end_date,
+            "gcp_source_uuid": self.gcp_provider_uuid,
+            "ocp_source_uuid": self.ocp_provider_uuid,
+        }
+        self.accessor.populate_ocp_on_gcp_ui_summary_tables(summary_sql_params)
         mock_presto.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
