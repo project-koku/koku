@@ -52,11 +52,9 @@ def get_account_settings(request):
     """Returns users settings from the schema or the default settings"""
     with schema_context(request.user.customer.schema_name):
         query_settings = UserSettings.objects.all().first()
-    if not query_settings:
-        user_settings = USER_SETTINGS
-    else:
-        user_settings = query_settings
-    return user_settings
+    if query_settings:
+        return query_settings
+    return USER_SETTINGS
 
 
 def merge_dicts(*list_of_dicts):
