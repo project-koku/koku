@@ -44,7 +44,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
         invoice_month
     FROM postgres.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     -- Get data for this month or last month
-    WHERE service_alias LIKE '%%Network%%'
+    WHERE (service_alias LIKE '%%Network%%'
         OR service_alias LIKE '%%VPC%%'
         OR service_alias LIKE '%%Firewall%%'
         OR service_alias LIKE '%%Route%%'
@@ -56,7 +56,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
         OR service_alias LIKE '%%Service Discovery%%'
         OR service_alias LIKE '%%Cloud Domains%%'
         OR service_alias LIKE '%%Private Service Connect%%'
-        OR service_alias LIKE '%%Cloud Armor%%'
+        OR service_alias LIKE '%%Cloud Armor%%')
         AND usage_start >= date('{{start_date | sqlsafe}}')
         AND usage_start <= date('{{end_date | sqlsafe}}')
         AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'

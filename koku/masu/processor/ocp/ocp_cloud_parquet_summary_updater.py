@@ -291,6 +291,8 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             "source_uuid": gcp_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
+            "year": start_date.strftime("%Y"),
+            "month": start_date.strftime("%m"),
         }
         with GCPReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):

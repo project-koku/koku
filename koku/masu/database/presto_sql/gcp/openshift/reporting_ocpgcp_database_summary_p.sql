@@ -44,13 +44,13 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_database_summary
         invoice_month
     FROM postgres.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     -- Get data for this month or last month
-    WHERE service_alias LIKE '%%SQL%%'
+    WHERE (service_alias LIKE '%%SQL%%'
         OR service_alias LIKE '%%Spanner%%'
         OR service_alias LIKE '%%Bigtable%%'
         OR service_alias LIKE '%%Firestore%%'
         OR service_alias LIKE '%%Firebase%%'
         OR service_alias LIKE '%%Memorystore%%'
-        OR service_alias LIKE '%%MongoDB%%'
+        OR service_alias LIKE '%%MongoDB%%')
         AND usage_start >= date('{{start_date | sqlsafe}}')
         AND usage_start <= date('{{end_date | sqlsafe}}')
         AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'

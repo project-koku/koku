@@ -210,6 +210,7 @@ if [[ $USE_OC == 1 ]]; then
 fi
 
 # Trigger downloads individually to ensure OCP is processed before cloud sources for OCP on Cloud
+trigger_download 'Test OCP on GCP'
 trigger_download 'Test OCP on AWS'
 trigger_download 'Test OCP on Azure'
 trigger_download 'Test OCP on Premises'
