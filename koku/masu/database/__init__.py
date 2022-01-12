@@ -45,8 +45,8 @@ AZURE_REPORT_TABLE_MAP = {
     "line_item_daily_summary": "reporting_azurecostentrylineitem_daily_summary",
     "tags_summary": "reporting_azuretags_summary",
     "enabled_tag_keys": "reporting_azureenabledtagkeys",
-    "ocp_on_azure_daily_summary": "reporting_ocpazurecostlineitem_daily_summary",
-    "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary",
+    "ocp_on_azure_daily_summary": "reporting_ocpazurecostlineitem_daily_summary_p",
+    "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary_p",
     "ocp_on_azure_tags_summary": "reporting_ocpazuretags_summary",
 }
 
