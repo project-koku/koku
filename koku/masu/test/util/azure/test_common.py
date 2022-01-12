@@ -3,6 +3,7 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import numpy as np
 import pandas as pd
 
 from api.utils import DateHelper
@@ -26,6 +27,7 @@ class TestAzureUtils(MasuTestCase):
 
         self.assertEqual(azure_date_converter(old_azure_format).date(), today.date())
         self.assertEqual(azure_date_converter(new_azure_format).date(), today.date())
+        self.assertTrue(np.isnan(azure_date_converter("")))
 
     def test_azure_json_converter(self):
         """Test that we successfully process both Azure JSON formats."""
