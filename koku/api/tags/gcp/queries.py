@@ -33,7 +33,6 @@ class GCPTagQueryHandler(TagQueryHandler):
         }
     ]
     TAGS_VALUES_SOURCE = [{"db_table": GCPTagsValues, "fields": ["key"]}]
-    # TODO: COST-1986
     #  filter_map.update
     SUPPORTED_FILTERS = TagQueryHandler.SUPPORTED_FILTERS + ["account", "gcp_project", "enabled"]
 
