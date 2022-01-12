@@ -49,7 +49,7 @@ def get_currency(request):
     return currency
 
 
-def get_user_settings(request):
+def get_account_settings(request):
     """Returns users settings from the schema or the default settings"""
     with schema_context(request.user.customer.schema_name):
         query_settings = UserSettings.objects.all().first()

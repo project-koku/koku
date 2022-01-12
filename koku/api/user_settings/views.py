@@ -16,9 +16,9 @@ from api.common.pagination import CustomMetaPagination
 from api.common.pagination import ListPaginator
 from api.user_settings.serializer import UserSettingSerializer
 from api.user_settings.settings import COST_TYPES
+from api.utils import get_account_settings
 from api.utils import get_cost_type
 from api.utils import get_currency
-from api.utils import get_user_settings
 
 
 class SettingsInvalidFilterException(APIException):
@@ -30,7 +30,7 @@ class SettingsInvalidFilterException(APIException):
         self.detail = {"detail": force_text(message)}
 
 
-class AllUserSettings(APIView):
+class AccountSettings(APIView):
     """Settings views for all user settings."""
 
     permission_classes = [permissions.AllowAny]
@@ -39,14 +39,14 @@ class AllUserSettings(APIView):
         """Gets a list of users current settings."""
         param = kwargs
         if not param:
-            user_settings = get_user_settings(request)
+            user_settings = get_account_settings(request)
         else:
             setting = param["setting"]
             self.validate_setting(setting)
-            user_settings = self.get_user_setting(request, setting).data
+            user_settings = self.get_account_setting(request, setting).data
         user_settings = UserSettingSerializer(user_settings, many=False).data
         paginated = ListPaginator(user_settings, request)
-        return paginated.get_paginated_response(user_settings)
+        return paginated.get_paginated_response(user_settings["settings"])
 
     @staticmethod
     def validate_setting(setting):
@@ -55,7 +55,7 @@ class AllUserSettings(APIView):
         if setting not in valid_query_params:
             raise SettingsInvalidFilterException("Invalid not a user setting")
 
-    def get_user_setting(self, request, setting):
+    def get_account_setting(self, request, setting):
         """Returns specific setting that is being filtered"""
         if setting == "cost-type":
             users_setting = {"settings": {"cost_type": get_cost_type(request)}}

@@ -26,9 +26,9 @@ class UserSettingsViewTest(IamTestCase):
 
     def test_user_settings(self):
         """Test grabbing a user settings"""
-        url = reverse("user-settings")
+        url = reverse("account-settings")
         client = APIClient()
-        expected = {"data": {"settings": {"cost_type": "savingsplan_effective_cost", "currency": "JPY"}}}
+        expected = {"cost_type": "savingsplan_effective_cost", "currency": "JPY"}
         new_cost_type = "savingsplan_effective_cost"
         new_currency = "JPY"
         with schema_context(self.schema_name):
@@ -37,36 +37,36 @@ class UserSettingsViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.data
+            data = response.data["data"]
             self.assertEqual(data, expected)
 
     def test_user_settings_defaults(self):
         """Test grabbing a user settings without settings used returns default settings"""
-        url = reverse("user-settings")
+        url = reverse("account-settings")
         client = APIClient()
-        expected = USER_SETTINGS
+        expected = USER_SETTINGS["settings"]
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.data
+            data = response.data["data"]
             self.assertEqual(data, expected)
 
     def test_user_setting(self):
         """Test grabbing a specified user setting"""
-        url = url = "%scurrency/" % reverse("user-settings")
+        url = url = "%scurrency/" % reverse("account-settings")
         client = APIClient()
-        expected = {"data": {"settings": {"currency": "USD"}}}
+        expected = {"currency": "USD"}
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.data
+            data = response.data["data"]
             self.assertEqual(data, expected)
 
     def test_user_setting_invalid(self):
         """Test grabbing a specified user setting invalid setting"""
-        url = url = "%sinvalid/" % reverse("user-settings")
+        url = url = "%sinvalid/" % reverse("account-settings")
         client = APIClient()
         with schema_context(self.schema_name):
             response = client.get(url, **self.headers)
