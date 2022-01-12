@@ -13,7 +13,7 @@ from tenant_schemas.utils import tenant_context
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.provider.models import Provider
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ class OCPProvider(ProviderInterface):
     def _aws_clusters(self, tenant):
         """Return a list of OCP clusters running on AWS."""
         with tenant_context(tenant):
-            objects = OCPAWSCostLineItemDailySummary.objects.values_list("cluster_id", flat=True)
+            objects = OCPAWSCostLineItemDailySummaryP.objects.values_list("cluster_id", flat=True)
             clusters = list(objects.distinct())
         return clusters
 

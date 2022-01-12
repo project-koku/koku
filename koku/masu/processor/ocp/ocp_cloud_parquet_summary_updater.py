@@ -20,7 +20,7 @@ from masu.util.azure.common import get_bills_from_provider as azure_get_bills_fr
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
@@ -50,8 +50,8 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             self._handle_partitions(
                 self._schema,
                 (
-                    "reporting_ocpawscostlineitem_daily_summary",
-                    "reporting_ocpawscostlineitem_project_daily_summary",
+                    "reporting_ocpawscostlineitem_daily_summary_p",
+                    "reporting_ocpawscostlineitem_project_daily_summary_p",
                     "reporting_ocpaws_compute_summary_p",
                     "reporting_ocpaws_cost_summary_p",
                     "reporting_ocpaws_cost_summary_by_account_p",
@@ -106,7 +106,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     self._provider.uuid,
                     start,
                     end,
-                    table=OCPAWSCostLineItemProjectDailySummary,
+                    table=OCPAWSCostLineItemProjectDailySummaryP,
                     filters={"cluster_id": cluster_id},
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary_presto(
