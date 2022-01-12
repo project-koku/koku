@@ -42,11 +42,10 @@ def get_currency(request):
 
     with schema_context(request.user.customer.schema_name):
         query_settings = UserSettings.objects.all().first()
-        if not query_settings:
-            currency = KOKU_DEFAULT_CURRENCY
-        else:
+        currency = KOKU_DEFAULT_CURRENCY
+        if query_settings:
             currency = query_settings.settings["currency"]
-    return currency
+        return currency
 
 
 def get_account_settings(request):

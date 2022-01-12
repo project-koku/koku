@@ -3018,16 +3018,16 @@
                 }
             }
         },
-        "/user-settings/": {
+        "/account-settings/": {
             "get": {
               "tags": [
-                "User Settings"
+                "Account Settings"
               ],
-              "summary": "Obtain the current user settings",
+              "summary": "Obtain the current account settings",
               "operationId": "getUserSettings",
               "responses": {
                 "200": {
-                  "description": "An object describing the users current settings",
+                  "description": "An object describing the users current account settings",
                   "content": {
                     "application/json": {
                       "schema": {
@@ -3037,7 +3037,7 @@
                   }
                 },
                 "404": {
-                  "description": "User Settings not found",
+                  "description": "User Account Settings not found",
                   "content": {
                     "application/json": {
                       "schema": {
@@ -3049,12 +3049,12 @@
               }
             }
           },
-        "/user-settings/{setting}": {
+        "/account-settings/{setting}": {
             "get": {
               "tags": [
-                "User Settings"
+                "Account Settings"
               ],
-              "summary": "Obtain a specific current user setting",
+              "summary": "Obtain a specific current user account setting",
               "parameters": [
                 {
                   "name": "setting",
@@ -3069,7 +3069,7 @@
               "operationId": "getUserSetting",
               "responses": {
                 "200": {
-                  "description": "An object describing a specific current user setting",
+                  "description": "An object describing a specific current user account setting",
                   "content": {
                     "application/json": {
                       "schema": {
@@ -3079,7 +3079,7 @@
                   }
                 },
                 "404": {
-                  "description": "User Setting not found",
+                  "description": "User Account Setting not found",
                   "content": {
                     "application/json": {
                       "schema": {

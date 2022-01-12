@@ -37,11 +37,10 @@ class AccountSettings(APIView):
 
     def get(self, request, *args, **kwargs):
         """Gets a list of users current settings."""
-        param = kwargs
-        if not param:
+        if not kwargs:
             user_settings = get_account_settings(request)
         else:
-            setting = param["setting"]
+            setting = kwargs["setting"]
             self.validate_setting(setting)
             user_settings = self.get_account_setting(request, setting).data
         user_settings = UserSettingSerializer(user_settings, many=False).data
