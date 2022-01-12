@@ -43,8 +43,8 @@ from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByServiceP

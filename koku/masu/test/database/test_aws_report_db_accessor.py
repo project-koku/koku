@@ -38,7 +38,7 @@ from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting_common import REPORT_COLUMN_MAP
 
 
@@ -1155,10 +1155,10 @@ class AWSReportDBAccessorTest(MasuTestCase):
         new_cluster_id = "new_cluster_id"
 
         with schema_context(self.schema):
-            cluster_ids = OCPAWSCostLineItemProjectDailySummary.objects.values_list("cluster_id").distinct()
+            cluster_ids = OCPAWSCostLineItemProjectDailySummaryP.objects.values_list("cluster_id").distinct()
             cluster_ids = [cluster_id[0] for cluster_id in cluster_ids]
 
-            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
             )
             row_count = table_query.count()
@@ -1173,19 +1173,19 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider_uuid,
             start_date,
             end_date,
-            table=OCPAWSCostLineItemProjectDailySummary,
+            table=OCPAWSCostLineItemProjectDailySummaryP,
             filters={"cluster_id": cluster_ids[0]},
         )
 
         with schema_context(self.schema):
             # Make sure we didn't delete everything
-            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
             )
             self.assertNotEqual(table_query.count(), 0)
 
             # Make sure we didn't delete this cluster
-            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 source_uuid=self.aws_provider_uuid,
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
@@ -1194,7 +1194,7 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertNotEqual(table_query.count(), 0)
 
             # Make sure we deleted this cluster
-            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+            table_query = OCPAWSCostLineItemProjectDailySummaryP.objects.filter(
                 source_uuid=self.aws_provider_uuid,
                 usage_start__gte=start_date,
                 usage_start__lte=end_date,
