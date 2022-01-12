@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP tag view."""
+import logging
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -14,6 +15,8 @@ from tenant_schemas.utils import tenant_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import GCPCostEntryLineItemDailySummary
+
+LOG = logging.getLogger(__name__)
 
 
 class GCPTagsViewTest(IamTestCase):
@@ -148,7 +151,7 @@ class GCPTagsViewTest(IamTestCase):
         self.assertEqual(data, [])
 
     def test_execute_query_with_and_filter_project(self):
-        """Test the filter[and:] param in the view for project."""
+        """Test the filter[and:] param in the view for gcp_project."""
         url = reverse("gcp-tags")
         client = APIClient()
 
@@ -163,7 +166,7 @@ class GCPTagsViewTest(IamTestCase):
             "filter[resolution]": "daily",
             "filter[time_scope_value]": "-10",
             "filter[time_scope_units]": "day",
-            "filter[and:project]": project_id,
+            "filter[and:gcp_project]": project_id,
         }
         url = url + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
