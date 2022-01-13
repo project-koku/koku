@@ -1024,16 +1024,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_delete_partition_by_day(self, mock_presto, mock_table_exists):
-        """Test delete partition by day."""
-        # Mostly to make testcov happy
-        mock_table_exists.side_effect = [True, None]
-        self.accessor.delete_ocp_on_aws_hive_partition_by_day(["01", "02"], "1234uid", "5678uid", "2021", "12")
-        self.accessor.delete_ocp_on_aws_hive_partition_by_day(["01", "02"], "1234uid", "5678uid", "2021", "12")
-        mock_presto.assert_called_once()
-
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
