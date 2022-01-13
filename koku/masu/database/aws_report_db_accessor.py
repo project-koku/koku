@@ -392,7 +392,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND ocp_source = '{ocp_source}'
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                                AND day = '{day}';"""
+                                AND day = '{day}'"""
                         self._execute_presto_raw_sql_query(self.schema, sql)
                         break
                     except TrinoExternalError as err:
