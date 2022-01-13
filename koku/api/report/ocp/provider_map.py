@@ -52,7 +52,7 @@ class OCPProviderMap(ProviderMap):
                     },
                 },
                 "group_by_options": ["cluster", "project", "node"],
-                "tag_column": "pod_labels",
+                "tag_column": "volume_labels",
                 "report_type": {
                     "costs": {
                         "tables": {"query": OCPUsageLineItemDailySummary},
