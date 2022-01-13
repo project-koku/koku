@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import django.apps
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Max
@@ -20,6 +21,7 @@ from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -1250,3 +1252,16 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+                [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
