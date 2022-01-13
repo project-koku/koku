@@ -3018,6 +3018,79 @@
                 }
             }
         },
+        "/account-settings/": {
+            "get": {
+              "tags": [
+                "Account Settings"
+              ],
+              "summary": "Obtain the current account settings",
+              "operationId": "getUserSettings",
+              "responses": {
+                "200": {
+                  "description": "An object describing the users current account settings",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/UserSettings"
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "User Account Settings not found",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+        "/account-settings/{setting}": {
+            "get": {
+              "tags": [
+                "Account Settings"
+              ],
+              "summary": "Obtain a specific current user account setting",
+              "parameters": [
+                {
+                  "name": "setting",
+                  "in": "path",
+                  "description": "Name of a setting to get",
+                  "required": true,
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "operationId": "getUserSetting",
+              "responses": {
+                "200": {
+                  "description": "An object describing a specific current user account setting",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/UserSetting"
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "User Account Setting not found",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
         "/sources/": {
             "get": {
                 "tags": [
@@ -8461,6 +8534,23 @@
                         }
                     }
                 ]
+            },
+            "UserSettings": {
+                "properties": {
+                  "currency": {
+                    "type": "string"
+                  },
+                  "cost_type": {
+                    "type": "string"
+                  }
+                }
+              },
+              "UserSetting": {
+                "properties": {
+                    "setting": {
+                    "type": "string"
+                    }
+                }
             }
         }
     }
