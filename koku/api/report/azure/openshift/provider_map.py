@@ -17,7 +17,7 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAzureComputeSummaryP
-from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import OCPAzureCostLineItemDailySummaryP
 from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostSummaryByAccountP
 from reporting.models import OCPAzureCostSummaryByLocationP
@@ -498,7 +498,7 @@ class OCPAzureProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAzureCostLineItemDailySummary, "total": OCPAzureCostLineItemDailySummary},
+                "tables": {"query": OCPAzureCostLineItemDailySummaryP, "total": OCPAzureCostLineItemDailySummaryP},
             }
         ]
 
