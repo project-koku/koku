@@ -69,7 +69,7 @@ from reporting.provider.azure.models import AzureNetworkSummaryP
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccountP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocationP
