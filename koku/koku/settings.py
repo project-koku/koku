@@ -247,6 +247,7 @@ DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
 HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
+HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
