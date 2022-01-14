@@ -259,7 +259,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
-        row_number() OVER (partition by aws.uuid) as project_rank,
+        row_number() OVER (partition by aws.uuid, ocp.data_source) as project_rank,
         row_number() OVER (partition by aws.uuid, ocp.namespace) as data_source_rank,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
