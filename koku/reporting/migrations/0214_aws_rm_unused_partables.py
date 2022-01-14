@@ -21,7 +21,6 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0213_delete_mat_views")]
 
     operations = [
-        migrations.RunPython(code=drop_partitions, reverse_code=migrations.RunPython.noop),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="account_alias"),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="organizational_unit"),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="source_uuid"),
@@ -31,6 +30,7 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="account_alias"),
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="organizational_unit"),
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="source_uuid"),
+        migrations.RunPython(code=drop_partitions, reverse_code=migrations.RunPython.noop),
         migrations.DeleteModel(name="AWSComputeSummaryByRegionP"),
         migrations.DeleteModel(name="AWSComputeSummaryByServiceP"),
         migrations.DeleteModel(name="AWSStorageSummaryByRegionP"),
