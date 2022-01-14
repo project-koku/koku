@@ -20,15 +20,9 @@ UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_by_region_p",
     "reporting_gcp_cost_summary_by_service_p",
     "reporting_gcp_compute_summary_p",
-    "reporting_gcp_compute_summary_by_project_p",
-    "reporting_gcp_compute_summary_by_service_p",
     "reporting_gcp_compute_summary_by_account_p",
-    "reporting_gcp_compute_summary_by_region_p",
     "reporting_gcp_storage_summary_p",
-    "reporting_gcp_storage_summary_by_project_p",
-    "reporting_gcp_storage_summary_by_service_p",
     "reporting_gcp_storage_summary_by_account_p",
-    "reporting_gcp_storage_summary_by_region_p",
     "reporting_gcp_network_summary_p",
     "reporting_gcp_database_summary_p",
 )
@@ -558,115 +552,6 @@ class GCPComputeSummaryP(models.Model):
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
 
-class GCPComputeSummaryByProjectP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of total cost by account.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPComputeSummaryByProjectP."""
-
-        db_table = "reporting_gcp_compute_summary_by_project_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcpcompsumm_pro_usage_start"),
-            models.Index(fields=["instance_type"], name="gcpcompsumm_pro_insttyp"),
-            models.Index(fields=["project_id"], name="gcpcompsumm_pro_project_id"),
-            models.Index(fields=["invoice_month"], name="gcpcompsumm_pro_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    project_id = models.CharField(unique=False, max_length=256)
-
-    project_name = models.CharField(max_length=256)
-
-    account_id = models.CharField(max_length=50, null=False)
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
-class GCPComputeSummaryByServiceP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of compute usage by service and instance type.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPComputeSummaryByServiceP."""
-
-        db_table = "reporting_gcp_compute_summary_by_service_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcpcompsumm_ser_usage_start"),
-            models.Index(fields=["instance_type"], name="gcpcompsumm_ser_insttyp"),
-            models.Index(fields=["invoice_month"], name="gcpcompsumm_ser_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    service_id = models.CharField(max_length=256, null=True)
-
-    service_alias = models.CharField(max_length=256, null=True, blank=True)
-
-    account_id = models.CharField(max_length=50, null=False)
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
 class GCPComputeSummaryByAccountP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
 
@@ -718,59 +603,6 @@ class GCPComputeSummaryByAccountP(models.Model):
     credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
 
 
-class GCPComputeSummaryByRegionP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of total cost by service and instance type.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPComputeSummaryByRegionP."""
-
-        db_table = "reporting_gcp_compute_summary_by_region_p"
-        indexes = [
-            models.Index(fields=["account_id"], name="gcpcompsumm_reg_account_id"),
-            models.Index(fields=["usage_start"], name="gcpcompsumm_reg_usage_start"),
-            models.Index(fields=["instance_type"], name="gcpcompsumm_reg_insttyp"),
-            models.Index(fields=["invoice_month"], name="gcpcompsumm_reg_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    instance_type = models.CharField(max_length=50, null=True)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    account_id = models.CharField(max_length=50, null=False)
-
-    region = models.CharField(max_length=50, null=True)
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
 class GCPStorageSummaryP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
 
@@ -810,112 +642,6 @@ class GCPStorageSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
-class GCPStorageSummaryByProjectP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of total cost by account.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPStorageSummaryByProjectP."""
-
-        db_table = "reporting_gcp_storage_summary_by_project_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcpstorsumm_pro_usage_start"),
-            models.Index(fields=["project_id"], name="gcpstorsumm_pro_project_id"),
-            models.Index(fields=["account_id"], name="gcpstorsumm_pro_account_id"),
-            models.Index(fields=["invoice_month"], name="gcpstorsumm_pro_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    project_id = models.CharField(unique=False, max_length=256)
-
-    project_name = models.CharField(max_length=256)
-
-    account_id = models.CharField(max_length=50, null=False)
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
-class GCPStorageSummaryByServiceP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of compute usage by service and instance type.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPStorageSummaryByServiceP."""
-
-        db_table = "reporting_gcp_storage_summary_by_service_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcpstorsumm_ser_usage_start"),
-            models.Index(fields=["service_id"], name="gcpstorsumm_ser_service_id"),
-            models.Index(fields=["account_id"], name="gcpstorsumm_ser_account_id"),
-            models.Index(fields=["invoice_month"], name="gcpstorsumm_ser_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    service_id = models.CharField(max_length=256, null=True)
-
-    service_alias = models.CharField(max_length=256, null=True, blank=True)
-
-    account_id = models.CharField(max_length=50, null=False)
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 
@@ -964,56 +690,6 @@ class GCPStorageSummaryByAccountP(models.Model):
     )
 
     account_id = models.CharField(max_length=50, null=False)
-
-    invoice_month = models.CharField(max_length=256, null=True, blank=True)
-
-    credit_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True, blank=True)
-
-
-class GCPStorageSummaryByRegionP(models.Model):
-    """A summarized partitioned table specifically for UI API queries.
-
-    This table gives a daily breakdown of total cost by service and instance type.
-
-    """
-
-    class PartitionInfo:
-        partition_type = "RANGE"
-        partition_cols = ["usage_start"]
-
-    class Meta:
-        """Meta for GCPStorageSummaryByRegionP."""
-
-        db_table = "reporting_gcp_storage_summary_by_region_p"
-        indexes = [
-            models.Index(fields=["usage_start"], name="gcpstorsumm_reg_usage_start"),
-            models.Index(fields=["account_id"], name="gcpstorsumm_reg_account_id"),
-            models.Index(fields=["invoice_month"], name="gcpstorsumm_reg_invmonth"),
-        ]
-
-    id = models.UUIDField(primary_key=True)
-
-    usage_start = models.DateField(null=False)
-
-    usage_end = models.DateField(null=False)
-
-    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    unit = models.CharField(max_length=63, null=True)
-
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-    currency = models.CharField(max_length=10)
-
-    source_uuid = models.ForeignKey(
-        "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
-    )
-
-    account_id = models.CharField(max_length=50, null=False)
-
-    region = models.CharField(max_length=50, null=True)
 
     invoice_month = models.CharField(max_length=256, null=True, blank=True)
 

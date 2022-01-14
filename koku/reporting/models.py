@@ -80,9 +80,6 @@ from reporting.provider.azure.openshift.models import OCPAzureNetworkSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
-from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
-from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
-from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
@@ -96,9 +93,6 @@ from reporting.provider.gcp.models import GCPDatabaseSummaryP
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.gcp.models import GCPNetworkSummaryP
 from reporting.provider.gcp.models import GCPStorageSummaryByAccountP
-from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
-from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
-from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
 from reporting.provider.gcp.models import GCPStorageSummaryP
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.openshift.models import OCPGCPComputeSummaryP
