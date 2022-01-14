@@ -7,12 +7,14 @@ import datetime
 import decimal
 from unittest.mock import patch
 
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -477,3 +479,16 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.azure_provider_uuid, self.ocp_on_azure_ocp_provider.uuid, start_date, end_date
         )
         mock_presto.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_azure_hive_partition_by_day(
+                [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
