@@ -16,9 +16,6 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
-from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
-from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
-from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
@@ -29,9 +26,6 @@ from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.provider.gcp.models import GCPDatabaseSummaryP
 from reporting.provider.gcp.models import GCPNetworkSummaryP
 from reporting.provider.gcp.models import GCPStorageSummaryByAccountP
-from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
-from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
-from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
 from reporting.provider.gcp.models import GCPStorageSummaryP
 
 
@@ -300,26 +294,8 @@ class GCPProviderMap(ProviderMap):
                 ("gcp_project",): GCPCostSummaryByProjectP,
                 ("account", "gcp_project"): GCPCostSummaryByProjectP,
             },
-            "instance-type": {
-                "default": GCPComputeSummaryP,
-                ("account",): GCPComputeSummaryByAccountP,
-                ("region",): GCPComputeSummaryByRegionP,
-                ("account", "region"): GCPComputeSummaryByRegionP,
-                ("service",): GCPComputeSummaryByServiceP,
-                ("account", "service"): GCPComputeSummaryByServiceP,
-                ("gcp_project",): GCPComputeSummaryByProjectP,
-                ("account", "gcp_project"): GCPComputeSummaryByProjectP,
-            },
-            "storage": {
-                "default": GCPStorageSummaryP,
-                ("account",): GCPStorageSummaryByAccountP,
-                ("region",): GCPStorageSummaryByRegionP,
-                ("account", "region"): GCPStorageSummaryByRegionP,
-                ("service",): GCPStorageSummaryByServiceP,
-                ("account", "service"): GCPStorageSummaryByServiceP,
-                ("gcp_project",): GCPStorageSummaryByProjectP,
-                ("account", "gcp_project"): GCPStorageSummaryByProjectP,
-            },
+            "instance-type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
+            "storage": {"default": GCPStorageSummaryP, ("account",): GCPStorageSummaryByAccountP},
             "database": {
                 "default": GCPDatabaseSummaryP,
                 ("service",): GCPDatabaseSummaryP,
