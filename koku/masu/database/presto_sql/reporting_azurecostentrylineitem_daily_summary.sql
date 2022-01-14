@@ -36,7 +36,7 @@ WITH cte_line_items AS (
             ELSE 1
             END as multiplier,
         CASE
-            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+            WHEN split_part(unitofmeasure, ' ', 2) IN ('Hours', 'Hour')
                 THEN  'Hrs'
             WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
                 THEN  'GB-Mo'
