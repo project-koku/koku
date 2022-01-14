@@ -10,10 +10,12 @@ import uuid
 from datetime import datetime
 
 from dateutil.parser import parse
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -324,6 +326,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
         table = self._table_map["ocp_on_azure_project_daily_summary"]
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
                 "Deleting partitions for the following: \n\tSchema: %s "
@@ -336,18 +339,23 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 month,
                 days,
             )
-            final_sql_list = []
             for day in days:
-                sql = f"""
-                DELETE FROM hive.{self.schema}.{table}
-                    WHERE azure_source = '{az_source}'
-                    AND ocp_source = '{ocp_source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    AND day = '{day}';"""
-                final_sql_list.append(sql)
-            final_sql = "".join(final_sql_list)
-            self._execute_presto_multipart_sql_query(self.schema, final_sql)
+                for i in range(retries):
+                    try:
+                        sql = f"""
+                            DELETE FROM hive.{self.schema}.{table}
+                                WHERE azure_source = '{az_source}'
+                                AND ocp_source = '{ocp_source}'
+                                AND year = '{year}'
+                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                                AND day = '{day}';"""
+                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        break
+                    except TrinoExternalError as err:
+                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                            continue
+                        else:
+                            raise err
 
     def populate_ocp_on_azure_cost_daily_summary_presto(
         self,

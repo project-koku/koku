@@ -313,8 +313,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto):
+    def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -340,9 +341,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
+        mock_delete.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto):
+    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -368,6 +371,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
+        mock_delete.assert_called()
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
