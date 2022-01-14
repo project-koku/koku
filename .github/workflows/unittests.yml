@@ -7,10 +7,40 @@ on:
       - main
 
 jobs:
-  unit-tests:
 
+  setup:
+    runs-on: ubuntu-20.04
+    outputs:
+      run-tests: ${{ steps.check-files.outputs.run-tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v13
+        with:
+          files: |
+            db_functions
+            koku
+            .github/postgres
+            .github/scripts/check_migrations.sh
+            .github/workflows/unittests.yml
+
+      - id: check-files
+        run: |
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
+            echo "::set-output name=run-tests::true"
+          fi
+
+  unit-tests:
+    needs: setup
+    if: ${{ needs.setup.outputs.run-tests == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
+      fail-fast: false
       max-parallel: 4
       matrix:
         python-version: [3.8]
@@ -23,11 +53,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Start the postgres DB
-        run: docker-compose up -d db
-
       - name: Display build environment
         run: printenv
+
+      - name: Start the postgres DB
+        run: docker-compose up -d db
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -35,7 +65,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install pipenv
-        run: sudo python3 -m pip install pipenv==2018.11.26
+        run: sudo python3 -m pip install pipenv
 
       - name: Cache dependencies
         id: cache-dependencies
@@ -88,3 +118,12 @@ jobs:
           name: Python-${{ matrix.python-version}}
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+  unit-tests-result:
+    needs: unit-tests
+    if: |
+      always() &&
+      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
+    runs-on: ubuntu-20.04
+    steps:
+      - run: echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
