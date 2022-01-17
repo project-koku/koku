@@ -26,6 +26,9 @@ from reporting.provider.gcp.models import GCPCostSummaryP
 from reporting.provider.gcp.models import GCPDatabaseSummaryP
 from reporting.provider.gcp.models import GCPNetworkSummaryP
 from reporting.provider.gcp.models import GCPStorageSummaryByAccountP
+from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
+from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
+from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
 from reporting.provider.gcp.models import GCPStorageSummaryP
 
 
@@ -268,13 +271,7 @@ class GCPProviderMap(ProviderMap):
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         # Most of the storage cost was gibibyte month, however one was gibibyte.
-                        "filter": [
-                            {"field": "unit", "operation": "exact", "parameter": "gibibyte month"},
-                            {"field": "service_alias", "operation": "icontains", "parameter": "Storage"},
-                            {"field": "service_alias", "operation": "icontains", "parameter": "Filestore"},
-                            {"field": "service_alias", "operation": "icontains", "parameter": "Cloud Storage"},
-                            {"field": "service_alias", "operation": "icontains", "parameter": "Data Transfer"},
-                        ],
+                        "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
                         "usage_units_key": "unit",
@@ -301,7 +298,16 @@ class GCPProviderMap(ProviderMap):
                 ("account", "gcp_project"): GCPCostSummaryByProjectP,
             },
             "instance-type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
-            "storage": {"default": GCPStorageSummaryP, ("account",): GCPStorageSummaryByAccountP},
+            "storage": {
+                "default": GCPStorageSummaryP,
+                ("account",): GCPStorageSummaryByAccountP,
+                ("region",): GCPStorageSummaryByRegionP,
+                ("account", "region"): GCPStorageSummaryByRegionP,
+                ("service",): GCPStorageSummaryByServiceP,
+                ("account", "service"): GCPStorageSummaryByServiceP,
+                ("gcp_project",): GCPStorageSummaryByProjectP,
+                ("account", "gcp_project"): GCPStorageSummaryByProjectP,
+            },
             "database": {
                 "default": GCPDatabaseSummaryP,
                 ("service",): GCPDatabaseSummaryP,
