@@ -153,6 +153,9 @@ help:
 	@echo "  aws-source                            Create aws source using environment variables"
 	@echo "      aws_name=<source_name>              @param - Required. Name of the source"
 	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
+	@echo "  local-aws-source                      Create aws source using environment variables"
+	@echo "      aws_name=<source_name>              @param - Required. Name of the source"
+	@echo "      bucket=<bucket_name>                @param - Required. Name of the bucket"
 	@echo "  gcp-source                            Create gcp source using environment variables"
 	@echo "      gcp_name=<source_name>              @param - Required. Name of the source"
 
@@ -483,6 +486,16 @@ ifndef bucket
 endif
 	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
 	curl -d '{"name": "$(aws_name)", "source_type": "AWS", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
+
+local-aws-source:
+ifndef aws_name
+	$(error param aws_name is not set)
+endif
+ifndef bucket
+	$(error param bucket is not set)
+endif
+	(printenv AWS_RESOURCE_NAME > /dev/null 2>&1) || (echo 'AWS_RESOURCE_NAME is not set in .env' && exit 1)
+	curl -d '{"name": "$(aws_name)", "source_type": "AWS-local", "authentication": {"credentials": {"role_arn":"${AWS_RESOURCE_NAME}"}}, "billing_source": {"data_source": {"bucket": "$(bucket)"}}}' -H "Content-Type: application/json" -X POST http://0.0.0.0:8000/api/cost-management/v1/sources/
 
 gcp-source:
 ifndef gcp_name
