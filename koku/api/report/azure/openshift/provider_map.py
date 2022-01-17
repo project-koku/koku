@@ -38,7 +38,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "provider": Provider.OCP_AZURE,
                 "alias": "subscription_guid",
                 "annotations": {"cluster": "cluster_id"},
-                "end_date": "costentrybill__billing_period_end",
+                "end_date": "costentrybill__billing_period_start",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
