@@ -9,11 +9,13 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from dateutil import relativedelta
+from django.conf import settings
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -378,3 +380,16 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_gcp_bills = [Mock(), Mock()]
         self.accessor.populate_ocp_on_gcp_tags_summary_table(mock_gcp_bills, start_date, end_date)
         mock_presto.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_gcp_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_gcp_hive_partition_by_day(
+                [1], self.gcp_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
