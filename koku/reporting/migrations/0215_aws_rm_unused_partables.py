@@ -18,7 +18,7 @@ def drop_partitions(app, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0213_delete_mat_views")]
+    dependencies = [("reporting", "0214_ocpgcp_unitusage")]
 
     operations = [
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="account_alias"),
