@@ -8,9 +8,6 @@ TARGET_PARTABLES = (
     "reporting_gcp_compute_summary_by_project_p",
     "reporting_gcp_compute_summary_by_service_p",
     "reporting_gcp_compute_summary_by_region_p",
-    "reporting_gcp_storage_summary_by_project_p",
-    "reporting_gcp_storage_summary_by_service_p",
-    "reporting_gcp_storage_summary_by_region_p",
 )
 
 
@@ -25,14 +22,8 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RemoveField(model_name="gcpcomputesummarybyregionp", name="source_uuid"),
         migrations.RemoveField(model_name="gcpcomputesummarybyservicep", name="source_uuid"),
-        migrations.RemoveField(model_name="gcpstoragesummarybyprojectp", name="source_uuid"),
-        migrations.RemoveField(model_name="gcpstoragesummarybyregionp", name="source_uuid"),
-        migrations.RemoveField(model_name="gcpstoragesummarybyservicep", name="source_uuid"),
         migrations.RunPython(code=drop_partitions, reverse_code=migrations.RunPython.noop),
         migrations.DeleteModel(name="GCPComputeSummaryByProjectP"),
         migrations.DeleteModel(name="GCPComputeSummaryByRegionP"),
         migrations.DeleteModel(name="GCPComputeSummaryByServiceP"),
-        migrations.DeleteModel(name="GCPStorageSummaryByProjectP"),
-        migrations.DeleteModel(name="GCPStorageSummaryByRegionP"),
-        migrations.DeleteModel(name="GCPStorageSummaryByServiceP"),
     ]

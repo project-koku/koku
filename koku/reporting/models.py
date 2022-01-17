@@ -93,6 +93,9 @@ from reporting.provider.gcp.models import GCPDatabaseSummaryP
 from reporting.provider.gcp.models import GCPEnabledTagKeys
 from reporting.provider.gcp.models import GCPNetworkSummaryP
 from reporting.provider.gcp.models import GCPStorageSummaryByAccountP
+from reporting.provider.gcp.models import GCPStorageSummaryByProjectP
+from reporting.provider.gcp.models import GCPStorageSummaryByRegionP
+from reporting.provider.gcp.models import GCPStorageSummaryByServiceP
 from reporting.provider.gcp.models import GCPStorageSummaryP
 from reporting.provider.gcp.models import GCPTagsSummary
 from reporting.provider.gcp.openshift.models import OCPGCPComputeSummaryP
