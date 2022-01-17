@@ -653,7 +653,9 @@ class GCPStorageSummaryP(models.Model):
 
 class GCPStorageSummaryByProjectP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
+
     This table gives a daily breakdown of total cost by account.
+
     """
 
     class PartitionInfo:
@@ -704,7 +706,9 @@ class GCPStorageSummaryByProjectP(models.Model):
 
 class GCPStorageSummaryByServiceP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
+
     This table gives a daily breakdown of compute usage by service and instance type.
+
     """
 
     class PartitionInfo:
@@ -803,7 +807,9 @@ class GCPStorageSummaryByAccountP(models.Model):
 
 class GCPStorageSummaryByRegionP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
+
     This table gives a daily breakdown of total cost by service and instance type.
+
     """
 
     class PartitionInfo:
