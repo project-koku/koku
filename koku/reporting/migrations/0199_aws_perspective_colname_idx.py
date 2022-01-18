@@ -14,11 +14,11 @@ class Migration(migrations.Migration):
             name="blended_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
-        migrations.AddField(
-            model_name="awscomputesummarybyregionp",
-            name="blended_cost",
-            field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
-        ),
+        # migrations.AddField(
+        #     model_name="awscomputesummarybyregionp",
+        #     name="blended_cost",
+        #     field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
+        # ),
         migrations.AddField(
             model_name="awscomputesummarybyservicep",
             name="blended_cost",
@@ -86,13 +86,13 @@ class Migration(migrations.Migration):
                 db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
             ),
         ),
-        migrations.AlterField(
-            model_name="awscomputesummarybyregionp",
-            name="source_uuid",
-            field=models.ForeignKey(
-                db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
-            ),
-        ),
+        # migrations.AlterField(
+        #     model_name="awscomputesummarybyregionp",
+        #     name="source_uuid",
+        #     field=models.ForeignKey(
+        #         db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
+        #     ),
+        # ),
         migrations.AlterField(
             model_name="awscomputesummarybyservicep",
             name="source_uuid",
@@ -185,22 +185,22 @@ class Migration(migrations.Migration):
             model_name="awscomputesummarybyaccountp",
             index=models.Index(fields=["instance_type"], name="awscompsumm_acct_insttyp"),
         ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyregionp",
-            index=models.Index(fields=["usage_start"], name="awscompsumm_reg_usage_start"),
-        ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyregionp",
-            index=models.Index(fields=["region"], name="awscompsumm_reg_region"),
-        ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyregionp",
-            index=models.Index(fields=["availability_zone"], name="awscompsumm_reg_zone"),
-        ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyregionp",
-            index=models.Index(fields=["instance_type"], name="awscompsumm_reg_insttyp"),
-        ),
+        # migrations.AddIndex(
+        #     model_name="awscomputesummarybyregionp",
+        #     index=models.Index(fields=["usage_start"], name="awscompsumm_reg_usage_start"),
+        # ),
+        # migrations.AddIndex(
+        #     model_name="awscomputesummarybyregionp",
+        #     index=models.Index(fields=["region"], name="awscompsumm_reg_region"),
+        # ),
+        # migrations.AddIndex(
+        #     model_name="awscomputesummarybyregionp",
+        #     index=models.Index(fields=["availability_zone"], name="awscompsumm_reg_zone"),
+        # ),
+        # migrations.AddIndex(
+        #     model_name="awscomputesummarybyregionp",
+        #     index=models.Index(fields=["instance_type"], name="awscompsumm_reg_insttyp"),
+        # ),
         migrations.AddIndex(
             model_name="awscomputesummarybyservicep",
             index=models.Index(fields=["usage_start"], name="awscompsumm_svc_usage_start"),

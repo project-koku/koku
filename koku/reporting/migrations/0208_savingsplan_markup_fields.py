@@ -18,16 +18,16 @@ class Migration(migrations.Migration):
             name="markup_cost_savingsplan",
             field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
         ),
-        migrations.AddField(
-            model_name="awscomputesummarybyregionp",
-            name="markup_cost_blended",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AddField(
-            model_name="awscomputesummarybyregionp",
-            name="markup_cost_savingsplan",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
+        # migrations.AddField(
+        #     model_name="awscomputesummarybyregionp",
+        #     name="markup_cost_blended",
+        #     field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        # ),
+        # migrations.AddField(
+        #     model_name="awscomputesummarybyregionp",
+        #     name="markup_cost_savingsplan",
+        #     field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        # ),
         migrations.AddField(
             model_name="awscomputesummarybyservicep",
             name="markup_cost_blended",
