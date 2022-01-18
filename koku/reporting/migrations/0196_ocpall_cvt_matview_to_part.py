@@ -4,8 +4,8 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-from koku.database import set_partition_mode
-from koku.database import unset_partition_mode
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
 
 
 class Migration(migrations.Migration):
@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0195_ocpall_add_source_fk")]
 
     operations = [
-        migrations.RunPython(set_partition_mode, reverse_code=unset_partition_mode),
+        migrations.RunPython(set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.CreateModel(
             name="OCPAllComputeSummaryPT",
             fields=[
@@ -357,5 +357,5 @@ class Migration(migrations.Migration):
             model_name="ocpallcomputesummarypt",
             index=models.Index(fields=["resource_id"], name="ocpap_cmpsumm_rsrc_id_ix"),
         ),
-        migrations.RunPython(unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunPython(unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
