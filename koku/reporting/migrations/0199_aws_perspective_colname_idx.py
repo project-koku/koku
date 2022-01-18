@@ -20,11 +20,6 @@ class Migration(migrations.Migration):
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
         migrations.AddField(
-            model_name="awscomputesummarybyservicep",
-            name="blended_cost",
-            field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
-        ),
-        migrations.AddField(
             model_name="awscomputesummaryp",
             name="blended_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
@@ -61,16 +56,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="awsstoragesummarybyaccountp",
-            name="blended_cost",
-            field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name="awsstoragesummarybyregionp",
-            name="blended_cost",
-            field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
-        ),
-        migrations.AddField(
-            model_name="awsstoragesummarybyservicep",
             name="blended_cost",
             field=models.DecimalField(decimal_places=9, max_digits=24, null=True),
         ),
@@ -94,13 +79,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="awscomputesummarybyservicep",
-            name="source_uuid",
-            field=models.ForeignKey(
-                db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
-            ),
-        ),
-        migrations.AlterField(
             model_name="awscomputesummaryp",
             name="source_uuid",
             field=models.ForeignKey(
@@ -151,20 +129,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name="awsstoragesummarybyaccountp",
-            name="source_uuid",
-            field=models.ForeignKey(
-                db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
-            ),
-        ),
-        migrations.AlterField(
-            model_name="awsstoragesummarybyregionp",
-            name="source_uuid",
-            field=models.ForeignKey(
-                db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
-            ),
-        ),
-        migrations.AlterField(
-            model_name="awsstoragesummarybyservicep",
             name="source_uuid",
             field=models.ForeignKey(
                 db_column="source_uuid", null=True, on_delete=django.db.models.deletion.CASCADE, to="api.provider"
@@ -200,14 +164,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="awscomputesummarybyregionp",
             index=models.Index(fields=["instance_type"], name="awscompsumm_reg_insttyp"),
-        ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyservicep",
-            index=models.Index(fields=["usage_start"], name="awscompsumm_svc_usage_start"),
-        ),
-        migrations.AddIndex(
-            model_name="awscomputesummarybyservicep",
-            index=models.Index(fields=["instance_type"], name="awscompsumm_svc_insttyp"),
         ),
         migrations.AddIndex(
             model_name="awscomputesummaryp", index=models.Index(fields=["usage_start"], name="awscompsumm_usage_start")
@@ -260,30 +216,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="awsstoragesummarybyaccountp",
             index=models.Index(fields=["product_family"], name="awsstorsumm_product_acct_fam"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyregionp",
-            index=models.Index(fields=["usage_start"], name="awsstorsumm_reg_usage_start"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyregionp",
-            index=models.Index(fields=["region"], name="awsstorsumm_reg_region"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyregionp",
-            index=models.Index(fields=["availability_zone"], name="awsstorsumm_reg_zone"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyregionp",
-            index=models.Index(fields=["product_family"], name="awsstorsumm_reg_product_fam"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyservicep",
-            index=models.Index(fields=["usage_start"], name="awsstorsumm_svc_usage_start"),
-        ),
-        migrations.AddIndex(
-            model_name="awsstoragesummarybyservicep",
-            index=models.Index(fields=["product_family"], name="awsstorsumm_product_svc_fam"),
         ),
         migrations.AddIndex(
             model_name="awsstoragesummaryp", index=models.Index(fields=["usage_start"], name="awsstorsumm_usage_start")

@@ -2,18 +2,8 @@
 from django.db import migrations
 
 from koku.database import get_model
-
-PartitionedTables = get_model("partitioned_tables")
-TARGET_PARTABLES = (
-    "reporting_aws_compute_summary_by_region_p",
-    "reporting_aws_compute_summary_by_service_p",
-    "reporting_aws_storage_summary_by_region_p",
-    "reporting_aws_storage_summary_by_service_p",
-)
-
-
-def drop_partitions(app, schema_editor):
-    PartitionedTables.objects.filter(partition_of_table_name__in=TARGET_PARTABLES).delete()
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
 
 
 class Migration(migrations.Migration):
@@ -21,6 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0215_ocpaws_ocpazure_summary_partables")]
 
     operations = [
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="account_alias"),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="organizational_unit"),
         migrations.RemoveField(model_name="awscomputesummarybyservicep", name="source_uuid"),
@@ -30,9 +21,9 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="account_alias"),
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="organizational_unit"),
         migrations.RemoveField(model_name="awsstoragesummarybyservicep", name="source_uuid"),
-        migrations.RunPython(code=drop_partitions, reverse_code=migrations.RunPython.noop),
         migrations.DeleteModel(name="AWSComputeSummaryByRegionP"),
         migrations.DeleteModel(name="AWSComputeSummaryByServiceP"),
         migrations.DeleteModel(name="AWSStorageSummaryByRegionP"),
         migrations.DeleteModel(name="AWSStorageSummaryByServiceP"),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]
