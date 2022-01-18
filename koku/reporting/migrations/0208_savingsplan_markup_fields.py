@@ -29,6 +29,16 @@ class Migration(migrations.Migration):
             field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
         ),
         migrations.AddField(
+            model_name="awscomputesummarybyservicep",
+            name="markup_cost_blended",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
+            model_name="awscomputesummarybyservicep",
+            name="markup_cost_savingsplan",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
             model_name="awscomputesummaryp",
             name="markup_cost_blended",
             field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
@@ -125,6 +135,26 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="awsstoragesummarybyaccountp",
+            name="markup_cost_savingsplan",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
+            model_name="awsstoragesummarybyregionp",
+            name="markup_cost_blended",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
+            model_name="awsstoragesummarybyregionp",
+            name="markup_cost_savingsplan",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
+            model_name="awsstoragesummarybyservicep",
+            name="markup_cost_blended",
+            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        ),
+        migrations.AddField(
+            model_name="awsstoragesummarybyservicep",
             name="markup_cost_savingsplan",
             field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
         ),
