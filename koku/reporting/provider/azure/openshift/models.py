@@ -528,12 +528,13 @@ class OCPAzureCostLineItemDailySummaryP(models.Model):
 
     class DeferredSQL:
         create_sql = [
+            ("""DROP INDEX IF EXISTS "p_ix_ocpaz_svcnm_ilike" ;""", None),
             (
-                """CREATE INDEX "p_ix_ocpazure_service_name_ilike"
+                """CREATE INDEX "p_ix_ocpaz_svcnm_ilike"
     ON "reporting_ocpazurecostlineitem_daily_summary_p"
  USING GIN ((upper("service_name")) gin_trgm_ops) ;""",
                 None,
-            )
+            ),
         ]
 
     class Meta:
