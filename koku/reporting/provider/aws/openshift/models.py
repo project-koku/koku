@@ -645,14 +645,16 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
 
     class DeferredSQL:
         create_sql = [
+            ("""DROP INDEX IF EXISTS "p_ix_ocpaws_prodfam_ilike" ;""", None),
             (
-                """CREATE INDEX "p_ix_ocpaws_prod_fam_ilike"
+                """CREATE INDEX "p_ix_ocpaws_prodfam_ilike"
     ON "reporting_ocpawscostlineitem_daily_summary_p"
  USING GIN ((upper("product_family")) gin_trgm_ops) ;""",
                 None,
             ),
+            ("""DROP INDEX IF EXISTS "p_ix_ocpaws_prodcode_ilike" ;""", None),
             (
-                """CREATE INDEX "p_ix_ocpaws_prod_code_ilike"
+                """CREATE INDEX "p_ix_ocpaws_prodcode_ilike"
     ON "reporting_ocpawscostlineitem_daily_summary_p"
  USING GIN ((upper("product_code")) gin_trgm_ops) ;""",
                 None,
