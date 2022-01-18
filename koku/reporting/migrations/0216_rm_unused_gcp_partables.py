@@ -17,7 +17,7 @@ def drop_partitions(app, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0213_delete_mat_views")]
+    dependencies = [("reporting", "0215_ocpaws_ocpazure_summary_partables")]
 
     operations = [
         migrations.RemoveField(model_name="gcpcomputesummarybyregionp", name="source_uuid"),
