@@ -4,6 +4,7 @@
 #
 """Database accessor for report data."""
 import logging
+import os
 import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -12,12 +13,15 @@ import ciso8601
 import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
+from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from api.common import log_json
 from koku.database import execute_delete_sql as exec_del_sql
+from koku.database_exc import get_extended_exception_by_type
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -346,7 +350,13 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(sql, params=bind_params)
+            try:
+                cursor.execute(sql, params=bind_params)
+            except OperationalError as exc:
+                db_exc = get_extended_exception_by_type(exc)
+                LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
+                raise db_exc
+
         LOG.info("Finished updating %s.", table)
 
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
