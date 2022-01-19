@@ -161,8 +161,8 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.pod_labels) as pod_labels,
     NULL as volume_labels,
     max(azure.tags) as tags,
-    row_number() OVER (partition by azure.uuid) as project_rank,
-    1 as data_source_rank,
+    row_number() OVER (partition by azure.uuid, ocp.data_source) as project_rank,
+    row_number() OVER (partition by azure.uuid, ocp.namespace) as data_source_rank,
     max(azure.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -266,7 +266,7 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
-    row_number() OVER (partition by azure.uuid, ocp.namespace) as project_rank,
+    row_number() OVER (partition by azure.uuid, ocp.data_source) as project_rank,
     row_number() OVER (partition by azure.uuid, ocp.namespace) as data_source_rank,
     max(azure.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
