@@ -138,7 +138,38 @@ def get_column_converters():
 
 def gcp_generate_daily_data(data_frame):
     """Return the gcp data frame, as it is already daily."""
-    return data_frame
+    daily_data_frame = data_frame.groupby(
+        [
+            "invoice_month",
+            "billing_account_id",
+            "project_id",
+            pd.Grouper(key="usage_start_time", freq="D"),
+            pd.Grouper(key="usage_end_time", freq="D"),
+            "service_id",
+            "sku_id",
+            "system_labels",
+            "labels",
+            "cost_type",
+            "credits",
+            "location_region",
+        ],
+        dropna=False,
+    ).agg(
+        {
+            "project_name": ["max"],
+            "service_description": ["max"],
+            "sku_description": ["max"],
+            "usage_pricing_unit": ["max"],
+            "usage_amount_in_pricing_units": ["sum"],
+            "currency": ["max"],
+            "cost": ["sum"],
+        }
+    )
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame
 
 
 def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_tags):
