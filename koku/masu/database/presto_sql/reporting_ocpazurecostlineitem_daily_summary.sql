@@ -167,7 +167,6 @@ SELECT azure.uuid as azure_uuid,
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
         on coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
-        -- I kept this AND condition the same, I notice Andrew removed the data source check on the ocp on aws
         AND (
                 (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
                     OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
