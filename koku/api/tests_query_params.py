@@ -37,8 +37,7 @@ PROVIDERS = [
 ]
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS.lower(): ["aws.account", "aws.organizational_unit"],
-    # TODO: COST-1986
-    Provider.PROVIDER_GCP.lower(): ["gcp.account", "gcp.project", "gcp.project"],
+    Provider.PROVIDER_GCP.lower(): ["gcp.account", "gcp.project"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
     Provider.OCP_AWS.lower(): [

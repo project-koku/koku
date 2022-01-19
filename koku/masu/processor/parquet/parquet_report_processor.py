@@ -393,9 +393,12 @@ class ParquetReportProcessor:
 
         try:
             col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
-            converters.update({col: str for col in col_names if col not in converters})
+            csv_converters = {
+                col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
+            }
+            csv_converters.update({col: str for col in col_names if col not in csv_converters})
             with pd.read_csv(
-                csv_filename, converters=converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+                csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
                     parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
