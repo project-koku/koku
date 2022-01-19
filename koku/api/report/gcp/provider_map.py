@@ -16,9 +16,6 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
-from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
-from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
-from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
@@ -300,16 +297,7 @@ class GCPProviderMap(ProviderMap):
                 ("gcp_project",): GCPCostSummaryByProjectP,
                 ("account", "gcp_project"): GCPCostSummaryByProjectP,
             },
-            "instance-type": {
-                "default": GCPComputeSummaryP,
-                ("account",): GCPComputeSummaryByAccountP,
-                ("region",): GCPComputeSummaryByRegionP,
-                ("account", "region"): GCPComputeSummaryByRegionP,
-                ("service",): GCPComputeSummaryByServiceP,
-                ("account", "service"): GCPComputeSummaryByServiceP,
-                ("gcp_project",): GCPComputeSummaryByProjectP,
-                ("account", "gcp_project"): GCPComputeSummaryByProjectP,
-            },
+            "instance-type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
             "storage": {
                 "default": GCPStorageSummaryP,
                 ("account",): GCPStorageSummaryByAccountP,
