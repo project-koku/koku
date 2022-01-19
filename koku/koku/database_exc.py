@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
 
 def get_driver_exception(db_exception):
     if isinstance(db_exception, DJDatabaseError):
-        return db_exception.__cause__
+        return db_exception.__cause__ or db_exception.__context__
     else:
         return db_exception
 
@@ -41,7 +41,10 @@ class ExtendedDBException(Exception):
     def __init__(self, db_exception, query_limit=128):
         _db_exception = get_driver_exception(db_exception)
         if not isinstance(_db_exception, DatabaseError):
-            raise TypeError("This wrapper class only works on type <psycopg2.errors.DatabaseError>")
+            raise TypeError(
+                "This wrapper class only works on type <psycopg2.errors.DatabaseError> "
+                + f"(Got {type(_db_exception).__name__})"
+            )
         self.query_limit = query_limit
         self.ingest_exception(_db_exception)
         self.parse_exception()

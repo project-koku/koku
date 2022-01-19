@@ -5,6 +5,7 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
+import os
 import random
 import string
 from decimal import Decimal
@@ -14,17 +15,20 @@ import django.apps
 from dateutil import relativedelta
 from django.conf import settings
 from django.db import connection
+from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from psycopg2.errors import DeadlockDetected
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
+from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -100,6 +104,46 @@ class ReportSchemaTest(MasuTestCase):
         ]
         for table_type in table_types.values():
             self.assertIn(table_type, django_field_types)
+
+    def test_exec_raw_sql_query(self):
+        class _db:
+            def set_schema(*args, **kwargs):
+                return None
+
+        class _crsr:
+            def __init__(self, *args, **kwargs):
+                self.db = _db()
+
+            def __enter__(self, *args, **kwargs):
+                return self
+
+            def __exit__(self, *args, **kwargs):
+                pass
+
+            def execute(self, *args, **kwargs):
+                try:
+                    self.dd_exc = DeadlockDetected(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+                    raise self.dd_exc
+                except DeadlockDetected:
+                    raise OperationalError(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+
+        with patch("masu.database.report_db_accessor_base.connection.cursor", return_value=_crsr()):
+            with self.assertRaises(ExtendedDBException):
+                self.accessor._execute_raw_sql_query(None, None)
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
