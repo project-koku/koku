@@ -454,9 +454,6 @@ class ParquetReportProcessor:
         if file_type == DAILY_FILE_TYPE:
             report_type = self.report_type
             if report_type is None:
-                # TODO: CORDEY This is where the raw is coming from.
-                # Since this is specifically for gcp we can change this
-                # to openshift if we want
                 report_type = "raw"
             return get_path_prefix(
                 self.account,

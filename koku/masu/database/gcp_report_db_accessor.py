@@ -595,7 +595,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["ocp_on_gcp_tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/gcp/openshift/reporting_ocpgcptags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
             "schema": self.schema,

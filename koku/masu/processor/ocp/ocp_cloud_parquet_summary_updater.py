@@ -265,6 +265,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     (
                         "reporting_ocpgcpcostlineitem_daily_summary_p",
                         "reporting_ocpgcpcostlineitem_project_daily_summary_p",
+                        "reporting_ocpallcostlineitem_daily_summary_p",
+                        "reporting_ocpallcostlineitem_project_daily_summary_p",
+                        "reporting_ocpall_compute_summary_pt",
+                        "reporting_ocpall_cost_summary_pt",
                     )
                     + OCPGCP_UI_SUMMARY_TABLES
                 ),
