@@ -177,7 +177,7 @@ SELECT aws.uuid as aws_uuid,
         AND (aws.lineitem_resourceid IS NOT NULL AND aws.lineitem_resourceid != '')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
-        AND ocp.month = {{month}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
     GROUP BY aws.uuid, ocp.namespace
@@ -259,7 +259,7 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
-        row_number() OVER (partition by aws.uuid) as project_rank,
+        row_number() OVER (partition by aws.uuid, ocp.data_source) as project_rank,
         row_number() OVER (partition by aws.uuid, ocp.namespace) as data_source_rank,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
@@ -281,7 +281,7 @@ SELECT aws.uuid as aws_uuid,
         AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
-        AND ocp.month = {{month}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.day IN ({{days}})
         AND pds.aws_uuid IS NULL
     GROUP BY aws.uuid, ocp.namespace, ocp.data_source

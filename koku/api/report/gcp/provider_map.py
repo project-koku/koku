@@ -16,9 +16,6 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
-from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
-from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
-from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
@@ -40,7 +37,6 @@ class GCPProviderMap(ProviderMap):
 
     def __init__(self, provider, report_type):
         """Constructor."""
-        # TODO: COST-1986
         # group_by_annotations, filters, group_by_options, self.views
         self._mapping = [
             {
@@ -48,7 +44,6 @@ class GCPProviderMap(ProviderMap):
                 "annotations": {},  # Annotations that should always happen
                 "group_by_annotations": {
                     "account": {"account": "account_id"},
-                    "project": {"project": "project_id"},
                     "gcp_project": {"gcp_project": "project_id"},
                     "service": {"service": "service_alias"},
                 },  # Annotations that should happen depending on group_by values
@@ -60,17 +55,13 @@ class GCPProviderMap(ProviderMap):
                         {"field": "service_alias", "operation": "icontains", "composition_key": "service_filter"},
                         {"field": "service_id", "operation": "icontains", "composition_key": "service_filter"},
                     ],
-                    "project": [
-                        {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
-                        {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
-                    ],
                     "gcp_project": [
                         {"field": "project_name", "operation": "icontains", "composition_key": "project_filter"},
                         {"field": "project_id", "operation": "icontains", "composition_key": "project_filter"},
                     ],
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["account", "region", "service", "project", "gcp_project"],
+                "group_by_options": ["account", "region", "service", "gcp_project"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -303,29 +294,10 @@ class GCPProviderMap(ProviderMap):
                 ("account", "region"): GCPCostSummaryByRegionP,
                 ("service",): GCPCostSummaryByServiceP,
                 ("account", "service"): GCPCostSummaryByServiceP,
-                ("project",): GCPCostSummaryByProjectP,
-                ("account", "project"): GCPCostSummaryByProjectP,
                 ("gcp_project",): GCPCostSummaryByProjectP,
                 ("account", "gcp_project"): GCPCostSummaryByProjectP,
-                # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPCostSummaryByProjectP,
-                ("account", "gcp_project", "project"): GCPCostSummaryByProjectP,
             },
-            "instance-type": {
-                "default": GCPComputeSummaryP,
-                ("account",): GCPComputeSummaryByAccountP,
-                ("region",): GCPComputeSummaryByRegionP,
-                ("account", "region"): GCPComputeSummaryByRegionP,
-                ("service",): GCPComputeSummaryByServiceP,
-                ("account", "service"): GCPComputeSummaryByServiceP,
-                ("project",): GCPComputeSummaryByProjectP,
-                ("account", "project"): GCPComputeSummaryByProjectP,
-                ("gcp_project",): GCPComputeSummaryByProjectP,
-                ("account", "gcp_project"): GCPComputeSummaryByProjectP,
-                # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPComputeSummaryByProjectP,
-                ("account", "gcp_project", "project"): GCPComputeSummaryByProjectP,
-            },
+            "instance-type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
             "storage": {
                 "default": GCPStorageSummaryP,
                 ("account",): GCPStorageSummaryByAccountP,
@@ -333,13 +305,8 @@ class GCPProviderMap(ProviderMap):
                 ("account", "region"): GCPStorageSummaryByRegionP,
                 ("service",): GCPStorageSummaryByServiceP,
                 ("account", "service"): GCPStorageSummaryByServiceP,
-                ("project",): GCPStorageSummaryByProjectP,
-                ("account", "project"): GCPStorageSummaryByProjectP,
                 ("gcp_project",): GCPStorageSummaryByProjectP,
                 ("account", "gcp_project"): GCPStorageSummaryByProjectP,
-                # COST-1981, COST-1986 Forecast stop gap
-                ("gcp_project", "project"): GCPStorageSummaryByProjectP,
-                ("account", "gcp_project", "project"): GCPStorageSummaryByProjectP,
             },
             "database": {
                 "default": GCPDatabaseSummaryP,
