@@ -19,6 +19,7 @@ from dateutil.rrule import rrule
 from django.conf import settings
 from django.db import connection
 from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
@@ -1473,7 +1474,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
                 )
                 .values("node")
-                .annotate(distributed_cost=Sum(node_column) / Sum(cluster_column) * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(node_column) / Sum(cluster_column) * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         # TIP: For debugging add these to the annotation
         # node_hours=Sum(node_column),
@@ -1515,7 +1520,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
                 .filter(namespace__isnull=False)
                 .values("namespace")
-                .annotate(distributed_cost=Sum(usage_column) / cluster_hours * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(usage_column) / cluster_hours * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         return distributed_project_list
 
