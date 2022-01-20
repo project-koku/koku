@@ -176,14 +176,13 @@ SELECT azure.uuid as azure_uuid,
         AND azure.month = {{month}}
         AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND (azure.resourceid IS NOT NULL AND azure.resourceid != '')
         AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
         AND ocp.year = {{year}}
         AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
         AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
         AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
-    GROUP BY azure.uuid, ocp.namespace
+    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
 ;
 
 -- Tag matching
