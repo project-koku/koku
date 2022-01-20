@@ -137,7 +137,7 @@ def get_column_converters():
 
 
 def gcp_generate_daily_data(data_frame):
-    """Return the gcp data frame, as it is already daily."""
+    """Given a dataframe, group the data to create daily data."""
     daily_data_frame = data_frame.groupby(
         [
             "invoice_month",
