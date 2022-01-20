@@ -115,13 +115,17 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
                 and request.path in reverse("settings")
                 and (not schema_exists(request.tenant.schema_name) or request.tenant.schema_name == "public")
             ):
+
+                doc_link = generate_doc_link("/")
+
                 err_page = {
                     "name": "middleware.settings.err",
                     "component": "error-state",
                     "errorTitle": "Configuration Error",
-                    "errorDescription": "Before adding settings you must create a Source for Cost Management.",
-                    "hrefUrl": generate_doc_link("/"),
-                    "hrefText": "[Learn more]",
+                    "errorDescription": "Before adding settings you must create a Source for Cost Management."
+                    + "<br /><span>Foo bar <a href="
+                    + doc_link
+                    + "></a>[Learn more]</span>",
                 }
 
                 return JsonResponse(
