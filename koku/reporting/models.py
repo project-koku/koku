@@ -18,8 +18,6 @@ from reporting.provider.all.openshift.models import OCPAllNetworkSummaryPT
 from reporting.provider.all.openshift.models import OCPAllStorageSummaryPT
 from reporting.provider.aws.models import AWSAccountAlias
 from reporting.provider.aws.models import AWSComputeSummaryByAccountP
-from reporting.provider.aws.models import AWSComputeSummaryByRegionP
-from reporting.provider.aws.models import AWSComputeSummaryByServiceP
 from reporting.provider.aws.models import AWSComputeSummaryP
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
@@ -38,8 +36,6 @@ from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSNetworkSummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 from reporting.provider.aws.models import AWSStorageSummaryByAccountP
-from reporting.provider.aws.models import AWSStorageSummaryByRegionP
-from reporting.provider.aws.models import AWSStorageSummaryByServiceP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP

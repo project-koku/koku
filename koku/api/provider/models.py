@@ -230,6 +230,10 @@ class Sources(RunTextFieldValidators, models.Model):
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
 
+    # This allows us to convenitently join source and provider tables with
+    # The Django ORM without using a real database foreign key constraint
+    provider = models.ForeignKey("Provider", null=True, on_delete=models.DO_NOTHING, db_constraint=False)
+
     # This field indicates if the source is paused.
     paused = models.BooleanField(default=False)
 

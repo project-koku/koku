@@ -389,7 +389,10 @@ def p_table_sql(self, model):
     # Use default model class for the original django SQL generation
     sql, params = self.o_table_sql(model)
 
-    pmodel = get_model(model.__name__)
+    try:
+        pmodel = get_model(model.__name__)
+    except KeyError:
+        pmodel = model
 
     # If there was a partition name match and the class has the required attribute,
     # use this information to add the partition clause to the create table sql
@@ -454,22 +457,11 @@ def p_table_sql(self, model):
 
 
 def p_delete_model(self, model):
-    pmodel = get_model(model.__name__)
-
-    if hasattr(pmodel, "DeferredSQL"):
-        drop_sql = getattr(pmodel.DeferredSQL, "drop_sql", [])
-        if drop_sql:
-            LOG.info(f"Executing pre-delete-model SQL... ({len(drop_sql)} statements)")
-            for d_sql, d_params in drop_sql:
-                with self.connection.cursor() as cur:
-                    d_stmt = cur.mogrify(d_sql, d_params).decode("utf-8")
-                self.execute(d_stmt)
-
-    if hasattr(pmodel, "PartitionInfo"):
-        sparams = {"partitioned_table_name": pmodel._meta.db_table}
-        with self.connection.cursor() as cur:
-            drop_partitions_sql = cur.mogrify(self.sql_drop_partitions, sparams).decode("utf-8")
-        self.execute(drop_partitions_sql)
+    sparams = {"partitioned_table_name": model._meta.db_table}
+    # Drop partitions (if any)
+    with self.connection.cursor() as cur:
+        drop_partitions_sql = cur.mogrify(self.sql_drop_partitions, sparams).decode("utf-8")
+    self.execute(drop_partitions_sql)
 
     self.o_delete_model(model)
 
