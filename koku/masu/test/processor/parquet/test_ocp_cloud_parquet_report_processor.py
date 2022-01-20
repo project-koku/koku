@@ -11,6 +11,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
@@ -18,6 +19,7 @@ from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYP
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
+from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -106,6 +108,16 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        self.assertIsInstance(report_processor.db_accessor, GCPReportDBAccessor)
+
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.manifest_id,
@@ -160,3 +172,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_topology.assert_called()
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
+
+    def test_ocp_on_gcp_data_processor(self):
+        """Test that the processor is properly set."""
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+        )
+        self.assertEqual(report_processor.ocp_on_cloud_data_processor, gcp_match_openshift_resources_and_labels)
