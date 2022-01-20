@@ -6,7 +6,7 @@ from django.db import models
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0050_exchangerates")]
+    dependencies = [("api", "0051_reapply_partition_trigger_func")]
 
     operations = [
         migrations.AddField(
