@@ -110,7 +110,14 @@ class Provider(models.Model):
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
-    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [PROVIDER_AWS, PROVIDER_AWS_LOCAL, PROVIDER_AZURE, PROVIDER_AZURE_LOCAL]
+    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [
+        PROVIDER_AWS,
+        PROVIDER_AWS_LOCAL,
+        PROVIDER_AZURE,
+        PROVIDER_AZURE_LOCAL,
+        PROVIDER_GCP,
+        PROVIDER_GCP_LOCAL,
+    ]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
