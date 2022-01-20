@@ -122,10 +122,8 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
                     "name": "middleware.settings.err",
                     "component": "error-state",
                     "errorTitle": "Configuration Error",
-                    "errorDescription": "Before adding settings you must create a Source for Cost Management."
-                    + "<br /><span>Foo bar <a href="
-                    + doc_link
-                    + "></a>[Learn more]</span>",
+                    "errorDescription": f"Before adding settings you must create a Source for Cost Management. "
+                    f"<br /><span><a href={doc_link}>[Learn more]</a></span>",
                 }
 
                 return JsonResponse(
