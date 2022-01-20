@@ -10,6 +10,19 @@ from django.db import models
 from django.db.models import JSONField
 
 
+UI_SUMMARY_TABLES = (
+    "reporting_ocpgcp_cost_summary_p",
+    "reporting_ocpgcp_compute_summary_p",
+    "reporting_ocpgcp_cost_summary_by_account_p",
+    "reporting_ocpgcp_cost_summary_by_gcp_project_p",
+    "reporting_ocpgcp_cost_summary_by_region_p",
+    "reporting_ocpgcp_cost_summary_by_service_p",
+    "reporting_ocpgcp_database_summary_p",
+    "reporting_ocpgcp_network_summary_p",
+    "reporting_ocpgcp_storage_summary_p",
+)
+
+
 class OCPGCPCostLineItemDailySummaryP(models.Model):
     """A summarized view of OCP on GCP cost."""
 
@@ -394,6 +407,8 @@ class OCPGCPComputeSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit = models.CharField(max_length=63, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=17, decimal_places=9, null=True)
@@ -426,6 +441,8 @@ class OCPGCPDatabaseSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit = models.CharField(max_length=63, null=True)
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -459,6 +476,8 @@ class OCPGCPNetworkSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit = models.CharField(max_length=63, null=True)
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)
@@ -492,6 +511,8 @@ class OCPGCPStorageSummaryP(models.Model):
     cluster_alias = models.CharField(max_length=256, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
+    usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    unit = models.CharField(max_length=63, null=True)
     account_id = models.CharField(max_length=50, null=False)
     service_id = models.CharField(max_length=256, null=True)
     service_alias = models.CharField(max_length=256, null=True, blank=True)

@@ -7,39 +7,16 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-from koku.database import get_model
-from koku.database import set_partition_mode
-from koku.database import unset_partition_mode
-from reporting.provider.all.openshift.models import VIEWS as OCP_ALL_VIEWS
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
 
 
 def create_new_ocpall_matviews(apps, schema_editor):
-    version = "_20210818"
-    conn = schema_editor.connection
-    converted_views = (
-        "reporting_ocpallcostlineitem_daily_summary",
-        "reporting_ocpallcostlineitem_project_daily_summary",
-    )
-    ocpallviews = [v for v in OCP_ALL_VIEWS if v not in converted_views]
-    for view in ocpallviews:
-        new_view = f"{view}_p{version}.sql"
-        view_sql = pkgutil.get_data("reporting.provider.all.openshift", f"sql/views/{version}/{new_view}")
-        view_sql = view_sql.decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
+    pass
 
 
 def drop_new_ocpall_matviews(apps, schema_editor):
-    conn = schema_editor.connection
-    converted_views = (
-        "reporting_ocpallcostlineitem_daily_summary",
-        "reporting_ocpallcostlineitem_project_daily_summary",
-    )
-    ocpallviews = [v for v in OCP_ALL_VIEWS if v not in converted_views]
-    for view in ocpallviews:
-        new_view = f"{view}_p"
-        with conn.cursor() as cur:
-            cur.execute(f"DROP MATERIALIZED VIEW IF EXISTS {new_view} ;")
+    pass
 
 
 class Migration(migrations.Migration):
@@ -47,7 +24,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0001_initial-from-template")]
 
     operations = [
-        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.CreateModel(
             name="OCPAllCostLineItemProjectDailySummaryP",
             fields=[
@@ -192,7 +169,7 @@ ALTER TABLE reporting_ocpallcostlineitem_daily_summary_p
             model_name="ocpallcostlineitemdailysummaryp",
             index=models.Index(fields=["instance_type"], name="ocpall_p_instance_type_idx"),
         ),
-        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
         migrations.RunPython(code=create_new_ocpall_matviews, reverse_code=drop_new_ocpall_matviews),
         migrations.CreateModel(
             name="OCPAllComputeSummaryP",

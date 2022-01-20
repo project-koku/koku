@@ -9,6 +9,7 @@ from django.views.decorators.cache import cache_page
 from django.views.generic.base import RedirectView
 from rest_framework.routers import DefaultRouter
 
+from api.views import AccountSettings
 from api.views import AWSAccountRegionView
 from api.views import AWSAccountView
 from api.views import AWSCostForecastView
@@ -88,6 +89,8 @@ urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
+    path("account-settings/", AccountSettings.as_view(), name="account-settings"),
+    path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
     path("status/", StatusView.as_view(), name="server-status"),
     path("openapi.json", openapi, name="openapi"),
     path("metrics/", metrics, name="metrics"),

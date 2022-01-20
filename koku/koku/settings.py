@@ -247,6 +247,7 @@ DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
 HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
+HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
@@ -290,6 +291,8 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]
+
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 DEFAULT_PAGINATION_CLASS = "api.common.pagination.StandardResultsSetPagination"
 DEFAULT_EXCEPTION_HANDLER = "api.common.exception_handler.custom_exception_handler"

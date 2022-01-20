@@ -1343,6 +1343,14 @@
           "celery": {
             "type": "integer",
             "example": 2
+          },
+          "ocp": {
+            "type": "integer",
+            "example": 3
+          },
+          "hcs": {
+            "type": "integer",
+            "example": 1
           }
         }
       },
