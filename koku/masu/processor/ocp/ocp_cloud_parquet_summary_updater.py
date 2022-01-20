@@ -329,16 +329,13 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
 
-            # TODO: RE-ENABLE OCP ON ALL PROCESSING WITH API PR SO WE DONT BREAK WORKING SMOKES
-            # AND DELETE THIS EXTRA SOURCE TYPE, IT IS TO MAKE UNIT TESTS AND PATCHING HAPPY
-            sql_params["source_type"] = "GCP"
-            # with OCPReportDBAccessor(self._schema) as ocp_accessor:
-            #     sql_params["source_type"] = "GCP"
-            #     LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
-            #     ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
-            #     ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
-            #     ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
+            with OCPReportDBAccessor(self._schema) as ocp_accessor:
+                sql_params["source_type"] = "GCP"
+                LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
+                ocp_accessor.populate_ocp_on_all_project_daily_summary("gcp", sql_params)
+                ocp_accessor.populate_ocp_on_all_daily_summary("gcp", sql_params)
+                ocp_accessor.populate_ocp_on_all_ui_summary_tables(sql_params)
 
-            #     ocp_accessor.populate_ui_summary_tables(
-            #         start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-            #     )
+                ocp_accessor.populate_ui_summary_tables(
+                    start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+                )
