@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
+import random
+from datetime import datetime
+
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
@@ -151,3 +154,144 @@ class TestGCPUtils(MasuTestCase):
 
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))
+
+    def test_match_openshift_resources_and_labels(self):
+        """Test that OCP on GCP matching occurs."""
+        cluster_topology = {
+            "resource_ids": [],
+            "cluster_id": "ocp-gcp-cluster",
+            "cluster_alias": "my-ocp-cluster",
+            "nodes": ["id1", "id2", "id3"],
+            "projects": [],
+        }
+
+        matched_tags = []
+
+        # in the gcp dataframe, these are labels
+        data = [
+            {
+                "resourceid": "id1",
+                "pretaxcost": 1,
+                "labels": '{"key": "value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
+            },
+            {
+                "resourceid": "id2",
+                "pretaxcost": 1,
+                "labels": '{"key": "other_value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
+            },
+            {
+                "resourceid": "id3",
+                "pretaxcost": 1,
+                "labels": '{"key": "other_value", "kubernetes-not-io-cluster-ocp-gcp-cluster": "owned"}',
+            },
+        ]
+
+        df = pd.DataFrame(data)
+
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # kubernetes-io-cluster matching, 2 results should come back with no matched tags
+        self.assertEqual(matched_df.shape[0], 2)
+
+        matched_tags = [{"key": "other_value"}]
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+        # tag matching
+        result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
+        self.assertTrue(result.bool())
+
+        result = matched_df[matched_df["resourceid"] == "id3"]["matched_tag"] == '"key": "other_value"'
+        self.assertTrue(result.bool())
+
+        # Matched tags, but none that match the dataset
+        matched_tags = [{"something_else": "entirely"}]
+        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+
+        # kubernetes-io-cluster matching, 2 results should come back but no matched tags
+        self.assertEqual(matched_df.shape[0], 2)
+
+        # tag matching
+        self.assertFalse((matched_df["matched_tag"] != "").any())
+
+    def test_gcp_generate_daily_data(self):
+        """Test that we aggregate data at a daily level."""
+        usage = random.randint(1, 10)
+        cost = random.randint(1, 10)
+        data = [
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
+                "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+            },
+        ]
+        df = pd.DataFrame(data)
+
+        daily_df = utils.gcp_generate_daily_data(df)
+
+        first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
+        second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
+
+        self.assertEqual(first_day.shape[0], 1)
+        self.assertEqual(second_day.shape[0], 1)
+
+        self.assertTrue((first_day["cost"] == cost * 2).bool())
+        self.assertTrue((second_day["cost"] == cost).bool())
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
