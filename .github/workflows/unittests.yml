@@ -127,3 +127,12 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - run: echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
+
+      - name: Override Codecov for skipped tests
+        if: always() && needs.unit-tests.result == 'skipped'
+        env:
+          # Required for gh api call
+          GITHUB_TOKEN: "${{ github.token }}"
+        run: |
+          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f context="codecov/patch" -f state="success"
+          gh api "/repos/project-koku/koku/statuses/${{ github.event.pull_request.head.sha }}" -f context="codecov/project" -f state="success"
