@@ -185,8 +185,8 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    max(volume_labels) as volume_labels,
-    max(json_format(json_parse(labels))) as tags,
+    max(ocp.volume_labels) as volume_labels,
+    max(gcp.labels) as tags,
     row_number() OVER (partition by gcp.uuid) as project_rank,
     1 as data_source_rank
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
