@@ -15,8 +15,6 @@ objects:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: clowder-api
       podSpec:
-        command:
-        - /usr/libexec/s2i/run
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -116,7 +114,7 @@ objects:
         - command:
           - /bin/bash
           - -c
-          - $HOME/scripts/run_migrations.sh
+          - $APP_ROOT/scripts/run_migrations.sh
           image: ${IMAGE}:${IMAGE_TAG}
           inheritEnv: true
         livenessProbe:
@@ -307,8 +305,6 @@ objects:
     - minReplicas: ${{MASU_MIN_REPLICAS}}
       name: clowder-masu
       podSpec:
-        command:
-        - /usr/libexec/s2i/run
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -454,7 +450,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku beat -l $CELERY_LOG_LEVEL
+          PYTHONPATH=${APP_HOME} celery -A koku beat -l $CELERY_LOG_LEVEL
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -560,6 +556,8 @@ objects:
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -593,8 +591,6 @@ objects:
     - minReplicas: ${{SOURCES_CLIENT_MIN_REPLICAS}}
       name: clowder-sources-client
       podSpec:
-        command:
-        - /usr/libexec/s2i/run
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -865,7 +861,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -927,6 +923,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_CELERY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1032,7 +1030,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1094,6 +1092,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_COST_MODEL_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1201,7 +1201,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1263,6 +1263,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_DOWNLOAD_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1368,7 +1370,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1430,6 +1432,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_OCP_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1537,7 +1541,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1599,6 +1603,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_PRIORITY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1704,7 +1710,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1766,6 +1772,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_REFRESH_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -1873,7 +1881,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=/opt/app-root/src/koku celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1935,6 +1943,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${WORKER_SUMMARY_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
         - name: SCHEDULE_CHECK_INTERVAL
           value: ${SCHEDULE_CHECK_INTERVAL}
         - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
@@ -2035,6 +2045,177 @@ objects:
           enabled: false
         public:
           enabled: false
+    - minReplicas: ${{WORKER_HCS_MIN_REPLICAS}}
+      name: clowder-worker-hcs
+      podSpec:
+        command:
+        - /bin/bash
+        - -c
+        - |
+          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+        env:
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: aws-access-key-id
+              name: koku-aws
+              optional: false
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: aws-secret-access-key
+              name: koku-aws
+              optional: false
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: ${GOOGLE_APPLICATION_CREDENTIALS}
+        - name: APP_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DEVELOPMENT
+          value: ${DEVELOPMENT}
+        - name: CELERY_LOG_LEVEL
+          value: ${CELERY_LOG_LEVEL}
+        - name: KOKU_LOG_LEVEL
+          value: ${KOKU_LOG_LEVEL}
+        - name: UNLEASH_LOG_LEVEL
+          value: ${UNLEASH_LOG_LEVEL}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: REQUESTED_BUCKET
+          value: ${S3_BUCKET_NAME}
+        - name: ENABLE_S3_ARCHIVING
+          value: ${ENABLE_S3_ARCHIVING}
+        - name: ENABLE_PARQUET_PROCESSING
+          value: ${ENABLE_PARQUET_PROCESSING}
+        - name: PARQUET_PROCESSING_BATCH_SIZE
+          value: ${PARQUET_PROCESSING_BATCH_SIZE}
+        - name: ENABLE_TRINO_SOURCES
+          value: ${ENABLE_TRINO_SOURCES}
+        - name: ENABLE_TRINO_ACCOUNTS
+          value: ${ENABLE_TRINO_ACCOUNTS}
+        - name: ENABLE_TRINO_SOURCE_TYPE
+          value: ${ENABLE_TRINO_SOURCE_TYPE}
+        - name: TRINO_DATE_STEP
+          value: ${TRINO_DATE_STEP}
+        - name: KOKU_CELERY_ENABLE_SENTRY
+          value: ${ENABLE_CELERY_SENTRY}
+        - name: KOKU_SENTRY_ENVIRONMENT
+          value: ${KOKU_SENTRY_ENV}
+        - name: KOKU_CELERY_SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              key: celery-sentry-dsn
+              name: koku-sentry
+              optional: true
+        - name: DEMO_ACCOUNTS
+          value: ${DEMO_ACCOUNTS}
+        - name: WORKER_QUEUES
+          value: ${WORKER_HCS_WORKER_QUEUE}
+        - name: WORKER_PROC_ALIVE_TIMEOUT
+          value: ${WORKER_PROC_ALIVE_TIMEOUT}
+        - name: SCHEDULE_CHECK_INTERVAL
+          value: ${SCHEDULE_CHECK_INTERVAL}
+        - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
+          value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
+        - name: REMOVE_EXPIRED_REPORT_UTC_TIME
+          value: ${REMOVE_EXPIRED_REPORT_UTC_TIME}
+        - name: VACUUM_DATA_DAY_OF_WEEK
+          value: ${VACUUM_DATA_DAY_OF_WEEK}
+        - name: VACUUM_DATA_UTC_TIME
+          value: ${VACUUM_DATA_UTC_TIME}
+        - name: VOLUME_FILE_RETENTION
+          value: ${VOLUME_FILE_RETENTION}
+        - name: CLEAN_VOLUME_DAY_OF_WEEK
+          value: ${CLEAN_VOLUME_DAY_OF_WEEK}
+        - name: CLEAN_VOLUME_UTC_TIME
+          value: ${CLEAN_VOLUME_UTC_TIME}
+        - name: DATE_OVERRIDE
+          value: ${DATE_OVERRIDE}
+        - name: RETAIN_NUM_MONTHS
+          value: ${RETAIN_NUM_MONTHS}
+        - name: INITIAL_INGEST_NUM_MONTHS
+          value: ${INITIAL_INGEST_NUM_MONTHS}
+        - name: INITIAL_INGEST_OVERRIDE
+          value: ${INITIAL_INGEST_OVERRIDE}
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: AUTO_DATA_INGEST
+          value: ${AUTO_DATA_INGEST}
+        - name: REPORT_PROCESSING_BATCH_SIZE
+          value: ${REPORT_PROCESSING_BATCH_SIZE}
+        - name: PROMETHEUS_PUSHGATEWAY
+          value: ${PROMETHEUS_PUSHGATEWAY}
+        - name: USE_RABBIT
+          value: ${USE_RABBIT}
+        - name: RABBITMQ_HOST
+          value: ${RABBITMQ_HOST}
+        - name: RABBITMQ_PORT
+          value: ${RABBITMQ_PORT}
+        - name: SOURCES_API_PREFIX
+          value: ${SOURCES_API_PREFIX}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        - name: WORKER_CACHE_TIMEOUT
+          value: ${WORKER_CACHE_TIMEOUT}
+        image: ${IMAGE}:${IMAGE_TAG}
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /livez
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /readyz
+            port: metrics
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 10
+        resources:
+          limits:
+            cpu: ${WORKER_HCS_CPU_LIMIT}
+            memory: ${WORKER_HCS_MEMORY_LIMIT}
+          requests:
+            cpu: ${WORKER_HCS_CPU_REQUEST}
+            memory: ${WORKER_HCS_MEMORY_REQUEST}
+        volumeMounts:
+        - mountPath: /var/tmp/masu/
+          name: koku-worker-data
+        - mountPath: /etc/gcp
+          name: gcp-credentials
+          readOnly: true
+        - mountPath: ${TMP_DIR}
+          name: tmp-data
+        volumes:
+        - emptyDir: {}
+          name: tmp-data
+        - emptyDir: {}
+          name: koku-worker-data
+        - name: gcp-credentials
+          secret:
+            items:
+            - key: gcp-credentials
+              path: gcp-credentials.json
+            secretName: koku-gcp
+      webServices:
+        metrics:
+          enabled: true
+        private:
+          enabled: false
+        public:
+          enabled: false
     envName: ${ENV_NAME}
     featureFlags: true
     inMemoryDb: true
@@ -2044,7 +2225,7 @@ objects:
         args:
         - /bin/bash
         - -c
-        - $HOME/scripts/run_migrations.sh
+        - $APP_ROOT/scripts/run_migrations.sh
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -2116,7 +2297,7 @@ parameters:
   value: koku
 - name: DATABASE_VERSION
   required: true
-  value: "12"
+  value: "13"
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
@@ -2224,7 +2405,7 @@ parameters:
   name: TRINO_DATE_STEP
   required: true
   value: "5"
-- description: Flag to use account enhanced prometheus metrics
+- description: Flag to use account enhanced prometheus metricsworker
   displayName: Account Enhanced Metrics
   name: ACCOUNT_ENHANCED_METRICS
   value: "False"
@@ -2236,6 +2417,10 @@ parameters:
   displayName: Worker cache timeout
   name: WORKER_CACHE_TIMEOUT
   value: "21600"
+- description: Timeout threshold for worker process to initialize
+  displayName: Worker Proc Alive Timeout
+  name: WORKER_PROC_ALIVE_TIMEOUT
+  value: "4"
 - description: Demo account JSON
   displayName: Demo account JSON
   name: DEMO_ACCOUNTS
@@ -2457,7 +2642,7 @@ parameters:
 - displayName: Worker Queue
   name: SCHEDULER_WORKER_QUEUE
   required: true
-  value: cost_model,download,ocp,priority,refresh,summary
+  value: cost_model,download,hcs,ocp,priority,refresh,summary
 - displayName: Scheduler report checks
   name: SCHEDULE_REPORT_CHECKS
   value: "True"
@@ -2680,3 +2865,27 @@ parameters:
   name: WORKER_SUMMARY_WORKER_QUEUE
   required: true
   value: summary
+- displayName: Minimum replicas
+  name: WORKER_HCS_MIN_REPLICAS
+  required: true
+  value: "1"
+- displayName: Memory Request
+  name: WORKER_HCS_MEMORY_REQUEST
+  required: true
+  value: 256Mi
+- displayName: Memory Limit
+  name: WORKER_HCS_MEMORY_LIMIT
+  required: true
+  value: 512Mi
+- displayName: CPU Request
+  name: WORKER_HCS_CPU_REQUEST
+  required: true
+  value: 100m
+- displayName: CPU Limit
+  name: WORKER_HCS_CPU_LIMIT
+  required: true
+  value: 200m
+- displayName: Worker Queue
+  name: WORKER_HCS_WORKER_QUEUE
+  required: true
+  value: hcs

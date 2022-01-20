@@ -27,6 +27,10 @@
       "description": "Operations about summarizing report data"
     },
     {
+      "name": "HCS Report Data",
+      "description": "Operations about HCS report data"
+    },
+    {
       "name": "Update Cost Model Cost",
       "description": "Operations about updating cost model costs"
     },
@@ -206,6 +210,82 @@
         ]
       },
       "parameters": []
+    },
+    "/hcs_report_data/": {
+      "get": {
+        "operationId": "getHCSReportData",
+        "description": "Collect HCS report data.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "description": "The provider type",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "AWS"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "The date to begin summarizing",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HCS Report Data"
+        ]
+      }
     },
     "/report_data/": {
       "get": {
@@ -1066,6 +1146,14 @@
           "celery": {
             "type": "integer",
             "example": 2
+          },
+          "ocp": {
+            "type": "integer",
+            "example": 3
+          },
+          "hcs": {
+            "type": "integer",
+            "example": 1
           }
         }
       },
@@ -1321,6 +1409,16 @@
         ]
       },
       "ReportDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "HCSDataGetResponse": {
         "type": "object",
         "properties": {
           "Report Data Task ID": {

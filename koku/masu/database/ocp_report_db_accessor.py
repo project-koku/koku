@@ -16,14 +16,17 @@ import pytz
 from dateutil.parser import parse
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
+from django.conf import settings
 from django.db import connection
 from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 import koku.presto_database as kpdb
 from api.metrics import constants as metric_constants
@@ -38,6 +41,7 @@ from masu.util.common import month_date_range_tuple
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE as GCP_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.ocp.models import OCPCluster
 from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
@@ -456,12 +460,15 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         ocp_provider_uuid = kwargs.get("ocp_provider_uuid")
         aws_provider_uuid = kwargs.get("aws_provider_uuid")
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
+        gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
 
         if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
         if aws_provider_uuid and not self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
         if azure_provider_uuid and not self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE):
+            return {}
+        if gcp_provider_uuid and not self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE):
             return {}
 
         if isinstance(start_date, str):
@@ -478,17 +485,16 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "aws_provider_uuid": aws_provider_uuid,
             "ocp_provider_uuid": ocp_provider_uuid,
             "azure_provider_uuid": azure_provider_uuid,
+            "gcp_provider_uuid": gcp_provider_uuid,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
-
         db_results = {}
         for entry in results:
             # This dictionary is keyed on an OpenShift provider UUID
             # and the tuple contains
             # (Infrastructure Provider UUID, Infrastructure Provider Type)
             db_results[entry[0]] = (entry[1], entry[2])
-
         return db_results
 
     def populate_storage_line_item_daily_table(self, start_date, end_date, cluster_id):
@@ -633,6 +639,39 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
         self._execute_raw_sql_query(table_name, summary_sql, start_date, end_date, list(summary_sql_params))
 
+    def delete_ocp_hive_partition_by_day(self, days, source, year, month):
+        """Deletes partitions individually for each day in days list."""
+        table = self._table_map["line_item_daily_summary"]
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
+        if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+                self.schema,
+                source,
+                table,
+                year,
+                month,
+                days,
+            )
+            for day in days:
+                for i in range(retries):
+                    try:
+                        sql = f"""
+                        DELETE FROM hive.{self.schema}.{table}
+                        WHERE source = '{source}'
+                        AND year = '{year}'
+                        AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                        AND day = '{day}'
+                        """
+                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        break
+                    except TrinoExternalError as err:
+                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                            continue
+                        else:
+                            raise err
+
     def populate_line_item_daily_summary_table_presto(
         self, start_date, end_date, report_period_id, cluster_id, cluster_alias, source
     ):
@@ -660,7 +699,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
-
+        days_list = [str(day.day) for day in days]
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        self.delete_ocp_hive_partition_by_day(days_list, source, year, month)
         tmpl_summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpusagelineitem_daily_summary.sql")
         tmpl_summary_sql = tmpl_summary_sql.decode("utf-8")
         summary_sql_params = {
@@ -672,8 +714,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_alias": cluster_alias,
             "schema": self.schema,
             "source": str(source),
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
             "days": days_str,
         }
 
@@ -1434,7 +1476,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
                 )
                 .values("node")
-                .annotate(distributed_cost=Sum(node_column) / Sum(cluster_column) * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(node_column) / Sum(cluster_column) * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         # TIP: For debugging add these to the annotation
         # node_hours=Sum(node_column),
@@ -1476,7 +1522,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
                 .filter(namespace__isnull=False)
                 .values("namespace")
-                .annotate(distributed_cost=Sum(usage_column) / cluster_hours * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(usage_column) / cluster_hours * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         return distributed_project_list
 

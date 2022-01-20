@@ -31,6 +31,7 @@ apps:
         WORKER_PRIORITY_MIN_REPLICAS: 1
         WORKER_REFRESH_MIN_REPLICAS: 1
         WORKER_SUMMARY_MIN_REPLICAS: 1
+        WORKER_HCS_MIN_REPLICAS: 1
         PRESTO_PORT: 8000
         PRESTO_HOST: presto-coordinator
         S3_BUCKET_NAME: koku-eph-s3
@@ -44,7 +45,7 @@ apps:
       path: deploy/clowdapp.yaml
       ref: main
       parameters:
-        IMAGE_TAG: 2.3.3-004
+        IMAGE_TAG: 3.1.2-metastore-005
         S3_BUCKET_NAME: koku-eph-s3
     - name: presto
       host: github
@@ -52,7 +53,5 @@ apps:
       path: deploy/clowdapp.yaml
       ref: main
       parameters:
-        IMAGE_TAG: 348-003
+        IMAGE_TAG: 360-001
         S3_BUCKET_NAME: koku-eph-s3
-        COORDINATOR_MEMORY_LIMIT: 8Gi
-        WORKER_MEMORY_LIMIT: 8Gi

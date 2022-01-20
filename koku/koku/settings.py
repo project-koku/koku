@@ -34,6 +34,8 @@ from .env import ENVIRONMENT
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# Version info
+GIT_COMMIT = ENVIRONMENT.get_value("GIT_COMMIT", default="local-dev")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
@@ -71,6 +73,7 @@ INSTALLED_APPS = [
     "django_prometheus",
     # local apps
     "api",
+    "hcs",
     "masu",
     "reporting",
     "reporting_common",
@@ -244,6 +247,7 @@ DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
 HIVE_DATABASE_NAME = ENVIRONMENT.get_value("HIVE_DATABASE_NAME", default="hive")
 HIVE_DATABASE_PASSWORD = ENVIRONMENT.get_value("HIVE_DATABASE_PASSWORD", default="hive")
+HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
@@ -287,6 +291,8 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]
+
+DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 DEFAULT_PAGINATION_CLASS = "api.common.pagination.StandardResultsSetPagination"
 DEFAULT_EXCEPTION_HANDLER = "api.common.exception_handler.custom_exception_handler"

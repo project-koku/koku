@@ -44,15 +44,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_
 ) WITH(format = 'PARQUET', partitioned_by=ARRAY['source', 'year', 'month', 'day'])
 ;
 
-
-DELETE
-FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
-WHERE source = {{source}}
-    AND year = {{year}}
-    AND month = {{month}}
-    AND day IN ({{days}})
-;
-
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -463,6 +454,6 @@ SELECT cast(uuid as UUID),
 FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS lids
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
-    AND lids.month = {{month}}
+    AND lpad(lids.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND lids.day IN ({{days}})
 ;

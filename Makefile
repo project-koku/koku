@@ -119,9 +119,9 @@ help:
 	@echo "                                         password: admin12"
 	@echo "  docker-up-min                        run database, koku/masu servers and worker"
 	@echo "  docker-down                          shut down all containers"
-	@echo "  docker-up-min-presto                 start minimum targets for Presto usage"
-	@echo "  docker-up-min-presto-no-build        start minimum targets for Presto usage without building koku base"
-	@echo "  docker-presto-down-all               Tear down Presto and Koku containers"
+	@echo "  docker-up-min-trino                 start minimum targets for Trino usage"
+	@echo "  docker-up-min-trino-no-build        start minimum targets for Trino usage without building koku base"
+	@echo "  docker-trino-down-all               Tear down Trino and Koku containers"
 	@echo "  docker-rabbit                        run RabbitMQ container"
 	@echo "  docker-reinitdb                      drop and recreate the database"
 	@echo "  docker-reinitdb-with-sources         drop and recreate the database with fake sources"
@@ -314,7 +314,7 @@ endif
 ###############################
 
 docker-down:
-	$(DOCKER_COMPOSE) down -v
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	$(PREFIX) make clear-testing
 
 docker-down-db:
@@ -323,9 +323,6 @@ docker-down-db:
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
-
-docker-presto-logs:
-	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-presto.yml logs -f
 
 docker-trino-logs:
 	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-trino.yml logs -f
@@ -394,10 +391,6 @@ docker-up-min-with-listener: docker-up-min docker-up-db
 docker-up-min-no-build-with-listener: docker-up-min-no-build docker-up-db
 	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) koku-listener
 
-docker-up-min-presto: docker-up-min docker-presto-up
-
-docker-up-min-presto-no-build: docker-up-min-no-build docker-presto-up
-
 docker-up-db:
 	$(DOCKER_COMPOSE) up -d db
 	@until pg_isready -h $${POSTGRES_SQL_SERVICE_HOST:-localhost} -p $${POSTGRES_SQL_SERVICE_PORT:-15432} >/dev/null ; do \
@@ -430,52 +423,8 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
-docker-metastore-setup:
-	mkdir -p -m a+rwx ./.trino
-	@cp -fr deploy/metastore/ .trino/metastore/
-	find ./.trino/metastore -type d -exec chmod a+rwx {} \;
-	@[[ ! -d ./.trino/metastore/db-data ]] && mkdir -p -m a+rwx ./.trino/metastore/db-data || chmod a+rwx ./.trino/metastore/db-data
-	@cp -fr deploy/hadoop/ .trino/hadoop/
-#	@[[ ! -d ./.trino/hadoop/hadoop-logs ]] && mkdir -p -m a+rwx ./hadoop/hadoop-logs || chmod a+rwx ./hadoop/hadoop-logs
-	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' .trino/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),koku-reports))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's%s3endpoint%$(shell echo $(or $(S3_ENDPOINT),localhost))%g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/s3access/$(shell echo $(or $(S3_ACCESS_KEY),localhost))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's;s3secret;$(shell echo $(or $(S3_SECRET),localhost));g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_name/$(shell echo $(or $(HIVE_DATABASE_NAME),hive))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_user/$(shell echo $(or $(HIVE_DATABASE_USER),hive))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_password/$(shell echo $(or $(HIVE_DATABASE_PASSWORD),hive))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_port/$(shell echo $(or $(DATABASE_PORT),5432))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_host/$(shell echo $(or $(DATABASE_HOST),db))/g' .trino/metastore/hive-config/hive-site.xml
-	@$(SED_IN_PLACE) -e 's/database_sslmode/$(shell echo $(or $(DATABASE_SSLMODE),require))/g' .trino/metastore/hive-config/hive-site.xml
-
-
-docker-presto-setup:
-	@cp -fr deploy/presto/ .trino/presto/
-	find ./.trino/presto -type d -exec chmod a+rwx {} \;
-	@cp -fr deploy/hadoop/ .trino/hadoop/
-	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
-	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
-	@$(SED_IN_PLACE) -e 's/DATABASE_NAME/$(shell echo $(or $(DATABASE_NAME),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
-	@$(SED_IN_PLACE) -e 's/DATABASE_USER/$(shell echo $(or $(DATABASE_USER),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
-	@$(SED_IN_PLACE) -e 's/DATABASE_PASSWORD/$(shell echo $(or $(DATABASE_PASSWORD),postgres))/g' .trino/presto/presto-catalog-config/postgres.properties
-
 minio-bucket-cleanup:
 	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data/
-
-docker-presto-up: docker-metastore-setup docker-presto-setup
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml up -d $(build)
-
-docker-presto-ps:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml ps
-
-docker-presto-down:
-	docker-compose -f ./testing/compose_files/docker-compose-presto.yml down -v
-	make clear-trino
-
-docker-presto-down-all: docker-presto-down docker-down
 
 docker-trino-setup:
 	mkdir -p -m a+rwx ./.trino
@@ -486,21 +435,24 @@ docker-trino-setup:
 	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
 
-docker-trino-up: docker-metastore-setup docker-trino-setup
+docker-trino-up: docker-trino-setup
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up --build -d
+
+docker-trino-up-no-build: docker-trino-setup
 	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up -d $(build)
 
 docker-trino-ps:
 	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
 
 docker-trino-down:
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v
+	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down
 
 docker-up-min-trino: docker-up-min docker-trino-up
 
-docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up
+docker-up-min-trino-no-build: docker-up-min-no-build docker-trino-up-no-build
 
 
 ### Source targets ###

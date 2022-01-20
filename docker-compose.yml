@@ -5,8 +5,8 @@ services:
     image: koku_base
     build:
       context: .
-      dockerfile: Dockerfile
       args:
+        GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
     depends_on:
       - db
@@ -50,6 +50,7 @@ services:
       - RUN_GUNICORN=${RUN_GUNICORN-}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING}
       - ENABLE_TRINO_SOURCES
       - ENABLE_TRINO_ACCOUNTS
       - ENABLE_TRINO_SOURCE_TYPE
@@ -58,12 +59,15 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - CURRENCY_URL=${CURRENCY_URL}
-    privileged: true
     ports:
       - 8000:8000
       - 8001:9000
     volumes:
-      - '.:/koku/'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
+      - './run_server.sh:/koku/run_server.sh'
     depends_on:
       - koku-base
 
@@ -72,7 +76,7 @@ services:
     image: koku_base
     working_dir: /koku
     entrypoint:
-      - /koku/run_internal.sh
+      - /koku/run_server.sh
     environment:
       - MASU=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -111,12 +115,15 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
-    privileged: true
     ports:
       - 5042:8000
       - 5001:9000
     volumes:
-      - '.:/koku/'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
+      - './run_server.sh:/koku/run_server.sh'
     depends_on:
       - koku-base
 
@@ -124,7 +131,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,ocp,priority,summary,cost_model,refresh']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -177,11 +184,13 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 6001-6020:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
@@ -204,8 +213,9 @@ services:
     container_name: koku_listener
     image: koku_base
     working_dir: /koku/
-    entrypoint: ['python', 'koku/manage.py', 'listener']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
     environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - POSTGRES_SQL_SERVICE_HOST=db
       - POSTGRES_SQL_SERVICE_PORT=5432
@@ -244,11 +254,13 @@ services:
       - ENABLE_TRINO_SOURCE_TYPE
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 7001-7020:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
       - koku-base
 
@@ -257,8 +269,10 @@ services:
     image: koku_base
     restart: on-failure:25
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', /koku/run_sources.sh]
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'sources']
     environment:
+      - DJANGO_READ_DOT_ENV_FILE=True
+      - SOURCES=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
       - DATABASE_ENGINE=postgresql
       - DATABASE_NAME=${DATABASE_NAME-postgres}
@@ -292,12 +306,14 @@ services:
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     ports:
       - 4000:8000
       - 4001:9000
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
       - koku-base
 
@@ -306,7 +322,7 @@ services:
     hostname: koku_beat
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['celery', '--pidfile=/opt/celeryd.pid', '-A', 'koku', 'beat', '-l', 'info']
+    entrypoint: ['celery', '--pidfile=', '-A', 'koku', 'beat', '-l', 'info']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -331,9 +347,11 @@ services:
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
-    privileged: true
     volumes:
-      - '.:/koku'
+      - './koku:/koku/koku'
+      - './.unleash:/koku/.unleash'
+      - './db_functions:/koku/db_functions'
+      - './scripts:/koku/scripts'
     depends_on:
         - koku-base
 
@@ -341,7 +359,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:12
+    image: postgres:13
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}
@@ -446,15 +464,15 @@ services:
     depends_on:
       - db
 
-  koku-rabbit:
-    container_name: koku_rabbit
-    hostname: rabbit
-    image: rabbitmq:latest
-    environment:
-        - RABBITMQ_DEFAULT_USER=guest
-        - RABBITMQ_DEFAULT_PASS=guest
-    ports:
-      - "${RABBITMQ_PORT-5674}:5672"
+  # koku-rabbit:
+  #   container_name: koku_rabbit
+  #   hostname: rabbit
+  #   image: rabbitmq:latest
+  #   environment:
+  #       - RABBITMQ_DEFAULT_USER=guest
+  #       - RABBITMQ_DEFAULT_PASS=guest
+  #   ports:
+  #     - "${RABBITMQ_PORT-5674}:5672"
 
   unleash:
     container_name: koku-unleash

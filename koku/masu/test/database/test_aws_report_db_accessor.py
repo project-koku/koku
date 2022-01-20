@@ -5,6 +5,7 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
+import os
 import random
 import string
 from decimal import Decimal
@@ -12,17 +13,22 @@ from unittest.mock import patch
 
 import django.apps
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import connection
+from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from psycopg2.errors import DeadlockDetected
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
+from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -38,6 +44,7 @@ from masu.test.database.helpers import ReportObjectCreator
 from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
 from reporting_common import REPORT_COLUMN_MAP
 
 
@@ -97,6 +104,46 @@ class ReportSchemaTest(MasuTestCase):
         ]
         for table_type in table_types.values():
             self.assertIn(table_type, django_field_types)
+
+    def test_exec_raw_sql_query(self):
+        class _db:
+            def set_schema(*args, **kwargs):
+                return None
+
+        class _crsr:
+            def __init__(self, *args, **kwargs):
+                self.db = _db()
+
+            def __enter__(self, *args, **kwargs):
+                return self
+
+            def __exit__(self, *args, **kwargs):
+                pass
+
+            def execute(self, *args, **kwargs):
+                try:
+                    self.dd_exc = DeadlockDetected(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+                    raise self.dd_exc
+                except DeadlockDetected:
+                    raise OperationalError(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+
+        with patch("masu.database.report_db_accessor_base.connection.cursor", return_value=_crsr()):
+            with self.assertRaises(ExtendedDBException):
+                self.accessor._execute_raw_sql_query(None, None)
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -992,8 +1039,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto(self, mock_presto):
+    def test_populate_ocp_on_aws_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -1020,8 +1068,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto):
+    def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -1134,6 +1183,61 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEqual(table_query.count(), 0)
 
+    def test_delete_line_item_daily_summary_entries_for_date_range_with_filter(self):
+        """Test that daily summary rows are deleted."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        new_cluster_id = "new_cluster_id"
+
+        with schema_context(self.schema):
+            cluster_ids = OCPAWSCostLineItemProjectDailySummary.objects.values_list("cluster_id").distinct()
+            cluster_ids = [cluster_id[0] for cluster_id in cluster_ids]
+
+            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+                source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
+            )
+            row_count = table_query.count()
+
+            # Change the cluster on some rows
+            update_uuids = table_query.values_list("uuid")[0 : round(row_count / 2, 2)]  # noqa: E203
+            table_query.filter(uuid__in=update_uuids).update(cluster_id=new_cluster_id)
+
+            self.assertNotEqual(row_count, 0)
+
+        self.accessor.delete_line_item_daily_summary_entries_for_date_range(
+            self.aws_provider_uuid,
+            start_date,
+            end_date,
+            table=OCPAWSCostLineItemProjectDailySummary,
+            filters={"cluster_id": cluster_ids[0]},
+        )
+
+        with schema_context(self.schema):
+            # Make sure we didn't delete everything
+            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+                source_uuid=self.aws_provider_uuid, usage_start__gte=start_date, usage_start__lte=end_date
+            )
+            self.assertNotEqual(table_query.count(), 0)
+
+            # Make sure we didn't delete this cluster
+            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+                source_uuid=self.aws_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cluster_id=new_cluster_id,
+            )
+            self.assertNotEqual(table_query.count(), 0)
+
+            # Make sure we deleted this cluster
+            table_query = OCPAWSCostLineItemProjectDailySummary.objects.filter(
+                source_uuid=self.aws_provider_uuid,
+                usage_start__gte=start_date,
+                usage_start__lte=end_date,
+                cluster_id=cluster_ids[0],
+            )
+            self.assertEqual(table_query.count(), 0)
+
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, get_model("AWSCostEntryLineItemDailySummary"))
         self.assertEqual(self.accessor.line_item_table, get_model("AWSCostEntryLineItem"))
@@ -1182,3 +1286,16 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+                [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

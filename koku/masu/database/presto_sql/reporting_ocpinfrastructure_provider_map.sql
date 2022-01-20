@@ -49,3 +49,29 @@
         AND ocp.month = '{{month | sqlsafe}}'
         {% endif %}
 {% endif %}
+
+{% if gcp_provider_uuid %}
+    WITH cte_openshift_cluster_info AS (
+    SELECT DISTINCT cluster_id,
+        cluster_alias,
+        provider_id
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
+    ),
+    cte_distinct_gcp_labels AS (
+    SELECT DISTINCT labels,
+        source
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items
+    ),
+    cte_label_keys AS (
+    SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
+        source
+    FROM cte_distinct_gcp_labels
+    )
+    SELECT ocp.provider_id as ocp_uuid,
+        gcp.source as infra_uuid,
+        'GCP' as type
+    FROM cte_label_keys as gcp
+    INNER JOIN cte_openshift_cluster_info as ocp
+        ON any_match(map_keys(gcp.parsed_labels), e -> e like 'kubernetes-io-cluster-' || ocp.cluster_id)
+            OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
+{% endif %}

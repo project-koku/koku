@@ -12,11 +12,11 @@
         enabled: false
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
-      command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+      command:
         - /bin/bash
         - -c
-        - >
-          PYTHONPATH=/opt/app-root/src/koku
+        - > # ${APP_HOME} is `/opt/koku/koku` which is defined in the Dockerfile
+          PYTHONPATH=${APP_HOME}
           celery -A koku beat -l $CELERY_LOG_LEVEL
       env:
         - name: CLOWDER_ENABLED
@@ -123,6 +123,8 @@
           value: ${RABBITMQ_HOST}
         - name: RABBITMQ_PORT
           value: ${RABBITMQ_PORT}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
       resources:
         limits:
           cpu: ${SCHEDULER_CPU_LIMIT}
@@ -187,7 +189,7 @@
     displayName: Worker Queue
     name: SCHEDULER_WORKER_QUEUE
     required: true
-    value: 'cost_model,download,ocp,priority,refresh,summary'
+    value: 'cost_model,download,hcs,ocp,priority,refresh,summary'
 - op: add
   path: /parameters/-
   value:

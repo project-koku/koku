@@ -5,8 +5,9 @@
 """Models to capture server status."""
 import logging
 import platform
-import subprocess
 import sys
+
+from django.conf import settings
 
 from api import API_VERSION
 from koku.rbac import RbacService
@@ -26,10 +27,7 @@ class Status:
 
         :returns: A build number
         """
-        commit_info = subprocess.run(["git", "rev-parse", "--short", "HEAD"], stdout=subprocess.PIPE)
-        if commit_info.stdout:
-            commit_info = commit_info.stdout.decode("utf-8").strip()
-        return commit_info
+        return settings.GIT_COMMIT
 
     @property
     def platform_info(self):

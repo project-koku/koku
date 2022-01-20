@@ -13,14 +13,12 @@
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       initContainers:
-        - command:  # this `command` overrides haberdasher; when implementing haberdasher, change this to `args`
+        - command:
             - /bin/bash
             - -c
-            - $HOME/scripts/run_migrations.sh
+            - $APP_ROOT/scripts/run_migrations.sh
           image: ${IMAGE}:${IMAGE_TAG}
           inheritEnv: true
-      command:  # this `command` overrides haberdasher; `command` can be removed entirely when implementing haberdasher
-        - /usr/libexec/s2i/run
       env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}

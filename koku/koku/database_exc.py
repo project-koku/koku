@@ -10,13 +10,19 @@ import os
 import re
 import traceback
 
-import psycopg2
 from django.db.utils import DatabaseError as DJDatabaseError
 from psycopg2.errors import DatabaseError
 from psycopg2.errors import DeadlockDetected
-from psycopg2.extras import RealDictCursor
 from sqlparse import parse as sql_parse
+from sqlparse.sql import Comparison
 from sqlparse.sql import Identifier
+from sqlparse.sql import IdentifierList
+from sqlparse.tokens import CTE
+from sqlparse.tokens import DML
+
+
+# import psycopg2
+# from psycopg2.extras import RealDictCursor
 
 
 LOG = logging.getLogger(__name__)
@@ -24,7 +30,7 @@ LOG = logging.getLogger(__name__)
 
 def get_driver_exception(db_exception):
     if isinstance(db_exception, DJDatabaseError):
-        return db_exception.__cause__
+        return db_exception.__cause__ or db_exception.__context__
     else:
         return db_exception
 
@@ -35,7 +41,10 @@ class ExtendedDBException(Exception):
     def __init__(self, db_exception, query_limit=128):
         _db_exception = get_driver_exception(db_exception)
         if not isinstance(_db_exception, DatabaseError):
-            raise TypeError("This wrapper class only works on type <psycopg2.errors.DatabaseError>")
+            raise TypeError(
+                "This wrapper class only works on type <psycopg2.errors.DatabaseError> "
+                + f"(Got {type(_db_exception).__name__})"
+            )
         self.query_limit = query_limit
         self.ingest_exception(_db_exception)
         self.parse_exception()
@@ -110,21 +119,53 @@ class ExtendedDBException(Exception):
         else:
             self.koku_exc_line = self.koku_exc_line_num = self.koku_exc_file = None
 
+    def get_tables_from_tokens(self, tokens, num_tokens, dml_type=None, seen_object=None, identifiers=None):  # noqa
+        if seen_object is None:
+            seen_object = set()
+        if identifiers is None:
+            identifiers = []
+
+        ix = 0
+        while ix < num_tokens:
+            tok = tokens[ix]
+            if tok.ttype in (CTE, DML):
+                dml_type = tok.ttype
+            elif isinstance(tok, Identifier):
+                tok_name = tok.get_real_name()
+                id_block = not bool(identifiers) or identifiers[-1].get_alias() != tok_name
+                if tok_name not in seen_object and id_block:
+                    identifiers.append(tok)
+                    seen_object.add(tok_name)
+                    if dml_type != CTE:
+                        self.query_tables.append(tok_name)
+
+            if dml_type == CTE and isinstance(tok, IdentifierList):
+                allow_idlist = True
+            else:
+                allow_idlist = not isinstance(tok, IdentifierList)
+            if tok.is_group and allow_idlist and not isinstance(tok, Comparison):
+                sub_tokens = tok.tokens
+                num_sub_tokens = len(sub_tokens)
+                if num_sub_tokens > 0:
+                    self.get_tables_from_tokens(
+                        sub_tokens, num_sub_tokens, dml_type=dml_type, seen_object=seen_object, identifiers=identifiers
+                    )
+
+            ix += 1
+
     def parse_exception(self):
         _frames = traceback.extract_tb(self.__traceback__)
         self.set_exception_frame_info(_frames)
         self.set_koku_exception_frame_info(_frames)
 
         self.formatted_tb = traceback.format_tb(self.__traceback__)
-        self.query_type = self.query_tables = None
+        self.query_type = None
+        self.query_tables = []
         if self.query:
-            parsed = sql_parse(self.query)
-            if parsed:
-                # Currently only looking at first statement
-                self.query_type = parsed[0].get_type()
-                self.query_tables = [
-                    token.get_name() for token in parsed[0].get_sublists() if isinstance(token, Identifier)
-                ]
+            parsed_tokens = sql_parse(self.query)
+            if parsed_tokens:
+                self.query_type = parsed_tokens[0].get_type()
+                self.get_tables_from_tokens(parsed_tokens, len(parsed_tokens))
 
     def get_extended_info(self):
         args_query = self.query[: self.query_limit] if self.query_limit else self.query
@@ -135,23 +176,23 @@ class ExtendedDBException(Exception):
             f"QUERY: {args_query}",
         ) + self.args
 
-    def connect(self, application_name="ExtendedInfoGetter"):
-        from koku.configurator import CONFIGURATOR
+    # def connect(self, application_name="ExtendedInfoGetter"):
+    #     from koku.configurator import CONFIGURATOR
 
-        if CONFIGURATOR.get_database_ca():
-            ssl_opts = {"sslmode": "verify-full", "sslrootcert": CONFIGURATOR.get_database_ca_file()}
-        else:
-            ssl_opts = {"sslmode": "prefer"}
+    #     if CONFIGURATOR.get_database_ca():
+    #         ssl_opts = {"sslmode": "verify-full", "sslrootcert": CONFIGURATOR.get_database_ca_file()}
+    #     else:
+    #         ssl_opts = {"sslmode": "prefer"}
 
-        return psycopg2.connect(
-            host=CONFIGURATOR.get_database_host(),
-            port=CONFIGURATOR.get_database_port(),
-            user=CONFIGURATOR.get_database_user(),
-            password=CONFIGURATOR.get_database_password(),
-            dbname=CONFIGURATOR.get_database_name(),
-            cursor_factory=RealDictCursor,
-            **ssl_opts,
-        )
+    #     return psycopg2.connect(
+    #         host=CONFIGURATOR.get_database_host(),
+    #         port=CONFIGURATOR.get_database_port(),
+    #         user=CONFIGURATOR.get_database_user(),
+    #         password=CONFIGURATOR.get_database_password(),
+    #         dbname=CONFIGURATOR.get_database_name(),
+    #         cursor_factory=RealDictCursor,
+    #         **ssl_opts,
+    #     )
 
 
 class ExtendedDeadlockDetected(ExtendedDBException):
@@ -181,24 +222,28 @@ class ExtendedDeadlockDetected(ExtendedDBException):
     def get_extended_info(self):
         super().get_extended_info()
 
-        try:
-            with self.connect() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("select pg_current_logfile() as curr_log;")
-                    res = cur.fetchone()
-                    self.current_log_file = res["curr_log"] if res else None
-        except DatabaseError as e:
-            LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")
-            self.current_log_file = "<Unknown> (DB connect error)"
+        # Commented-out because it would be nice to figure out how to successfully get the current log file
+        # There's just not a super-pressing need for it currently.
+        # try:
+        #     with self.connect() as conn:
+        #         with conn.cursor() as cur:
+        #             cur.execute("select pg_current_logfile() as curr_log;")
+        #             res = cur.fetchone()
+        #             self.current_log_file = res["curr_log"] if res else None
+        # except DatabaseError as e:
+        #     LOG.warning(f"Error connecting to database for extended deadlock info: {str(e)}")
+        #     self.current_log_file = "<Unknown> (DB connect error)"
 
-        self.args = (
-            f"CURRENT DB LOG FILE: {self.current_log_file}",
-            f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",
-        ) + self.args
+        # self.args = (
+        #     f"CURRENT DB LOG FILE: {self.current_log_file}",
+        #     f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",
+        # ) + self.args
+
+        self.args = (f"DEADLOCKED DATABASE PIDS: [{self.process1}, {self.process2}]",) + self.args
 
     def as_dict(self):
         data = super().as_dict()
-        data["current_db_log_file"] = self.current_log_file
+        # data["current_db_log_file"] = self.current_log_file
         data["process1_pid"] = self.process1
         data["transxation1"] = self.txaction1
         data["process2_pid"] = self.process2

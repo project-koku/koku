@@ -10,6 +10,7 @@ from django.db import connection
 from django.db import IntegrityError
 from psycopg2.errors import DeadlockDetected
 from psycopg2.errors import DivisionByZero
+from sqlparse import parse as sql_parse
 
 from . import database_exc as dbex
 from api.iam.test.iam_test_case import IamTestCase
@@ -61,7 +62,7 @@ class TestDatabaseExc(IamTestCase):
         self.assertEqual(type(eexc), dbex.ExtendedDeadlockDetected)
         self.assertEqual(DeadlockDetected, eexc.db_exception_type)
         self.assertEqual(sorted([eexc.process1, eexc.process2]), sorted([12, 56]))
-        self.assertTrue(hasattr(eexc, "current_log_file"))
+        # self.assertTrue(hasattr(eexc, "current_log_file"))
         eedict = eexc.as_dict()
         self.assertEqual(type(eedict), dict)
         self.assertTrue({"process1_pid", "process2_pid"}.issubset(set(eedict)))
@@ -79,6 +80,24 @@ class TestDatabaseExc(IamTestCase):
         dxc.__cause__ = DivisionByZero("Don't do it!")
         eexc = dbex.get_extended_exception_by_type(dxc)
         self.assertEqual(type(eexc), dbex.ExtendedDBException)
+
+    def test_tables_from_complex_query(self):
+        sql_buff = """
+insert into eek (id, name, data)
+select a.id, b.name, c.data
+  from table_a a
+  join table_b b
+    on b.a_id = a.id
+  left
+  join table_c c
+    on c.b_id = b.id;
+"""
+        expected_tables = ["eek", "table_a", "table_b", "table_c"]
+        tokens = sql_parse(sql_buff)
+        my_exc = dbex.ExtendedDBException(DivisionByZero("It's really bad!"))
+        my_exc.query_tables = []
+        my_exc.get_tables_from_tokens(tokens, len(tokens))
+        self.assertEqual(my_exc.query_tables, expected_tables)
 
     def test_excpetion_subclass(self):
         """Test that extended exception can resolve correctly by base exception class."""

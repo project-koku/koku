@@ -15,14 +15,8 @@ from jinjasql import JinjaSql
 
 import reporting.partition.models
 from koku import migration_sql_helpers as msh
-from koku.database import set_partitioned_schema_editor
-from koku.database import unset_partitioned_schema_editor
-from reporting.provider.aws.models import VIEWS as AWS_MATERIALIZED_VIEWS
-from reporting.provider.aws.openshift.models import VIEWS as OCP_ON_AWS_MATERIALIZED_VIEWS
-from reporting.provider.azure.models import VIEWS as AZURE_MATERIALIZED_VIEWS
-from reporting.provider.azure.openshift.models import VIEWS as OCP_ON_AZURE_MATERIALIZED_VIEWS
-from reporting.provider.gcp.models import VIEWS as GCP_MATERIALIZED_VIEWS
-from reporting.provider.ocp.models import VIEWS as OCP_MATERIALIZED_VIEWS
+from koku.database import set_pg_extended_schema_editor
+from koku.database import unset_pg_extended_schema_editor
 
 
 LOG = logging.getLogger(__name__)
@@ -48,62 +42,15 @@ def apply_partitioned_tables_trigger(apps, schema_editor):
 
 
 def set_partitioned_mode(apps, schema_editor):
-    set_partitioned_schema_editor(schema_editor)
+    set_pg_extended_schema_editor(schema_editor)
 
 
 def unset_partitioned_mode(apps, schema_editor):
-    unset_partitioned_schema_editor(schema_editor)
+    unset_pg_extended_schema_editor(schema_editor)
 
 
 def apply_views(apps, schema_editor):
-    conn = schema_editor.connection
-    for view in AWS_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/aws/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.aws", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in AZURE_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/azure/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.azure", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in GCP_MATERIALIZED_VIEWS:
-        version = "_20210721"
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/gcp/sql/views/{version}/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.gcp", f"sql/views/{version}/{view}{version}.sql").decode(
-            "utf-8"
-        )
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in OCP_MATERIALIZED_VIEWS:
-        version = "_20210615"
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/ocp/sql/views/{version}/{view}{version}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.ocp", f"sql/views/{version}/{view}{version}.sql").decode(
-            "utf-8"
-        )
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in OCP_ON_AWS_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/aws/openshift/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.aws.openshift", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
-
-    for view in OCP_ON_AZURE_MATERIALIZED_VIEWS:
-        LOG.info(f"Applying materialized view {view}")
-        LOG.info(f"Path: reporting/provider/azure/openshift/sql/views/{view}.sql")
-        view_sql = pkgutil.get_data("reporting.provider.azure.openshift", f"sql/views/{view}.sql").decode("utf-8")
-        with conn.cursor() as cur:
-            cur.execute(view_sql)
+    pass
 
 
 class Migration(migrations.Migration):
