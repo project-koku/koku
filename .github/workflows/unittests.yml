@@ -27,7 +27,7 @@ jobs:
             koku
             .github/postgres
             .github/scripts/check_migrations.sh
-          # .github/workflows/unittests.yml
+            .github/workflows/unittests.yml
 
       - id: check-files
         run: |
