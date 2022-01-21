@@ -192,6 +192,10 @@ SELECT gcp.uuid as gcp_uuid,
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON gcp.usage_start_time = ocp.usage_start
+    -- TODO: CORDEY, I am unsure if this is needed or not.
+    -- AND (
+    --     (ocp.data_source = 'Pod') OR (ocp.data_source = 'Storage')
+    -- )
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
@@ -261,7 +265,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.resource_id) as resource_id,
     max(gcp.usage_start_time) as usage_start,
-    max(gcp.usage_end_time) as usage_end,
+    max(gcp.usage_start_time) as usage_end,
     max(gcp.billing_account_id) as account_id,
     max(gcp.project_id) as project_id,
     max(gcp.project_name) as project_name,
@@ -522,7 +526,7 @@ SELECT uuid(),
     json_parse(pod_labels),
     resource_id,
     date(usage_start),
-    date(usage_end),
+    date(usage_start) as usage_end,
     {{bill_id | sqlsafe}} as cost_entry_bill_id,
     account_id,
     project_id,
