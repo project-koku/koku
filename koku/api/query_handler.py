@@ -283,7 +283,7 @@ class QueryHandler:
             end = self.end_datetime
 
         start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-        end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end.date())
+        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
         return start_filter, end_filter
 
     def _get_filter(self, delta=False):
@@ -324,7 +324,7 @@ class QueryHandler:
             start = self.start_datetime
             end = self.end_datetime
         start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-        end_filter = QueryFilter(field="usage_end", operation="lte", parameter=end.date())
+        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
 
         invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
         invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
