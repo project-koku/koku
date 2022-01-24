@@ -121,7 +121,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -201,7 +204,10 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -249,7 +255,10 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "usage": Sum(F("usage_amount")),
-                            "usage_units": Coalesce(Max("unit"), Value("hour")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("hour", output_field=CharField()),
+                            ),
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
@@ -276,12 +285,18 @@ class OCPGCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                             "usage": Sum(F("usage_amount")),
-                            "usage_units": Coalesce(Max("unit"), Value("hour")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("hour", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
@@ -328,7 +343,10 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("hour")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("hour", output_field=CharField()),
+                            ),
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
@@ -356,11 +374,17 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("hour")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("hour", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -404,7 +428,10 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
                             "usage": Sum(F("usage_amount")),
-                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
+                            ),
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
@@ -431,12 +458,18 @@ class OCPGCPProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                             "usage": Sum(F("usage_amount")),
-                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
                         # "count": None,
@@ -479,7 +512,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
+                            ),
                         },
                         "annotations": {
                             "infra_total": Sum(
@@ -506,9 +542,15 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit"), output_field=CharField()),
+                                Value("gibibyte month", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
