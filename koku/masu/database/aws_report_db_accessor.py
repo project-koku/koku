@@ -432,10 +432,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             days_list, aws_provider_uuid, openshift_provider_uuid, year, month
         )
 
-        pod_column = "pod_usage_cpu_core_hours"
+        pod_column = "pod_effective_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            pod_column = "pod_usage_memory_gigabyte_hours"
+            pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
