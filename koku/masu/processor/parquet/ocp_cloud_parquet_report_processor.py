@@ -13,6 +13,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -21,6 +22,7 @@ from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
+from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             ocp_on_cloud_data_processor = aws_match_openshift_resources_and_labels
         elif self.provider_type == Provider.PROVIDER_AZURE:
             ocp_on_cloud_data_processor = azure_match_openshift_resources_and_labels
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            ocp_on_cloud_data_processor = gcp_match_openshift_resources_and_labels
 
         return ocp_on_cloud_data_processor
 
@@ -75,6 +79,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return AWSReportDBAccessor(self.schema_name)
         elif self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDBAccessor(self.schema_name)
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            return GCPReportDBAccessor(self.schema_name)
         return None
 
     @cached_property
