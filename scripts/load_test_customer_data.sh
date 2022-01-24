@@ -104,7 +104,9 @@ YAML_FILES=("ocp_on_aws/aws_static_data.yml"
             "ocp_on_azure/ocp_static_data.yml"
             "ocp/ocp_on_premise.yml"
             "azure_v2.yml"
-            "gcp/gcp_static_data.yml")
+            "gcp/gcp_static_data.yml"
+            "ocp_on_gcp/ocp_static_data.yml"
+            "ocp_on_gcp/gcp_static_data.yml")
 
 RENDERED_YAML=()
 for fname in ${YAML_FILES[*]}; do
@@ -130,6 +132,10 @@ $NISE report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azu
 
 # GCP report
 $NISE report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
+
+# OpenShift on GCP
+$NISE report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+$NISE report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0"
 
 for fname in ${RENDERED_YAML[*]}; do
     debug_echo "removing ${fname}..."
@@ -204,11 +210,14 @@ if [[ $USE_OC == 1 ]]; then
 fi
 
 # Trigger downloads individually to ensure OCP is processed before cloud sources for OCP on Cloud
+trigger_download 'Test OCP on GCP'
 trigger_download 'Test OCP on AWS'
 trigger_download 'Test OCP on Azure'
 trigger_download 'Test OCP on Premises'
+trigger_download 'Test OCP on GCP'
 trigger_download 'Test AWS Source'
 trigger_download 'Test Azure Source'
 trigger_download 'Test Azure v2 Source'
 trigger_download 'Test GCP Source'
 trigger_download 'Test IBM Source'
+trigger_download 'Test OCPGCP Source'

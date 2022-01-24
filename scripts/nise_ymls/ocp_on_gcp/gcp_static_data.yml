@@ -1,0 +1,42 @@
+---
+generators:
+  - ComputeEngineGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 2
+      usage.amount_in_pricing_units: 1
+      usage.pricing_unit: hour
+      currency: USD
+      instance_type: m2-megamem-416
+      location.region: australia-southeast1-a
+      labels: [{"environment": "clyde", "app":"winter", "version":"green", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - CloudStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      price: 1
+      usage.amount_in_pricing_units: 1
+      service.description: Storage
+      currency: USD
+      location.region: australia-southeast1-a
+      labels: [{"environment": "murphy", "app":"spring", "version":"blue", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - GCPNetworkGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      service.description: Cloud DNS
+      currency: USD
+      location.region: us-west1-a
+      labels: [{"environment": "ruby", "app":"fall", "version":"red", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+  - GCPDatabaseGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      service.description: Cloud SQL
+      currency: USD
+      location.region: us-west1-a
+      labels: [{"environment": "ruby", "app":"snowdown", "version":"red", "kubernetes-io-cluster-test-ocp-gcp-cluster": "owned"}]
+
+projects:
+  -
+    billing_account_id: example_2_id
+    project.name: billion-sandwich-555777888
+    project.id: billion-sandwich-555777888
+    project.labels: sunny:day;rainy:night
