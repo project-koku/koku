@@ -248,7 +248,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
                         },
@@ -327,7 +326,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("hour")),
@@ -405,7 +403,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
                         },
@@ -481,7 +478,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),
                         },
