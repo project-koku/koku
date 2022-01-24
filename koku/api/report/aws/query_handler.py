@@ -327,7 +327,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # Add each of the sub_org sums to the query_sum
         self.query_data = query_data
         # right here you need to apply currency exchange
-        self.query_sum = self._apply_total_exchange(query_sum)
+        self.query_sum = query_sum
+        # self.query_sum = self._apply_total_exchange(query_sum)
         # reset to the original query filters
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
@@ -583,7 +584,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
 
-            query_group_by = ["date"] + self._get_group_by()
+            query_group_by = ["date", "currency_code"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
@@ -690,8 +691,12 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
-        query_data = query.annotate(**self.annotations)
+        currency = ["currency_code"]
+        query_data = query.values(*currency)
+        query_data = query_data.annotate()
+        query_data = query_data.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
@@ -708,15 +713,49 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .distinct()
             )
             counts = len(resource_ids)
+        total_queryset = query_data.annotate(**aggregates)
+        total_query = {
+            "date": None,
+            "infra_total": 0,
+            "infra_raw": 0,
+            "infra_usage": 0,
+            "infra_markup": 0,
+            "sup_raw": 0,
+            "sup_usage": 0,
+            "sup_markup": 0,
+            "sup_total": 0,
+            "cost_total": 0,
+            "cost_raw": 0,
+            "cost_usage": 0,
+            "cost_markup": 0,
+        }
+        for query_set in total_queryset:
+            base = query_set.get("currency_code")
+            total_query["date"] = query_set.get("date")
+            exchange_rate = self._get_exchange_rate(base)
+            for value in [
+                "infra_total",
+                "infra_raw",
+                "infra_usage",
+                "infra_markup",
+                "sup_raw",
+                "sup_total",
+                "sup_usage",
+                "sup_markup",
+                "cost_total",
+                "cost_raw",
+                "cost_usage",
+                "cost_markup",
+            ]:
+                orig_value = total_query[value]
+                total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
 
-        total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
-
         return total_query
 
     def _group_by_ranks(self, query, data):

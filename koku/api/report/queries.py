@@ -393,7 +393,6 @@ class ReportQueryHandler(QueryHandler):
         inherent_group_by = self._mapper._report_type_map.get("group_by")
         if inherent_group_by and not (group_by and self._limit):
             group_by = group_by + list(set(inherent_group_by) - set(group_by))
-
         return group_by
 
     def _get_tag_group_by(self):
@@ -606,17 +605,19 @@ class ReportQueryHandler(QueryHandler):
             except Exception as e:
                 LOG.error(e)
                 return 1
-        if base_currency and base_currency != self.currency:
-            return Decimal(exchange_rates[self.currency] / exchange_rates[base_currency])
-        return Decimal(exchange_rates[self.currency])
+        # if base_currency and base_currency != self.currency:
+        return Decimal(exchange_rates[self.currency] / exchange_rates[base_currency])
+        # return Decimal(exchange_rates[self.currency])
 
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
-        if source_uuid:
-            base_currency = self._get_base_currency(source_uuid[0])
         if self._report_type == "costs":
-            exchange_rate = self._get_exchange_rate(base_currency)
+            # if the source_uuid is none then this is the total and we don't need to get an exchange rate
+            exchange_rate = 1
+            if source_uuid:
+                base_currency = self._get_base_currency(source_uuid[0])
+                exchange_rate = self._get_exchange_rate(base_currency)
             for key, value in data.items():
                 if key in ["infrastructure", "supplementary", "cost"]:
                     for in_key, in_value in value.items():
