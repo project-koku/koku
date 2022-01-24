@@ -47,7 +47,7 @@ class GCPProviderMap(ProviderMap):
                     "gcp_project": {"gcp_project": "project_id"},
                     "service": {"service": "service_alias"},
                 },  # Annotations that should happen depending on group_by values
-                "end_date": "usage_end",
+                "end_date": "usage_start",
                 "filters": {
                     "account": {"field": "account_id", "operation": "icontains"},
                     "region": {"field": "region", "operation": "icontains"},
