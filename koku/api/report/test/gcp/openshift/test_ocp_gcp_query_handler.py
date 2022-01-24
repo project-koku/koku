@@ -57,7 +57,6 @@ class OCPGCPQueryHandlerTestNoData(IamTestCase):
             "usage_end__lte": self.dh.last_month_end.date(),
         }
 
-    # TODO: Fix
     def test_execute_sum_query_instance_types_1(self):
         """Test that the sum query runs properly for instance-types."""
         url = "?group_by[account]=*"
@@ -67,13 +66,7 @@ class OCPGCPQueryHandlerTestNoData(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        keys_units = {
-            "cost": "USD",
-            "infrastructure": "USD",
-            "supplementary": "USD",
-            "usage": "Hrs",
-            "count": "instances",
-        }
+        keys_units = {"cost": "USD", "infrastructure": "USD", "supplementary": "USD", "usage": "hour"}
         has_total_list = ["cost", "infrastructure", "supplementary"]
         for key, unit in keys_units.items():
             self.assertIsNotNone(total.get(key))
