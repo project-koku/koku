@@ -615,6 +615,7 @@ class TestParquetReportProcessor(MasuTestCase):
         daily_data_processor = processor.daily_data_processor
         self.assertEqual(daily_data_processor, azure_generate_daily_data)
 
+        # TODO: COST-2249, add back when fixed
         # processor = ParquetReportProcessor(
         #     schema_name=self.schema,
         #     report_path=self.report_path,

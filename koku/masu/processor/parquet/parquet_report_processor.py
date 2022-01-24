@@ -196,7 +196,7 @@ class ParquetReportProcessor:
             daily_data_processor = aws_generate_daily_data
         if self.provider_type == Provider.PROVIDER_AZURE:
             daily_data_processor = azure_generate_daily_data
-        # TODO: Revisit this as it caused parquet processing problems
+        # TODO: COST-2249 Revisit this as it caused parquet processing problems
         # if self.provider_type == Provider.PROVIDER_GCP:
         #     daily_data_processor = gcp_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
@@ -353,7 +353,8 @@ class ParquetReportProcessor:
                 continue
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
-            if self.provider_type not in (Provider.PROVIDER_AZURE):
+            # TODO: COST-2249 remove GCP again when fixed
+            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
                 failed_conversion.append(csv_filename)
