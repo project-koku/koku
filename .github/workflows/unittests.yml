@@ -27,7 +27,7 @@ jobs:
             koku
             .github/postgres
             .github/scripts/check_migrations.sh
-            .github/workflows/unittests.yml
+          # .github/workflows/unittests.yml
 
       - id: check-files
         run: |
@@ -126,11 +126,14 @@ jobs:
       (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
     runs-on: ubuntu-20.04
     steps:
+      - name: Display build environment
+        run: printenv
+
       - run: echo "Unit tests and migration check were '${{ needs.unit-tests.result }}'"
 
       - name: Override Codecov for skipped tests
         # This is a hack to override the Codecov behavior for skipped tests.
-        if: always() && needs.unit-tests.result == 'skipped'
+        if: always() && needs.unit-tests.result == 'skipped' && github.ref_name != 'main'
         env:
           GITHUB_TOKEN: "${{ github.token }}"
         run: |
