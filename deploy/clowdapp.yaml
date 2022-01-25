@@ -2297,7 +2297,7 @@ parameters:
   value: koku
 - name: DATABASE_VERSION
   required: true
-  value: "12"
+  value: "13"
 - name: CLOWDER_ENABLED
   required: true
   value: "True"

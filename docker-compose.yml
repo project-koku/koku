@@ -8,6 +8,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
+    command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
       - redis
@@ -359,7 +360,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:12
+    image: postgres:13
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}

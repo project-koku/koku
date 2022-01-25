@@ -19,6 +19,7 @@ from dateutil.rrule import rrule
 from django.conf import settings
 from django.db import connection
 from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
@@ -1128,7 +1129,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for node in unique_nodes:
                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
-                    usage_end=start_date,
                     report_period=report_period,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
@@ -1165,7 +1165,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     distributed_cost = project_distrib_map[project_node]["distributed_cost"]
                     project_line_item = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start=start_date,
-                        usage_end=start_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
@@ -1224,7 +1223,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             # that contains the specified key_value pair
                             item_check = OCPUsageLineItemDailySummary.objects.filter(
                                 usage_start__gte=start_date,
-                                usage_end__lte=end_date,
+                                usage_start__lte=end_date,
                                 report_period=report_period,
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
@@ -1234,7 +1233,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             if item_check:
                                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                                     usage_start=start_date,
-                                    usage_end=start_date,
                                     report_period=report_period,
                                     cluster_id=cluster_id,
                                     cluster_alias=cluster_alias,
@@ -1295,7 +1293,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         values_to_skip = tag_values.get("defined_keys")
                         item_check = OCPUsageLineItemDailySummary.objects.filter(
                             usage_start__gte=start_date,
-                            usage_end__lte=end_date,
+                            usage_start__lte=end_date,
                             report_period=report_period,
                             cluster_id=cluster_id,
                             cluster_alias=cluster_alias,
@@ -1313,7 +1311,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             item_check = item_check.exclude(pod_labels__contains={tag_key: tag_key_value})
                             line_item = OCPUsageLineItemDailySummary.objects.filter(
                                 usage_start=start_date,
-                                usage_end=start_date,
                                 report_period=report_period,
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
@@ -1378,7 +1375,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         values_to_skip = tag_values.get("defined_keys")
                         item_check = OCPUsageLineItemDailySummary.objects.filter(
                             usage_start__gte=start_date,
-                            usage_end__lte=end_date,
+                            usage_start__lte=end_date,
                             report_period=report_period,
                             cluster_id=cluster_id,
                             cluster_alias=cluster_alias,
@@ -1398,7 +1395,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             item_check = item_check.exclude(volume_labels__contains={tag_key: tag_key_value})
                             line_item = OCPUsageLineItemDailySummary.objects.filter(
                                 usage_start=start_date,
-                                usage_end=start_date,
                                 report_period=report_period,
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
@@ -1472,7 +1468,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
                 )
                 .values("node")
-                .annotate(distributed_cost=Sum(node_column) / Sum(cluster_column) * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(node_column) / Sum(cluster_column) * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         # TIP: For debugging add these to the annotation
         # node_hours=Sum(node_column),
@@ -1514,7 +1514,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
                 .filter(namespace__isnull=False)
                 .values("namespace")
-                .annotate(distributed_cost=Sum(usage_column) / cluster_hours * cluster_cost)
+                .annotate(
+                    distributed_cost=ExpressionWrapper(
+                        Sum(usage_column) / cluster_hours * cluster_cost, output_field=DecimalField()
+                    )
+                )
             )
         return distributed_project_list
 
@@ -1549,7 +1553,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     distributed_cost = node_dikt.get("distributed_cost", Decimal(0))
                     line_item = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start=start_date,
-                        usage_end=start_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
@@ -1594,7 +1597,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     distributed_cost = project_dikt.get("distributed_cost", Decimal(0))
                     project_line_item = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start=start_date,
-                        usage_end=start_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
@@ -1650,7 +1652,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         for value_name, rate_value in tag_values.items():
                             item_check = OCPUsageLineItemDailySummary.objects.filter(
                                 usage_start__gte=start_date,
-                                usage_end__lte=end_date,
+                                usage_start__lte=end_date,
                                 report_period=report_period,
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
@@ -1662,7 +1664,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             if item_check:
                                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                                     usage_start=start_date,
-                                    usage_end=start_date,
                                     report_period=report_period,
                                     cluster_id=cluster_id,
                                     cluster_alias=cluster_alias,
@@ -1717,7 +1718,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             for pvc, node, namespace in unique_pvcs:
                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
-                    usage_end=start_date,
                     report_period=report_period,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
@@ -1755,7 +1755,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 # PVC to project Distribution
                 project_line_item = OCPUsageLineItemDailySummary.objects.filter(
                     usage_start=start_date,
-                    usage_end=start_date,
                     report_period=report_period,
                     cluster_id=cluster_id,
                     cluster_alias=cluster_alias,
@@ -1811,7 +1810,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             # that contains the specified key_value pair
                             item_check = line_item = OCPUsageLineItemDailySummary.objects.filter(
                                 usage_start__gte=start_date,
-                                usage_end__lte=end_date,
+                                usage_start__lte=end_date,
                                 report_period=report_period,
                                 cluster_id=cluster_id,
                                 cluster_alias=cluster_alias,
@@ -1820,7 +1819,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             if item_check:
                                 line_item = OCPUsageLineItemDailySummary.objects.filter(
                                     usage_start=start_date,
-                                    usage_end=start_date,
                                     report_period=report_period,
                                     cluster_id=cluster_id,
                                     cluster_alias=cluster_alias,
@@ -1886,7 +1884,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     values_to_skip = tag_values.get("defined_keys")
                     item_check = OCPUsageLineItemDailySummary.objects.filter(
                         usage_start__gte=start_date,
-                        usage_end__lte=end_date,
+                        usage_start__lte=end_date,
                         report_period=report_period,
                         cluster_id=cluster_id,
                         cluster_alias=cluster_alias,
@@ -1903,7 +1901,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         item_check = item_check.exclude(pod_labels__contains={tag_key: tag_key_value})
                         line_item = OCPUsageLineItemDailySummary.objects.filter(
                             usage_start=start_date,
-                            usage_end=start_date,
                             report_period=report_period,
                             cluster_id=cluster_id,
                             cluster_alias=cluster_alias,
@@ -1953,7 +1950,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         filters = {
             "usage_start": start_date.date(),
-            "usage_end": start_date.date(),
             "report_period": report_period,
             "cluster_id": cluster_id,
             "monthly_cost_type": cost_type,

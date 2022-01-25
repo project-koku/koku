@@ -122,6 +122,7 @@ class AdminSourcesSerializer(SourcesSerializer):
         except SkipStatusPush:
             raise serializers.ValidationError("GCP billing table not ready")
         source.koku_uuid = provider.uuid
+        source.provider = provider
         source.save()
         LOG.info("Admin created Source and Provider.")
         return source
