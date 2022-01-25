@@ -883,14 +883,14 @@ class AWSReportQueryTest(IamTestCase):
         with tenant_context(self.tenant):
             curr = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.this_month_start,
-                usage_end__lte=dh.today,
+                usage_start__lte=dh.today,
                 account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
             prev = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=dh.last_month_start,
-                usage_end__lte=dh.today - relativedelta(months=1),
+                usage_start__lte=dh.today - relativedelta(months=1),
                 account_alias__account_alias=self.account_alias,
             ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))
@@ -1603,7 +1603,7 @@ class AWSReportQueryTest(IamTestCase):
                 ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=ten_days_ago,
-                    usage_end__lte=self.dh.today,
+                    usage_start__lte=self.dh.today,
                     organizational_unit__org_unit_path__icontains=path,
                 ).aggregate(
                     **{
@@ -1651,7 +1651,7 @@ class AWSReportQueryTest(IamTestCase):
                 ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
                 expected = AWSCostEntryLineItemDailySummary.objects.filter(
                     usage_start__gte=ten_days_ago,
-                    usage_end__lte=self.dh.today,
+                    usage_start__lte=self.dh.today,
                     organizational_unit__org_unit_path__icontains=path,
                 ).aggregate(
                     **{
@@ -1693,7 +1693,7 @@ class AWSReportQueryTest(IamTestCase):
             ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
             expected = AWSCostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=ten_days_ago,
-                usage_end__lte=self.dh.today,
+                usage_start__lte=self.dh.today,
                 organizational_unit__org_unit_path__icontains=org_unit,
             ).aggregate(
                 **{
