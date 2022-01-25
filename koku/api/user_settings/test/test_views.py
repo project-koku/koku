@@ -15,15 +15,15 @@ from api.user_settings.settings import COST_TYPES
 from api.user_settings.settings import USER_SETTINGS
 
 
-class UserSettingsViewTest(IamTestCase):
+class AccountSettingsViewTest(IamTestCase):
     """Tests for the user settings views"""
 
     def setUp(self):
-        """Set up the user settings view tests."""
+        """Set up the account settings view tests."""
         super().setUp()
         self.client = APIClient()
 
-    def test_user_settings(self):
+    def test_account_settings(self):
         """Test grabbing a user settings"""
         url = reverse("account-settings")
         client = APIClient()
@@ -39,7 +39,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_settings_defaults(self):
+    def test_account_settings_defaults(self):
         """Test grabbing a user settings without settings used returns default settings"""
         url = reverse("account-settings")
         client = APIClient()
@@ -51,7 +51,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_setting(self):
+    def test_account_setting(self):
         """Test grabbing a specified user setting"""
         url = url = "%scurrency/" % reverse("account-settings")
         client = APIClient()
@@ -63,7 +63,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_setting_invalid(self):
+    def test_account_setting_invalid(self):
         """Test grabbing a specified user setting invalid setting"""
         url = url = "%sinvalid/" % reverse("account-settings")
         client = APIClient()
