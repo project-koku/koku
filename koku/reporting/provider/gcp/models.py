@@ -12,8 +12,6 @@ from django.db.models import JSONField
 
 
 PRESTO_LINE_ITEM_TABLE = "gcp_line_items"
-PRESTO_LINE_ITEM_DAILY_TABLE = PRESTO_LINE_ITEM_TABLE
-PRESTO_OCP_ON_GCP_DAILY_TABLE = "gcp_openshift_daily"
 
 UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_p",
@@ -22,10 +20,7 @@ UI_SUMMARY_TABLES = (
     "reporting_gcp_cost_summary_by_region_p",
     "reporting_gcp_cost_summary_by_service_p",
     "reporting_gcp_compute_summary_p",
-    "reporting_gcp_compute_summary_by_project_p",
-    "reporting_gcp_compute_summary_by_service_p",
     "reporting_gcp_compute_summary_by_account_p",
-    "reporting_gcp_compute_summary_by_region_p",
     "reporting_gcp_storage_summary_p",
     "reporting_gcp_storage_summary_by_project_p",
     "reporting_gcp_storage_summary_by_service_p",
