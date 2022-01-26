@@ -12,7 +12,6 @@ from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.common.pagination import CustomMetaPagination
 from api.common.pagination import ListPaginator
 from api.user_settings.serializer import UserSettingSerializer
 from api.user_settings.settings import COST_TYPES
@@ -72,5 +71,4 @@ class UserCostTypeSettings(APIView):
     @method_decorator(never_cache)
     def get(self, request):
         """Gets a list for all supported cost_typs currently available."""
-        user_preferred_cost = {"cost-type": get_cost_type(request)}
-        return CustomMetaPagination(COST_TYPES, request, user_preferred_cost).get_paginated_response()
+        return ListPaginator(COST_TYPES, request).paginated_response
