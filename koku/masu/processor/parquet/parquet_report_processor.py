@@ -352,7 +352,7 @@ class ParquetReportProcessor:
 
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
-            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
+            if self.provider_type not in (Provider.PROVIDER_AZURE):
                 self.create_daily_parquet(parquet_base_filename, daily_data_frames)
             if not success:
                 failed_conversion.append(csv_filename)

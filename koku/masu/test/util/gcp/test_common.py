@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
+import datetime
+import random
+
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from tenant_schemas.utils import schema_context
@@ -151,3 +154,92 @@ class TestGCPUtils(MasuTestCase):
 
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))
+
+
+def test_gcp_generate_daily_data(self):
+    """Test that we aggregate data at a daily level."""
+    usage = random.randint(1, 10)
+    cost = random.randint(1, 10)
+    data = [
+        {
+            "billing_account_id": "fact",
+            "service_id": "95FF-2EF5-5EA1",
+            "service_description": "Cloud Storage",
+            "sku_id": "E5F0-6A5D-7BAD",
+            "sku_description": "Standard Storage US Regional",
+            "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
+            "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
+            "project_id": "trouble-although-mind",
+            "project_name": "trouble-although-mind",
+            "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+            "system_labels": "{}",
+            "cost_type": "regular",
+            "credits": "{}",
+            "location_region": "us-central1",
+            "usage_pricing_unit": "byte-seconds",
+            "usage_amount_in_pricing_units": usage,
+            "currency": "USD",
+            "cost": cost,
+            "invoice_month": "202201",
+        },
+        {
+            "billing_account_id": "fact",
+            "service_id": "95FF-2EF5-5EA1",
+            "service_description": "Cloud Storage",
+            "sku_id": "E5F0-6A5D-7BAD",
+            "sku_description": "Standard Storage US Regional",
+            "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
+            "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
+            "project_id": "trouble-although-mind",
+            "project_name": "trouble-although-mind",
+            "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+            "system_labels": "{}",
+            "cost_type": "regular",
+            "credits": "{}",
+            "location_region": "us-central1",
+            "usage_pricing_unit": "byte-seconds",
+            "usage_amount_in_pricing_units": usage,
+            "currency": "USD",
+            "cost": cost,
+            "invoice_month": "202201",
+        },
+        {
+            "billing_account_id": "fact",
+            "service_id": "95FF-2EF5-5EA1",
+            "service_description": "Cloud Storage",
+            "sku_id": "E5F0-6A5D-7BAD",
+            "sku_description": "Standard Storage US Regional",
+            "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
+            "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
+            "project_id": "trouble-although-mind",
+            "project_name": "trouble-although-mind",
+            "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+            "system_labels": "{}",
+            "cost_type": "regular",
+            "credits": "{}",
+            "location_region": "us-central1",
+            "usage_pricing_unit": "byte-seconds",
+            "usage_amount_in_pricing_units": usage,
+            "currency": "USD",
+            "cost": cost,
+            "invoice_month": "202201",
+        },
+    ]
+    df = pd.DataFrame(data)
+
+    daily_df = utils.gcp_generate_daily_data(df)
+
+    first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
+    second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
+
+    self.assertEqual(first_day.shape[0], 1)
+    self.assertEqual(second_day.shape[0], 1)
+
+    self.assertTrue((first_day["cost"] == cost * 2).bool())
+    self.assertTrue((second_day["cost"] == cost).bool())
+    self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
+    self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+
+    # if we have an empty data frame, we should get one back
+    empty_df = pd.DataFrame()
+    self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
