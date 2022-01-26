@@ -24,7 +24,7 @@ from api.forecast.views import OCPCostForecastView
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
-from api.report.test.tests_queries import assertSameQ
+from api.report.test.test_queries import assertSameQ
 from api.utils import DateHelper
 from forecast import AWSForecast
 from forecast import AzureForecast
