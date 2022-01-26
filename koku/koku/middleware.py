@@ -40,6 +40,7 @@ from api.iam.models import User
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.iam.serializers import UserSerializer
+from api.settings.utils import generate_doc_link
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
@@ -112,9 +113,23 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             if (
                 settings.ROOT_URLCONF == "koku.urls"
                 and request.path in reverse("settings")
-                and not schema_exists(request.tenant.schema_name)
+                and (not schema_exists(request.tenant.schema_name) or request.tenant.schema_name == "public")
             ):
-                return JsonResponse([{}], safe=False)
+
+                doc_link = generate_doc_link("/")
+
+                err_page = {
+                    "name": "middleware.settings.err",
+                    "component": "error-state",
+                    "errorTitle": "Configuration Error",
+                    "errorDescription": f"Before adding settings you must create a Source for Cost Management. "
+                    f"<br /><span><a href={doc_link}>[Learn more]</a></span>",
+                }
+
+                return JsonResponse(
+                    [{"fields": [err_page], "formProps": {"showFormControls": False}}], safe=False, status=200
+                )
+
             paginator = EmptyResultsSetPagination([], request)
             return paginator.get_paginated_response()
 

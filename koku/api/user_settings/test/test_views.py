@@ -13,18 +13,17 @@ from api.settings.utils import set_cost_type
 from api.settings.utils import set_currency
 from api.user_settings.settings import COST_TYPES
 from api.user_settings.settings import USER_SETTINGS
-from koku.settings import KOKU_DEFAULT_COST_TYPE
 
 
-class UserSettingsViewTest(IamTestCase):
+class AccountSettingsViewTest(IamTestCase):
     """Tests for the user settings views"""
 
     def setUp(self):
-        """Set up the user settings view tests."""
+        """Set up the account settings view tests."""
         super().setUp()
         self.client = APIClient()
 
-    def test_user_settings(self):
+    def test_account_settings(self):
         """Test grabbing a user settings"""
         url = reverse("account-settings")
         client = APIClient()
@@ -40,7 +39,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_settings_defaults(self):
+    def test_account_settings_defaults(self):
         """Test grabbing a user settings without settings used returns default settings"""
         url = reverse("account-settings")
         client = APIClient()
@@ -52,7 +51,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_setting(self):
+    def test_account_setting(self):
         """Test grabbing a specified user setting"""
         url = url = "%scurrency/" % reverse("account-settings")
         client = APIClient()
@@ -64,7 +63,7 @@ class UserSettingsViewTest(IamTestCase):
             data = response.data["data"]
             self.assertEqual(data, expected)
 
-    def test_user_setting_invalid(self):
+    def test_account_setting_invalid(self):
         """Test grabbing a specified user setting invalid setting"""
         url = url = "%sinvalid/" % reverse("account-settings")
         client = APIClient()
@@ -91,22 +90,3 @@ class UserSettingsCostViewTest(IamTestCase):
 
         data = response.data
         self.assertEqual(data.get("data"), COST_TYPES)
-
-        meta = data.get("meta", {})
-        self.assertEqual(meta.get("cost-type"), KOKU_DEFAULT_COST_TYPE)
-
-    def test_userset_cost_type(self):
-        """Test that a list GET call returns the supported cost_types and returns meta users current cost_type."""
-        qs = "?limit=20"
-        url = reverse("cost-type") + qs
-        client = APIClient()
-        new_cost_type = "savingsplan_effective_cost"
-        with schema_context(self.schema_name):
-            set_cost_type(self.schema_name, cost_type_code=new_cost_type)
-            response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-            data = response.data
-            self.assertEqual(data.get("data"), COST_TYPES)
-            meta = data.get("meta", {})
-            self.assertEqual(meta.get("cost-type"), new_cost_type)

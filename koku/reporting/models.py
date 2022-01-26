@@ -76,9 +76,6 @@ from reporting.provider.azure.openshift.models import OCPAzureNetworkSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureStorageSummaryP
 from reporting.provider.azure.openshift.models import OCPAzureTagsSummary
 from reporting.provider.gcp.models import GCPComputeSummaryByAccountP
-from reporting.provider.gcp.models import GCPComputeSummaryByProjectP
-from reporting.provider.gcp.models import GCPComputeSummaryByRegionP
-from reporting.provider.gcp.models import GCPComputeSummaryByServiceP
 from reporting.provider.gcp.models import GCPComputeSummaryP
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
