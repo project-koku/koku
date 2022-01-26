@@ -20,7 +20,7 @@ objects:
         args:
         - /bin/bash
         - -c
-        - $APP_ROOT/scripts/job_script.sh
+        - ${APP_ROOT}/scripts/job_script.sh
         env:
         - name: PRESTO_HOST
           value: ${PRESTO_HOST}
