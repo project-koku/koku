@@ -59,11 +59,13 @@ with basetable_info as (
 select t.relname::text as "basetable_name",
        array_agg(tc.attname::text order by tc.attnum) as "basetable_cols"
   from pg_class t
+  join pg_namespace n
+    on n.oid = t.relnamespace
   join pg_attribute tc
     on tc.attrelid = t.oid
    and tc.attnum > 0
- where t.relkind = 'r'
-   and t.relnamespace = 'template0'::regnamespace
+ where n.nspname = 'template0'
+   and t.relkind = 'r'
    and t.relname ~ '^reporting_ocp(aws|azure)costlineitem.*_daily_summary$'
  group
     by t.relname
@@ -72,11 +74,13 @@ partable_info as (
 select t.relname::text as "partable_name",
        array_agg(tc.attname::text order by tc.attnum) as "partable_cols"
   from pg_class t
+  join pg_namespace n
+    on n.oid = t.relnamespace
   join pg_attribute tc
     on tc.attrelid = t.oid
    and tc.attnum > 0
- where t.relkind = 'p'
-   and t.relnamespace = 'template0'::regnamespace
+ where n.nspname = 'template0'
+   and t.relkind = 'p'
    and t.relname ~ '^reporting_ocp(aws|azure)costlineitem.*_daily_summary_p$'
  group
     by t.relname
@@ -312,7 +316,7 @@ def main():
         schemata = get_customer_schemata(conn)
         tables = get_ocpawsazure_tables(conn)
 
-    if schemata:
+    if schemata and tables:
         # Combine for the individual job work
         target_tables = [{"schema": schema, "table_info": table_info} for schema in schemata for table_info in tables]
         t_tot = len(target_tables)
@@ -352,7 +356,7 @@ def main():
         for wrkr in workers:
             wrkr.join()
     else:
-        LOG.info("No schemata found matching the criteria.")
+        LOG.info("No schemata or tables found matching the criteria.")
 
 
 if __name__ == "__main__":
