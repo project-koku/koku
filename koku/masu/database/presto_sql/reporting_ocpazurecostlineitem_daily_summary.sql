@@ -132,7 +132,7 @@ SELECT azure.uuid as azure_uuid,
     max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
     max(coalesce(date, usagedatetime)) as usage_start,
     max(coalesce(date, usagedatetime)) as usage_end,
-    max(azure.servicename) as service_name,
+    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
     max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
     max(azure.resourcelocation) as resource_location,
@@ -159,7 +159,7 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.pod_labels) as pod_labels,
-    NULL as volume_labels,
+    max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
     row_number() OVER (partition by azure.uuid, ocp.data_source) as project_rank,
     row_number() OVER (partition by azure.uuid, ocp.namespace) as data_source_rank,
@@ -236,7 +236,7 @@ SELECT azure.uuid as azure_uuid,
     max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
     max(coalesce(date, usagedatetime)) as usage_start,
     max(coalesce(date, usagedatetime)) as usage_end,
-    max(nullif(azure.servicename, '')) as service_name,
+    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
     max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
     max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
     max(nullif(azure.resourcelocation, '')) as resource_location,
@@ -330,6 +330,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     month,
     day
 )
+WITH cte_rankings AS (
+    SELECT pds.azure_uuid,
+        max(pds.data_source_rank) as data_source_rank,
+        max(pds.project_rank) as project_rank
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+    GROUP BY azure_uuid
+)
 SELECT azure_uuid,
     cluster_id,
     cluster_alias,
@@ -413,11 +420,13 @@ FROM (
         max(pds.pod_labels) as pod_labels,
         max(pds.volume_labels) as volume_labels,
         max(pds.tags) as tags,
-        max(pds.project_rank) as project_rank,
-        max(pds.data_source_rank) as data_source_rank,
+        max(r.project_rank) as project_rank,
+        max(r.data_source_rank) as data_source_rank,
         max(pds.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
-    GROUP BY azure_uuid, namespace
+    JOIN cte_rankings as r
+        ON pds.azure_uuid = r.azure_uuid
+    GROUP BY pds.azure_uuid, pds.namespace
 ) as ocp_azure
 ;
 
