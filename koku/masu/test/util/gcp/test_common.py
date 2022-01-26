@@ -298,4 +298,4 @@ class TestGCPUtils(MasuTestCase):
 
         # if we have an empty data frame, we should get one back
         empty_df = pd.DataFrame()
-        self.assertEqual(utils.gcp_generate_daily_data(empty_df), empty_df)
+        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
