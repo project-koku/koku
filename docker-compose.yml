@@ -69,6 +69,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
+      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
     depends_on:
       - koku-base
 
