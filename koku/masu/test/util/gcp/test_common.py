@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP common util."""
-import datetime
 import random
+from datetime import datetime
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta

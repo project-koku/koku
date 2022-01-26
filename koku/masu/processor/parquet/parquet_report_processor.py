@@ -34,6 +34,7 @@ from masu.util.azure.common import get_column_converters as azure_column_convert
 from masu.util.common import create_enabled_keys
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
+from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
 from masu.util.ocp.common import detect_type
@@ -195,6 +196,8 @@ class ParquetReportProcessor:
             daily_data_processor = aws_generate_daily_data
         if self.provider_type == Provider.PROVIDER_AZURE:
             daily_data_processor = azure_generate_daily_data
+        if self.provider_type == Provider.PROVIDER_GCP:
+            daily_data_processor = gcp_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
             daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
 
