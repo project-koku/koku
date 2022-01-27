@@ -285,7 +285,8 @@ class TestParquetReportProcessor(MasuTestCase):
                 ):
                     with patch.object(ParquetReportProcessor, "create_daily_parquet") as mock_create_daily:
                         file_name, data_frame = self.report_processor.convert_to_parquet()
-                        mock_create_daily.assert_called_with(file_name, data_frame)
+                        call_args = mock_create_daily.call_args
+                        self.assertTrue(call_args.equals(data_frame[0]))
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
