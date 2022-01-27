@@ -35,9 +35,9 @@ def get_schemas(trino_cursor):
     return schemas
 
 
-table_names = ["aws_line_items", "aws_line_items_daily", "aws_openshift_daily"]
+table_names = ["openshift_pod_usage_line_items_daily", "reporting_ocpawscostlineitem_project_daily_summary_temp"]
 trino_conn = False
-logging.info("Running the hive migration for aws savings plan")
+logging.info("Running the hive migration for cost model effective cost")
 try:
     trino_conn = trino.dbapi.connect(
         host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
@@ -66,6 +66,22 @@ try:
                     logging.info(result)
                 except Exception as e:
                     logging.info(e)
+            try:
+                table_name = "reporting_ocpusagelineitem_daily_summary"
+                columns = ["pod_effective_usage_memory_gigabyte_hours", "pod_effective_usage_cpu_core_hours"]
+
+                logging.info(f"Altering table {table_name} from {schema}.")
+                for column in columns:
+                    trino_cur.execute(
+                        f"""
+                        ALTER TABLE {table_name} ADD COLUMN {column} double
+                    """
+                    )
+                    result = trino_cur.fetchall()
+                    logging.info("Drop table result: ")
+                    logging.info(result)
+            except Exception as e:
+                logging.info(e)
 finally:
     if trino_conn:
         trino_conn.close()
