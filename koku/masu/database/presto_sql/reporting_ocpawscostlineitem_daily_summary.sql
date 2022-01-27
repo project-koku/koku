@@ -427,7 +427,7 @@ FROM (
         ON pds.aws_uuid = r.aws_uuid
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON pds.usage_account_id = aa.account_id
-    GROUP BY aws_uuid, namespace
+    GROUP BY pds.aws_uuid, pds.namespace
 ) as ocp_aws
 ;
 
