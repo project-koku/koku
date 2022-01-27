@@ -5,6 +5,7 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
+import os
 import random
 import string
 from decimal import Decimal
@@ -12,17 +13,22 @@ from unittest.mock import patch
 
 import django.apps
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import connection
+from django.db import OperationalError
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from django.db.utils import ProgrammingError
+from psycopg2.errors import DeadlockDetected
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
+from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -98,6 +104,46 @@ class ReportSchemaTest(MasuTestCase):
         ]
         for table_type in table_types.values():
             self.assertIn(table_type, django_field_types)
+
+    def test_exec_raw_sql_query(self):
+        class _db:
+            def set_schema(*args, **kwargs):
+                return None
+
+        class _crsr:
+            def __init__(self, *args, **kwargs):
+                self.db = _db()
+
+            def __enter__(self, *args, **kwargs):
+                return self
+
+            def __exit__(self, *args, **kwargs):
+                pass
+
+            def execute(self, *args, **kwargs):
+                try:
+                    self.dd_exc = DeadlockDetected(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+                    raise self.dd_exc
+                except DeadlockDetected:
+                    raise OperationalError(
+                        "deadlock detected"
+                        + os.linesep
+                        + "DETAIL: Process 88  transaction 34  blocked by process 99"
+                        + os.linesep
+                        + "Process 99  transaction 78  blocked by process 88"
+                        + os.linesep
+                    )
+
+        with patch("masu.database.report_db_accessor_base.connection.cursor", return_value=_crsr()):
+            with self.assertRaises(ExtendedDBException):
+                self.accessor._execute_raw_sql_query(None, None)
 
 
 class AWSReportDBAccessorTest(MasuTestCase):
@@ -1022,16 +1068,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
-    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_delete_partition_by_day(self, mock_presto, mock_table_exists):
-        """Test delete partition by day."""
-        # Mostly to make testcov happy
-        mock_table_exists.side_effect = [True, None]
-        self.accessor.delete_ocp_on_aws_hive_partition_by_day(["01", "02"], "1234uid", "5678uid", "2021", "12")
-        self.accessor.delete_ocp_on_aws_hive_partition_by_day(["01", "02"], "1234uid", "5678uid", "2021", "12")
-        mock_presto.assert_called_once()
-
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.delete_ocp_on_aws_hive_partition_by_day")
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_multipart_sql_query")
     def test_populate_ocp_on_aws_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
@@ -1250,3 +1286,16 @@ class AWSReportDBAccessorTest(MasuTestCase):
         with OCPReportDBAccessor(self.schema_name) as accessor:
             with self.assertRaises(ProgrammingError):
                 accessor._execute_processing_script("masu.database", script_file_path, {})
+
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor.table_exists_trino")
+    @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_aws_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_aws_hive_partition_by_day(
+                [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
