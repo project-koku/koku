@@ -60,7 +60,7 @@
     cte_distinct_gcp_labels AS (
     SELECT DISTINCT labels,
         source
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
     ),
     cte_label_keys AS (
     SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,

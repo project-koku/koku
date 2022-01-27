@@ -3,7 +3,7 @@
 WITH cte_unnested_gcp_tags AS (
     SELECT DISTINCT key,
         value
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items AS gcp
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     CROSS JOIN UNNEST(cast(json_parse(labels) as map(varchar, varchar))) AS tags(key, value)
     WHERE source = '{{gcp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
