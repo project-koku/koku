@@ -31,7 +31,7 @@ class OCPNodesView(generics.ListAPIView):
     permission_classes = [OpenShiftNodePermission | OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
-    search_fields = ["$value"]
+    search_fields = ["value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):

@@ -78,7 +78,7 @@ try:
                     """
                     )
                     result = trino_cur.fetchall()
-                    logging.info("Drop table result: ")
+                    logging.info("ALTER TABLE result: ")
                     logging.info(result)
             except Exception as e:
                 logging.info(e)
