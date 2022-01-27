@@ -11,6 +11,7 @@
 !scripts/run_migrations.sh
 !scripts/job_script.sh
 !scripts/copy_static_perspective_data.py
+!scripts/migrate_trino.py
 
 # keep the test files out of the final image
 **/*test*

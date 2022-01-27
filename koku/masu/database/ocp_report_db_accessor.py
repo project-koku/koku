@@ -2030,7 +2030,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     Value(infrastructure_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
                     * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
                     + Value(infrastructure_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(
+                        infrastructure_rates.get("cpu_core_effective_usage_per_hour", 0), output_field=DecimalField()
+                    )
+                    * Coalesce(F("pod_effective_usage_cpu_core_hours"), Value(0), output_field=DecimalField()),
                     0,
                     output_field=DecimalField(),
                 ),
@@ -2039,7 +2043,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     Value(infrastructure_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
                     * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
                     + Value(infrastructure_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(
+                        infrastructure_rates.get("memory_gb_effective_usage_per_hour", 0), output_field=DecimalField()
+                    )
+                    * Coalesce(F("pod_effective_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
                     0,
                     output_field=DecimalField(),
                 ),
@@ -2059,7 +2067,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     Value(supplementary_rates.get("cpu_core_usage_per_hour", 0), output_field=DecimalField())
                     * Coalesce(F("pod_usage_cpu_core_hours"), Value(0), output_field=DecimalField())
                     + Value(supplementary_rates.get("cpu_core_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField()),
+                    * Coalesce(F("pod_request_cpu_core_hours"), Value(0), output_field=DecimalField())
+                    + Value(
+                        supplementary_rates.get("cpu_core_effective_usage_per_hour", 0), output_field=DecimalField()
+                    )
+                    * Coalesce(F("pod_effective_usage_cpu_core_hours"), Value(0), output_field=DecimalField()),
                     0,
                     output_field=DecimalField(),
                 ),
@@ -2068,7 +2080,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     Value(supplementary_rates.get("memory_gb_usage_per_hour", 0), output_field=DecimalField())
                     * Coalesce(F("pod_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
                     + Value(supplementary_rates.get("memory_gb_request_per_hour", 0), output_field=DecimalField())
-                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
+                    * Coalesce(F("pod_request_memory_gigabyte_hours"), Value(0), output_field=DecimalField())
+                    + Value(
+                        supplementary_rates.get("memory_gb_effective_usage_per_hour", 0), output_field=DecimalField()
+                    )
+                    * Coalesce(F("pod_effective_usage_memory_gigabyte_hours"), Value(0), output_field=DecimalField()),
                     0,
                     output_field=DecimalField(),
                 ),
@@ -2107,8 +2123,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         metric_usage_type_map = {
             "cpu_core_usage_per_hour": "cpu",
             "cpu_core_request_per_hour": "cpu",
+            "cpu_core_effective_usage_per_hour": "cpu",
             "memory_gb_usage_per_hour": "memory",
             "memory_gb_request_per_hour": "memory",
+            "memory_gb_effective_usage_per_hour": "memory",
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
@@ -2188,8 +2206,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         metric_usage_type_map = {
             "cpu_core_usage_per_hour": "cpu",
             "cpu_core_request_per_hour": "cpu",
+            "cpu_core_effective_usage_per_hour": "cpu",
             "memory_gb_usage_per_hour": "memory",
             "memory_gb_request_per_hour": "memory",
+            "memory_gb_effective_usage_per_hour": "memory",
             "storage_gb_usage_per_month": "storage",
             "storage_gb_request_per_month": "storage",
         }
