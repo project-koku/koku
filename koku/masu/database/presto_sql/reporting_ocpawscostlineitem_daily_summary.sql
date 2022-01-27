@@ -335,6 +335,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     month,
     day
 )
+WITH cte_rankings AS (
+    SELECT pds.aws_uuid,
+        max(pds.data_source_rank) as data_source_rank,
+        max(pds.project_rank) as project_rank
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    GROUP BY aws_uuid
+)
 SELECT aws_uuid,
     cluster_id,
     cluster_alias,
@@ -424,13 +431,15 @@ FROM (
         max(pds.pod_labels) as pod_labels,
         max(pds.volume_labels) as volume_labels,
         max(pds.tags) as tags,
-        max(pds.project_rank) as project_rank,
-        max(pds.data_source_rank) as data_source_rank,
+        max(r.project_rank) as project_rank,
+        max(r.data_source_rank) as data_source_rank,
         max(pds.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    JOIN cte_rankings as r
+        ON pds.aws_uuid = r.aws_uuid
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON pds.usage_account_id = aa.account_id
-    GROUP BY aws_uuid, namespace
+    GROUP BY pds.aws_uuid, pds.namespace
 ) as ocp_aws
 ;
 
