@@ -15,12 +15,12 @@ objects:
       - koku
     envName: ${ENV_NAME}
     jobs:
-    - name: script-runner-${IMAGE_TAG}
+    - name: script-runner-${IMAGE_TAG}-${CJI_INVOCATION}
       podSpec:
         args:
         - /bin/bash
         - -c
-        - $HOME/scripts/job_script.sh
+        - ${APP_ROOT}/scripts/job_script.sh
         env:
         - name: PRESTO_HOST
           value: ${PRESTO_HOST}
@@ -30,15 +30,24 @@ objects:
           value: ${PROMETHEUS_DIR}
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
+        - name: CJI_INVOCATION
+          value: ${CJI_INVOCATION}
         image: ${IMAGE}:${IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_CPU_LIMIT}
+            memory: ${KOKU_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_CPU_REQUEST}
+            memory: ${KOKU_MEMORY_REQUEST}
 - apiVersion: cloud.redhat.com/v1alpha1
   kind: ClowdJobInvocation
   metadata:
-    name: koku-cji-v${IMAGE_TAG}
+    name: koku-cji-v${IMAGE_TAG}-${CJI_INVOCATION}
   spec:
     appName: koku-cji
     jobs:
-      - script-runner-${IMAGE_TAG}
+      - script-runner-${IMAGE_TAG}-${CJI_INVOCATION}
 parameters:
 - name: ENV_NAME
   required: true
@@ -63,3 +72,22 @@ parameters:
 - name: CLOWDER_ENABLED
   required: true
   value: "True"
+- name: CJI_INVOCATION
+  required: true
+  value: "00"
+- displayName: Memory Request
+  name: KOKU_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- displayName: Memory Limit
+  name: KOKU_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Request
+  name: KOKU_CPU_REQUEST
+  required: true
+  value: 300m
+- displayName: CPU Limit
+  name: KOKU_CPU_LIMIT
+  required: true
+  value: 600m
