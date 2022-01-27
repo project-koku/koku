@@ -117,6 +117,7 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
     ports:
       - 5042:8000
       - 5001:9000
@@ -126,6 +127,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
+      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
     depends_on:
       - koku-base
 
