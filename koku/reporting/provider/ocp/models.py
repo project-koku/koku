@@ -185,15 +185,11 @@ class OCPUsageLineItemDaily(models.Model):
 
     pod_request_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
-    pod_effective_usage_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
-
     pod_limit_cpu_core_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     pod_usage_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     pod_request_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
-
-    pod_effective_usage_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
     pod_limit_memory_byte_seconds = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
