@@ -119,18 +119,26 @@ cte_ocp_namespace_label_line_item_daily AS (
 ),
 -- Daily sum of cluster CPU and memory capacity
 cte_ocp_node_capacity AS (
-    SELECT li.interval_start,
-        li.node,
-        sum(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
-        sum(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
-    WHERE li.source = {{source}}
-        AND li.year = {{year}}
-        AND li.month = {{month}}
-        AND li.interval_start >= TIMESTAMP {{start_date}}
-        AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
-    GROUP BY li.interval_start,
-        li.node
+    SELECT date(nc.interval_start) as usage_start,
+        nc.node,
+        sum(nc.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
+        sum(nc.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
+    FROM (
+        SELECT li.interval_start,
+            li.node,
+            max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
+            max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
+        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
+        WHERE li.source = {{source}}
+            AND li.year = {{year}}
+            AND li.month = {{month}}
+            AND li.interval_start >= TIMESTAMP {{start_date}}
+            AND li.interval_start < date_add('day', 1, TIMESTAMP {{end_date}})
+        GROUP BY li.interval_start,
+            li.node
+    ) as nc
+    GROUP BY date(nc.interval_start),
+        nc.node
 ),
 cte_ocp_cluster_capacity AS (
     SELECT nc.usage_start,
