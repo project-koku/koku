@@ -63,26 +63,26 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in tables:
-            summary_sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            dh = DateHelper()
-            invoice_month_list = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)
-            invoice_month = invoice_month_list[0]
-            # Extend the end date past the end of the month & add the invoice month
-            # in order to include cross over data.
-            extended_end_date = end_date + relativedelta(days=2)
-            summary_sql_params = {
-                "start_date": start_date,
-                "end_date": extended_end_date,
-                "schema": self.schema,
-                "source_uuid": source_uuid,
-                "invoice_month": invoice_month,
-            }
-            summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-            self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, extended_end_date, bind_params=list(summary_sql_params)
-            )
+        dh = DateHelper()
+        invoice_month_list = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)
+        for invoice_month in invoice_month_list:
+            for table_name in tables:
+                summary_sql = pkgutil.get_data("masu.database", f"sql/gcp/{table_name}.sql")
+                summary_sql = summary_sql.decode("utf-8")
+                # Extend the end date past the end of the month & add the invoice month
+                # in order to include cross over data.
+                extended_end_date = end_date + relativedelta(days=2)
+                summary_sql_params = {
+                    "start_date": start_date,
+                    "end_date": extended_end_date,
+                    "schema": self.schema,
+                    "source_uuid": source_uuid,
+                    "invoice_month": invoice_month,
+                }
+                summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
+                self._execute_raw_sql_query(
+                    table_name, summary_sql, start_date, extended_end_date, bind_params=list(summary_sql_params)
+                )
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""

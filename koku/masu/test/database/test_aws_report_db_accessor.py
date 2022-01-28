@@ -1097,28 +1097,28 @@ class AWSReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    @patch("masu.database.report_db_accessor_base.kpdb.connect")
-    def test_execute_presto_raw_sql_query(self, mock_connect):
-        """Test the presto execute method."""
-        mock_sql = "SELECT number FROM table"
-        mock_result = [[1], [2]]
-        mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
+    # @patch("masu.database.report_db_accessor_base.kpdb.connect")
+    # def test_execute_presto_raw_sql_query(self, mock_connect):
+    #     """Test the presto execute method."""
+    #     mock_sql = "SELECT number FROM table"
+    #     mock_result = [[1], [2]]
+    #     mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
 
-        result = self.accessor._execute_presto_raw_sql_query(self.schema, mock_sql)
+    #     result = self.accessor._execute_presto_raw_sql_query(self.schema, mock_sql)
 
-        self.assertEqual(result, mock_result)
+    #     self.assertEqual(result, mock_result)
 
-    @patch("masu.database.report_db_accessor_base.kpdb.connect")
-    def test_execute_presto_multipart_sql_query(self, mock_connect):
-        """Test the presto execute method."""
-        mock_sql = "SELECT number FROM table; SELECT other_number FROM other_table;"
-        mock_result = [[1], [2]]
-        mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
-        expected = mock_result + mock_result
+    # @patch("masu.database.report_db_accessor_base.kpdb.connect")
+    # def test_execute_presto_multipart_sql_query(self, mock_connect):
+    #     """Test the presto execute method."""
+    #     mock_sql = "SELECT number FROM table; SELECT other_number FROM other_table;"
+    #     mock_result = [[1], [2]]
+    #     mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
+    #     expected = mock_result + mock_result
 
-        result = self.accessor._execute_presto_multipart_sql_query(self.schema, mock_sql)
+    #     result = self.accessor._execute_presto_multipart_sql_query(self.schema, mock_sql)
 
-        self.assertEqual(result, expected)
+    #     self.assertEqual(result, expected)
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""

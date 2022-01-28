@@ -64,19 +64,23 @@ class SettingsViewTest(IamTestCase):
         all_enabled_tags = duallist.get("initialValue")
 
         for test in test_matrix:
-            available = []
-            enabled_tags = []
+            with self.subTest(test=test):
+                available = []
+                enabled_tags = []
 
-            # get available tags
-            for option in duallist.get("options"):
-                if option.get("label") == test.get("label"):
-                    children = option.get("children")
-                    available = [key_obj.get("label") for key_obj in children]
+                # get available tags
+                for option in duallist.get("options"):
+                    if option.get("label") == test.get("label"):
+                        children = option.get("children")
+                        available = [key_obj.get("label") for key_obj in children]
 
-            for enabled in all_enabled_tags:
-                if enabled.split("-")[0] == test.get("name"):
-                    enabled_tags.append(enabled.split("-")[1])
-                    self.assertIn(enabled.split("-")[1], available)
+                for enabled in all_enabled_tags:
+                    split = enabled.split("-")
+                    test_name = split[0]
+                    tag_name = "-".join(split[1:])
+                    if test_name == test.get("name"):
+                        enabled_tags.append(tag_name)
+                        self.assertIn(tag_name, available)
 
     def test_post_settings_tag_enabled(self):
         """Test settings POST calls change enabled tags"""

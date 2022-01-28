@@ -63,13 +63,14 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
-        for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys"):
+        # for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys",):
+        for table_name in ("GCPEnabledTagKeys",):
             for dikt in self.tags:
                 for key in dikt.keys():
                     with schema_context(self.schema):
                         baker.make(table_name, key=key)
-        with schema_context(self.schema):
-            baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
+        # with schema_context(self.schema):
+        #     baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
 
     def create_provider(self, provider_type, credentials, billing_source, name, linked_openshift_provider=None):
         """Create a Provider record"""

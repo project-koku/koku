@@ -14,6 +14,7 @@ from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
 from scripts.insert_org_tree import UploadAwsTree
+from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
 from api.models import Provider
@@ -21,10 +22,12 @@ from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
 from api.report.test.util.nise_data_loader import NiseDataLoader
 from koku.env import ENVIRONMENT
+from reporting.models import OCPEnabledTagKeys
 
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
+OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
 
 if GITHUB_ACTIONS:
     sys.stdout = open(os.devnull, "w")
@@ -89,11 +92,11 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                         )
-                        bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
-                        ocp_on_aws_cluster_id = "OCP-on-AWS"
-                        ocp_on_azure_cluster_id = "OCP-on-Azure"
-                        ocp_on_prem_cluster_id = "OCP-on-Prem"
-
+                        with tenant_context(tenant):
+                            for tag_key in OCP_ENABLED_TAGS:
+                                OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
+                        data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
+                        # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
@@ -103,7 +106,11 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
                         data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                         data_loader.load_azure_data(customer, "azure_static_data.yml")
-                        # data_loader.load_gcp_data(customer, "gcp_static_data.yml")
+
+                        bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
+                        ocp_on_aws_cluster_id = "OCP-on-AWS"
+                        ocp_on_azure_cluster_id = "OCP-on-Azure"
+                        ocp_on_prem_cluster_id = "OCP-on-Prem"
 
                         # ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
                         #     ocp_on_aws_cluster_id, on_cloud=True

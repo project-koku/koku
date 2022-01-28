@@ -154,7 +154,7 @@ class GCPTagQueryHandlerTest(IamTestCase):
         expected = {"key": key, "values": tag_values}
         result = handler.get_tags()
         self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+        self.assertEqual(sorted(result[0].get("values", [0])), sorted(expected.get("values", [1])))
 
     def test_get_tag_values_for_value_filter(self):
         """Test that get tag values runs properly with value query."""
@@ -170,7 +170,7 @@ class GCPTagQueryHandlerTest(IamTestCase):
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
         self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+        self.assertEqual(sorted(result[0].get("values", [0])), sorted(expected.get("values", [1])))
 
     def test_get_tag_values_for_value_filter_partial_match(self):
         """Test that the execute query runs properly with value query."""
@@ -189,4 +189,4 @@ class GCPTagQueryHandlerTest(IamTestCase):
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
         self.assertEqual(result[0].get("key"), expected.get("key"))
-        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+        self.assertEqual(sorted(result[0].get("values", [0])), sorted(expected.get("values", [1])))
