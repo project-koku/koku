@@ -155,7 +155,6 @@ class TestGCPUtils(MasuTestCase):
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
-
     def test_match_openshift_resources_and_labels(self):
         """Test that OCP on GCP matching occurs."""
         cluster_topology = {

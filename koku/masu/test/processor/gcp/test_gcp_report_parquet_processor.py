@@ -42,7 +42,7 @@ class GCPReportProcessorParquetTest(MasuTestCase):
             self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
         )
         self.assertEqual(processor._table_name, PRESTO_OCP_ON_GCP_DAILY_TABLE)
-        
+
         s3_path = "/s3/path/daily"
         processor = GCPReportParquetProcessor(
             self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
