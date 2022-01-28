@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 -- Now create our proper table if it does not exist
 CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary
 (
-    gcp_uuid varchar,
+   gcp_uuid varchar,
     cluster_id varchar,
     cluster_alias varchar,
     data_source varchar,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 ;
 
--- OCP on GCP is special, this is based on cluster id not resource id
+-- OCP ON GCP is special and we dont do resource id matching, we match exclusively on tags
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
@@ -153,27 +153,27 @@ SELECT gcp.uuid as gcp_uuid,
     ocp.data_source,
     ocp.namespace,
     max(ocp.node) as node,
-    max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
-    max(ocp.persistentvolume) as persistentvolume,
-    max(ocp.storageclass) as storageclass,
+    max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
+    max(nullif(ocp.persistentvolume, '')) as persistentvolume,
+    max(nullif(ocp.storageclass, '')) as storageclass,
     max(ocp.pod_labels) as pod_labels,
-    max(ocp.resource_id),
+    max(ocp.resource_id) as resource_id,
     max(gcp.usage_start_time) as usage_start,
     max(gcp.usage_start_time) as usage_end,
     max(gcp.billing_account_id) as account_id,
     max(gcp.project_id) as project_id,
     max(gcp.project_name) as project_name,
     max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
-    max(gcp.service_id) as service_id,
-    max(gcp.service_description) as service_alias,
-    max(gcp.sku_id) as sku_id,
-    max(gcp.sku_description) as sku_alias,
+    max(nullif(gcp.service_id, '')) as service_id,
+    max(nullif(gcp.service_description, '')) as service_alias,
+    max(nullif(gcp.sku_id, '')) as sku_id,
+    max(nullif(gcp.sku_description, '')) as sku_alias,
     max(nullif(gcp.location_region, '')) as region,
     max(gcp.usage_pricing_unit) as unit,
     cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
-    sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
+    sum(credits) as credit_amount,
     cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
     cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
@@ -187,109 +187,7 @@ SELECT gcp.uuid as gcp_uuid,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
     max(json_format(json_parse(gcp.labels))) as tags,
-    row_number() OVER (partition by gcp.uuid) as project_rank,
-    1 as data_source_rank
-FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
-JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    ON gcp.usage_start_time = ocp.usage_start
-WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
-    AND gcp.year = '{{year | sqlsafe}}'
-    AND gcp.month = '{{month | sqlsafe}}'
-    AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
-    AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND ocp.cluster_id = '{{cluster_id | sqlsafe}}'
-    AND ocp.report_period_id = {{report_period_id | sqlsafe}}
-    AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
-    AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
-;
-
-
-INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
-    gcp_uuid,
-    cluster_id,
-    cluster_alias,
-    data_source,
-    namespace,
-    node,
-    persistentvolumeclaim,
-    persistentvolume,
-    storageclass,
-    pod_labels,
-    resource_id,
-    usage_start,
-    usage_end,
-    account_id,
-    project_id,
-    project_name,
-    instance_type,
-    service_id,
-    service_alias,
-    sku_id,
-    sku_alias,
-    region,
-    unit,
-    usage_amount,
-    currency,
-    invoice_month,
-    credit_amount,
-    unblended_cost,
-    markup_cost,
-    project_markup_cost,
-    pod_cost,
-    pod_usage_cpu_core_hours,
-    pod_request_cpu_core_hours,
-    pod_limit_cpu_core_hours,
-    pod_usage_memory_gigabyte_hours,
-    pod_request_memory_gigabyte_hours,
-    cluster_capacity_cpu_core_hours,
-    cluster_capacity_memory_gigabyte_hours,
-    volume_labels,
-    tags,
-    project_rank,
-    data_source_rank
-)
-SELECT gcp.uuid as gcp_uuid,
-    max(ocp.cluster_id) as cluster_id,
-    max(ocp.cluster_alias) as cluster_alias,
-    ocp.data_source,
-    ocp.namespace,
-    max(ocp.node) as node,
-    max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
-    max(ocp.persistentvolume) as persistentvolume,
-    max(ocp.storageclass) as storageclass,
-    max(ocp.pod_labels) as pod_labels,
-    max(ocp.resource_id) as resource_id,
-    max(gcp.usage_start_time) as usage_start,
-    max(gcp.usage_end_time) as usage_end,
-    max(gcp.billing_account_id) as account_id,
-    max(gcp.project_id) as project_id,
-    max(gcp.project_name) as project_name,
-    max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
-    max(gcp.service_id) as service_id,
-    max(gcp.service_description) as service_alias,
-    max(gcp.sku_id) as sku_id,
-    max(gcp.sku_description) as sku_alias,
-    max(nullif(gcp.location_region, '')) as region,
-    max(gcp.usage_pricing_unit) as unit,
-    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
-    max(gcp.currency) as currency,
-    gcp.invoice_month as invoice_month,
-    sum(((cast(COALESCE(json_extract_scalar(json_parse(credits), '$["amount"]'), '0')AS decimal(24,9)))*1000000)/1000000) as credit_amount,
-    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
-    cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
-    cast(NULL as double) AS project_markup_cost,
-    cast(NULL AS double) AS pod_cost,
-    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
-    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
-    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-    max(ocp.volume_labels) as volume_labels,
-    max(json_format(json_parse(gcp.labels))) as tags,
-    row_number() OVER (partition by gcp.uuid, ocp.namespace) as project_rank,
+    row_number() OVER (partition by gcp.uuid, ocp.data_source) as project_rank,
     row_number() OVER (partition by gcp.uuid, ocp.namespace) as data_source_rank
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -300,6 +198,7 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
             )
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
@@ -313,6 +212,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
+    AND pds.gcp_uuid IS NULL
 GROUP BY gcp.uuid, ocp.namespace, ocp.data_source, gcp.invoice_month
 ;
 
@@ -366,6 +266,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     month,
     day
 )
+WITH cte_rankings AS (
+    SELECT pds.gcp_uuid,
+        max(pds.data_source_rank) as data_source_rank,
+        max(pds.project_rank) as project_rank
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
+    GROUP BY gcp_uuid
+)
 SELECT gcp_uuid,
     cluster_id,
     cluster_alias,
@@ -403,7 +310,7 @@ SELECT gcp_uuid,
     usage_amount / project_rank / data_source_rank as usage_amount,
     currency,
     invoice_month,
-    credit_amount,
+    credit_amount / project_rank / data_source_rank as credit_amount,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9)),
@@ -465,10 +372,12 @@ FROM (
         sum(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(pds.volume_labels) as volume_labels,
         max(pds.tags) as tags,
-        max(pds.project_rank) as project_rank,
-        max(pds.data_source_rank) as data_source_rank
+        max(r.project_rank) as project_rank,
+        max(r.data_source_rank) as data_source_rank
     FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp as pds
-    GROUP BY gcp_uuid, namespace
+    JOIN cte_rankings as r
+        ON pds.gcp_uuid = r.gcp_uuid
+    GROUP BY pds.gcp_uuid, pds.namespace
 ) as ocp_gcp
 ;
 
@@ -522,7 +431,7 @@ SELECT uuid(),
     json_parse(pod_labels),
     resource_id,
     date(usage_start),
-    date(usage_end),
+    date(usage_start) as usage_end,
     {{bill_id | sqlsafe}} as cost_entry_bill_id,
     account_id,
     project_id,

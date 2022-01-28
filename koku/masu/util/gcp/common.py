@@ -141,7 +141,13 @@ def gcp_generate_daily_data(data_frame):
     if data_frame.empty:
         return data_frame
 
-    daily_data_frame = data_frame.groupby(
+    # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
+    rollup_frame = data_frame.copy()
+    rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
+    for i, credit_dict in enumerate(rollup_frame["credits"]):
+        rollup_frame["credits"][i] = credit_dict.get("amount", 0)
+
+    daily_data_frame = rollup_frame.groupby(
         [
             "invoice_month",
             "billing_account_id",
@@ -153,7 +159,6 @@ def gcp_generate_daily_data(data_frame):
             "system_labels",
             "labels",
             "cost_type",
-            "credits",
             "location_region",
         ],
         dropna=False,
@@ -166,6 +171,7 @@ def gcp_generate_daily_data(data_frame):
             "usage_amount_in_pricing_units": ["sum"],
             "currency": ["max"],
             "cost": ["sum"],
+            "credits": ["sum"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)
