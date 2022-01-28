@@ -1,0 +1,14 @@
+apps:
+- name: koku-cji
+  components:
+  - name: koku-cji
+    path: /deploy/koku-cji.yaml
+    host: github
+    url: https://github.com/project-koku/koku
+    ref: # PUT YOUR GIT COMMIT REF HERE
+    parameters:
+      DBM_IMAGE: # SET THIS TO THE SAME VALUE IN YOUR LOCAL DEPLOY CONFIG
+      DBM_IMAGE_TAG: # SET THIS TO THE SAME VALUE IN YOUR LOCAL DEPLOY CONFIG
+      IMAGE: # PUT IMAGE NAME HERE
+      IMAGE_TAG: # PUT IMAGE TAG HERE
+      CJI_INVOCATION: "01" # INCREMENT THIS FOR RE-RUN WITHOUT IMAGE REBUILD
