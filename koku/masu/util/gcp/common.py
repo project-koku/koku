@@ -9,6 +9,7 @@ import logging
 from json.decoder import JSONDecodeError
 
 import ciso8601
+import pandas as pd
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
@@ -131,3 +132,42 @@ def get_column_converters():
         "usage.amount_in_pricing_units": safe_float,
         "credits": process_gcp_credits,
     }
+
+
+def gcp_generate_daily_data(data_frame):
+    """Given a dataframe, return the data frame if its empty, group the data to create daily data."""
+    if data_frame.empty:
+        return data_frame
+
+    daily_data_frame = data_frame.groupby(
+        [
+            "invoice_month",
+            "billing_account_id",
+            "project_id",
+            pd.Grouper(key="usage_start_time", freq="D"),
+            pd.Grouper(key="usage_end_time", freq="D"),
+            "service_id",
+            "sku_id",
+            "system_labels",
+            "labels",
+            "cost_type",
+            "credits",
+            "location_region",
+        ],
+        dropna=False,
+    ).agg(
+        {
+            "project_name": ["max"],
+            "service_description": ["max"],
+            "sku_description": ["max"],
+            "usage_pricing_unit": ["max"],
+            "usage_amount_in_pricing_units": ["sum"],
+            "currency": ["max"],
+            "cost": ["sum"],
+        }
+    )
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame

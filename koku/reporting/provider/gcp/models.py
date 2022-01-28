@@ -10,7 +10,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import JSONField
 
-
+PRESTO_LINE_ITEM_DAILY_TABLE = "gcp_line_items_daily"
 PRESTO_LINE_ITEM_TABLE = "gcp_line_items"
 
 UI_SUMMARY_TABLES = (

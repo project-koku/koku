@@ -1,7 +1,5 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 
-# GIT_COMMIT is added during build in `build_deploy.sh`
-ARG GIT_COMMIT=undefined
 # PIPENV_DEV is set to true in the docker-compose allowing
 # local builds to install the dev dependencies
 ARG PIPENV_DEV=False
@@ -19,7 +17,6 @@ ENV PYTHON_VERSION=3.8 \
     PIPENV_VERBOSITY=-1 \
     APP_ROOT=/opt/koku \
     APP_HOME=/opt/koku/koku \
-    GIT_COMMIT=${GIT_COMMIT} \
     PLATFORM="el8"
 
 ENV SUMMARY="Koku is the Cost Management application" \
@@ -93,6 +90,11 @@ RUN \
     rm ${APP_HOME}/app.log
 
 EXPOSE 8000
+
+# GIT_COMMIT is added during build in `build_deploy.sh`
+# Set this at the end to leverage build caching
+ARG GIT_COMMIT=undefined
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 # Set the default CMD.
 CMD ["./scripts/entrypoint.sh"]
