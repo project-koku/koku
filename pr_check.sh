@@ -17,7 +17,7 @@ LABELS_DIR="$WORKSPACE/github_labels"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
-export IQE_CJI_TIMEOUT="120m"
+export IQE_CJI_TIMEOUT="90m"
 
 set -ex
 
@@ -41,7 +41,7 @@ function build_image() {
 function run_smoke_tests() {
     run_trino_smoke_tests
     source ${CICD_ROOT}/_common_deploy_logic.sh
-    export NAMESPACE=$(bonfire namespace reserve --duration 2h15m)
+    export NAMESPACE=$(bonfire namespace reserve --duration 2h)
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json

@@ -37,7 +37,7 @@ class AzureProviderMap(ProviderMap):
                 "provider": Provider.PROVIDER_AZURE,
                 "alias": "subscription_guid",  # FIXME: probably wrong
                 "annotations": {},
-                "end_date": "costentrybill__billing_period_end",
+                "end_date": "costentrybill__billing_period_start",
                 "filters": {
                     "subscription_guid": [
                         {"field": "subscription_guid", "operation": "icontains", "composition_key": "account_filter"}

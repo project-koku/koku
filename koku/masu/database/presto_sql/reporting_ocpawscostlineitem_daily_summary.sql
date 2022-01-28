@@ -28,9 +28,11 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_usage_cpu_core_hours double,
     pod_request_cpu_core_hours double,
+    pod_effective_usage_cpu_core_hours double,
     pod_limit_cpu_core_hours double,
     pod_usage_memory_gigabyte_hours double,
     pod_request_memory_gigabyte_hours double,
+    pod_effective_usage_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
     pod_labels varchar,
@@ -115,9 +117,11 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
     pod_limit_cpu_core_hours,
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     pod_labels,
@@ -154,9 +158,11 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as double) as project_markup_cost,
         sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
         sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+        sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
         sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
         sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+        sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
         max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
@@ -212,9 +218,11 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
     pod_limit_cpu_core_hours,
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     pod_labels,
@@ -251,9 +259,11 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as double) as project_markup_cost,
         cast(NULL as double) as pod_usage_cpu_core_hours,
         cast(NULL as double) as pod_request_cpu_core_hours,
+        cast(NULL as double) as pod_effective_usage_cpu_core_hours,
         cast(NULL as double) as pod_limit_cpu_core_hours,
         cast(NULL as double) as pod_usage_memory_gigabyte_hours,
         cast(NULL as double) as pod_request_memory_gigabyte_hours,
+        cast(NULL as double) as pod_effective_usage_memory_gigabyte_hours,
         cast(NULL as double) as cluster_capacity_cpu_core_hours,
         cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
@@ -324,6 +334,13 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     year,
     month,
     day
+)
+WITH cte_rankings AS (
+    SELECT pds.aws_uuid,
+        max(pds.data_source_rank) as data_source_rank,
+        max(pds.project_rank) as project_rank
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    GROUP BY aws_uuid
 )
 SELECT aws_uuid,
     cluster_id,
@@ -404,21 +421,25 @@ FROM (
         sum(pds.markup_cost) as markup_cost,
         sum(pds.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
         sum(pds.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+        sum(pds.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
         sum(pds.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
         sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+        sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
         max(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(pds.pod_labels) as pod_labels,
         max(pds.volume_labels) as volume_labels,
         max(pds.tags) as tags,
-        max(pds.project_rank) as project_rank,
-        max(pds.data_source_rank) as data_source_rank,
+        max(r.project_rank) as project_rank,
+        max(r.data_source_rank) as data_source_rank,
         max(pds.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+    JOIN cte_rankings as r
+        ON pds.aws_uuid = r.aws_uuid
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON pds.usage_account_id = aa.account_id
-    GROUP BY aws_uuid, namespace
+    GROUP BY pds.aws_uuid, pds.namespace
 ) as ocp_aws
 ;
 

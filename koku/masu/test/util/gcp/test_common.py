@@ -155,63 +155,6 @@ class TestGCPUtils(MasuTestCase):
         result_columns = list(result_df)
         self.assertEqual(sorted(result_columns), sorted(expected_columns))
 
-    def test_match_openshift_resources_and_labels(self):
-        """Test that OCP on GCP matching occurs."""
-        cluster_topology = {
-            "resource_ids": [],
-            "cluster_id": "ocp-gcp-cluster",
-            "cluster_alias": "my-ocp-cluster",
-            "nodes": ["id1", "id2", "id3"],
-            "projects": [],
-        }
-
-        matched_tags = []
-
-        # in the gcp dataframe, these are labels
-        data = [
-            {
-                "resourceid": "id1",
-                "pretaxcost": 1,
-                "labels": '{"key": "value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-            {
-                "resourceid": "id2",
-                "pretaxcost": 1,
-                "labels": '{"key": "other_value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-            {
-                "resourceid": "id3",
-                "pretaxcost": 1,
-                "labels": '{"key": "other_value", "kubernetes-not-io-cluster-ocp-gcp-cluster": "owned"}',
-            },
-        ]
-
-        df = pd.DataFrame(data)
-
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # kubernetes-io-cluster matching, 2 results should come back with no matched tags
-        self.assertEqual(matched_df.shape[0], 2)
-
-        matched_tags = [{"key": "other_value"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-        # tag matching
-        result = matched_df[matched_df["resourceid"] == "id2"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.bool())
-
-        result = matched_df[matched_df["resourceid"] == "id3"]["matched_tag"] == '"key": "other_value"'
-        self.assertTrue(result.bool())
-
-        # Matched tags, but none that match the dataset
-        matched_tags = [{"something_else": "entirely"}]
-        matched_df = utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
-
-        # kubernetes-io-cluster matching, 2 results should come back but no matched tags
-        self.assertEqual(matched_df.shape[0], 2)
-
-        # tag matching
-        self.assertFalse((matched_df["matched_tag"] != "").any())
-
     def test_gcp_generate_daily_data(self):
         """Test that we aggregate data at a daily level."""
         usage = random.randint(1, 10)
@@ -295,3 +238,7 @@ class TestGCPUtils(MasuTestCase):
         self.assertTrue((second_day["cost"] == cost).bool())
         self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
         self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+
+        # if we have an empty data frame, we should get one back
+        empty_df = pd.DataFrame()
+        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
