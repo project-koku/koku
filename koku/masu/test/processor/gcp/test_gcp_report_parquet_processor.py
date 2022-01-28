@@ -13,6 +13,7 @@ from masu.test import MasuTestCase
 from reporting.models import PartitionedTable
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
+from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
 
 
@@ -34,6 +35,12 @@ class GCPReportProcessorParquetTest(MasuTestCase):
     def test_gcp_table_name(self):
         """Test the GCP table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+
+        s3_path = "/s3/path/daily"
+        processor = GCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
+        )
+        self.assertEqual(processor._table_name, PRESTO_LINE_ITEM_DAILY_TABLE)
 
     def test_postgres_summary_table(self):
         """Test that the correct table is returned."""
