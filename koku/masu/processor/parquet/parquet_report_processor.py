@@ -302,7 +302,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self):  # noqa: C901
+    def convert_to_parquet(self):
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -330,6 +330,8 @@ class ParquetReportProcessor:
         # AWS and Azure are monthly reports. Previous reports should be removed so data isn't duplicated
         if not manifest_accessor.get_s3_parquet_cleared(manifest) and self.provider_type not in (
             Provider.PROVIDER_OCP,
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
         ):
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
@@ -350,10 +352,11 @@ class ParquetReportProcessor:
                 LOG.warn(log_json(self.tracing_id, msg, self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
+
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
-                self.create_daily_parquet(parquet_base_filename, daily_data_frames)
+                self.create_daily_parquet(parquet_base_filename, daily_frame)
             if not success:
                 failed_conversion.append(csv_filename)
 
