@@ -714,44 +714,50 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             )
             counts = len(resource_ids)
         total_queryset = query_data.annotate(**aggregates)
-        total_query = {
-            "date": None,
-            "infra_total": 0,
-            "infra_raw": 0,
-            "infra_usage": 0,
-            "infra_markup": 0,
-            "sup_raw": 0,
-            "sup_usage": 0,
-            "sup_markup": 0,
-            "sup_total": 0,
-            "cost_total": 0,
-            "cost_raw": 0,
-            "cost_usage": 0,
-            "cost_markup": 0,
-        }
-        for query_set in total_queryset:
-            base = query_set.get("currency_code")
-            total_query["date"] = query_set.get("date")
-            exchange_rate = self._get_exchange_rate(base)
-            for value in [
-                "infra_total",
-                "infra_raw",
-                "infra_usage",
-                "infra_markup",
-                "sup_raw",
-                "sup_total",
-                "sup_usage",
-                "sup_markup",
-                "cost_total",
-                "cost_raw",
-                "cost_usage",
-                "cost_markup",
-            ]:
-                orig_value = total_query[value]
-                total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
+        total_query = self.return_total_query(total_queryset)
+        # total_query = {
+        #     "date": None,
+        #     "infra_total": 0,
+        #     "infra_raw": 0,
+        #     "infra_usage": 0,
+        #     "infra_markup": 0,
+        #     "sup_raw": 0,
+        #     "sup_usage": 0,
+        #     "sup_markup": 0,
+        #     "sup_total": 0,
+        #     "cost_total": 0,
+        #     "cost_raw": 0,
+        #     "cost_usage": 0,
+        #     "cost_markup": 0,
+        # }
+        # for query_set in total_queryset:
+        #     base = query_set.get("currency_code")
+        #     total_query["date"] = query_set.get("date")
+        #     exchange_rate = self._get_exchange_rate(base)
+        #     for value in [
+        #         "infra_total",
+        #         "infra_raw",
+        #         "infra_usage",
+        #         "infra_markup",
+        #         "sup_raw",
+        #         "sup_total",
+        #         "sup_usage",
+        #         "sup_markup",
+        #         "cost_total",
+        #         "cost_raw",
+        #         "cost_usage",
+        #         "cost_markup",
+        #     ]:
+        #         orig_value = total_query[value]
+        #         print("\n\nExchange Rate and value: ")
+        #         print(exchange_rate)
+        #         print(value)
+        #         print(float(query_set.get(value)))
+        #         total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
 
         for unit_key, unit_value in units.items():
-            total_query[unit_key] = unit_value
+            total_query[unit_key] = self.currency
+            # total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts

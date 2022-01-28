@@ -54,7 +54,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
             getattr(self, "_mapper")
         except AttributeError:
             self._mapper = GCPProviderMap(provider=self.provider, report_type=parameters.report_type)
-
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
@@ -171,7 +170,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
 
-            query_group_by = ["date"] + self._get_group_by()
+            query_group_by = ["date", "currency"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
@@ -248,7 +247,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        self.query_sum = self._apply_total_exchange(ordered_total)
+        self.query_sum = ordered_total
         return self._format_query_response()
 
     def calculate_total(self, **units):
@@ -261,16 +260,15 @@ class GCPReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        query_group_by = ["date"] + self._get_group_by()
+        query_group_by = ["date", "currency"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
-
-        total_query = query.aggregate(**aggregates)
+        total_queryset = query_data.annotate(**aggregates)
+        total_query = self.return_total_query(total_queryset)
         for unit_key, unit_value in units.items():
-            total_query[unit_key] = unit_value
+            total_query[unit_key] = self.currency
 
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
-
         return total_query

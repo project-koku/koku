@@ -32,6 +32,8 @@ from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
+from reporting.provider.azure.models import AzureCostSummaryByAccountP
+from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 
 LOG = logging.getLogger(__name__)
 
@@ -106,6 +108,50 @@ class ReportQueryHandler(QueryHandler):
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
+
+    def return_total_query(self, total_queryset):
+        """Return total query data for calculate_total."""
+        total_query = {
+            "date": None,
+            "infra_total": 0,
+            "infra_raw": 0,
+            "infra_usage": 0,
+            "infra_markup": 0,
+            "sup_raw": 0,
+            "sup_usage": 0,
+            "sup_markup": 0,
+            "sup_total": 0,
+            "cost_total": 0,
+            "cost_raw": 0,
+            "cost_usage": 0,
+            "cost_markup": 0,
+        }
+        for query_set in total_queryset:
+            codes = {
+                Provider.PROVIDER_AWS: "currency_code",
+                Provider.PROVIDER_AZURE: "currency",
+                Provider.PROVIDER_GCP: "currency",
+            }
+            base = query_set.get(codes.get(self.provider))
+            total_query["date"] = query_set.get("date")
+            exchange_rate = self._get_exchange_rate(base)
+            for value in [
+                "infra_total",
+                "infra_raw",
+                "infra_usage",
+                "infra_markup",
+                "sup_raw",
+                "sup_total",
+                "sup_usage",
+                "sup_markup",
+                "cost_total",
+                "cost_raw",
+                "cost_usage",
+                "cost_markup",
+            ]:
+                orig_value = total_query[value]
+                total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
+        return total_query
 
     @cached_property
     def query_table(self):
@@ -584,12 +630,17 @@ class ReportQueryHandler(QueryHandler):
     def _get_base_currency(self, source_uuid):
         """Look up the report base currency."""
         provider_table_map = {
-            Provider.PROVIDER_AWS: AWSCostSummaryByAccountP
+            Provider.PROVIDER_AWS: AWSCostSummaryByAccountP,
+            Provider.PROVIDER_AZURE: AzureCostSummaryByAccountP,
+            Provider.PROVIDER_GCP: GCPCostSummaryByAccountP
             # extend this to the other providers
         }
         try:
             base_currency = provider_table_map.get(self.provider).objects.filter(source_uuid=source_uuid).first()
-            return base_currency.currency_code
+            if self.provider == Provider.PROVIDER_AWS:
+                return base_currency.currency_code
+            else:
+                return base_currency.currency
         except Exception as e:
             LOG.error(e)
         return KOKU_DEFAULT_CURRENCY
