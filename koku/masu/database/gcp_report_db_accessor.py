@@ -492,10 +492,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
 
         # Default to cpu distribution
-        node_column = "node_capacity_cpu_core_hours"
+        pod_column = "pod_effective_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
-            node_column = "node_capacity_memory_gigabyte_hours"
+            pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data(
@@ -514,7 +514,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "bill_id": bill_id,
             "report_period_id": report_period_id,
             "markup": markup_value,
-            "node_column": node_column,
+            "pod_column": pod_column,
             "cluster_column": cluster_column,
             "cluster_id": cluster_id,
         }

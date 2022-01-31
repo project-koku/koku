@@ -145,8 +145,7 @@ def gcp_generate_daily_data(data_frame):
     rollup_frame = data_frame.copy()
     rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
     for i, credit_dict in enumerate(rollup_frame["credits"]):
-        rollup_frame["credits"][i] = credit_dict.get("amount", 0)
-
+        rollup_frame["credits"][i] = credit_dict.get("amount", 0.0)
     daily_data_frame = rollup_frame.groupby(
         [
             "invoice_month",
