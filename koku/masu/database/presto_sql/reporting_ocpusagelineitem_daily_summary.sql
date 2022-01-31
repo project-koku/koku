@@ -128,7 +128,7 @@ cte_ocp_node_capacity AS (
             li.node,
             max(li.node_capacity_cpu_core_seconds) as node_capacity_cpu_core_seconds,
             max(li.node_capacity_memory_byte_seconds) as node_capacity_memory_byte_seconds
-        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS li
+        FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items AS li
         WHERE li.source = {{source}}
             AND li.year = {{year}}
             AND li.month = {{month}}
