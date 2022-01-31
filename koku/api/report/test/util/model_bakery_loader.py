@@ -30,9 +30,7 @@ from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import AWSAccountAlias
 from reporting.models import AWSOrganizationalUnit
 
-# from api.provider.models import ProviderBillingSource
 
-LOG = logging.getLogger(__name__)
 BILL_MODELS = {
     Provider.PROVIDER_AWS: "AWSCostEntryBill",
     Provider.PROVIDER_AWS_LOCAL: "AWSCostEntryBill",
@@ -42,6 +40,7 @@ BILL_MODELS = {
     Provider.PROVIDER_GCP_LOCAL: "GCPCostEntryBill",
     Provider.PROVIDER_OCP: "OCPUsageReportPeriod",
 }
+LOG = logging.getLogger(__name__)
 
 
 class ModelBakeryDataLoader(DataLoader):
@@ -57,12 +56,9 @@ class ModelBakeryDataLoader(DataLoader):
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
 
-    def _get_bill_model(self, provider_type):
-        """Return the correct model for a provider type."""
-        return BILL_MODELS[provider_type]
-
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
+        # TODO: COST-444: when transitioning AWS and Azure, these tables need to be uncommented
         # for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys",):
         for table_name in ("GCPEnabledTagKeys",):
             for dikt in self.tags:
@@ -112,7 +108,7 @@ class ModelBakeryDataLoader(DataLoader):
     def create_bill(self, provider_type, provider, bill_date, **kwargs):
         """Create a bill object for the provider"""
         with schema_context(self.schema):
-            model_str = self._get_bill_model(provider_type)
+            model_str = BILL_MODELS[provider_type]
             month_end = self.dh.month_end(bill_date)
             data = {"provider": provider}
             if provider_type == Provider.PROVIDER_OCP:
@@ -152,7 +148,6 @@ class ModelBakeryDataLoader(DataLoader):
         credentials = {"role_arn": role_arn}
         billing_source = {"bucket": "test-bucket"}
         payer_account_id = "9999999999999"
-        # create_supplemental_info = True
 
         provider = self.create_provider(
             provider_type, credentials, billing_source, "test-aws", linked_openshift_provider=linked_openshift_provider
@@ -197,12 +192,9 @@ class ModelBakeryDataLoader(DataLoader):
                         _quantity=max(AWS_CONSTANTS.length, len(aliases)),
                     )
         bill_ids = [bill.id for bill in bills]
-        AWSReportDBAccessor(self.schema).populate_tags_summary_table(
-            bill_ids, self.first_start_date, self.last_end_date
-        )
-        AWSReportDBAccessor(self.schema).populate_ui_summary_tables(
-            self.first_start_date, self.last_end_date, provider.uuid
-        )
+        with AWSReportDBAccessor(self.schema) as accessor:
+            accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
+            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return provider, bills
 
     def load_azure_data(self, linked_openshift_provider=None):
@@ -244,12 +236,9 @@ class ModelBakeryDataLoader(DataLoader):
                         source_uuid=provider.uuid,
                     )
         bill_ids = [bill.id for bill in bills]
-        AzureReportDBAccessor(self.schema).populate_tags_summary_table(
-            bill_ids, self.first_start_date, self.last_end_date
-        )
-        AzureReportDBAccessor(self.schema).populate_ui_summary_tables(
-            self.first_start_date, self.last_end_date, provider.uuid
-        )
+        with AzureReportDBAccessor(self.schema) as accessor:
+            accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
+            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         return provider, bills
 
     def load_gcp_data(self, linked_openshift_provider=None):
@@ -336,18 +325,13 @@ class ModelBakeryDataLoader(DataLoader):
                     )
 
         report_period_ids = [report_period.id for report_period in report_periods]
-        OCPReportDBAccessor(self.schema).populate_pod_label_summary_table(
-            report_period_ids, self.first_start_date, self.last_end_date
-        )
-        OCPReportDBAccessor(self.schema).populate_volume_label_summary_table(
-            report_period_ids, self.first_start_date, self.last_end_date
-        )
-        OCPReportDBAccessor(self.schema).update_line_item_daily_summary_with_enabled_tags(
-            self.first_start_date, self.last_end_date, report_period_ids
-        )
-        OCPReportDBAccessor(self.schema).populate_ui_summary_tables(
-            self.first_start_date, self.last_end_date, provider.uuid
-        )
+        with OCPReportDBAccessor(self.schema) as accessor:
+            accessor.populate_pod_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
+            accessor.populate_volume_label_summary_table(report_period_ids, self.first_start_date, self.last_end_date)
+            accessor.update_line_item_daily_summary_with_enabled_tags(
+                self.first_start_date, self.last_end_date, report_period_ids
+            )
+            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
         update_cost_model_costs(
             self.schema, provider.uuid, self.first_start_date, self.last_end_date, tracing_id="12345", synchronous=True
         )

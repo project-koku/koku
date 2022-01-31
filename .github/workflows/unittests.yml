@@ -23,8 +23,8 @@ jobs:
         uses: tj-actions/changed-files@v13
         with:
           files: |
-            db_functions
-            koku
+            db_functions/
+            koku/
             .github/postgres
             .github/scripts/check_migrations.sh
             .github/workflows/unittests.yml
