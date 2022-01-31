@@ -319,11 +319,11 @@ SELECT gcp_uuid,
     credit_amount / project_rank / data_source_rank as credit_amount,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
-    CASE WHEN data_source = 'Pod' AND {{cluster_column | sqlsafe}} IS NOT NULL
+    CASE WHEN data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
         ELSE unblended_cost / project_rank / data_source_rank
     END as pod_cost,
-    CASE WHEN data_source = 'Pod' AND {{cluster_column | sqlsafe}} IS NOT NULL
+    CASE WHEN data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
