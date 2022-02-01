@@ -29,7 +29,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAzureComputeSummaryP
-from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import OCPAzureCostLineItemDailySummaryP
 from reporting.models import OCPAzureCostSummaryByAccountP
 from reporting.models import OCPAzureCostSummaryByLocationP
 from reporting.models import OCPAzureCostSummaryByServiceP
@@ -96,7 +96,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             "usage_end__lte": self.dh.last_month_end,
         }
         with tenant_context(self.tenant):
-            self.services = OCPAzureCostLineItemDailySummary.objects.values("service_name").distinct()
+            self.services = OCPAzureCostLineItemDailySummaryP.objects.values("service_name").distinct()
             self.services = [entry.get("service_name") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -104,7 +104,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.ten_day_filter
         with tenant_context(self.tenant):
-            return OCPAzureCostLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            return OCPAzureCostLineItemDailySummaryP.objects.filter(**filters).aggregate(**aggregates)
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""
@@ -209,7 +209,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             valid_services = [
                 service[0]
-                for service in OCPAzureCostLineItemDailySummary.objects.values_list("service_name").distinct()
+                for service in OCPAzureCostLineItemDailySummaryP.objects.values_list("service_name").distinct()
             ]
             service = valid_services[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]={service}"  # noqa: E501
@@ -360,7 +360,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
-            cluster = OCPAzureCostLineItemDailySummary.objects.values("cluster_id")[0].get("cluster_id")
+            cluster = OCPAzureCostLineItemDailySummaryP.objects.values("cluster_id")[0].get("cluster_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]={cluster}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -394,7 +394,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         with tenant_context(self.tenant):
             location = (
-                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPAzureCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .values("resource_location")[0]
                 .get("resource_location")
             )
@@ -426,7 +426,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_subscription_guid(self):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
         with tenant_context(self.tenant):
-            guid = OCPAzureCostLineItemDailySummary.objects.values("subscription_guid")[0].get("subscription_guid")
+            guid = OCPAzureCostLineItemDailySummaryP.objects.values("subscription_guid")[0].get("subscription_guid")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[subscription_guid]={guid}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -451,7 +451,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
-            service = OCPAzureCostLineItemDailySummary.objects.values("service_name")[0].get("service_name")
+            service = OCPAzureCostLineItemDailySummaryP.objects.values("service_name")[0].get("service_name")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service_name]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -483,7 +483,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly filtered by resource_location."""
         with tenant_context(self.tenant):
             location = (
-                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPAzureCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .values("resource_location")[0]
                 .get("resource_location")
             )
@@ -514,7 +514,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         mock_accept.return_value = "text/csv"
         with tenant_context(self.tenant):
             location = (
-                OCPAzureCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start.date())
+                OCPAzureCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.this_month_start.date())
                 .values("resource_location")[0]
                 .get("resource_location")
             )
@@ -597,14 +597,14 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
-                curr = OCPAzureCostLineItemDailySummary.objects.filter(
+                curr = OCPAzureCostLineItemDailySummaryP.objects.filter(
                     usage_start__gte=v_this_month_start,
                     usage_start__lte=v_today,
                     subscription_guid=sub.get("subscription_guid"),
                 ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
-                prev = OCPAzureCostLineItemDailySummary.objects.filter(
+                prev = OCPAzureCostLineItemDailySummaryP.objects.filter(
                     usage_start__gte=v_last_month_start,
                     usage_start__lte=v_today_last_month,
                     subscription_guid=sub.get("subscription_guid"),
@@ -625,12 +625,12 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            curr = OCPAzureCostLineItemDailySummary.objects.filter(
+            curr = OCPAzureCostLineItemDailySummaryP.objects.filter(
                 usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
             ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
-            prev = OCPAzureCostLineItemDailySummary.objects.filter(
+            prev = OCPAzureCostLineItemDailySummaryP.objects.filter(
                 usage_start__gte=self.dh.last_month_start, usage_start__lte=self.dh.today - relativedelta(months=1)
             ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))

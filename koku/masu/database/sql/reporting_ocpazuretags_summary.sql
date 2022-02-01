@@ -6,7 +6,7 @@ WITH cte_tag_value AS (
         li.report_period_id,
         project as namespace,
         node
-    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary AS li,
+    FROM {{schema | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p AS li,
         jsonb_each_text(li.tags) labels,
         unnest(li.namespace) projects(project)
     WHERE li.usage_start >= {{start_date}}
