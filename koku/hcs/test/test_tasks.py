@@ -5,6 +5,8 @@
 """Test the HCS task."""
 import logging
 from datetime import timedelta
+from unittest.mock import Mock
+from unittest.mock import patch
 
 from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_data
@@ -13,6 +15,7 @@ from hcs.test import HCSTestCase
 LOG = logging.getLogger(__name__)
 
 
+@patch("time.sleep", Mock())
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
