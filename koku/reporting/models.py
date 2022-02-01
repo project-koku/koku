@@ -39,8 +39,8 @@ from reporting.provider.aws.models import AWSStorageSummaryByAccountP
 from reporting.provider.aws.models import AWSStorageSummaryP
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummary
-from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
+from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByServiceP
@@ -65,8 +65,8 @@ from reporting.provider.azure.models import AzureNetworkSummaryP
 from reporting.provider.azure.models import AzureStorageSummaryP
 from reporting.provider.azure.models import AzureTagsSummary
 from reporting.provider.azure.openshift.models import OCPAzureComputeSummaryP
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummary
-from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummaryP
+from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByAccountP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByLocationP
 from reporting.provider.azure.openshift.models import OCPAzureCostSummaryByServiceP

@@ -442,7 +442,7 @@ FROM (
 ) as ocp_azure
 ;
 
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
     uuid,
     report_period_id,
     cluster_id,
