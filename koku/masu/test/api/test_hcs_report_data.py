@@ -30,6 +30,7 @@ class HCSDataTests(TestCase):
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         end_date = DateHelper().today
         start_date = end_date - timedelta(days=1)
+        multiple_calls = start_date.month != end_date.month
         params = {
             "schema": "acct10001",
             "start_date": start_date.date().strftime("%Y-%m-%d"),
@@ -38,9 +39,16 @@ class HCSDataTests(TestCase):
         }
         expected_key = "HCS Report Data Task ID"
 
+        expected_calls = [call(params["start_date"], params["end_date"])]
+
+        if multiple_calls:
+            expected_calls = [
+                call(params["start_date"], params["start_date"]),
+                call(params["end_date"], params["end_date"]),
+            ]
+
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
-        expected_calls = [call(params["start_date"], params["end_date"])]
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
         mock_celery.s.assert_has_calls(expected_calls, any_order=True)
