@@ -105,7 +105,7 @@ jobs:
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
           HIVE_DATABASE_PASSWORD: hivedbpw
           ACCOUNT_ENHANCED_METRICS: True
-          ENABLE_PARQUET_PROCESSING: True
+          ENABLE_TRINO_SOURCE_TYPE: GCP
           PROMETHEUS_MULTIPROC_DIR: /tmp
           TRINO_DATE_STEP: 31
 
