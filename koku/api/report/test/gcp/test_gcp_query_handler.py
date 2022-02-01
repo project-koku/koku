@@ -639,7 +639,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     account_id=account.get("account"),
                     usage_start__gte=self.dh.this_month_start,
                     usage_start__lte=self.dh.today,
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = GCPCostEntryLineItemDailySummary.objects.filter(
@@ -647,7 +647,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     account_id=account.get("account"),
                     usage_start__gte=self.dh.last_month_start,
                     usage_start__lte=self.dh.today - relativedelta(months=1),
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
             expected_delta_value = Decimal(current_total - prev_total)
@@ -668,14 +668,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 invoice_month__in=current_invoice_month,
                 usage_start__gte=self.dh.this_month_start,
                 usage_start__lte=self.dh.today,
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             current_total = Decimal(curr.get("value"))
 
             prev = GCPCostEntryLineItemDailySummary.objects.filter(
                 invoice_month__in=last_invoice_month,
                 usage_start__gte=self.dh.last_month_start,
                 usage_start__lte=self.dh.today - relativedelta(months=1),
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
