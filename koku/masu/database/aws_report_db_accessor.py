@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for report data."""
+import decimal
 import json
 import logging
 import pkgutil
@@ -486,6 +487,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
+        markup = decimal.Decimal(markup)
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}

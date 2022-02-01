@@ -103,9 +103,11 @@ jobs:
           DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
-          ACCOUNT_ENHANCED_METRICS: True
-          PROMETHEUS_MULTIPROC_DIR: /tmp
           HIVE_DATABASE_PASSWORD: hivedbpw
+          ACCOUNT_ENHANCED_METRICS: True
+          ENABLE_PARQUET_PROCESSING: True
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+          TRINO_DATE_STEP: 31
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml

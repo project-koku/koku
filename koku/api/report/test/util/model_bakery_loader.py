@@ -50,9 +50,9 @@ class ModelBakeryDataLoader(DataLoader):
         super().__init__(schema, customer, num_days)
         self.faker = Faker()
         self.currency = "USD"  # self.faker.currency_code()
-        self.num_tag_keys = 10
+        self.num_tag_keys = 5
         self.tag_keys = [self.faker.slug() for _ in range(self.num_tag_keys)]
-        self.tags = [{"app": self.faker.slug()}] + [{key: self.faker.slug()} for key in self.tag_keys]
+        self.tags = [{"app": "itstheapp"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
 
