@@ -7,6 +7,7 @@ import json
 import logging
 import pkgutil
 import uuid
+from decimal import Decimal
 
 from dateutil.parser import parse
 from django.conf import settings
@@ -486,6 +487,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
+        markup = Decimal(markup)
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
                 date_filters = {"usage_start__gte": start_date, "usage_start__lte": end_date}

@@ -7,6 +7,7 @@ import datetime
 import logging
 import pkgutil
 import uuid
+from decimal import Decimal
 from os import path
 
 from dateutil.parser import parse
@@ -277,6 +278,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
+        markup = Decimal(markup)
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
                 for bill_id in bill_ids:
