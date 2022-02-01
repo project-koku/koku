@@ -10,7 +10,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
 from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
 
@@ -103,7 +103,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             tag_keys = (
-                OCPAWSCostLineItemDailySummary.objects.annotate(tag_keys=JSONBObjectKeys("tags"))
+                OCPAWSCostLineItemDailySummaryP.objects.annotate(tag_keys=JSONBObjectKeys("tags"))
                 .values("tag_keys")
                 .distinct()
                 .all()
