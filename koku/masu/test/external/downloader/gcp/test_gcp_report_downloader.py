@@ -190,15 +190,16 @@ class GCPReportDownloaderTest(MasuTestCase):
         """Assert download_file successful scenario"""
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
         key = "202011_1234_2020-12-05:2020-12-08.csv"
-        mock_name = "Cody"
+        mock_name = "mock-test-customer-success"
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-            full_path, etag, date, _ = downloader.download_file(key)
-            mock_makedirs.assert_called()
-            self.assertEqual(etag, self.etag)
-            self.assertEqual(date, self.today)
-            self.assertEqual(full_path, expected_full_path)
+            with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
+                full_path, etag, date, _ = downloader.download_file(key)
+                mock_makedirs.assert_called()
+                self.assertEqual(etag, self.etag)
+                self.assertEqual(date, self.today)
+                self.assertEqual(full_path, expected_full_path)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -207,15 +208,16 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
         end_date = DateAccessor().today().date()
         key = f"202011_1234_2020-12-05:{end_date}.csv"
-        mock_name = "Cody"
+        mock_name = "mock-test-customer-end-date"
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-            full_path, etag, date, _ = downloader.download_file(key)
-            mock_makedirs.assert_called()
-            self.assertEqual(etag, self.etag)
-            self.assertEqual(date, self.today)
-            self.assertEqual(full_path, expected_full_path)
+            with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
+                full_path, etag, date, _ = downloader.download_file(key)
+                mock_makedirs.assert_called()
+                self.assertEqual(etag, self.etag)
+                self.assertEqual(date, self.today)
+                self.assertEqual(full_path, expected_full_path)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
     def test_download_file_query_client_error(self, mock_open):

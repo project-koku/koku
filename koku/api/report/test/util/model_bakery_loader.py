@@ -11,6 +11,7 @@ from itertools import cycle
 from itertools import product
 
 from django.test.utils import override_settings
+from django.utils import timezone
 from faker import Faker
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
@@ -52,7 +53,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.currency = "USD"  # self.faker.currency_code()
         self.num_tag_keys = 5
         self.tag_keys = [self.faker.slug() for _ in range(self.num_tag_keys)]
-        self.tags = [{"app": "itstheapp"}] + [{key: self.faker.slug()} for key in self.tag_keys]
+        self.tags = [{"app": self.faker.slug()}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
 
@@ -76,6 +77,7 @@ class ModelBakeryDataLoader(DataLoader):
                 "name": name,
                 "authentication__credentials": credentials,
                 "customer": self.customer,
+                "data_updated_timestamp": timezone.now(),
             }
 
             if provider_type == Provider.PROVIDER_OCP:

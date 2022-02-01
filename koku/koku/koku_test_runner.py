@@ -45,13 +45,14 @@ class KokuTestRunner(DiscoverRunner):
         self.keepdb = settings.KEEPDB
         return setup_databases(self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs)
 
-    @patch("koku.presto_database._execute")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_multipart_sql_query")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query")
-    @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
-    def run_tests(self, test_labels, mock_execute, mock_raw, mock_multipart, mock_presto, extra_tests=None, **kwargs):
+    # @patch("koku.presto_database._execute")
+    # @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_multipart_sql_query")
+    # @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query")
+    # @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    # def run_tests(self, test_labels, mock_execute, mock_raw, mock_multipart, mock_presto, extra_tests=None, **kwargs):
+    def run_tests(self, test_labels, extra_tests=None, **kwargs):
         """Mock Trino DB connections and run tests."""
-        super().run_tests(test_labels, extra_tests=extra_tests, kwargs=kwargs)
+        return super().run_tests(test_labels, extra_tests=extra_tests, kwargs=kwargs)
 
 
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
