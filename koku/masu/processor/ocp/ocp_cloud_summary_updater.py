@@ -87,8 +87,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             self._handle_partitions(
                 self._schema,
                 (
-                    "reporting_ocpawscostlineitem_daily_summary",
-                    "reporting_ocpawscostlineitem_project_daily_summary",
+                    "reporting_ocpawscostlineitem_daily_summary_p",
+                    "reporting_ocpawscostlineitem_project_daily_summary_p",
                     "reporting_ocpaws_compute_summary_p",
                     "reporting_ocpaws_cost_summary_p",
                     "reporting_ocpaws_cost_summary_by_account_p",
@@ -162,8 +162,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             self._handle_partitions(
                 self._schema,
                 (
-                    "reporting_ocpazurecostlineitem_daily_summary",
-                    "reporting_ocpazurecostlineitem_project_daily_summary",
+                    "reporting_ocpazurecostlineitem_daily_summary_p",
+                    "reporting_ocpazurecostlineitem_project_daily_summary_p",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
                     "reporting_ocpall_compute_summary_pt",
