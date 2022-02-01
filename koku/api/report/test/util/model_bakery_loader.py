@@ -261,7 +261,7 @@ class ModelBakeryDataLoader(DataLoader):
             bills.append(bill)
             with schema_context(self.schema):
                 days = (end_date - start_date).days
-                for i, project in product(range(days), projects):
+                for i, project, tags in product(range(days), projects, self.tags):
                     baker.make_recipe(
                         "api.report.test.util.gcp_daily_summary",
                         cost_entry_bill=bill,
@@ -271,7 +271,7 @@ class ModelBakeryDataLoader(DataLoader):
                         project_name=project[1],
                         usage_start=start_date + timedelta(i),
                         usage_end=start_date + timedelta(i),
-                        tags=cycle(self.tags),
+                        tags=tags,
                         currency=self.currency,
                         source_uuid=provider.uuid,
                     )
