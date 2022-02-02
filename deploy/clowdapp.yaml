@@ -438,9 +438,9 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: true
-        private:
           enabled: false
+        private:
+          enabled: true
         public:
           enabled: true
     - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
@@ -715,9 +715,9 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: true
-        private:
           enabled: false
+        private:
+          enabled: true
         public:
           enabled: true
     - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}

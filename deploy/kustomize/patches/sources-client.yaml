@@ -7,9 +7,9 @@
       public:
         enabled: true
       private:
-        enabled: false
-      metrics:
         enabled: true
+      metrics:
+        enabled: false
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       env:
