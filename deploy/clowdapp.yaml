@@ -438,11 +438,11 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: false
+          enabled: true
         private:
           enabled: true
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
       name: clowder-scheduler
       podSpec:
@@ -715,11 +715,11 @@ objects:
             secretName: koku-gcp
       webServices:
         metrics:
-          enabled: false
+          enabled: true
         private:
           enabled: true
         public:
-          enabled: true
+          enabled: false
     - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
       name: clowder-sources-listener
       podSpec:

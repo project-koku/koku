@@ -5,11 +5,11 @@
     minReplicas: ${{MASU_MIN_REPLICAS}}
     webServices:
       public:
-        enabled: true
+        enabled: false
       private:
         enabled: true
       metrics:
-        enabled: false
+        enabled: true
     podSpec:
       image: ${IMAGE}:${IMAGE_TAG}
       env:
