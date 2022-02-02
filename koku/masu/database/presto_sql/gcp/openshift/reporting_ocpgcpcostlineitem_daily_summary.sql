@@ -320,13 +320,13 @@ SELECT gcp_uuid,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
-        ELSE unblended_cost / project_rank / data_source_rank
-    END as pod_cost,
-    CASE WHEN data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
+    CASE WHEN data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
+        ELSE unblended_cost / project_rank / data_source_rank
+    END as pod_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,
     pod_limit_cpu_core_hours,
