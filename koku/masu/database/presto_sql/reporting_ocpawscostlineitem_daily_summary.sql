@@ -398,7 +398,7 @@ FROM (
     SELECT pds.aws_uuid,
         max(pds.cluster_id) as cluster_id,
         max(pds.cluster_alias) as cluster_alias,
-        max(pds.data_source) as data_source,
+        pds.data_source as data_source,
         pds.namespace,
         max(pds.node) as node,
         max(pds.persistentvolumeclaim) as persistentvolumeclaim,
@@ -439,7 +439,7 @@ FROM (
         ON pds.aws_uuid = r.aws_uuid
     LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
         ON pds.usage_account_id = aa.account_id
-    GROUP BY pds.aws_uuid, pds.namespace
+    GROUP BY pds.aws_uuid, pds.namespace, pds.data_source
 ) as ocp_aws
 ;
 

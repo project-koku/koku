@@ -398,7 +398,7 @@ SELECT azure_uuid,
     cast(day(usage_start) as varchar) as day
 FROM (
     SELECT pds.azure_uuid,
-        max(pds.data_source) as data_source,
+        pds.data_source as data_source,
         max(pds.cluster_id) as cluster_id,
         max(pds.cluster_alias) as cluster_alias,
         pds.namespace,
@@ -438,7 +438,7 @@ FROM (
     FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     JOIN cte_rankings as r
         ON pds.azure_uuid = r.azure_uuid
-    GROUP BY pds.azure_uuid, pds.namespace
+    GROUP BY pds.azure_uuid, pds.namespace, pds.data_source
 ) as ocp_azure
 ;
 
