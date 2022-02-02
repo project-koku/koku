@@ -5,7 +5,7 @@ set -e
 if [[ -z "${ACG_CONFIG}" ]]; then
     CLOWDER_PORT=8000
 else
-    if $MASU || $SOURCES; then
+    if [ $MASU ] || [ $SOURCES ]; then
         CLOWDER_PORT=$(python -c 'import app_common_python; print(app_common_python.LoadedConfig.privatePort)')
     else
         CLOWDER_PORT=$(python -c 'import app_common_python; print(app_common_python.LoadedConfig.publicPort)')
