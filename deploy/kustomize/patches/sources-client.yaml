@@ -94,7 +94,7 @@
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness
-          port: web
+          port: private
           scheme: HTTP
         initialDelaySeconds: 30
         periodSeconds: 20
@@ -104,7 +104,7 @@
       readinessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
-          port: web
+          port: private
           scheme: HTTP
         initialDelaySeconds: 30
         periodSeconds: 20
