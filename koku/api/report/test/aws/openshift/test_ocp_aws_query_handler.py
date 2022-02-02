@@ -20,7 +20,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AWSCostEntryBill
 from reporting.models import OCPAWSComputeSummaryP
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.models import OCPAWSCostSummaryByAccountP
 from reporting.models import OCPAWSCostSummaryByRegionP
 from reporting.models import OCPAWSCostSummaryByServiceP
@@ -88,7 +88,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         }
 
         with tenant_context(self.tenant):
-            self.services = OCPAWSCostLineItemDailySummary.objects.values("product_code").distinct()
+            self.services = OCPAWSCostLineItemDailySummaryP.objects.values("product_code").distinct()
             self.services = [entry.get("product_code") for entry in self.services]
 
     def get_totals_by_time_scope(self, aggregates, filters=None):
@@ -96,7 +96,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         if filters is None:
             filters = self.ten_day_filter
         with tenant_context(self.tenant):
-            return OCPAWSCostLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            return OCPAWSCostLineItemDailySummaryP.objects.filter(**filters).aggregate(**aggregates)
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""
