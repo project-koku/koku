@@ -22,10 +22,10 @@ from masu.util.common import date_range_pair
 from masu.util.gcp.common import get_bills_from_provider as gcp_get_bills_from_provider
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
-from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
-from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemProjectDailySummaryP
+from reporting.provider.gcp.openshift.models import UI_SUMMARY_TABLES as OCPGCP_UI_SUMMARY_TABLES
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES_MARKUP_SUBSET
 
 LOG = logging.getLogger(__name__)
