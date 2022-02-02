@@ -147,8 +147,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
             ELSE CAST('{}' AS JSON)
         END as volume_labels,
         rp.provider_id as source_uuid,
-        sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost) AS infrastructure_raw_cost,
-        sum(ocp_gcp.pod_cost + ocp_gcp.project_markup_cost) AS infrastructure_project_raw_cost,
+        sum(ocp_gcp.unblended_cost + ocp_gcp.markup_cost + ocp_gcp.credit_amount) AS infrastructure_raw_cost,
+        sum(ocp_gcp.pod_cost + ocp_gcp.project_markup_cost + ocp_gcp.credit_amount) AS infrastructure_project_raw_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as infrastructure_usage_cost,
         CAST('{"cpu": 0.000000000, "memory": 0.000000000, "storage": 0.000000000}' AS JSON) as supplementary_usage_cost,
         0 as pod_usage_cpu_core_hours,
