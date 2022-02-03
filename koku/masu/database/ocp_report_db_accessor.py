@@ -833,7 +833,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
-        markup = Decimal(markup)
         with schema_context(self.schema):
             OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
