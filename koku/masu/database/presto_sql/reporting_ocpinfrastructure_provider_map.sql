@@ -72,6 +72,6 @@
         'GCP' as type
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
-        ON any_match(map_keys(gcp.parsed_labels), e -> e like 'kubernetes-io-cluster-' || ocp.cluster_id)
+        ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)
             OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
 {% endif %}
