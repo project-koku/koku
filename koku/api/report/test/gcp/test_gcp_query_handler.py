@@ -1109,7 +1109,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                self.assertCountEqual(correctlst, lst)
 
     def test_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
