@@ -398,7 +398,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
-            port: web
+            port: private
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -408,7 +408,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
-            port: web
+            port: private
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -440,9 +440,9 @@ objects:
         metrics:
           enabled: true
         private:
-          enabled: false
-        public:
           enabled: true
+        public:
+          enabled: false
     - minReplicas: ${{SCHEDULER_MIN_REPLICAS}}
       name: clowder-scheduler
       podSpec:
@@ -675,7 +675,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
-            port: web
+            port: private
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -685,7 +685,7 @@ objects:
           failureThreshold: 5
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
-            port: web
+            port: private
             scheme: HTTP
           initialDelaySeconds: 30
           periodSeconds: 20
@@ -717,9 +717,9 @@ objects:
         metrics:
           enabled: true
         private:
-          enabled: false
-        public:
           enabled: true
+        public:
+          enabled: false
     - minReplicas: ${{SOURCES_LISTENER_MIN_REPLICAS}}
       name: clowder-sources-listener
       podSpec:
@@ -2511,7 +2511,7 @@ parameters:
   value: trino-coordinator
 - displayName: Presto/Trino port
   name: PRESTO_PORT
-  value: "8000"
+  value: "10000"
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
