@@ -104,7 +104,116 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 ;
 
--- OCP ON GCP is special and we dont do resource id matching, we match exclusively on tags
+-- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
+    gcp_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    pod_labels,
+    resource_id,
+    usage_start,
+    usage_end,
+    account_id,
+    project_id,
+    project_name,
+    instance_type,
+    service_id,
+    service_alias,
+    sku_id,
+    sku_alias,
+    region,
+    unit,
+    usage_amount,
+    currency,
+    invoice_month,
+    credit_amount,
+    unblended_cost,
+    markup_cost,
+    project_markup_cost,
+    pod_cost,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    volume_labels,
+    tags,
+    project_rank,
+    data_source_rank
+)
+SELECT gcp.uuid as gcp_uuid,
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    ocp.data_source,
+    ocp.namespace,
+    max(ocp.node) as node,
+    cast(NULL as varchar) as persistentvolumeclaim,
+    cast(NULL as varchar) as persistentvolume,
+    cast(NULL as varchar) as storageclass,
+    max(ocp.pod_labels) as pod_labels,
+    max(ocp.resource_id) as resource_id,
+    max(gcp.usage_start_time) as usage_start,
+    max(gcp.usage_start_time) as usage_end,
+    max(gcp.billing_account_id) as account_id,
+    max(gcp.project_id) as project_id,
+    max(gcp.project_name) as project_name,
+    max(json_extract_scalar(json_parse(gcp.system_labels), '$["compute.googleapis.com/machine_spec"]')) as instance_type,
+    max(nullif(gcp.service_id, '')) as service_id,
+    max(nullif(gcp.service_description, '')) as service_alias,
+    max(nullif(gcp.sku_id, '')) as sku_id,
+    max(nullif(gcp.sku_description, '')) as sku_alias,
+    max(nullif(gcp.location_region, '')) as region,
+    max(gcp.usage_pricing_unit) as unit,
+    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    max(gcp.currency) as currency,
+    gcp.invoice_month as invoice_month,
+    sum(credits) as credit_amount,
+    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
+    cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
+    cast(NULL as double) AS project_markup_cost,
+    cast(NULL AS double) AS pod_cost,
+    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
+    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    NULL as volume_labels,
+    max(json_format(json_parse(gcp.labels))) as tags,
+    row_number() OVER (partition by gcp.uuid, ocp.data_source) as project_rank,
+    1 as data_source_rank
+FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
+JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+    ON date(gcp.usage_start_time) = ocp.usage_start
+        AND strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
+WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
+    AND gcp.year = '{{year | sqlsafe}}'
+    AND gcp.month = '{{month | sqlsafe}}'
+    AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
+    AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+    AND ocp.report_period_id = {{report_period_id | sqlsafe}}
+    AND ocp.year = {{year}}
+    AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND ocp.day IN ({{days}})
+    AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
+GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
+;
+
+-- direct tag matching, these costs are split evenly between pod and storage since we don't have the info to quantify them separately
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
@@ -204,7 +313,6 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
                 OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
-                OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
             )
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
