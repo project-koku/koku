@@ -2511,7 +2511,7 @@ parameters:
   value: trino-coordinator
 - displayName: Presto/Trino port
   name: PRESTO_PORT
-  value: "8000"
+  value: "10000"
 - displayName: Prometheus Pushgateway
   name: PROMETHEUS_PUSHGATEWAY
   value: prometheus-pushgateway:9091
