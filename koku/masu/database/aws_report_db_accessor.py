@@ -370,7 +370,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = self._table_map["ocp_on_aws_project_daily_summary"]
+        table = "reporting_ocpawscostlineitem_project_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
