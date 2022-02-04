@@ -135,6 +135,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 }
                 msg = "OCP cluster not found in OCPCluster table"
                 LOG.error(log_json(self.tracing_id, msg, ctx))
+                # TODO: THIS IS TEMPORARY. SHOULD BE REMOVED WHEN WE ARE FULLY MIGRATED TO TRINO
                 error = ParquetReportProcessorError("OCP cluster not found in OCPCluster table")
                 continue
             # Get matching tags
@@ -154,5 +155,6 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 self.create_ocp_on_cloud_parquet(
                     openshift_filtered_data_frame, parquet_base_filename, i, ocp_provider_uuid
                 )
+        # TODO: THIS IS TEMPORARY. SHOULD BE REMOVED WHEN WE ARE FULLY MIGRATED TO TRINO
         if error:
             raise error
