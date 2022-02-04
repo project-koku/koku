@@ -61,7 +61,7 @@ jobs:
           files: |
             koku/api/iam/test/test_clone_schema.py
             koku/koku/database.py
-            migrations/
+            **/migrations/**
 
       - name: Get exclusion tags
         id: exclusion-tags
