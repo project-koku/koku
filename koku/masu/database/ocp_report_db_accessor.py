@@ -641,7 +641,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_hive_partition_by_day(self, days, source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = self._table_map["line_item_daily_summary"]
+        table = "reporting_ocpusagelineitem_daily_summary"
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
