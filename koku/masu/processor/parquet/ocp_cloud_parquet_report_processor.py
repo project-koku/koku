@@ -20,6 +20,7 @@ from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessorError
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 
@@ -112,6 +113,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
 
     def process(self, parquet_base_filename, daily_data_frames):
         """Filter data and convert to parquet."""
+        error = None
         for ocp_provider_uuid, infra_tuple in self.ocp_infrastructure_map.items():
             infra_provider_uuid = infra_tuple[0]
             if infra_provider_uuid != self.provider_uuid:
@@ -133,6 +135,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 }
                 msg = "OCP cluster not found in OCPCluster table"
                 LOG.error(log_json(self.tracing_id, msg, ctx))
+                error = ParquetReportProcessorError("OCP cluster not found in OCPCluster table")
                 continue
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
@@ -151,3 +154,5 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 self.create_ocp_on_cloud_parquet(
                     openshift_filtered_data_frame, parquet_base_filename, i, ocp_provider_uuid
                 )
+        if error:
+            raise error
