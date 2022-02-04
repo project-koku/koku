@@ -21,10 +21,6 @@ from koku.database import cascade_delete
 LOG = logging.getLogger(__name__)
 
 
-class FakeModelForPRTest(models.Model):
-    uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
-
-
 class ProviderAuthentication(models.Model):
     """A Koku Provider Authentication.
 
