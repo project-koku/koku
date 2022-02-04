@@ -9,6 +9,7 @@ from functools import cached_property
 
 from tenant_schemas.utils import schema_context
 
+from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -123,6 +124,16 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             # Get OpenShift topology data
             with OCPReportDBAccessor(self.schema_name) as accessor:
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
+            if cluster_topology is None:
+                # Improved logging for COST-2302
+                ctx = {
+                    "ocp-provider-uuid": ocp_provider_uuid,
+                    "infra-provider-uuid": infra_provider_uuid,
+                    "infra-type": infra_tuple[1],
+                }
+                msg = "OCP cluster not found in OCPCluster table"
+                LOG.error(log_json(self.tracing_id, msg, ctx))
+                continue
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
             LOG.info("Getting matching tags from Postgres.")

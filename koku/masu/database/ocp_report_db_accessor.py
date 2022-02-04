@@ -2403,6 +2403,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_openshift_topology_for_provider(self, provider_uuid):
         """Return a dictionary with Cluster topology."""
         cluster = self.get_cluster_for_provider(provider_uuid)
+        if cluster is None:
+            return
         topology = {"cluster_id": cluster.cluster_id, "cluster_alias": cluster.cluster_alias}
         node_tuples = self.get_nodes_for_cluster(cluster.uuid)
         pvc_tuples = self.get_pvcs_for_cluster(cluster.uuid)
