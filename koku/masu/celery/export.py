@@ -124,12 +124,12 @@ table_export_settings = [
     ),
     TableExportSetting(
         "ocp",
-        "reporting_ocpawscostlineitem_daily_summary",
+        "reporting_ocpawscostlineitem_daily_summary_p",
         True,
         """
         SELECT DISTINCT ds.*
         FROM
-            {schema}.reporting_ocpawscostlineitem_daily_summary ds
+            {schema}.reporting_ocpawscostlineitem_daily_summary_p ds
             JOIN {schema}.reporting_ocpusagereportperiod rp ON ds.cluster_id = rp.cluster_id
         WHERE
             ds.usage_start BETWEEN %(start_date)s AND %(end_date)s
@@ -139,12 +139,12 @@ table_export_settings = [
     ),
     TableExportSetting(
         "ocp",
-        "reporting_ocpawscostlineitem_project_daily_summary",
+        "reporting_ocpawscostlineitem_project_daily_summary_p",
         True,
         """
         SELECT DISTINCT pds.*
         FROM
-            {schema}.reporting_ocpawscostlineitem_project_daily_summary pds
+            {schema}.reporting_ocpawscostlineitem_project_daily_summary_p pds
             JOIN {schema}.reporting_ocpusagereportperiod rp ON pds.cluster_id = rp.cluster_id
         WHERE
             pds.usage_start BETWEEN %(start_date)s AND %(end_date)s
