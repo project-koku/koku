@@ -13,20 +13,18 @@ try:
 except ValueError:
     PRESTO_PORT = 8080
 
+CONNECT_PARAMS = {
+    "host": PRESTO_HOST,
+    "port": PRESTO_PORT,
+    "user": PRESTO_USER,
+    "catalog": PRESTO_CATALOG,
+    "schema": "default",
+}
 
-def check_schema(schema, trino_cursor):
-    schema_check_sql = f"SHOW SCHEMAS LIKE '{schema}'"
-    schema = trino_cursor.execute(schema_check_sql)
-    logging.info("Checking for schema")
-    if schema:
-        return True
-    return False
 
-
-def get_schemas(trino_cursor):
-    schemas_sql = "SELECT schema_name FROM information_schema.schemata"
-    trino_cursor.execute(schemas_sql)
-    schemas = trino_cursor.fetchall()
+def get_schemas():
+    sql = "SELECT schema_name FROM information_schema.schemata"
+    schemas = run_trino_sql(sql, CONNECT_PARAMS)
     schemas = [
         schema
         for listed_schema in schemas
@@ -36,53 +34,58 @@ def get_schemas(trino_cursor):
     return schemas
 
 
-table_names = ["openshift_pod_usage_line_items_daily", "reporting_ocpawscostlineitem_project_daily_summary_temp"]
-trino_conn = False
-logging.info("Running the hive migration for cost model effective cost")
-try:
-    trino_conn = trino.dbapi.connect(
-        host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema="default"
-    )
-    trino_cur = trino_conn.cursor()
-    schemas = get_schemas(trino_cur)
+def run_trino_sql(sql, conn_params):
+    with trino.dbapi.connect(**conn_params) as conn:
+        cur = conn.cursor()
+        cur.execute(sql)
+        result = cur.fetchall()
+    return result
+
+
+def drop_tables(tables, conn_params):
+    for table_name in tables:
+        logging.info(f"dropping table {table_name}")
+        sql = f"DROP TABLE IF EXISTS {table_name}"
+        try:
+            result = run_trino_sql(sql, conn_params)
+            logging.info("Drop table result: ")
+            logging.info(result)
+        except Exception as e:
+            logging.info(e)
+
+
+def add_columns_to_table(columns, table, conn_params):
+    for column in columns:
+        logging.info(f"adding column {column} to table {table}")
+        sql = f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} double"
+        try:
+            result = run_trino_sql(sql, conn_params)
+            logging.info("ALTER TABLE result: ")
+            logging.info(result)
+        except Exception as e:
+            logging.info(e)
+
+
+def main():
+    logging.info("Running the hive migration for cost model effective cost")
+
+    logging.info("fetching schemas")
+    schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
-    trino_conn.close()
-    for schema in schemas:
-        trino_conn = trino.dbapi.connect(
-            host=PRESTO_HOST, port=PRESTO_PORT, user=PRESTO_USER, catalog=PRESTO_CATALOG, schema=schema
-        )
-        trino_cur = trino_conn.cursor()
-        if check_schema(schema, trino_cur):
-            for table_name in table_names:
-                try:
-                    logging.info(f"Dropping table {table_name} from {schema}.")
-                    trino_cur.execute(
-                        f"""
-                        DROP TABLE IF EXISTS {table_name}
-                    """
-                    )
-                    result = trino_cur.fetchall()
-                    logging.info("Drop table result: ")
-                    logging.info(result)
-                except Exception as e:
-                    logging.info(e)
-            try:
-                table_name = "reporting_ocpusagelineitem_daily_summary"
-                columns = ["pod_effective_usage_memory_gigabyte_hours", "pod_effective_usage_cpu_core_hours"]
 
-                logging.info(f"Altering table {table_name} from {schema}.")
-                for column in columns:
-                    trino_cur.execute(
-                        f"""
-                        ALTER TABLE {table_name} ADD COLUMN {column} double
-                    """
-                    )
-                    result = trino_cur.fetchall()
-                    logging.info("ALTER TABLE result: ")
-                    logging.info(result)
-            except Exception as e:
-                logging.info(e)
-finally:
-    if trino_conn:
-        trino_conn.close()
+    tables_to_drop = [
+        "openshift_pod_usage_line_items_daily",
+        "reporting_ocpawscostlineitem_project_daily_summary_temp",
+    ]
+    columns_to_add = ["pod_effective_usage_memory_gigabyte_hours", "pod_effective_usage_cpu_core_hours"]
+    for schema in schemas:
+        CONNECT_PARAMS["schema"] = schema
+        logging.info(f"*** dropping tables for schema {schema} ***")
+        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** adding columns for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "reporting_ocpusagelineitem_daily_summary", CONNECT_PARAMS)
+
+
+if __name__ == "__main__":
+    main()
