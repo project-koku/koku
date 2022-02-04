@@ -67,9 +67,9 @@ jobs:
         id: exclusion-tags
         run: |
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "::set-output name=exclusions::schema"
-          else
             echo "::set-output name=exclusions::"
+          else
+            echo "::set-output name=exclusions::schema"
           fi
 
       - name: Display build environment
