@@ -54,6 +54,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get changed files to determine if schema tests can be skipped
+        id: changed-files
+        uses: tj-actions/changed-files@v13
+        with:
+          files: |
+            koku/api/iam/test/test_clone_schema.py
+            koku/koku/database.py
+            migrations/
+
+      - name: Get exclusion tags
+        id: exclusion-tags
+        run: |
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
+            echo "::set-output name=exclusions::schema"
+          else
+            echo "::set-output name=exclusions::"
+          fi
+
       - name: Display build environment
         run: printenv
 
@@ -95,7 +113,7 @@ jobs:
           PROMETHEUS_MULTIPROC_DIR: /tmp
 
       - name: Run unit tests
-        run: pipenv run coverage run ./koku/manage.py test --noinput --verbosity 2 ./koku/
+        run: pipenv run coverage run ./koku/manage.py test --exclude-tag=${{ steps.exclusion-tags.outputs.exclusions }} --noinput --verbosity 2 ./koku/
         env:
           DATABASE_SERVICE_NAME: POSTGRES_SQL
           DATABASE_ENGINE: postgresql

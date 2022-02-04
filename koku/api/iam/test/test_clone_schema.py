@@ -8,6 +8,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
+from django.test import tag
 from tenant_schemas.utils import schema_exists
 
 from ..models import CloneSchemaFuncMissing
@@ -51,6 +52,7 @@ delete
         cur.execute(sql, (Tenant._TEMPLATE_SCHEMA,))
 
 
+@tag("schema")
 class CloneSchemaTest(IamTestCase):
     def test_create_template_schema_exception(self):
         """
