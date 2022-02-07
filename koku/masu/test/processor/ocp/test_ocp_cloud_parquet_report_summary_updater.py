@@ -35,6 +35,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         super().setUp()
         self.today = self.dh.today
 
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tags_summary_table"  # noqa: E501
@@ -61,6 +62,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocp_on_aws,
         mock_tag_summary,
         mock_map,
+        mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()
@@ -68,6 +70,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id
+        # this is a yes or no check so true is fine
+        mock_cluster_info.return_value = True
         fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
@@ -97,6 +101,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             distribution,
         )
 
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
@@ -123,6 +128,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocp_on_azure,
         mock_tag_summary,
         mock_map,
+        mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()
@@ -130,6 +136,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id
+        # this is basically a yes or no check so true is fine
+        mock_cluster_info.return_value = True
         fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
@@ -158,6 +166,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             distribution,
         )
 
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
     @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
@@ -184,6 +193,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ocp_on_azure,
         mock_tag_summary,
         mock_map,
+        mock_cluster_info,
     ):
         """Test that summary tables are properly run for an OCP provider."""
         fake_bills = MagicMock()
@@ -191,6 +201,8 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         first = Mock()
         bill_id = 1
         first.return_value.id = bill_id
+        # this is a yes or no check so true is fine
+        mock_cluster_info.return_value = True
         fake_bills.first = first
         mock_utility.return_value = fake_bills
         start_date = self.dh.today.date()
@@ -218,6 +230,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             decimal.Decimal(0),
             distribution,
         )
+
 
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
@@ -398,3 +411,40 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         mock_ui_tables.assert_called_with(sql_params)
 
         mock_tag_summary.assert_called_with([str(bill.id) for bill in fake_bills], start_date, end_date)
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_presto"  # noqa: E501
+    )
+    def test_update_azure_summary_tables_with_no_cluster_info(self, mock_ocp_on_azure, mock_cluster_info):
+        """Test that azure summary tables are not updated when there is no cluster info."""
+        # this is a yes or no check so false is fine
+        mock_cluster_info.return_value = False
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+        updater.update_azure_summary_tables(
+            self.ocp_test_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
+        )
+        mock_ocp_on_azure.assert_not_called()
+
+    @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
+    @patch(
+        "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_presto"  # noqa: E501
+    )
+    def test_update_aws_summary_tables_with_no_cluster_info(self, mock_ocp_on_aws, mock_cluster_info):
+        """Test that aws summary tables are not updated when there is no cluster info."""
+        # this is a yes or no check so false is fine
+        mock_cluster_info.return_value = False
+        start_date = self.dh.today.date()
+        end_date = start_date + datetime.timedelta(days=1)
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+        updater.update_aws_summary_tables(
+            self.ocp_test_provider_uuid, self.aws_test_provider_uuid, str(start_date), str(end_date)
+        )
+        mock_ocp_on_aws.assert_not_called()
+

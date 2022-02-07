@@ -128,6 +128,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             LOG.info(msg)
             # Get OpenShift topology data
             with OCPReportDBAccessor(self.schema_name) as accessor:
+                if not accessor.get_cluster_for_provider(ocp_provider_uuid):
+                    LOG.info(
+                        f"No cluster information available for OCP Provider: {ocp_provider_uuid},"
+                        + "skipping OCP on Cloud parquet processing."
+                    )
+                    continue
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
