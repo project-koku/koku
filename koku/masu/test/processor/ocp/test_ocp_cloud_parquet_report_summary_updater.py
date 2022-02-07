@@ -234,7 +234,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_cost_daily_summary_presto"  # noqa: E501
     )
     def test_update_azure_summary_tables_with_no_cluster_info(self, mock_ocp_on_azure, mock_cluster_info):
-        """Test that summary tables are properly run for an OCP provider."""
+        """Test that azure summary tables are not updated when there is no cluster info."""
         # this is a yes or no check so false is fine
         mock_cluster_info.return_value = False
         start_date = self.dh.today.date()
@@ -252,7 +252,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary_presto"  # noqa: E501
     )
     def test_update_aws_summary_tables_with_no_cluster_info(self, mock_ocp_on_aws, mock_cluster_info):
-        """Test that summary tables are properly run for an OCP provider."""
+        """Test that aws summary tables are not updated when there is no cluster info."""
         # this is a yes or no check so false is fine
         mock_cluster_info.return_value = False
         start_date = self.dh.today.date()
