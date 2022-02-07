@@ -13,6 +13,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.gcp.models import PRESTO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportParquetProcessor(ReportParquetProcessorBase):
@@ -25,11 +26,14 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             "credit_amount",
         ]
         date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
-        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
-        if "daily" in s3_path:
+        if "openshift" in s3_path:
+            table_name = PRESTO_OCP_ON_GCP_DAILY_TABLE
+            numeric_columns.append("credits")
+        elif "daily" in s3_path:
             table_name = PRESTO_LINE_ITEM_DAILY_TABLE
         else:
             table_name = PRESTO_LINE_ITEM_TABLE
+        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
         super().__init__(
             manifest_id=manifest_id,
             account=account,

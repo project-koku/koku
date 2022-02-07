@@ -63,6 +63,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
                 self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
             elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+            elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
             # Update markup for OpenShift tables
             with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
