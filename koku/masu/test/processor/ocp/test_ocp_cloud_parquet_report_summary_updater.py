@@ -231,7 +231,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             distribution,
         )
 
-
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
     )
@@ -447,4 +446,3 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.ocp_test_provider_uuid, self.aws_test_provider_uuid, str(start_date), str(end_date)
         )
         mock_ocp_on_aws.assert_not_called()
-

@@ -176,7 +176,6 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
 
-
     def test_ocp_on_gcp_data_processor(self):
         """Test that the processor is properly set."""
         report_processor = OCPCloudParquetReportProcessor(
@@ -198,4 +197,3 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.report_processor.process("", [pd.DataFrame()])
         mock_data_processor.assert_not_called()
         mock_create_parquet.assert_not_called()
-
