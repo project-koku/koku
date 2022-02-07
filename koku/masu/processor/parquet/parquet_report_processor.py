@@ -302,7 +302,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self):
+    def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -352,7 +352,6 @@ class ParquetReportProcessor:
                 LOG.warn(log_json(self.tracing_id, msg, self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
-
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
