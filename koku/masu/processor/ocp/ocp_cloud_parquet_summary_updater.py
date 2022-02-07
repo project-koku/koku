@@ -41,6 +41,12 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
         with OCPReportDBAccessor(self._schema) as accessor:
+            if not accessor.get_cluster_for_provider(openshift_provider_uuid):
+                LOG.info(
+                    f"No cluster information available for OCP Provider: {openshift_provider_uuid}, "
+                    f"skipping OCP on Cloud summary table update for AWS source: {aws_provider_uuid}."
+                )
+                return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
@@ -145,6 +151,12 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
 
         with OCPReportDBAccessor(self._schema) as accessor:
+            if not accessor.get_cluster_for_provider(openshift_provider_uuid):
+                LOG.info(
+                    f"No cluster information available for OCP Provider: {openshift_provider_uuid}, "
+                    + f"skipping OCP on Cloud summary table update for Azure source: {azure_provider_uuid}."
+                )
+                return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
