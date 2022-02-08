@@ -6,6 +6,7 @@
 import json
 import logging
 import os
+import re
 import shutil
 import tempfile
 import time
@@ -497,13 +498,14 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         fake_remover.return_value = expected_results
 
-        expected = "INFO:masu.processor._tasks.remove_expired:Expired Data:\n {}"
+        re_expected_results = re.sub(r"([\[\{\}\]])", r"\\\1", str(expected_results))
+        expected = re.compile(f"INFO:masu.processor._tasks.remove_expired:.*Expired Data:\n {re_expected_results}")
 
         # disable logging override set in masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor._tasks.remove_expired") as logger:
             remove_expired_data(schema_name=self.schema, provider=Provider.PROVIDER_AWS, simulate=True)
-            self.assertIn(expected.format(str(expected_results)), logger.output)
+            self.assertRegexIn(expected, logger.output)
 
 
 class TestUpdateSummaryTablesTask(MasuTestCase):
@@ -781,10 +783,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that the vacuum schema task runs."""
         logging.disable(logging.NOTSET)
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
-        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE acct10001.table"
+        expected = re.compile(r"INFO:masu.processor.tasks:.*VACUUM ANALYZE acct10001.table")
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             vacuum_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
     def test_autovacuum_tune_schema_default_table(self, mock_conn):
@@ -796,44 +798,49 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             del os.environ["AUTOVACUUM_TUNING"]
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE "
+            + r"acct10001.cost_model set \(autovacuum_vacuum_scale_factor = 0.01\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE "
+            + r"acct10001.cost_model set \(autovacuum_vacuum_scale_factor = 0.02\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE "
+            + r"acct10001.cost_model set \(autovacuum_vacuum_scale_factor = 0.05\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.05")})
         ]
-        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        expected = re.compile("INFO:masu.processor.tasks:.*Altered autovacuum_vacuum_scale_factor on 0 tables")
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.02")})
         ]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        expected = re.compile(
+            r"INFO:masu.processor.tasks:.*ALTER TABLE acct10001.cost_model reset \(autovacuum_vacuum_scale_factor\);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
     def test_autovacuum_tune_schema_custom_table(self, mock_conn):
@@ -843,44 +850,49 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         os.environ["AUTOVACUUM_TUNING"] = json.dumps(scale_table)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.0001);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE acct10001.cost_model "
+            + r"set \(autovacuum_vacuum_scale_factor = 0.0001\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.004);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE acct10001.cost_model "
+            + r"set \(autovacuum_vacuum_scale_factor = 0.004\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.011);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE acct10001.cost_model "
+            + r"set \(autovacuum_vacuum_scale_factor = 0.011\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.011")})
         ]
-        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        expected = re.compile("INFO:masu.processor.tasks:.*Altered autovacuum_vacuum_scale_factor on 0 tables")
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.004")})
         ]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        expected = re.compile(
+            r"INFO:masu.processor.tasks:.*ALTER TABLE acct10001.cost_model reset \(autovacuum_vacuum_scale_factor\);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         del os.environ["AUTOVACUUM_TUNING"]
 
@@ -896,20 +908,21 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.04")})
         ]
-        expected = "INFO:masu.processor.tasks:Altered autovacuum_vacuum_scale_factor on 0 tables"
+        expected = re.compile("INFO:masu.processor.tasks:.*Altered autovacuum_vacuum_scale_factor on 0 tables")
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.06")})
         ]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE "
+            + r"acct10001.cost_model set \(autovacuum_vacuum_scale_factor = 0.05\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
     @patch("masu.processor.tasks.connection")
     def test_autovacuum_tune_schema_invalid_setting(self, mock_conn):
@@ -924,12 +937,13 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000000, {"autovacuum_vacuum_scale_factor": ""})
         ]
-        expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+        expected = re.compile(
+            "INFO:masu.processor.tasks:.*ALTER TABLE "
+            + r"acct10001.cost_model set \(autovacuum_vacuum_scale_factor = 0.01\);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
     def test_autovacuum_tune_schema_normalize(self):
         """Test that the autovacuum tuning runs."""

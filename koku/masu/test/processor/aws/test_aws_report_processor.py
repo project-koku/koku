@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import random
+import re
 import shutil
 import tempfile
 from unittest.mock import Mock
@@ -171,17 +172,18 @@ class AWSReportProcessorTest(MasuTestCase):
 
         bill_date = self.manifest.billing_period_start_datetime.date()
 
-        expected = (
-            f"INFO:masu.processor.report_processor_base:Processing bill starting on {bill_date}.\n"
-            f" Processing entire month.\n"
-            f" schema_name: {self.schema},\n"
-            f" provider_uuid: {self.aws_provider_uuid},\n"
-            f" manifest_id: {self.manifest.id}"
+        expected = re.compile(
+            f"INFO:masu.processor.report_processor_base:.*Processing bill starting on {bill_date}.\n"
+            + " Processing entire month.\n"
+            + f" schema_name: {self.schema},\n"
+            + f" provider_uuid: {self.aws_provider_uuid},\n"
+            + f" manifest_id: {self.manifest.id}",
+            flags=re.MULTILINE,
         )
         logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
         with self.assertLogs("masu.processor.report_processor_base", level="INFO") as logger:
             processor.process()
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
         for table_name in self.report_tables:
             table = getattr(report_schema, table_name)
@@ -220,15 +222,15 @@ class AWSReportProcessorTest(MasuTestCase):
                 count = table.objects.count()
             counts[table_name] = count
 
-        expected = (
-            "INFO:masu.processor.aws.aws_report_processor:"
-            f"Skip processing for file: {base_name} and "
-            f"schema: {self.schema} as it was not found on disk."
+        expected = re.compile(
+            "INFO:masu.processor.aws.aws_report_processor:.*"
+            + f"Skip processing for file: {base_name} and "
+            + f"schema: {self.schema} as it was not found on disk."
         )
         logging.disable(logging.NOTSET)  # We are currently disabling all logging below CRITICAL in masu/__init__.py
         with self.assertLogs("masu.processor.aws.aws_report_processor", level="INFO") as logger:
             processor.process()
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
     def test_process_gzip(self):
         """Test the processing of a gzip compressed file."""
