@@ -4,6 +4,7 @@
 #
 """Test the status API."""
 import logging
+import re
 from collections import namedtuple
 from unittest.mock import ANY
 from unittest.mock import Mock
@@ -41,6 +42,15 @@ class StatusModelTest(TestCase):
         """Create test case setup."""
         super().setUp()
         Tenant.objects.get_or_create(schema_name="public")
+
+    def _regex_search(self, regex, iterable):
+        return any(bool(regex.search(elem)) for elem in iterable)
+
+    def assertRegexIn(self, regex, iterable, message=None):
+        found = self._regex_search(regex, iterable)
+        if message is None:
+            message = f'"{regex.pattern}" was not found in {iterable}'
+        self.assertTrue(found, message)
 
     @override_settings(GIT_COMMIT="buildnum")
     def test_commit(self):
@@ -87,11 +97,11 @@ class StatusModelTest(TestCase):
     def test_startup_without_modules(self, mock_mods):
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
-        expected = "INFO:api.status.models:Modules: None"
+        expected = re.compile(r"INFO:api.status.models:.*Modules: None")
 
         with self.assertLogs("api.status.models", level="INFO") as logger:
             self.status_info.startup()
-            self.assertIn(expected, logger.output)
+            self.assertRegexIn(expected, logger.output)
 
 
 class StatusViewTest(TestCase):
