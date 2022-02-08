@@ -5529,6 +5529,13 @@
                                         }
                                     }
                                 }
+                            },
+                            "additional_context": {
+                                "type": "object",
+                                "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
+                                "example": {
+                                    "crawl_heirarchy": "False"
+                                }
                             }
                         }
                     }

@@ -231,6 +231,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["has_data"] = False
                 source["infrastructure"] = {}
                 source["cost_models"] = []
+                source["additional_context"] = {}
             else:
                 source["provider_linked"] = True
                 source["active"] = manager.get_active_status()
@@ -242,6 +243,7 @@ class SourcesViewSet(*MIXIN_LIST):
                 source["cost_models"] = [
                     {"name": model.name, "uuid": model.uuid} for model in manager.get_cost_models(tenant)
                 ]
+                source["additional_context"] = manager.get_additional_context()
         return response
 
     @method_decorator(never_cache)

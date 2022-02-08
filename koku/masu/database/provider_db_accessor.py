@@ -108,6 +108,17 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.type if self.provider else None
 
+    def get_additional_context(self):
+        """
+        Returns additional context information.
+
+        Args:
+            None
+        Returns:
+            (dict): { 'crawl_hierarchy': True }
+        """
+        return self.provider.additional_context if self.provider else None
+
     def get_credentials(self):
         """
         Return the credential information.
@@ -252,4 +263,10 @@ class ProviderDBAccessor(KokuDBAccess):
         """Set the data updated timestamp to the current time."""
         if self.provider:
             self.provider.data_updated_timestamp = self.date_accessor.today_with_timezone("UTC")
+            self.provider.save()
+
+    def set_additional_context(self, new_value):
+        """Sets the additional context value."""
+        if self.provider:
+            self.provider.additional_context = new_value
             self.provider.save()
