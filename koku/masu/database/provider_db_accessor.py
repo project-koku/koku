@@ -117,7 +117,7 @@ class ProviderDBAccessor(KokuDBAccess):
         Returns:
             (dict): { 'crawl_hierarchy': True }
         """
-        return self.provider.additional_context if self.provider else None
+        return self.provider.additional_context if self.provider else {}
 
     def get_credentials(self):
         """
