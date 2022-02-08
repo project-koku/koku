@@ -21,7 +21,6 @@ from hcs.tasks import collect_hcs_report_data
 from hcs.tasks import HCS_QUEUE
 from masu.database.provider_db_accessor import ProviderDBAccessor
 
-# flake8: noqa
 
 LOG = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ def hcs_report_data(request):
 
         if provider_uuid:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                print(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
+                LOG.debug(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
                 provider = provider_accessor.get_type()
         else:
             provider = provider_type
@@ -89,7 +88,7 @@ def hcs_report_data(request):
             )
 
         for month in months:
-            async_result = collect_hcs_report_data.s(start_date, end_date).apply_async(queue=HCS_QUEUE)
+            async_result = collect_hcs_report_data.s(month[0], month[1]).apply_async(queue=HCS_QUEUE)
             async_results.append({str(month): str(async_result)})
 
         return Response({report_data_msg_key: async_results})

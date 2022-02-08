@@ -15,8 +15,8 @@ AWS_CUR_TABLE_MAP = {
     "reservation": "reporting_awscostentryreservation",
     "tags_summary": "reporting_awstags_summary",
     "enabled_tag_keys": "reporting_awsenabledtagkeys",
-    "ocp_on_aws_daily_summary": "reporting_ocpawscostlineitem_daily_summary",
-    "ocp_on_aws_project_daily_summary": "reporting_ocpawscostlineitem_project_daily_summary",
+    "ocp_on_aws_daily_summary": "reporting_ocpawscostlineitem_daily_summary_p",
+    "ocp_on_aws_project_daily_summary": "reporting_ocpawscostlineitem_project_daily_summary_p",
     "ocp_on_aws_tags_summary": "reporting_ocpawstags_summary",
 }
 
@@ -45,8 +45,8 @@ AZURE_REPORT_TABLE_MAP = {
     "line_item_daily_summary": "reporting_azurecostentrylineitem_daily_summary",
     "tags_summary": "reporting_azuretags_summary",
     "enabled_tag_keys": "reporting_azureenabledtagkeys",
-    "ocp_on_azure_daily_summary": "reporting_ocpazurecostlineitem_daily_summary",
-    "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary",
+    "ocp_on_azure_daily_summary": "reporting_ocpazurecostlineitem_daily_summary_p",
+    "ocp_on_azure_project_daily_summary": "reporting_ocpazurecostlineitem_project_daily_summary_p",
     "ocp_on_azure_tags_summary": "reporting_ocpazuretags_summary",
 }
 
@@ -59,4 +59,7 @@ GCP_REPORT_TABLE_MAP = {
     "bill": "reporting_gcpcostentrybill",
     "product": "reporting_gcpcostentryproductservice",
     "project": "reporting_gcpproject",
+    "ocp_on_gcp_daily_summary": "reporting_ocpgcpcostlineitem_daily_summary_p",
+    "ocp_on_gcp_project_daily_summary": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
+    "ocp_on_gcp_tags_summary": "reporting_ocpgcptags_summary",
 }

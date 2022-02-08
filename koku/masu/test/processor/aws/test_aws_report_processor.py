@@ -191,8 +191,8 @@ class AWSReportProcessorTest(MasuTestCase):
             if table_name in (
                 "reporting_awscostentryreservation",
                 "reporting_awscostentrypricing",
-                "reporting_ocpawscostlineitem_daily_summary",
-                "reporting_ocpawscostlineitem_project_daily_summary",
+                "reporting_ocpawscostlineitem_daily_summary_p",
+                "reporting_ocpawscostlineitem_project_daily_summary_p",
             ):
                 self.assertTrue(count >= counts[table_name])
             else:
@@ -256,8 +256,8 @@ class AWSReportProcessorTest(MasuTestCase):
 
             if table_name in (
                 "reporting_awscostentryreservation",
-                "reporting_ocpawscostlineitem_daily_summary",
-                "reporting_ocpawscostlineitem_project_daily_summary",
+                "reporting_ocpawscostlineitem_daily_summary_p",
+                "reporting_ocpawscostlineitem_project_daily_summary_p",
                 "reporting_awscostentrypricing",
             ):
                 self.assertTrue(count >= counts[table_name])

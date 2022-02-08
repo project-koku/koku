@@ -117,6 +117,11 @@ class OCPCloudUpdaterBase:
                 infra_map = accessor.get_ocp_infrastructure_map_trino(
                     start_date, end_date, azure_provider_uuid=self._provider_uuid
                 )
+        elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            with OCPReportDBAccessor(self._schema) as accessor:
+                infra_map = accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self._provider_uuid
+                )
 
         # Save to DB
         self.set_provider_infra_map(infra_map)

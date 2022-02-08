@@ -13,7 +13,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummaryP
 
 URLS = [
     reverse("reports-openshift-all-costs"),
@@ -42,7 +42,7 @@ class OCPAllReportViewTest(IamTestCase):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (
-                OCPAWSCostLineItemDailySummary.objects.filter(usage_start__gte=self.dh.last_month_start)
+                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.dh.last_month_start)
                 .filter(usage_start__lte=self.dh.last_month_end)
                 .values(*["tags"])
                 .first()

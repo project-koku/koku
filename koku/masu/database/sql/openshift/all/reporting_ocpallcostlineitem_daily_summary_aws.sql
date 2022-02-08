@@ -58,7 +58,7 @@ SELECT 'AWS'::text AS source_type,
        max(aws.currency_code),
        max(aws.shared_projects),
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary AS aws
+  FROM {{schema_name | sqlsafe}}.reporting_ocpawscostlineitem_daily_summary_p AS aws
  WHERE aws.usage_start >= {{start_date}}::date
    AND aws.usage_start <= {{end_date}}::date
    AND aws.cluster_id = {{cluster_id}}
