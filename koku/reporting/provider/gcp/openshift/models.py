@@ -10,6 +10,19 @@ from django.db import models
 from django.db.models import JSONField
 
 
+UI_SUMMARY_TABLES = (
+    "reporting_ocpgcp_cost_summary_p",
+    "reporting_ocpgcp_compute_summary_p",
+    "reporting_ocpgcp_cost_summary_by_account_p",
+    "reporting_ocpgcp_cost_summary_by_gcp_project_p",
+    "reporting_ocpgcp_cost_summary_by_region_p",
+    "reporting_ocpgcp_cost_summary_by_service_p",
+    "reporting_ocpgcp_database_summary_p",
+    "reporting_ocpgcp_network_summary_p",
+    "reporting_ocpgcp_storage_summary_p",
+)
+
+
 class OCPGCPCostLineItemDailySummaryP(models.Model):
     """A summarized view of OCP on GCP cost."""
 

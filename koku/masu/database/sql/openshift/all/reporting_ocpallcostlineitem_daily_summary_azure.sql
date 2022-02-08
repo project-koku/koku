@@ -58,7 +58,7 @@ SELECT 'Azure'::text AS source_type,
        max(azure.currency) AS currency_code,
        max(azure.shared_projects),
        {{source_uuid}}::uuid as source_uuid
-  FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary AS azure
+  FROM {{schema_name | sqlsafe}}.reporting_ocpazurecostlineitem_daily_summary_p AS azure
  WHERE azure.usage_start >= {{start_date}}::date
    AND azure.usage_start <= {{end_date}}::date
    AND azure.cluster_id = {{cluster_id}}

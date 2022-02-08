@@ -33,7 +33,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_cost_summary_by_service_p
         sum(markup_cost),
         max(currency_code),
         {{source_uuid}}::uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
+    FROM reporting_ocpawscostlineitem_daily_summary_p
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
         AND cluster_id = {{cluster_id}}

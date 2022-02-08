@@ -18,8 +18,8 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAzureComputeSummaryP
-from reporting.models import OCPAzureCostLineItemDailySummary
-from reporting.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.models import OCPAzureCostLineItemDailySummaryP
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostSummaryByAccountP
 from reporting.models import OCPAzureCostSummaryByLocationP
 from reporting.models import OCPAzureCostSummaryByServiceP
@@ -135,8 +135,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -286,8 +286,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "storage_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -457,8 +457,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "instance_type_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -553,7 +553,7 @@ class OCPAzureProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAzureCostLineItemDailySummary, "total": OCPAzureCostLineItemDailySummary},
+                "tables": {"query": OCPAzureCostLineItemDailySummaryP, "total": OCPAzureCostLineItemDailySummaryP},
             }
         ]
 

@@ -14,8 +14,10 @@ FROM (
             CASE
             WHEN {{metric}}='cpu_core_usage_per_hour' THEN lids.pod_usage_cpu_core_hours
             WHEN {{metric}}='cpu_core_request_per_hour' THEN lids.pod_request_cpu_core_hours
+            WHEN {{metric}}='cpu_core_effective_usage_per_hour' THEN lids.pod_effective_usage_cpu_core_hours
             WHEN {{metric}}='memory_gb_usage_per_hour' THEN lids.pod_usage_memory_gigabyte_hours
             WHEN {{metric}}='memory_gb_request_per_hour' THEN lids.pod_request_memory_gigabyte_hours
+            WHEN {{metric}}='memory_gb_effective_usage_per_hour' THEN lids.pod_effective_usage_memory_gigabyte_hours
             WHEN {{metric}}='storage_gb_usage_per_month' THEN lids.persistentvolumeclaim_usage_gigabyte_months
             WHEN {{metric}}='storage_gb_request_per_month' THEN lids.volume_request_storage_gigabyte_months
             END as usage

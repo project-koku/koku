@@ -90,7 +90,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
 
     @staticmethod
     def _bucket_applied(usage, lower_limit, upper_limit):
-        """Return how much usage remains afte a tier.
+        """Return how much usage remains after a tier.
 
         NOTE: Tiered rates are not currently supported.
         """
