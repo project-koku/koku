@@ -493,10 +493,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         # Default to cpu distribution
         pod_column = "pod_effective_usage_cpu_core_hours"
-        node_column = "node_capacity_cpu_core_hours"
+        cluster_column = "cluster_capacity_cpu_core_hours"
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
-            node_column = "node_capacity_memory_gigabyte_hours"
+            cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data(
             "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary.sql"
@@ -515,7 +515,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "markup": markup_value,
             "pod_column": pod_column,
-            "node_column": node_column,
+            "cluster_column": cluster_column,
             "cluster_id": cluster_id,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
