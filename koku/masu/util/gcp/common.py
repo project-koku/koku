@@ -144,6 +144,7 @@ def gcp_generate_daily_data(data_frame):
     # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
     rollup_frame = data_frame.copy()
     rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
+    rollup_frame["daily_credits"] = 0.0
     for i, credit_dict in enumerate(rollup_frame["credits"]):
         rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
     daily_data_frame = rollup_frame.groupby(
