@@ -8,7 +8,6 @@ import datetime
 import json
 import os
 import random
-import re
 import shutil
 import tempfile
 from unittest.mock import patch
@@ -244,9 +243,9 @@ class OCPUtilTests(MasuTestCase):
         with tempfile.TemporaryDirectory() as manifest_path:
             manifest_file = f"{manifest_path}/manifest.json"
             with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                expected = re.compile(f"INFO:masu.util.ocp.common:.*No manifest available at {manifest_file}")
+                expected = f"INFO:masu.util.ocp.common:No manifest available at {manifest_file}"
                 utils.get_report_details(manifest_path)
-                self.assertRegexIn(expected, logger.output)
+                self.assertIn(expected, logger.output)
 
             with open(manifest_file, "w") as f:
                 data = {"key": "value"}
@@ -256,6 +255,6 @@ class OCPUtilTests(MasuTestCase):
             with patch("masu.util.ocp.common.open") as mock_open:
                 mock_open.side_effect = OSError
                 with self.assertLogs("masu.util.ocp.common", level="INFO") as logger:
-                    expected = re.compile("ERROR:masu.util.ocp.common:.*Unable to extract manifest data")
+                    expected = "ERROR:masu.util.ocp.common:Unable to extract manifest data"
                     utils.get_report_details(manifest_path)
-                    self.assertRegexIn(expected, logger.output)
+                    self.assertIn(expected, logger.output[0])
