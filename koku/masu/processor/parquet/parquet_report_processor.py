@@ -467,9 +467,20 @@ class ParquetReportProcessor:
                 daily=True,
             )
         else:
-            return get_path_prefix(
-                self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
-            )
+            if self.report_type == OPENSHIFT_REPORT_TYPE:
+                return get_path_prefix(
+                    self.account,
+                    self.provider_type,
+                    self.provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
+                    report_type=self.report_type,
+                    daily=True,
+                )
+            else:
+                return get_path_prefix(
+                    self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+                )
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""

@@ -24,11 +24,11 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             "usage_amount",
             "usage_amount_in_pricing_units",
             "credit_amount",
+            "daily_credits",
         ]
         date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
         if "openshift" in s3_path:
             table_name = PRESTO_OCP_ON_GCP_DAILY_TABLE
-            numeric_columns.append("credits")
         elif "daily" in s3_path:
             table_name = PRESTO_LINE_ITEM_DAILY_TABLE
         else:
