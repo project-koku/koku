@@ -585,7 +585,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
 
             if self._report_type == "costs":
-                query_group_by = ["date", "currency"] + self._get_group_by()
+                query_group_by = ["date", "currency_code"] + self._get_group_by()
             else:
                 query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
