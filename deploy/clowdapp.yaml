@@ -2548,6 +2548,12 @@ parameters:
   name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- description: 'Include the DB connection backend pid in log messages (Boolean: True,
+    False)'
+  displayName: Log DB backend pid
+  name: LOG_DB_PID
+  required: true
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

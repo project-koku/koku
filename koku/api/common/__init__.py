@@ -16,8 +16,8 @@ def error_obj(key, message):
 
 def log_json(tracing_id, message, context={}):
     """Create JSON object for logging data."""
-    if connection.connection and not connection.connection.closed:
-        message = f"DBPID_{connection.connection.get_backend_pid()} {message}"
     stmt = {"message": message, "tracing_id": tracing_id}
     stmt.update(context)
+    if connection.connection and not connection.connection.closed:
+        stmt["db_pid"] = connection.connection.get_backend_pid()
     return stmt

@@ -389,3 +389,9 @@ parameters:
   displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+
+- name: LOG_DB_PID
+  displayName: "Log DB backend pid"
+  description: "Include the DB connection backend pid in log messages (Boolean: True, False)"
+  required: true
+  value: "False"

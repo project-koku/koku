@@ -14,7 +14,10 @@ import time
 import types
 
 import django
+from django.apps import apps as koku_apps
 from django.conf import settings
+from django.core.exceptions import AppRegistryNotReady
+from django.db import connection
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
 from django.db import IntegrityError
@@ -594,3 +597,32 @@ class SQLScriptAtomicExecutorMixin:
                         ]
                         LOG.error(os.linesep.join(msg))
                         raise exc
+
+
+# Tainted log function to get the database pid if available
+# and prepend it to the log message
+def koku_log(self, level, msg, args, **kwargs):
+    """Koku log variant. Will log DB backend pid in message, then call original log code."""
+    try:
+        if (
+            koku_apps.ready
+            and hasattr(connection, "connection")
+            and connection.connection
+            and not connection.connection.closed
+        ):
+            msg = f"DBPID_{connection.connection.get_backend_pid()} {msg}"
+    except AppRegistryNotReady:
+        pass
+
+    self._log_o(level, msg, args, **kwargs)
+
+
+# Taint the logging.Logger class
+if ENVIRONMENT.bool("LOG_DB_PID", default=False):
+    LOG.debug("ALWAYS log DB backend pid.")
+    # print("ALWAYS log DB backend pid.")
+    setattr(logging.Logger, "_log_o", logging.Logger._log)
+    setattr(logging.Logger, "_log", koku_log)
+else:
+    LOG.debug("NEVER log DB backend pid.")
+    # print("NEVER log DB backend pid.")
