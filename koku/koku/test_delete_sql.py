@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import re
 import uuid
 from datetime import datetime
 
@@ -95,17 +94,17 @@ class TestDeleteSQL(IamTestCase):
         )
         pocp.save()
 
-        expected1 = re.compile(r"DEBUG:koku.database:.*Level 1: delete records from OCPUsageReportPeriod")
-        expected2 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION OCPUsageLineItemDailySummary by directive")
-        expected3 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION OCPUsageLineItem by directive")
+        expected1 = "DEBUG:koku.database:Level 1: delete records from OCPUsageReportPeriod"
+        expected2 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItemDailySummary by directive"
+        expected3 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
         skip_models = [kdb.get_model("OCPUsageLineItemDailySummary"), kdb.get_model("OCPUsageLineItem")]
         query = Provider.objects.filter(pk=pocp.pk)
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             with schema_context(c.schema_name):
                 kdb.cascade_delete(Provider, query, skip_relations=skip_models)
-            self.assertRegexIn(expected1, _logger.output)
-            self.assertRegexIn(expected2, _logger.output)
-            self.assertRegexIn(expected3, _logger.output)
+            self.assertIn(expected1, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
 
         with schema_context(c.schema_name):
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=pocp.pk).count(), 0)
@@ -187,25 +186,25 @@ class TestDeleteSQL(IamTestCase):
             gcpceb.save()
             ocpurp.save()
 
-        expected = re.compile(r"DEBUG:koku.database:.*Level 1: delete records from AWSCostEntryBill")
+        expected = "DEBUG:koku.database:Level 1: delete records from AWSCostEntryBill"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
-        expected = re.compile(r"DEBUG:koku.database:.*Level 1: delete records from AzureCostEntryBill")
+        expected = "DEBUG:koku.database:Level 1: delete records from AzureCostEntryBill"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pazure.delete()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
-        expected = re.compile(r"DEBUG:koku.database:.*Level 1: delete records from GCPCostEntryBill")
+        expected = "DEBUG:koku.database:Level 1: delete records from GCPCostEntryBill"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pgcp.delete()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
-        expected = re.compile(r"DEBUG:koku.database:.*Level 1: delete records from OCPUsageReportPeriod")
+        expected = "DEBUG:koku.database:Level 1: delete records from OCPUsageReportPeriod"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             pocp.delete()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
         with schema_context(c.schema_name):
             self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
@@ -253,10 +252,10 @@ class TestDeleteSQL(IamTestCase):
         with schema_context(c.schema_name):
             awsceb.save()
 
-        expected = re.compile(r"DEBUG:koku.database:.*Setting constaints to execute immediately")
+        expected = "DEBUG:koku.database:Setting constaints to execute immediately"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
         with schema_context(c.schema_name):
             self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
@@ -316,18 +315,18 @@ class TestDeleteSQL(IamTestCase):
             )
             awsceli.save()
 
-        expected = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION AWSCostEntryLineItem by directive")
-        expected2 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION GCPCostEntryLineItem by directive")
-        expected3 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION OCPUsageLineItem by directive")
-        expected4 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION OCPStorageLineItem by directive")
-        expected5 = re.compile(r"DEBUG:koku.database:.*SKIPPING RELATION OCPNodeLabelLineItem by directive")
+        expected = "DEBUG:koku.database:SKIPPING RELATION AWSCostEntryLineItem by directive"
+        expected2 = "DEBUG:koku.database:SKIPPING RELATION GCPCostEntryLineItem by directive"
+        expected3 = "DEBUG:koku.database:SKIPPING RELATION OCPUsageLineItem by directive"
+        expected4 = "DEBUG:koku.database:SKIPPING RELATION OCPStorageLineItem by directive"
+        expected5 = "DEBUG:koku.database:SKIPPING RELATION OCPNodeLabelLineItem by directive"
         with self.assertLogs("koku.database", level="DEBUG") as _logger:
             paws.delete()
-            self.assertRegexIn(expected, _logger.output)
-            self.assertRegexIn(expected2, _logger.output)
-            self.assertRegexIn(expected3, _logger.output)
-            self.assertRegexIn(expected4, _logger.output)
-            self.assertRegexIn(expected5, _logger.output)
+            self.assertIn(expected, _logger.output)
+            self.assertIn(expected2, _logger.output)
+            self.assertIn(expected3, _logger.output)
+            self.assertIn(expected4, _logger.output)
+            self.assertIn(expected5, _logger.output)
 
         with schema_context(c.schema_name):
             self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportParquetProcessor."""
-import re
 from unittest.mock import patch
 
 from tenant_schemas.utils import schema_context
@@ -91,14 +90,14 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         bill_date = DateHelper().next_month_start
         pg_table = self.processor.postgres_summary_table._meta.db_table
         table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
-        expected_log = re.compile(
-            "INFO:masu.processor.report_parquet_processor_base:.*"
-            + f"Created a new partition for {pg_table} : {table_name}"
+        expected_log = (
+            f"INFO:masu.processor.report_parquet_processor_base:"
+            f"Created a new partition for {pg_table} : {table_name}"
         )
 
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.get_or_create_postgres_partition(bill_date)
-            self.assertRegexIn(expected_log, logger.output)
+            self.assertIn(expected_log, logger.output)
 
         with schema_context(self.schema):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)

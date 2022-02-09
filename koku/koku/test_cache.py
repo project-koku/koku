@@ -5,7 +5,6 @@
 """Test view caching functions."""
 import logging
 import random
-import re
 
 from django.core.cache import caches
 from django.test.utils import override_settings
@@ -170,11 +169,11 @@ class KokuCacheTest(IamTestCase):
 
         # test for log warning on invalid source type
         with self.assertLogs() as captured:
-            result = re.compile("unable to invalidate cache, bogus is not a valid source type")
+            result = "unable to invalidate cache, bogus is not a valid source type"
             source_types = ["bogus"]
             invalidate_view_cache_for_tenant_and_source_types(self.schema_name, source_types)
             self.assertEqual(len(captured.records), 1)
-            self.assertRegexIn(result, captured.output)
+            self.assertEqual(captured.records[0].getMessage(), result)
 
     def test_invalidate_view_cache_for_tenant_and_all_source_type(self):
         """Test that all views for a all source types and tenant are invalidated."""
