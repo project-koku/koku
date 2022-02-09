@@ -14,8 +14,22 @@ class Migration(migrations.Migration):
         migrations.RemoveField(model_name="ocpazurecostlineitemdailysummary", name="report_period"),
         migrations.RemoveField(model_name="ocpazurecostlineitemprojectdailysummary", name="cost_entry_bill"),
         migrations.RemoveField(model_name="ocpazurecostlineitemprojectdailysummary", name="report_period"),
+        migrations.RunSQL(
+            sql="""truncate table reporting_ocpawscostlineitem_daily_summary;""", reverse_sql=migrations.RunSQL.noop
+        ),
         migrations.DeleteModel(name="OCPAWSCostLineItemDailySummary"),
+        migrations.RunSQL(
+            sql="""truncate table reporting_ocpawscostlineitem_project_daily_summary;""",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.DeleteModel(name="OCPAWSCostLineItemProjectDailySummary"),
+        migrations.RunSQL(
+            sql="""truncate table reporting_ocpazurecostlineitem_daily_summary;""", reverse_sql=migrations.RunSQL.noop
+        ),
         migrations.DeleteModel(name="OCPAzureCostLineItemDailySummary"),
+        migrations.RunSQL(
+            sql="""truncate table reporting_ocpazurecostlineitem_project_daily_summary;""",
+            reverse_sql=migrations.RunSQL.noop,
+        ),
         migrations.DeleteModel(name="OCPAzureCostLineItemProjectDailySummary"),
     ]
