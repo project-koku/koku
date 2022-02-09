@@ -4,7 +4,6 @@
 #
 """Test the OCPReportProcessor."""
 import datetime
-import re
 from unittest.mock import patch
 
 from api.utils import DateHelper
@@ -103,13 +102,13 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date = start_date
         start_date_str = start_date.strftime("%Y-%m-%d")
         end_date_str = end_date.strftime("%Y-%m-%d")
-        expected = re.compile(
-            "INFO:masu.processor.ocp.ocp_report_parquet_summary_updater:.*"
-            + f"NO-OP update_daily_tables for: {start_date_str}-{end_date_str}"
+        expected = (
+            "INFO:masu.processor.ocp.ocp_report_parquet_summary_updater:"
+            "NO-OP update_daily_tables for: %s-%s" % (start_date_str, end_date_str)
         )
         with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="INFO") as _logger:
             self.updater.update_daily_tables(start_date_str, end_date_str)
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor."
