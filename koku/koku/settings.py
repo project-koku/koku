@@ -31,14 +31,16 @@ from .env import ENVIRONMENT
 
 # New logging method
 def koku_log(self, level, msg, args, **kwargs):
+    """Koku log variant. Will log DB backend pid in message, then call original log code."""
     if connection.connection and not connection.connection.closed:
         msg = f"DBPID_{connection.connection.get_backend_pid()} {msg}"
     self._log_o(level, msg, args, **kwargs)
 
 
 # Taint the logging.Logger class
-setattr(logging.Logger, "_log_o", logging.Logger._log)
-setattr(logging.Logger, "_log", koku_log)
+if ENVIRONMENT.get_value("LOG_DB_PID", cast=bool, default=False):
+    setattr(logging.Logger, "_log_o", logging.Logger._log)
+    setattr(logging.Logger, "_log", koku_log)
 
 
 # Database
