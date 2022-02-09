@@ -35,10 +35,12 @@ objects:
     objectStore:
     - ${S3_BUCKET_NAME}
 
-    optionalDependencies:
+    dependencies:
     - ingress
     - rbac
     - sources-api
+
+    optionalDependencies: []
 
     # IQE testing
     testing:
