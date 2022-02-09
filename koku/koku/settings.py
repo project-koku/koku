@@ -324,10 +324,10 @@ UNLEASH_LOGGING_LEVEL = ENVIRONMENT.get_value("UNLEASH_LOG_LEVEL", default="WARN
 LOGGING_HANDLERS = ENVIRONMENT.get_value("DJANGO_LOG_HANDLERS", default="console").split(",")
 VERBOSE_FORMATTING = (
     "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d "
-    "%(task_id)s %(task_parent_id)s %(task_root_id)s "
+    "%(task_id)s %(task_parent_id)s %(task_root_id)s %(dbpid)s "
     "%(message)s"
 )
-SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(message)s"
+SIMPLE_FORMATTING = "[%(asctime)s] %(levelname)s %(task_root_id)s %(dbpid)s %(message)s"
 
 LOG_DIRECTORY = ENVIRONMENT.get_value("LOG_DIRECTORY", default=BASE_DIR)
 DEFAULT_LOG_FILE = os.path.join(LOG_DIRECTORY, "app.log")
