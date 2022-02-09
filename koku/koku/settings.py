@@ -21,26 +21,11 @@ from json import JSONDecodeError
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
-from django.db import connection
 
 from . import database
 from . import sentry
 from .configurator import CONFIGURATOR
 from .env import ENVIRONMENT
-
-
-# New logging method
-def koku_log(self, level, msg, args, **kwargs):
-    """Koku log variant. Will log DB backend pid in message, then call original log code."""
-    if hasattr(connection, "connection") and connection.connection and not connection.connection.closed:
-        msg = f"DBPID_{connection.connection.get_backend_pid()} {msg}"
-    self._log_o(level, msg, args, **kwargs)
-
-
-# Taint the logging.Logger class
-if ENVIRONMENT.get_value("LOG_DB_PID", default=False):
-    setattr(logging.Logger, "_log_o", logging.Logger._log)
-    setattr(logging.Logger, "_log", koku_log)
 
 
 # Database
