@@ -392,6 +392,6 @@ parameters:
 
 - name: LOG_DB_PID
   displayName: "Log DB backend pid"
-  description: "Include the DB connection backend pid in log messages (Boolean: TRUE, FALSE)"
+  description: "Include the DB connection backend pid in log messages (Boolean: True, False)"
   required: true
-  value: "FALSE"
+  value: "False"
