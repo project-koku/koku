@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
     pod_usage_memory_gigabyte_hours double,
     pod_request_memory_gigabyte_hours double,
     pod_effective_usage_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
     pod_labels varchar,
@@ -115,6 +117,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     pod_labels,
@@ -162,6 +166,8 @@ SELECT azure.uuid as azure_uuid,
     sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
     sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.pod_labels) as pod_labels,
@@ -270,6 +276,8 @@ SELECT azure.uuid as azure_uuid,
     cast(NULL as double) as pod_usage_memory_gigabyte_hours,
     cast(NULL as double) as pod_request_memory_gigabyte_hours,
     cast(NULL as double) as pod_effective_usage_memory_gigabyte_hours,
+    cast(NULL as double) as node_capacity_cpu_core_hours,
+    cast(NULL as double) as node_capacity_memory_gigabyte_hours,
     cast(NULL as double) as cluster_capacity_cpu_core_hours,
     cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.pod_labels) as pod_labels,
@@ -369,11 +377,11 @@ SELECT azure_uuid,
     pretax_cost / project_rank / data_source_rank as pretax_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * pretax_cost / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
         ELSE pretax_cost / project_rank / data_source_rank
     END as pod_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
         ELSE pretax_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_azure.pod_labels IS NOT NULL
@@ -427,8 +435,10 @@ FROM (
         sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
-        sum(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        sum(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+        max(pds.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(pds.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+        max(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+        max(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(pds.pod_labels) as pod_labels,
         max(pds.volume_labels) as volume_labels,
         max(pds.tags) as tags,
