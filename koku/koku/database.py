@@ -618,7 +618,7 @@ def koku_log(self, level, msg, args, **kwargs):
 
 
 # Taint the logging.Logger class
-if ENVIRONMENT.get_value("LOG_DB_PID", default=False):
+if ENVIRONMENT.bool("LOG_DB_PID", default=False):
     LOG.debug("ALWAYS log DB backend pid.")
     # print("ALWAYS log DB backend pid.")
     setattr(logging.Logger, "_log_o", logging.Logger._log)
