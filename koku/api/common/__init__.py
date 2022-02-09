@@ -1,4 +1,6 @@
 # noqa
+from django.apps import apps as koku_apps
+from django.core.exceptions import AppRegistryNotReady
 from django.db import connection
 from django.utils.translation import ugettext as _
 
@@ -18,6 +20,16 @@ def log_json(tracing_id, message, context={}):
     """Create JSON object for logging data."""
     stmt = {"message": message, "tracing_id": tracing_id}
     stmt.update(context)
-    if connection.connection and not connection.connection.closed:
-        stmt["db_pid"] = connection.connection.get_backend_pid()
+
+    try:
+        if (
+            koku_apps.ready
+            and hasattr(connection, "connection")
+            and connection.connection
+            and not connection.connection.closed
+        ):
+            stmt["db_pid"] = connection.connection.get_backend_pid()
+    except AppRegistryNotReady:
+        pass
+
     return stmt
