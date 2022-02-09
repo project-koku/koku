@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     pod_usage_memory_gigabyte_hours double,
     pod_request_memory_gigabyte_hours double,
     pod_effective_usage_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
     volume_labels varchar,
@@ -144,6 +146,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
@@ -189,6 +193,8 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
     sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     NULL as volume_labels,
@@ -298,6 +304,8 @@ SELECT gcp.uuid as gcp_uuid,
     sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
     sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
     sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
     max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
     max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
     max(ocp.volume_labels) as volume_labels,
@@ -428,11 +436,11 @@ SELECT gcp_uuid,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / project_rank / data_source_rank
     END as pod_cost,
     pod_usage_cpu_core_hours,
@@ -490,6 +498,8 @@ FROM (
         sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+        max(pds.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(pds.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         sum(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         sum(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(pds.volume_labels) as volume_labels,
