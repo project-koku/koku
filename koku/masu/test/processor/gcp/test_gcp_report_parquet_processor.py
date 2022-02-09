@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportParquetProcessor."""
+import re
 from unittest.mock import patch
 
 from tenant_schemas.utils import schema_context
@@ -15,6 +16,7 @@ from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItemDailySummary
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.gcp.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.gcp.models import PRESTO_OCP_ON_GCP_DAILY_TABLE
 
 
 class GCPReportProcessorParquetTest(MasuTestCase):
@@ -35,6 +37,12 @@ class GCPReportProcessorParquetTest(MasuTestCase):
     def test_gcp_table_name(self):
         """Test the GCP table name generation."""
         self.assertEqual(self.processor._table_name, PRESTO_LINE_ITEM_TABLE)
+
+        s3_path = "/s3/path/openshift/daily"
+        processor = GCPReportParquetProcessor(
+            self.manifest_id, self.account, s3_path, self.gcp_provider_uuid, self.local_parquet
+        )
+        self.assertEqual(processor._table_name, PRESTO_OCP_ON_GCP_DAILY_TABLE)
 
         s3_path = "/s3/path/daily"
         processor = GCPReportParquetProcessor(
@@ -83,14 +91,14 @@ class GCPReportProcessorParquetTest(MasuTestCase):
         bill_date = DateHelper().next_month_start
         pg_table = self.processor.postgres_summary_table._meta.db_table
         table_name = f"{pg_table}_{bill_date.strftime('%Y_%m')}"
-        expected_log = (
-            f"INFO:masu.processor.report_parquet_processor_base:"
-            f"Created a new partition for {pg_table} : {table_name}"
+        expected_log = re.compile(
+            "INFO:masu.processor.report_parquet_processor_base:.*"
+            + f"Created a new partition for {pg_table} : {table_name}"
         )
 
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.get_or_create_postgres_partition(bill_date)
-            self.assertIn(expected_log, logger.output)
+            self.assertRegexIn(expected_log, logger.output)
 
         with schema_context(self.schema):
             self.assertNotEqual(PartitionedTable.objects.filter(table_name=table_name).count(), 0)

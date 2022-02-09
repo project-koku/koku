@@ -12,7 +12,17 @@ ENVIRONMENT = environ.Env()
 
 SOURCES = ENVIRONMENT.bool("SOURCES", default=False)
 
-bind = "unix:/var/run/koku/gunicorn.sock"
+CLOWDER_PORT = "8000"
+if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
+    from app_common_python import LoadedConfig
+
+    CLOWDER_PORT = LoadedConfig.publicPort
+
+    if ENVIRONMENT.bool("MASU", default=False) or ENVIRONMENT.bool("SOURCES", default=False):
+        CLOWDER_PORT = LoadedConfig.privatePort
+
+bind = f"0.0.0.0:{CLOWDER_PORT}"
+
 cpu_resources = ENVIRONMENT.int("POD_CPU_LIMIT", default=multiprocessing.cpu_count())
 workers = 1 if SOURCES else cpu_resources * 2 + 1
 
