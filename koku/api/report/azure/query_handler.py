@@ -149,7 +149,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-            query_group_by = ["date", "currency"] + self._get_group_by()
+            if self._report_type == "costs":
+                query_group_by = ["date", "currency"] + self._get_group_by()
+            else:
+                query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
@@ -235,15 +238,20 @@ class AzureReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        query_group_by = ["date", "currency"] + self._get_group_by()
+        if self._report_type == "costs":
+            query_group_by = ["date", "currency"] + self._get_group_by()
+        else:
+            query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
-
-        total_queryset = query_data.annotate(**aggregates)
-        total_query = self.return_total_query(total_queryset)
+        if self._report_type == "costs":
+            total_queryset = query_data.annotate(**aggregates)
+            total_query = self.return_total_query(total_queryset)
+        else:
+            total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = self.currency
 

@@ -150,7 +150,7 @@ class ReportQueryHandler(QueryHandler):
                 "cost_markup",
             ]:
                 orig_value = total_query[value]
-                total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
+                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
         return total_query
 
     @cached_property
@@ -677,7 +677,7 @@ class ReportQueryHandler(QueryHandler):
                                 # change to currency code
                                 in_value[this_key] = self.currency
                             elif this_key in ["value"]:
-                                in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
+                                in_value[this_key] = round(Decimal(this_value) * Decimal(exchange_rate), 9)
                                 # multiply and override
                             value[in_key] = in_value
 
