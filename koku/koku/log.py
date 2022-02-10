@@ -23,8 +23,6 @@ class TaskFormatter(ColorFormatter):
         try:
             if (
                 ENVIRONMENT.bool("LOG_DB_PID", False)
-                and koku_apps.ready
-                and hasattr(connection, "connection")
                 and connection.connection is not None
                 and not connection.connection.closed
             ):
