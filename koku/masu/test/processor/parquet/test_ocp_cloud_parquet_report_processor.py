@@ -155,7 +155,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         """Test that we write OCP on Cloud data and create a table."""
         base_file_name = f"{self.ocp_provider_uuid}"
         file_path = f"{self.report_processor.local_path}"
-        df = pd.DataFrame()
+        df = pd.DataFrame({"test": [1, 2, 3]})
         self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0, self.ocp_provider_uuid)
         mock_write.assert_called()
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"

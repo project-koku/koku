@@ -189,21 +189,6 @@ class IamTestCase(TestCase):
         query_params = QueryParameters(m_request, view)
         return query_params
 
-    def _regex_search(self, regex, iterable):
-        return any(bool(regex.search(elem)) for elem in iterable)
-
-    def assertRegexIn(self, regex, iterable, message=None):
-        found = self._regex_search(regex, iterable)
-        if message is None:
-            message = f'"{regex.pattern}" was not found in {iterable}'
-        self.assertTrue(found, message)
-
-    def assertRegexNotIn(self, regex, iterable, message=None):
-        found = self._regex_search(regex, iterable)
-        if message is None:
-            message = f'"{regex.pattern}" was found in {iterable}'
-        self.assertFalse(found, message)
-
 
 class RbacPermissions:
     """A decorator class for running tests with a custom identity.

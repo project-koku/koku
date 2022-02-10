@@ -5,7 +5,6 @@
 """Test the Orchestrator object."""
 import logging
 import random
-import re
 from unittest.mock import patch
 
 import faker
@@ -68,7 +67,7 @@ class OrchestratorTest(MasuTestCase):
             }
         ]
 
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_initializer(self, mock_inspect):  # noqa: C901
         """Test to init."""
         orchestrator = Orchestrator()
@@ -168,6 +167,7 @@ class OrchestratorTest(MasuTestCase):
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
 
+        expected = "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: acct10001, Task ID: {}"
         # unset disabling all logging below CRITICAL from masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
@@ -176,11 +176,7 @@ class OrchestratorTest(MasuTestCase):
             self.assertTrue(results)
             self.assertEqual(len(results), 5)
             async_id = results.pop().get("async_id")
-            expected = re.compile(
-                "INFO:masu.processor.orchestrator:.*"
-                + f"Expired data removal queued - schema_name: acct10001, Task ID: {async_id}"
-            )
-            self.assertRegexIn(expected, logger.output)
+            self.assertIn(expected.format(async_id), logger.output)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")

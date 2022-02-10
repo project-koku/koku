@@ -34,15 +34,6 @@ class StatusAPITest(TestCase):
         super().setUp()
         logging.disable(logging.NOTSET)
 
-    def _regex_search(self, regex, iterable):
-        return any(bool(regex.search(elem)) for elem in iterable)
-
-    def assertRegexIn(self, regex, iterable, message=None):
-        found = self._regex_search(regex, iterable)
-        if message is None:
-            message = f'"{regex.pattern}" was not found in {iterable}'
-        self.assertTrue(found, message)
-
     def test_status(self):
         """Test the status endpoint."""
         with patch("sources.api.status.check_kafka_connection", return_value=True):
@@ -174,11 +165,11 @@ class StatusAPITest(TestCase):
     def test_startup_without_modules(self, mock_mods):
         """Test the startup method without a module list."""
         mock_mods.return_value = {}
-        expected = re.compile("INFO:sources.api.status:.*Modules: None")
+        expected = "INFO:sources.api.status:Modules: None"
 
         with self.assertLogs("sources.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
-            self.assertRegexIn(expected, logger.output)
+            self.assertIn(expected, logger.output)
 
     @patch("masu.external.date_accessor.DateAccessor.today")
     def test_get_datetime(self, mock_date):
@@ -186,21 +177,21 @@ class StatusAPITest(TestCase):
         mock_date_string = "2018-07-25 10:41:59.993536"
         mock_date_obj = datetime.strptime(mock_date_string, "%Y-%m-%d %H:%M:%S.%f")
         mock_date.return_value = mock_date_obj
-        expected = re.compile(f"INFO:sources.api.status:.*Current Date: {mock_date.return_value}")
+        expected = f"INFO:sources.api.status:Current Date: {mock_date.return_value}"
         with self.assertLogs("sources.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
-            self.assertRegexIn(expected, logger.output)
+            self.assertIn(str(expected), logger.output)
 
     def test_get_debug(self):
         """Test the startup method for debug state."""
-        expected = re.compile("INFO:sources.api.status:.*DEBUG enabled: {}".format(str(False)))
+        expected = "INFO:sources.api.status:DEBUG enabled: {}".format(str(False))
         with self.assertLogs("sources.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
-            self.assertRegexIn(expected, logger.output)
+            self.assertIn(str(expected), logger.output)
 
     def test_database_status(self):
         """Test that fetching database status works."""
-        expected = re.compile(r"INFO:sources.api.status:.*Database: \[\{.*postgres.*\}\]")
+        expected = re.compile(r"INFO:sources.api.status:Database: \[{.*postgres.*}\]")
         with self.assertLogs("sources.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
             results = None
@@ -211,10 +202,10 @@ class StatusAPITest(TestCase):
 
     def test_database_status_fail(self):
         """Test that fetching database handles errors."""
-        expected = re.compile("WARNING:sources.api.status:.*Unable to connect to DB:")
+        expected = "WARNING:sources.api.status:Unable to connect to DB: "
         with patch("django.db.backends.utils.CursorWrapper") as mock_cursor:
             mock_cursor = mock_cursor.return_value.__enter__.return_value
             mock_cursor.execute.side_effect = InterfaceError()
             with self.assertLogs("sources.api.status", level="INFO") as logger:
                 ApplicationStatus().startup()
-                self.assertRegexIn(expected, logger.output)
+                self.assertIn(expected, logger.output)

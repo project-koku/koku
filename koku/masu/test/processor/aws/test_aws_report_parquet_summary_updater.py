@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AWSReportParquetSummaryUpdater."""
-import re
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -65,14 +64,14 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         end_str = self.dh.this_month_end.isoformat()
         expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
 
-        expected_log = re.compile(
-            "INFO:masu.processor.aws.aws_report_parquet_summary_updater:.*"
-            + f"update_daily_tables for: {expected_start}-{expected_end}"
+        expected_log = (
+            "INFO:masu.processor.aws.aws_report_parquet_summary_updater:"
+            f"update_daily_tables for: {expected_start}-{expected_end}"
         )
 
         with self.assertLogs("masu.processor.aws.aws_report_parquet_summary_updater", level="INFO") as logger:
             start, end = self.updater.update_daily_tables(start_str, end_str)
-            self.assertRegexIn(expected_log, logger.output)
+            self.assertIn(expected_log, logger.output)
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
 

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the clone_schema functionality."""
-import re
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
@@ -61,14 +60,16 @@ class CloneSchemaTest(IamTestCase):
         self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
         # Also validate that the template will be created using migrations
-        expected = re.compile(r"Caught exception DatabaseError during template schema create: Too Many Quatloos")
+        expected = (
+            "ERROR:api.iam.models:Caught exception DatabaseError during template schema create: Too Many Quatloos"
+        )
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             t = Tenant(schema_name=Tenant._TEMPLATE_SCHEMA)
             t.save()
             with self.assertRaises(DatabaseError):
                 with patch("api.iam.models.Tenant.create_schema", side_effect=DatabaseError("Too Many Quatloos")):
                     t._verify_template()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
         self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
         Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
@@ -85,12 +86,12 @@ class CloneSchemaTest(IamTestCase):
         self.assertFalse(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
         # Also validate that the template will be created using migrations
-        expected = re.compile(f'INFO.+Using superclass for "{Tenant._TEMPLATE_SCHEMA}" schema creation')
+        expected = f'INFO:api.iam.models:Using superclass for "{Tenant._TEMPLATE_SCHEMA}" schema creation'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             t = Tenant(schema_name=Tenant._TEMPLATE_SCHEMA)
             t.save()
             t.create_schema()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
         self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
 
         Tenant.objects.filter(schema_name=Tenant._TEMPLATE_SCHEMA).delete()
@@ -98,14 +99,14 @@ class CloneSchemaTest(IamTestCase):
 
         test_schema = "acct90909090"
         # Also validate that the customer tenant schema will be created using the clone function
-        expected1 = re.compile(f'INFO.+Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"')
-        expected2 = re.compile(f'INFO.+Successful clone of "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"')
+        expected1 = f'INFO:api.iam.models:Cloning template schema "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
+        expected2 = f'INFO:api.iam.models:Successful clone of "{Tenant._TEMPLATE_SCHEMA}" to "{test_schema}"'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             t = Tenant(schema_name=test_schema)
             t.save()
             t.create_schema()
-            self.assertRegexIn(expected1, _logger.output)
-            self.assertRegexIn(expected2, _logger.output)
+            self.assertIn(expected1, _logger.output)
+            self.assertIn(expected2, _logger.output)
         self.assertTrue(schema_exists(Tenant._TEMPLATE_SCHEMA))
         self.assertTrue(schema_exists(test_schema))
 
@@ -154,16 +155,14 @@ class CloneSchemaTest(IamTestCase):
         Test that a DatabaseError is raised from within the call is logged and handled
         """
         tst_schema = "test_clone_schema_exception"
-        expected = re.compile(
-            r'ERROR.+Exception DatabaseError cloning "{}" to "{}": Too Many Quatloos'.format(
-                Tenant._TEMPLATE_SCHEMA, tst_schema
-            )
+        expected = 'ERROR:api.iam.models:Exception DatabaseError cloning "{}" to "{}": Too Many Quatloos'.format(
+            Tenant._TEMPLATE_SCHEMA, tst_schema
         )
         with patch("api.iam.models.Tenant._clone_schema", side_effect=DatabaseError("Too Many Quatloos")):
             with self.assertLogs("api.iam.models", level="INFO") as _logger:
                 with self.assertRaises(DatabaseError):
                     Tenant(schema_name=tst_schema).create_schema()
-                    self.assertRegexIn(expected, _logger.output)
+                    self.assertIn(expected, _logger.output)
 
     def test_create_existing_schema(self):
         """
@@ -175,12 +174,12 @@ class CloneSchemaTest(IamTestCase):
             cur.execute("""create table if not exists "eek01"."tab01" (id serial primary key, data text);""")
 
         # Verify that the existing schema was detected
-        expected = re.compile(r'WARNING.+Schema "eek01" already exists. Exit with False\.')
+        expected = 'WARNING:api.iam.models:Schema "eek01" already exists. Exit with False.'
         with self.assertLogs("api.iam.models", level="INFO") as _logger:
             t = Tenant(schema_name="eek01")
             t.save()
             t.create_schema()
-            self.assertRegexIn(expected, _logger.output)
+            self.assertIn(expected, _logger.output)
 
         # Verify that tenant record was created
         self.assertEqual(Tenant.objects.filter(schema_name="eek01").count(), 1)

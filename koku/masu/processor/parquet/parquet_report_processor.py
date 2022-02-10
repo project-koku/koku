@@ -403,6 +403,8 @@ class ParquetReportProcessor:
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
+                    if data_frame.empty:
+                        continue
                     parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
@@ -467,9 +469,20 @@ class ParquetReportProcessor:
                 daily=True,
             )
         else:
-            return get_path_prefix(
-                self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
-            )
+            if self.report_type == OPENSHIFT_REPORT_TYPE:
+                return get_path_prefix(
+                    self.account,
+                    self.provider_type,
+                    self.provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
+                    report_type=self.report_type,
+                    daily=True,
+                )
+            else:
+                return get_path_prefix(
+                    self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+                )
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""

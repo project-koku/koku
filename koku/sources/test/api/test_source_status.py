@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Sources Status HTTP Client."""
-import re
 from unittest.mock import create_autospec
 from unittest.mock import patch
 from uuid import uuid4
@@ -608,5 +607,5 @@ class SourcesStatusTest(IamTestCase):
             status_obj = SourceStatus(source_id)
             with self.assertLogs("sources.api.source_status", level="INFO") as logger:
                 status_obj.status()
-                expected = re.compile(f"INFO:sources.api.source_status:.*No provider found for Source ID: {source_id}")
-                self.assertRegexIn(expected, logger.output)
+                expected = f"INFO:sources.api.source_status:No provider found for Source ID: {source_id}"
+                self.assertIn(expected, logger.output)
