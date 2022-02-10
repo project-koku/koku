@@ -249,3 +249,35 @@ class GCPProviderTestCase(TestCase):
             credentials = {"project_id": test.get("project_id")}
             formatted_data_set = GCPProvider()._format_dataset_id(data_source, credentials)
             self.assertEqual(formatted_data_set, test.get("expected"))
+
+    @patch("providers.gcp.provider.bigquery")
+    @patch("providers.gcp.provider.discovery")
+    @patch("providers.gcp.provider.google.auth.default")
+    def test_cost_usage_source_is_reachable_dataset_value_error(self, mock_auth, mock_discovery, mock_bigquery):
+        """Test that cost_usage_source_is_reachable throws appropriate error when dataset not correct."""
+        mock_bigquery.Client.side_effect = ValueError()
+        gcp_creds = MagicMock()
+        mock_auth.return_value = (gcp_creds, MagicMock())
+        mock_discovery.build.return_value.projects.return_value.testIamPermissions.return_value.execute.return_value.get.return_value = (  # noqa: E501
+            REQUIRED_IAM_PERMISSIONS
+        )
+        billing_source_param = {"dataset": FAKE.word()}
+        credentials_param = {"project_id": FAKE.word()}
+        provider = GCPProvider()
+        with self.assertRaises(ValidationError):
+            provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    # @patch("providers.gcp.provider.google.auth.default")
+    # @patch("providers.gcp.provider.bigquery")
+    # def test_detect_billing_export_table_value_error(self, mock_bq, mock_auth):
+    #     """Test detect billing export value error."""
+
+    #     mock_auth =
+    #     mock_bq =
+    #     invalid_ds = 'cody-testing.fake_project.making.teests'
+
+    #     data_source =
+    #     credentials =
+
+    #     with self.assertRaises(ValueError):
+    #         GCPProvider()._detect_billing_export_table()
