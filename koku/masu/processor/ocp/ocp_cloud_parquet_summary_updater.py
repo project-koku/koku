@@ -341,7 +341,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
 
-            sql_params["source_type"] = "GCP"
             with OCPReportDBAccessor(self._schema) as ocp_accessor:
                 sql_params["source_type"] = "GCP"
                 LOG.info(f"Processing OCP-ALL for GCP (T)  (s={start_date} e={end_date})")
