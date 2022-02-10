@@ -41,7 +41,7 @@ django-filter==21.1
 django-prometheus==2.2.0
 django-redis==5.2.0
 django-tenant-schemas==1.11.0
-django==3.2.11
+django==3.2.12
 djangorestframework-csv==2.1.1
 djangorestframework==3.13.1
 fcache==0.4.7
