@@ -403,6 +403,8 @@ class ParquetReportProcessor:
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
+                    if data_frame.empty:
+                        continue
                     parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
