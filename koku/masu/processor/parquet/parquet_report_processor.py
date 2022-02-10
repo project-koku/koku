@@ -403,21 +403,22 @@ class ParquetReportProcessor:
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
-                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
-                    parquet_file = f"{self.local_path}/{parquet_filename}"
-                    if self.post_processor:
-                        data_frame = self.post_processor(data_frame)
-                        if isinstance(data_frame, tuple):
-                            data_frame, data_frame_tag_keys = data_frame
-                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                            unique_keys.update(data_frame_tag_keys)
-                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                    if self.daily_data_processor is not None:
-                        daily_data_frames.append(self.daily_data_processor(data_frame))
+                    if not data_frame.empty:
+                        parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
+                        parquet_file = f"{self.local_path}/{parquet_filename}"
+                        if self.post_processor:
+                            data_frame = self.post_processor(data_frame)
+                            if isinstance(data_frame, tuple):
+                                data_frame, data_frame_tag_keys = data_frame
+                                LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                                unique_keys.update(data_frame_tag_keys)
+                                LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                        if self.daily_data_processor is not None:
+                            daily_data_frames.append(self.daily_data_processor(data_frame))
 
-                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
-                    if not success:
-                        return parquet_base_filename, daily_data_frames, False
+                        success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                        if not success:
+                            return parquet_base_filename, daily_data_frames, False
             if self.create_table and not self.presto_table_exists.get(self.report_type):
                 self.create_parquet_table(parquet_file)
             create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
