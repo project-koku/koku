@@ -695,8 +695,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         if self._report_type == "costs":
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
-        # currency = ["currency_code"]
-        # query_data = query.values(*currency)
         query_data = query.annotate()
         query_data = query_data.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
