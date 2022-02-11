@@ -63,19 +63,6 @@ def _check_s3_access(bucket, credentials):
     return s3_exists
 
 
-def _check_org_access(credentials):
-    """Check for provider organization access."""
-    access_ok = True
-    org_client = boto3.client("organizations", **credentials)
-    try:
-        org_client.describe_organization()
-    except (ClientError, BotoConnectionError) as boto_error:
-        message = "Unable to describe organizationwith given credentials."
-        LOG.warn(msg=message, exc_info=boto_error)
-        access_ok = False
-    return access_ok
-
-
 def _check_cost_report_access(credential_name, credentials, region="us-east-1", bucket=None):
     """Check for provider cost and usage report access."""
     cur_client = boto3.client("cur", region_name=region, **credentials)
@@ -152,10 +139,6 @@ class AWSProvider(ProviderInterface):
 
         _check_cost_report_access(credential_name, creds, bucket=storage_resource_name)
 
-        org_access = _check_org_access(creds)
-        if not org_access:
-            message = f"Unable to obtain organization data with {credential_name}."
-            LOG.info(message)
         return True
 
     def infra_type_implementation(self, provider_uuid, tenant):
