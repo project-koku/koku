@@ -266,18 +266,3 @@ class GCPProviderTestCase(TestCase):
         provider = GCPProvider()
         with self.assertRaises(ValidationError):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
-
-    # @patch("providers.gcp.provider.google.auth.default")
-    # @patch("providers.gcp.provider.bigquery")
-    # def test_detect_billing_export_table_value_error(self, mock_bq, mock_auth):
-    #     """Test detect billing export value error."""
-
-    #     mock_auth =
-    #     mock_bq =
-    #     invalid_ds = 'cody-testing.fake_project.making.teests'
-
-    #     data_source =
-    #     credentials =
-
-    #     with self.assertRaises(ValueError):
-    #         GCPProvider()._detect_billing_export_table()
