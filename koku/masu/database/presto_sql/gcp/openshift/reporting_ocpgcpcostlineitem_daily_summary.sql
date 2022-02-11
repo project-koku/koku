@@ -177,7 +177,7 @@ SELECT gcp.uuid as gcp_uuid,
     cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
-    sum(credits) as credit_amount,
+    sum(daily_credits) as credit_amount,
     cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
     cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
@@ -286,7 +286,7 @@ SELECT gcp.uuid as gcp_uuid,
     cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
-    sum(credits) as credit_amount,
+    sum(daily_credits) as credit_amount,
     cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
     cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
@@ -428,11 +428,11 @@ SELECT gcp_uuid,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / project_rank / data_source_rank
     END as pod_cost,
     pod_usage_cpu_core_hours,
