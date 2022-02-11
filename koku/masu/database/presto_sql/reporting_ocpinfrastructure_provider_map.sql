@@ -50,6 +50,10 @@
         {% endif %}
 {% endif %}
 
+{% if ocp_provider_uuid  %}
+    UNION
+{% endif %}
+
 {% if gcp_provider_uuid %}
     WITH cte_openshift_cluster_info AS (
     SELECT DISTINCT cluster_id,
@@ -61,6 +65,9 @@
     SELECT DISTINCT labels,
         source
     FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    WHERE source = '{{gcp_provider_uuid | sqlsafe}}'
+        AND year = '{{year | sqlsafe}}'
+        AND month = '{{month | sqlsafe}}'
     ),
     cte_label_keys AS (
     SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
@@ -73,5 +80,6 @@
     FROM cte_label_keys as gcp
     INNER JOIN cte_openshift_cluster_info as ocp
         ON any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_id)
+            OR any_match(map_keys(gcp.parsed_labels), e -> e = 'kubernetes-io-cluster-' || ocp.cluster_alias)
             OR element_at(gcp.parsed_labels, 'openshift_cluster')  IN (ocp.cluster_id, ocp.cluster_alias)
 {% endif %}
