@@ -129,7 +129,7 @@ class TestGCPUtils(MasuTestCase):
         label_string = []
         expected = {}
         label_result = utils.process_gcp_labels(label_string)
-        self.assertEqual(label_result, expected)
+        self.assertEqual(label_result, str(expected))
 
     def test_process_gcp_credits(self):
         """Test that credits are formatted properly."""
