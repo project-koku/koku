@@ -110,6 +110,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number, ocp_provider_uuid):
         """Create a parquet file for daily aggregated data."""
         # Add the OCP UUID in case multiple clusters are running on this cloud source.
+        if self._provider_type == Provider.PROVIDER_GCP:
+            if data_frame.first_valid_index() is not None:
+                parquet_base_filename = (
+                    f"{data_frame['invoice_month'][0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
+                )
         file_name = f"{parquet_base_filename}_{file_number}_{ocp_provider_uuid}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)

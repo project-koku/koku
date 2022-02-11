@@ -11,6 +11,10 @@ objects:
     database:
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
+    dependencies:
+    - ingress
+    - rbac
+    - sources-api
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: clowder-api
@@ -2255,10 +2259,7 @@ objects:
     - topicName: platform.upload.validation
     objectStore:
     - ${S3_BUCKET_NAME}
-    optionalDependencies:
-    - ingress
-    - rbac
-    - sources-api
+    optionalDependencies: []
     testing:
       iqePlugin: cost-management
 - apiVersion: cloud.redhat.com/v1alpha1

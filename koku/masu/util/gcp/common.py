@@ -81,8 +81,9 @@ def process_gcp_labels(label_string):
     """
     label_dict = {}
     try:
-        labels = json.loads(label_string.replace("'", '"'))
-        label_dict = {entry.get("key"): entry.get("value") for entry in labels}
+        if label_string:
+            labels = json.loads(label_string.replace("'", '"'))
+            label_dict = {entry.get("key"): entry.get("value") for entry in labels}
     except JSONDecodeError:
         LOG.warning("Unable to process GCP labels.")
 
@@ -144,8 +145,9 @@ def gcp_generate_daily_data(data_frame):
     # this parses the credits column into just the dollar amount so we can sum it up for daily rollups
     rollup_frame = data_frame.copy()
     rollup_frame["credits"] = rollup_frame["credits"].apply(json.loads)
+    rollup_frame["daily_credits"] = 0.0
     for i, credit_dict in enumerate(rollup_frame["credits"]):
-        rollup_frame["credits"][i] = credit_dict.get("amount", 0.0)
+        rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
     daily_data_frame = rollup_frame.groupby(
         [
             "invoice_month",
@@ -170,7 +172,7 @@ def gcp_generate_daily_data(data_frame):
             "usage_amount_in_pricing_units": ["sum"],
             "currency": ["max"],
             "cost": ["sum"],
-            "credits": ["sum"],
+            "daily_credits": ["sum"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)
