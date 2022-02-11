@@ -433,10 +433,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
 
         pod_column = "pod_effective_usage_cpu_core_hours"
-        cluster_column = "cluster_capacity_cpu_core_hours"
+        node_column = "node_capacity_cpu_core_hours"
         if distribution == "memory":
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
-            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+            node_column = "node_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -453,7 +453,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "markup": markup_value,
             "pod_column": pod_column,
-            "cluster_column": cluster_column,
+            "node_column": node_column,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
