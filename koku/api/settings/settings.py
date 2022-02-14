@@ -255,7 +255,7 @@ class Settings:
                 message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
                 raise ValidationError(error_obj(key, message))
 
-            if "aws" in provider_name:
+            if "aws" in provider_name or "azure" in provider_name:
                 existing_enabled_tags = list(
                     enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
                 )

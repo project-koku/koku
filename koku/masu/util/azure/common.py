@@ -154,7 +154,11 @@ def azure_post_processor(data_frame):
 
     data_frame = data_frame.reindex(columns=columns)
 
-    return data_frame
+    unique_tags = set()
+    for tags_json in data_frame["tags"]:
+        unique_tags.update(set(json.loads(tags_json).keys()))
+
+    return (data_frame, unique_tags)
 
 
 def get_column_converters():

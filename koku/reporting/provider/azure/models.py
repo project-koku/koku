@@ -258,6 +258,20 @@ class AzureEnabledTagKeys(models.Model):
     key = models.CharField(max_length=253, unique=True)
 
 
+class AzureEnabledTagKeysEF(models.Model):
+    """A collection of the current enabled tag keys."""
+
+    class Meta:
+        """Meta for AzureEnabledTagKeys."""
+
+        indexes = [models.Index(fields=["key", "enabled"], name="az_enabled_key_index")]
+        # EF = Enabled Flag
+        db_table = "reporting_azureenabledtagkeys_ef"
+
+    key = models.CharField(max_length=253, primary_key=True)
+    enabled = models.BooleanField(default=True)
+
+
 # ======================================================
 #  Partitioned Models to replace matviews
 # ======================================================
