@@ -143,6 +143,7 @@ class Provider(models.Model):
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
+    additional_context = JSONField(null=True, default=dict)
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""
@@ -253,6 +254,7 @@ class Sources(RunTextFieldValidators, models.Model):
 
     # Availability status
     status = JSONField(null=True, default=dict)
+    additional_context = JSONField(null=True, default=dict)
 
     def __str__(self):
         """Get the string representation."""

@@ -25,6 +25,7 @@ from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
 from reporting.provider.gcp.models import GCPCostEntryLineItemDaily
@@ -491,6 +492,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             days_list, gcp_provider_uuid, openshift_provider_uuid, year, month
         )
 
+        cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
+
         # Default to cpu distribution
         pod_column = "pod_effective_usage_cpu_core_hours"
         cluster_column = "cluster_capacity_cpu_core_hours"
@@ -517,6 +520,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "cluster_column": cluster_column,
             "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
         }
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 

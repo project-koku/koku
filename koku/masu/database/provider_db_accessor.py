@@ -7,6 +7,8 @@ from django.db import transaction
 
 from api.provider.models import Provider
 from api.provider.models import ProviderInfrastructureMap
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_CACHE_PREFIX
 from masu.database.koku_database_access import KokuDBAccess
 from masu.external.date_accessor import DateAccessor
 
@@ -108,6 +110,17 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.type if self.provider else None
 
+    def get_additional_context(self):
+        """
+        Returns additional context information.
+
+        Args:
+            None
+        Returns:
+            (dict): { 'crawl_hierarchy': True }
+        """
+        return self.provider.additional_context if self.provider else {}
+
     def get_credentials(self):
         """
         Return the credential information.
@@ -164,6 +177,7 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         self.provider.setup_complete = True
         self.provider.save()
+        invalidate_view_cache_for_tenant_and_cache_key(SOURCES_CACHE_PREFIX)
 
     def get_customer_uuid(self):
         """
@@ -236,6 +250,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
         self.provider.infrastructure = mapping
         self.provider.save()
+        invalidate_view_cache_for_tenant_and_cache_key(SOURCES_CACHE_PREFIX)
 
     def get_associated_openshift_providers(self):
         """Return a list of OpenShift clusters associated with the cloud provider."""
@@ -253,3 +268,11 @@ class ProviderDBAccessor(KokuDBAccess):
         if self.provider:
             self.provider.data_updated_timestamp = self.date_accessor.today_with_timezone("UTC")
             self.provider.save()
+            invalidate_view_cache_for_tenant_and_cache_key(SOURCES_CACHE_PREFIX)
+
+    def set_additional_context(self, new_value):
+        """Sets the additional context value."""
+        if self.provider:
+            self.provider.additional_context = new_value
+            self.provider.save()
+            invalidate_view_cache_for_tenant_and_cache_key(SOURCES_CACHE_PREFIX)
