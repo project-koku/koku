@@ -50,9 +50,9 @@ class KokuTestRunner(DiscoverRunner):
     # @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query")
     # @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
     # def run_tests(self, test_labels, mock_execute, mock_raw, mock_multipart, mock_presto, extra_tests=None, **kwargs):
-    def run_tests(self, test_labels, extra_tests=None, **kwargs):
-        """Mock Trino DB connections and run tests."""
-        return super().run_tests(test_labels, extra_tests=extra_tests, kwargs=kwargs)
+    # def run_tests(self, test_labels, extra_tests=None, **kwargs):
+    #     """Mock Trino DB connections and run tests."""
+    #     return super().run_tests(test_labels, extra_tests=extra_tests, kwargs=kwargs)
 
 
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
