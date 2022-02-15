@@ -255,7 +255,12 @@ def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
     LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
+    unleash_init_start = datetime.utcnow()
     UNLEASH_CLIENT.initialize_client()
+    LOG.info(
+        "UNLEASH_CLIENT initialized for celery worker in "
+        f"{(datetime.utcnow() - unleash_init_start).total_seconds()} seconds."
+    )
 
 
 @worker_process_shutdown.connect

@@ -85,6 +85,23 @@ customer:
           dataset: 'example-dataset-name'
           table_id: 'example-table-id'
           local_dir: '/tmp/gcp_local_bucket'
+    - ocp_on_gcp_source:
+      source_name: Test OCP on GCP
+      source_type: 'OCP'
+      authentication:
+        credentials:
+          cluster_id: test-ocp-gcp-cluster
+    - gcp_source:
+      source_name: Test OCPGCP Source
+      source_type: 'GCP-local'
+      authentication:
+        credentials:
+          project_id: 'example-ocpgcp-project'
+      billing_source:
+        data_source:
+          dataset: 'example-ocpgcp-dataset'
+          table_id: 'example-ocpgcp-table'
+          local_dir: '/tmp/gcp_local_bucket_0'
 koku:
   host: localhost
   port: 8000

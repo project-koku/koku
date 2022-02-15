@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     pod_usage_memory_gigabyte_hours double,
     pod_request_memory_gigabyte_hours double,
     pod_effective_usage_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
     pod_labels varchar,
@@ -122,6 +124,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     pod_labels,
@@ -163,6 +167,8 @@ SELECT aws.uuid as aws_uuid,
         sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+        max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
@@ -223,6 +229,8 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_usage_memory_gigabyte_hours,
     pod_request_memory_gigabyte_hours,
     pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     pod_labels,
@@ -264,6 +272,8 @@ SELECT aws.uuid as aws_uuid,
         cast(NULL as double) as pod_usage_memory_gigabyte_hours,
         cast(NULL as double) as pod_request_memory_gigabyte_hours,
         cast(NULL as double) as pod_effective_usage_memory_gigabyte_hours,
+        cast(NULL as double) as node_capacity_cpu_core_hours,
+        cast(NULL as double) as node_capacity_memory_gigabyte_hours,
         cast(NULL as double) as cluster_capacity_cpu_core_hours,
         cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
         max(ocp.pod_labels) as pod_labels,
@@ -367,11 +377,11 @@ SELECT aws_uuid,
     unblended_cost / project_rank / data_source_rank as unblended_cost,
     markup_cost / project_rank / data_source_rank as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / project_rank / data_source_rank
     END as pod_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / project_rank / data_source_rank
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN ocp_aws.pod_labels IS NOT NULL
@@ -426,6 +436,8 @@ FROM (
         sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
         sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
         sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+        max(pds.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+        max(pds.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
         max(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
         max(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
         max(pds.pod_labels) as pod_labels,

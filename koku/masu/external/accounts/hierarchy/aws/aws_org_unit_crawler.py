@@ -10,6 +10,7 @@ from datetime import timedelta
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django.db import transaction
+from requests.exceptions import ConnectionError as BotoConnectionError
 from tenant_schemas.utils import schema_context
 
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -41,6 +42,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
         self.account_id = None
         self.errors_raised = False
         self.provider = self.get_provider()
+        self.crawlable = True
 
     def get_provider(self):
         """Given the provider_uuid it returns the provider object."""
@@ -57,19 +59,19 @@ class AWSOrgUnitCrawler(AccountCrawler):
         )
         try:
             self._init_session()
-            self._build_accout_alias_map()
-
-            self._compute_org_structure_yesterday()
-            root_ou = self._client.list_roots()["Roots"][0]
-            LOG.info(
-                "Obtained the root identifier for account with provider_uuid: "
-                "{} and account_id: {}. Root identifier: {}".format(
-                    self.account.get("provider_uuid"), self.account_id, root_ou["Id"]
+            if self.crawlable:
+                self._build_accout_alias_map()
+                self._compute_org_structure_yesterday()
+                root_ou = self._client.list_roots()["Roots"][0]
+                LOG.info(
+                    "Obtained the root identifier for account with provider_uuid: "
+                    "{} and account_id: {}. Root identifier: {}".format(
+                        self.account.get("provider_uuid"), self.account_id, root_ou["Id"]
+                    )
                 )
-            )
-            self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
-            if not self.errors_raised:
-                self._mark_nodes_deleted()
+                self._crawl_org_for_accounts(root_ou, root_ou.get("Id"), level=0)
+                if not self.errors_raised:
+                    self._mark_nodes_deleted()
         except ParamValidationError as param_error:
             LOG.warn(msg=error_message)
             LOG.warn(param_error)
@@ -123,6 +125,29 @@ class AWSOrgUnitCrawler(AccountCrawler):
                 )
             )
 
+    def _check_if_crawlable(self):
+        """Checks to see if the account is crawlable."""
+        context_key = "crawl_hierarchy"
+        with ProviderDBAccessor(self.account.get("provider_uuid")) as provider_accessor:
+            context = provider_accessor.get_additional_context()
+            self.crawlable = context.get(context_key, True)
+
+        if self.crawlable:
+            try:
+                self._client.describe_organization()
+                root_ou = self._client.list_roots()["Roots"][0]
+                self._client.list_accounts_for_parent(ParentId=root_ou.get("Id"))
+            except (ClientError, BotoConnectionError):
+                self.crawlable = False
+                LOG.info(
+                    "Incomplete aws org_unit permissions for provider_uuid: {} and account_id: {}".format(
+                        self.account.get("provider_uuid"), self.account_id
+                    )
+                )
+                with ProviderDBAccessor(self.account.get("provider_uuid")) as provider_accessor:
+                    context[context_key] = False
+                    provider_accessor.set_additional_context(context)
+
     def _init_session(self):
         """
         Set or get a session client for aws organizations
@@ -139,6 +164,7 @@ class AWSOrgUnitCrawler(AccountCrawler):
             " provider_uuid: {} and account_id: {}.".format(self.account.get("provider_uuid"), self.account_id)
         )
         self._client = session_client
+        self._check_if_crawlable()
 
     def _depaginate_account_list(self, function, resource_key, **kwargs):
         """
