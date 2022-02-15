@@ -372,7 +372,7 @@ WITH cte_rankings AS (
     FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     GROUP BY gcp_uuid
 )
-SELECT gcp_uuid,
+SELECT pds.gcp_uuid,
     cluster_id,
     cluster_alias,
     data_source,
@@ -429,8 +429,6 @@ SELECT gcp_uuid,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
     tags,
-    project_rank,
-    data_source_rank,
     '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
     '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
