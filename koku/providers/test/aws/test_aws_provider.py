@@ -253,10 +253,9 @@ class AWSProviderTestCase(TestCase):
         ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
-    @patch("providers.aws.provider._check_org_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access", return_value=True)
     def test_cost_usage_source_is_reachable(
-        self, mock_get_sts_access, mock_check_s3_access, mock_check_org_access, mock_check_cost_report_access
+        self, mock_get_sts_access, mock_check_s3_access, mock_check_cost_report_access
     ):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
@@ -308,10 +307,7 @@ class AWSProviderTestCase(TestCase):
         ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=False)
-    @patch("providers.aws.provider._check_org_access", return_value=True)
-    def test_cost_usage_source_is_reachable_no_bucket_exists(
-        self, mock_get_sts_access, mock_check_s3_access, mock_check_org_access
-    ):
+    def test_cost_usage_source_is_reachable_no_bucket_exists(self, mock_get_sts_access, mock_check_s3_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):
