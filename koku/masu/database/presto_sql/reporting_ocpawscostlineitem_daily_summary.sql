@@ -40,8 +40,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     pod_labels varchar,
     volume_labels varchar,
     tags varchar,
-    project_rank integer,
-    data_source_rank integer,
     resource_id_matched boolean
 ) WITH(format = 'PARQUET')
 ;
@@ -77,8 +75,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
-    project_rank integer,
-    data_source_rank integer,
     aws_source varchar,
     ocp_source varchar,
     year varchar,
@@ -131,8 +127,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
-    project_rank,
-    data_source_rank,
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
@@ -174,8 +168,6 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         NULL as volume_labels,
         max(aws.resourcetags) as tags,
-        row_number() OVER (partition by aws.uuid) as project_rank,
-        1 as data_source_rank,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -236,8 +228,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     pod_labels,
     volume_labels,
     tags,
-    project_rank,
-    data_source_rank,
     resource_id_matched
 )
 SELECT aws.uuid as aws_uuid,
@@ -279,8 +269,6 @@ SELECT aws.uuid as aws_uuid,
         max(ocp.pod_labels) as pod_labels,
         max(ocp.volume_labels) as volume_labels,
         max(aws.resourcetags) as tags,
-        row_number() OVER (partition by aws.uuid, ocp.data_source) as project_rank,
-        row_number() OVER (partition by aws.uuid, ocp.namespace) as data_source_rank,
         max(aws.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.aws_openshift_daily as aws
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -337,8 +325,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
     project_markup_cost,
     pod_labels,
     tags,
-    project_rank,
-    data_source_rank,
     aws_source,
     ocp_source,
     year,
@@ -347,12 +333,11 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily
 )
 WITH cte_rankings AS (
     SELECT pds.aws_uuid,
-        max(pds.data_source_rank) as data_source_rank,
-        max(pds.project_rank) as project_rank
+        count(*) as aws_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
     GROUP BY aws_uuid
 )
-SELECT aws_uuid,
+SELECT pds.aws_uuid,
     cluster_id,
     cluster_alias,
     data_source,
@@ -368,91 +353,45 @@ SELECT aws_uuid,
     product_family,
     instance_type,
     usage_account_id,
-    account_alias_id,
+    aa.id as account_alias_id,
     availability_zone,
     region,
     unit,
-    usage_amount / project_rank / data_source_rank as usage_amount,
+    usage_amount / aws_uuid_count as usage_amount,
     currency_code,
-    unblended_cost / project_rank / data_source_rank as unblended_cost,
-    markup_cost / project_rank / data_source_rank as markup_cost,
+    unblended_cost / aws_uuid_count as unblended_cost,
+    markup_cost / aws_uuid_count as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost
-        ELSE unblended_cost / project_rank / data_source_rank
+        ELSE unblended_cost / aws_uuid_count
     END as pod_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
-        ELSE unblended_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
+        ELSE unblended_cost / aws_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
-    CASE WHEN ocp_aws.pod_labels IS NOT NULL
+    CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
-                cast(json_parse(ocp_aws.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_aws.tags) as map(varchar, varchar))
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
         ELSE json_format(cast(
             map_concat(
-                cast(json_parse(ocp_aws.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_aws.tags) as map(varchar, varchar))
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as pod_labels,
     tags,
-    project_rank,
-    data_source_rank,
     '{{aws_source_uuid | sqlsafe}}' as aws_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM (
-    SELECT pds.aws_uuid,
-        max(pds.cluster_id) as cluster_id,
-        max(pds.cluster_alias) as cluster_alias,
-        max(pds.data_source) as data_source,
-        pds.namespace,
-        max(pds.node) as node,
-        max(pds.persistentvolumeclaim) as persistentvolumeclaim,
-        max(pds.persistentvolume) as persistentvolume,
-        max(pds.storageclass) as storageclass,
-        max(pds.resource_id) as resource_id,
-        max(pds.usage_start) as usage_start,
-        max(pds.usage_end) as usage_end,
-        max(pds.product_code) as product_code,
-        max(pds.product_family) as product_family,
-        max(pds.instance_type) as instance_type,
-        max(pds.usage_account_id) as usage_account_id,
-        max(aa.id) as account_alias_id,
-        max(pds.availability_zone) as availability_zone,
-        max(pds.region) as region,
-        max(pds.unit) as unit,
-        sum(pds.usage_amount) as usage_amount,
-        max(pds.currency_code) as currency_code,
-        sum(pds.unblended_cost) as unblended_cost,
-        sum(pds.markup_cost) as markup_cost,
-        sum(pds.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-        sum(pds.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
-        sum(pds.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
-        sum(pds.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-        sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-        sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
-        sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
-        max(pds.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-        max(pds.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-        max(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        max(pds.pod_labels) as pod_labels,
-        max(pds.volume_labels) as volume_labels,
-        max(pds.tags) as tags,
-        max(r.project_rank) as project_rank,
-        max(r.data_source_rank) as data_source_rank,
-        max(pds.resource_id_matched) as resource_id_matched
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
-    JOIN cte_rankings as r
-        ON pds.aws_uuid = r.aws_uuid
-    LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
-        ON pds.usage_account_id = aa.account_id
-    GROUP BY pds.aws_uuid, pds.namespace
-) as ocp_aws
+FROM hive.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_temp AS pds
+JOIN cte_rankings as r
+    ON pds.aws_uuid = r.aws_uuid
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_awsaccountalias AS aa
+    ON pds.usage_account_id = aa.account_id
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p (
