@@ -585,9 +585,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             if self._report_type == "costs":
-                query_group_by = ["date", "currency_code"] + self._get_group_by()
-            else:
-                query_group_by = ["date"] + self._get_group_by()
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -599,6 +596,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 annotations.pop("count_units", None)
 
             query_data = query_data.values(*query_group_by).annotate(**annotations)
+            # print("\n\n\nquery data here: ")
+            # print(query_data)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(
@@ -682,6 +681,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         query_sum = ordered_total
         query_data = data
+        groupby = self._get_group_by()
+        if self._report_type == "costs":
+            query_data = self.format_for_ui_recursive(groupby, query_data)
         return query_data, query_sum
 
     def calculate_total(self, **units):
@@ -696,9 +698,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         """
         query_group_by = ["date"] + self._get_group_by()
         if self._report_type == "costs":
-            query_group_by = ["date", "currency_code"] + self._get_group_by()
-        else:
-            query_group_by = ["date"] + self._get_group_by()
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate()

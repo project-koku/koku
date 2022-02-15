@@ -696,6 +696,75 @@ class ReportQueryHandler(QueryHandler):
                     dictionary[key] = new_values
         return data
 
+    def format_for_ui_recursive(self, groupby, out_data):
+        """Format the data for the UI."""
+        overall = []
+        if len(groupby) == 0:
+            new_value = []
+            for value in out_data:
+                new_values = self.aggregate_currency_codes_ui(groupby, value)
+                new_value.append(new_values)
+            return new_value
+        else:
+            group = groupby.pop(0)
+            for value in out_data:
+                new_out_data = value.get(group + "s")
+                value[group + "s"] = self.format_for_ui_recursive(groupby, new_out_data)
+                overall.append(value)
+        return overall
+
+    def aggregate_currency_codes_ui(self, groupby, out_data):
+        """Aggregate currency code info for UI."""
+        if len(groupby) == 0:
+            currency_codes = out_data.get("currency_codes")
+            total_query = self.aggregate_currency_codes(currency_codes)
+            out_data["date"] = total_query["date"]
+            out_data["source_uuid"] = total_query["source_uuid"]
+            out_data["infrastructure"] = total_query["infrastructure"]
+            out_data["supplementary"] = total_query["supplementary"]
+            out_data["cost"] = total_query["cost"]
+        return out_data
+
+    def aggregate_currency_codes(self, currency_codes):
+        """Aggregate and format the data after currency."""
+        total_query = {
+            "date": None,
+            "source_uuid": [],
+            "infrastructure": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency}
+            },
+            "supplementary": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency}
+            },
+            "cost": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency}
+            }
+        }
+        for currency_entry in currency_codes:
+            values = currency_entry.get("values")
+            for data in values:
+                source_uuids = total_query.get("source_uuid")
+                total_query["date"] = data.get("date")
+                total_query["source_uuid"] = source_uuids + data.get("source_uuid")
+                for structure in [
+                        "infrastructure",
+                        "supplementary",
+                        "cost"
+                    ]:
+                    for each in ["raw", "markup", "usage", "total"]:
+                        orig_value = total_query.get(structure).get(each).get("value")
+                        total_query[structure][each]["value"] = Decimal(data.get(structure).get(each).get("value")) + Decimal(orig_value)
+        return total_query
+
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         tag_prefix = self._mapper.tag_column + "__"
