@@ -198,7 +198,6 @@ def get_account_alias_from_role_arn(role_arn, session=None):
 
     if list_aliases:
         try:
-            # raise ClientError(operation_name="", error_response={})
             alias_response = iam_client.list_account_aliases()
             alias_list = alias_response.get("AccountAliases", [])
             # Note: Boto3 docs states that you can only have one alias per account
