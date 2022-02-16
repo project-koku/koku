@@ -2,7 +2,7 @@
 
 TMPFILE=/tmp/_migrations.txt
 GITERR=/tmp/_git_err
-_RESTORE=$(git rev-parse HEAD)
+_RESTORE=$(git show -s --format="%H")
 _DIR_RESTORE=$(pwd)
 
 function handle_restore
