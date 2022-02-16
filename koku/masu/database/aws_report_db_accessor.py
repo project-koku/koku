@@ -455,6 +455,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
+        LOG.info("Running OCP on AWS SQL with params:")
+        LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
