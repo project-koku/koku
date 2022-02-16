@@ -1,66 +1,135 @@
-#!/usr/bin/env bash
-
-TMPFILE=/tmp/_migrations.txt
-GITERR=/tmp/_git_err
-_RESTORE=$(git show -s --format="%H")
-_DIR_RESTORE=$(pwd)
-
-function handle_restore
-{
-    rm -f ${TMPFILE}
-    rm -f ${GITERR}
-    git checkout -q ${_RESTORE}
-    cd ${_DIR_RESTORE}
-}
+#!/usr/bin/env python
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
 
 
-trap "handle_restore" EXIT
-
-cd ${KOKU_PATH}
-git fetch -q
-
-printf "\n"
-
-if [[ -z "$1" || "$1" == "-h" || "$1" == "--help" || "$1" == "-help" ]]
-then
-    printf "\nUsage:\n"
-    printf "\t%s <sha> [<sha> ...]\n\n" ${0##*/}
-    printf "Needs an env var set:\n"
-    printf "\texport KOKU_PATH=/path/to/koku/repo\n\n\n"
-    exit 0
-fi
+GIT = shutil.which("git")
+MIGRATIONS = re.compile(r".+migrations/[0-9]+.*\.py")
+MIGRATION = re.compile("/migrations/(.+)")
+VERBOSE = 0
+MINIMAL = 1
+QUIET = 2
 
 
-sha=$1
-shift
+def resolve_repo_root():
+    script_path = os.path.abspath(sys.argv[0])
+    return os.path.dirname(script_path)
 
-while [[ -n "${sha}" ]]
-do
-    printf "Checking out sha %s\n" "${sha}"
-    git checkout -q ${sha} 2>${GITERR}
-    if [[ $? -ne 0 ]]
-    then
-        _rc=$?
-        cat ${GITERR} 1>&2
-        handle_restore
-        exit $?
-    fi
-    printf "%s:\n" "${sha}" >>${TMPFILE}
 
-    for mig_dir in $(find ${KOKU_PATH}/koku -type d -name migrations | sort)
-    do
-        ls -1 ${mig_dir}/[0-9]*.py | tail -1 >>${TMPFILE}
-    done
-    [[ ${#} -ge 1 ]] && printf -- "------------------\n" >>${TMPFILE}
+def get_migration_info(sha):
+    ls_command = [GIT, "ls-tree", "--full-tree", "-r", sha]
+    buff = None
+    with subprocess.Popen(ls_command, stdout=subprocess.PIPE) as git_process:
+        buff = git_process.stdout.read().decode("utf-8")
 
-    sha=$1
-    shift
-done
+    return buff
 
-printf "\n===========================================\n\n"
 
-cat ${TMPFILE}
+def parse_migration_info(buff):
+    migrations = MIGRATIONS.findall(buff)
+    return migrations
 
-printf "\n===========================================\n\n"
 
-handle_restore
+def get_latest_migrations(migrations):
+    latest_migrations = {}
+    for migration in migrations:
+        info, path = migration.split("\t")
+        obj_id = info.split(" ")[-1]
+        app, _, migration_file = path.split(os.path.sep)[-3:]
+        migration_number = migration_file[:4]
+        latest_migrations.setdefault(app, {})[migration_number] = {"obj_id": obj_id, "file": migration_file}
+
+    return latest_migrations
+
+
+def get_sha_migrations(sha):
+    return get_latest_migrations(parse_migration_info(get_migration_info(sha)))
+
+
+def compare_sha_migrations(old_sha, new_sha):
+    new_app_migrations = {}
+    new_migrations_files = {}
+    changed_migrations = {}
+    old_sha_migrations = get_sha_migrations(old_sha)
+    new_sha_migrations = get_sha_migrations(new_sha)
+
+    new_apps = sorted(set(new_sha_migrations).difference(set(old_sha_migrations)))
+    if new_apps:
+        for new_app in new_apps:
+            new_app_migrations.setdefault(new_app, []).extend(
+                m["file"] for _, m in new_sha_migrations[new_app].items()
+            )
+
+    for app in sorted(old_sha_migrations):
+        old_migrations = old_sha_migrations[app]
+        new_migrations = new_sha_migrations[app]
+        for migration_number in sorted(set(list(old_migrations) + list(new_migrations))):
+            if migration_number in new_migrations and migration_number not in old_migrations:
+                new_migrations_files.setdefault(app, []).append(new_migrations[migration_number]["file"])
+            elif migration_number in new_migrations and migration_number in old_migrations:
+                if old_migrations.get(migration_number).get("obj_id") != new_migrations[migration_number]["obj_id"]:
+                    changed_migrations.setdefault(app, []).append(new_migrations[migration_number]["file"])
+
+    return new_app_migrations, new_migrations_files, changed_migrations
+
+
+def print_migrations(migrations):
+    for app in migrations:
+        print(f"\t{app}:")
+        for migration_file in migrations[app]:
+            print(f"\t\t{migration_file}")
+
+
+def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):
+    if not quiet:
+        print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha {new_sha}")
+    new_app_migrations, new_migrations, changed_migrations = compare_sha_migrations(old_sha, new_sha)
+    if new_app_migrations or new_migrations or changed_migrations:
+        if changed_migrations and not new_app_migrations and not new_migrations:
+            migration_action_msg = "Migrations may need to be run"
+            rc = 2
+        else:
+            migration_action_msg = "Migrations ** should ** be run"
+            rc = 1
+
+        if not quiet:
+            if new_app_migrations:
+                print("New apps were created:")
+                print_migrations(new_app_migrations)
+
+            if new_migrations:
+                print("New migrations were created:")
+                print_migrations(new_migrations)
+
+            if changed_migrations:
+                print("Migrations changed between shas")
+                print_migrations(changed_migrations)
+
+        if quiet < QUIET:
+            print(f"\n{migration_action_msg}\n\n")
+    else:
+        if quiet < QUIET:
+            print("No migrations to be run.")
+        rc = 0
+
+    return rc
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--old-sha", type=str, dest="old_sha", metavar="OLD", required=True, help="Earlier sha")
+    parser.add_argument("-n", "--new-sha", type=str, dest="new_sha", metavar="NEW", required=True, help="Later sha")
+    parser.add_argument(
+        "-s", "--short", action="store_true", dest="short", default=False, required=False, help="Minimal output"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", dest="quiet", default=False, required=False, help="No output"
+    )
+    args = parser.parse_args()
+    args.short |= args.quiet
+
+    sys.exit(handle_migration_compare(args.old_sha, args.new_sha, quiet=int(args.short) + int(args.quiet)))
