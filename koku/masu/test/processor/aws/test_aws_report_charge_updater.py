@@ -4,6 +4,7 @@
 #
 """Test the AWSReportDBAccessor utility object."""
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -60,11 +61,10 @@ class AWSCostModelCostUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup", new_callable=PropertyMock)
     def test_update_summary_cost_model_costs(self, mock_markup):
         """Test to verify AWS derived cost summary is calculated."""
-        markup = {"value": 10, "unit": "percent"}
-        mock_markup.return_value = markup
+        mock_markup.return_value = {"value": 10, "unit": "percent"}
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
 
