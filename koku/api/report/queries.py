@@ -699,6 +699,8 @@ class ReportQueryHandler(QueryHandler):
     def format_for_ui_recursive(self, groupby, out_data):
         """Format the data for the UI."""
         overall = []
+        print("\n\n\ngroupby")
+        print(groupby)
         if len(groupby) == 0:
             new_value = []
             for value in out_data:
@@ -716,13 +718,22 @@ class ReportQueryHandler(QueryHandler):
     def aggregate_currency_codes_ui(self, groupby, out_data):
         """Aggregate currency code info for UI."""
         if len(groupby) == 0:
-            currency_codes = out_data.get("currency_codes")
+            codes = {
+                Provider.PROVIDER_AWS: "currency_codes",
+                Provider.PROVIDER_AZURE: "currencys",
+                Provider.PROVIDER_GCP: "currencys",
+            }
+            currency_codes = out_data.get(codes.get(self.provider))
+            print("\n\n\n\nOUT DATA: ")
+            print(out_data)
+            values = {}
             total_query = self.aggregate_currency_codes(currency_codes)
-            out_data["date"] = total_query["date"]
-            out_data["source_uuid"] = total_query["source_uuid"]
-            out_data["infrastructure"] = total_query["infrastructure"]
-            out_data["supplementary"] = total_query["supplementary"]
-            out_data["cost"] = total_query["cost"]
+            values["date"] = total_query["date"]
+            values["source_uuid"] = total_query["source_uuid"]
+            values["infrastructure"] = total_query["infrastructure"]
+            values["supplementary"] = total_query["supplementary"]
+            values["cost"] = total_query["cost"]
+            out_data["values"] = [values]
         return out_data
 
     def aggregate_currency_codes(self, currency_codes):
@@ -734,20 +745,20 @@ class ReportQueryHandler(QueryHandler):
                 "raw": {"value": 0, "units": self.currency},
                 "markup": {"value": 0, "units": self.currency},
                 "usage": {"value": 0, "units": self.currency},
-                "total": {"value": 0, "units": self.currency}
+                "total": {"value": 0, "units": self.currency},
             },
             "supplementary": {
                 "raw": {"value": 0, "units": self.currency},
                 "markup": {"value": 0, "units": self.currency},
                 "usage": {"value": 0, "units": self.currency},
-                "total": {"value": 0, "units": self.currency}
+                "total": {"value": 0, "units": self.currency},
             },
             "cost": {
                 "raw": {"value": 0, "units": self.currency},
                 "markup": {"value": 0, "units": self.currency},
                 "usage": {"value": 0, "units": self.currency},
-                "total": {"value": 0, "units": self.currency}
-            }
+                "total": {"value": 0, "units": self.currency},
+            },
         }
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
@@ -755,14 +766,12 @@ class ReportQueryHandler(QueryHandler):
                 source_uuids = total_query.get("source_uuid")
                 total_query["date"] = data.get("date")
                 total_query["source_uuid"] = source_uuids + data.get("source_uuid")
-                for structure in [
-                        "infrastructure",
-                        "supplementary",
-                        "cost"
-                    ]:
+                for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total"]:
                         orig_value = total_query.get(structure).get(each).get("value")
-                        total_query[structure][each]["value"] = Decimal(data.get(structure).get(each).get("value")) + Decimal(orig_value)
+                        total_query[structure][each]["value"] = Decimal(
+                            data.get(structure).get(each).get("value")
+                        ) + Decimal(orig_value)
         return total_query
 
     def _transform_data(self, groups, group_index, data):
