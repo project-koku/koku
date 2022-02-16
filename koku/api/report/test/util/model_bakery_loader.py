@@ -347,7 +347,6 @@ class ModelBakeryDataLoader(DataLoader):
             daily_summary_recipe = "api.report.test.util.ocp_on_aws_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_storage"
-            # tags_update_method = partial(AWSReportDBAccessor(self.schema).populate_ocp_on_aws_tags_summary_table)
             dbaccessor, tags_update_method = AWSReportDBAccessor, "populate_ocp_on_aws_tags_summary_table"
             with schema_context(self.schema):
                 account_alias = random.choice(list(AWSAccountAlias.objects.all()))
@@ -356,14 +355,12 @@ class ModelBakeryDataLoader(DataLoader):
             daily_summary_recipe = "api.report.test.util.ocp_on_azure_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_storage"
-            # tags_update_method = partial(AzureReportDBAccessor(self.schema).populate_ocp_on_azure_tags_summary_table)
             dbaccessor, tags_update_method = AzureReportDBAccessor, "populate_ocp_on_azure_tags_summary_table"
             unique_fields = {"currency": self.currency, "subscription_guid": self.faker.uuid4()}
         elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             daily_summary_recipe = "api.report.test.util.ocp_on_gcp_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_storage"
-            # tags_update_method = partial(GCPReportDBAccessor(self.schema).populate_ocp_on_gcp_tags_summary_table)
             dbaccessor, tags_update_method = GCPReportDBAccessor, "populate_ocp_on_gcp_tags_summary_table"
             unique_fields = {
                 "currency": self.currency,
