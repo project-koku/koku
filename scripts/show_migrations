@@ -9,6 +9,7 @@ import sys
 
 GIT = shutil.which("git")
 MIGRATIONS = re.compile(r".+migrations/[0-9]+.*\.py")
+TMIGRATIONS = re.compile(r".+migrate_trino.py")
 MIGRATION = re.compile("/migrations/(.+)")
 VERBOSE = 0
 MINIMAL = 1
@@ -31,10 +32,13 @@ def get_migration_info(sha):
 
 def parse_migration_info(buff):
     migrations = MIGRATIONS.findall(buff)
-    return migrations
+    tmigrations = TMIGRATIONS.search(buff)
+    if tmigrations:
+        tmigrations = [tmigrations.group(0)]
+    return migrations, tmigrations
 
 
-def get_latest_migrations(migrations):
+def get_all_migrations(migrations, tmigrations):
     latest_migrations = {}
     for migration in migrations:
         info, path = migration.split("\t")
@@ -43,11 +47,18 @@ def get_latest_migrations(migrations):
         migration_number = migration_file[:4]
         latest_migrations.setdefault(app, {})[migration_number] = {"obj_id": obj_id, "file": migration_file}
 
+    # Make the migrate trino script look like it came from a django app structure
+    for migration in tmigrations:
+        info, path = migration.split("\t")
+        obj_id = info.split(" ")[-1]
+        migration_file = path.split(os.path.sep)[-1]
+        latest_migrations.setdefault("trinodb", {})["0001"] = {"obj_id": obj_id, "file": migration_file}
+
     return latest_migrations
 
 
 def get_sha_migrations(sha):
-    return get_latest_migrations(parse_migration_info(get_migration_info(sha)))
+    return get_all_migrations(*parse_migration_info(get_migration_info(sha)))
 
 
 def compare_sha_migrations(old_sha, new_sha):
