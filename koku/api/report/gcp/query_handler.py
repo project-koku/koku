@@ -171,9 +171,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             if self._report_type == "costs":
-                query_group_by = ["date", "currency"] + self._get_group_by()
-            else:
-                query_group_by = ["date"] + self._get_group_by()
                 query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -252,6 +249,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         self.query_data = data
         self.query_sum = ordered_total
+        groupby = self._get_group_by()
+        if self._report_type == "costs":
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
     def calculate_total(self, **units):
@@ -266,9 +266,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
         """
         query_group_by = ["date"] + self._get_group_by()
         if self._report_type == "costs":
-            query_group_by = ["date", "currency"] + self._get_group_by()
-        else:
-            query_group_by = ["date"] + self._get_group_by()
             query_group_by.append("currency")
 
         query = self.query_table.objects.filter(self.query_filter)

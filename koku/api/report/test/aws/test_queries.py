@@ -832,7 +832,11 @@ class AWSReportQueryTest(IamTestCase):
         self.assertAlmostEqual(total_cost_total.get("value"), self.calculate_total(handler), 6)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
+        print("\n\n\n\nData: ")
+        print(data)
         for data_item in data:
+            print("\n\n\ndata_item")
+            print(data_item)
             month_val = data_item.get("date")
             month_data = data_item.get("values")
             self.assertEqual(month_val, cmonth_str)
