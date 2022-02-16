@@ -66,6 +66,18 @@ def add_columns_to_table(columns, table, conn_params):
             logging.info(e)
 
 
+def drop_columns_from_table(columns, table, conn_params):
+    for column in columns:
+        logging.info(f"Dropping column {column} from table {table}")
+        sql = f"ALTER TABLE IF EXISTS {table} DROP COLUMN IF EXISTS {column}"
+        try:
+            result = run_trino_sql(sql, conn_params)
+            logging.info("ALTER TABLE result: ")
+            logging.info(result)
+        except Exception as e:
+            logging.info(e)
+
+
 def main():
     logging.info("Running the hive migration for cost model effective cost")
 
@@ -75,17 +87,28 @@ def main():
     logging.info(schemas)
 
     # tables_to_drop = []
+    # columns_to_add = []
+    columns_to_drop = ["project_rank", "data_source_rank"]
 
-    columns_to_add = ["node_capacity_cpu_core_hours", "node_capacity_memory_gigabyte_hours"]
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
         # logging.info(f"*** dropping tables for schema {schema} ***")
         # drop_tables(tables_to_drop, CONNECT_PARAMS)
-        logging.info(f"*** adding columns for schema {schema} ***")
-        add_columns_to_table(columns_to_add, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
-        add_columns_to_table(
-            columns_to_add, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS
+        logging.info(f"*** Dropping columns for schema {schema} ***")
+        drop_columns_from_table(
+            columns_to_drop, "reporting_ocpawscostlineitem_project_daily_summary_temp", CONNECT_PARAMS
         )
+        drop_columns_from_table(columns_to_drop, "reporting_ocpawscostlineitem_project_daily_summary", CONNECT_PARAMS)
+        drop_columns_from_table(
+            columns_to_drop, "reporting_ocpazurecostlineitem_project_daily_summary_temp", CONNECT_PARAMS
+        )
+        drop_columns_from_table(
+            columns_to_drop, "reporting_ocpazurecostlineitem_project_daily_summary", CONNECT_PARAMS
+        )
+        drop_columns_from_table(
+            columns_to_drop, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS
+        )
+        drop_columns_from_table(columns_to_drop, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
