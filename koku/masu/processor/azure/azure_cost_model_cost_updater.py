@@ -4,6 +4,7 @@
 #
 """Updates Azure report summary tables in the database with charge information."""
 import logging
+from decimal import Decimal
 
 from tenant_schemas.utils import schema_context
 
@@ -39,7 +40,7 @@ class AzureCostModelCostUpdater:
             bills = get_bills_from_provider(self._provider.uuid, self._schema, start_date, end_date)
             with CostModelDBAccessor(self._schema, self._provider.uuid) as cost_model_accessor:
                 markup = cost_model_accessor.markup
-                markup_value = float(markup.get("value", 0)) / 100
+                markup_value = Decimal(markup.get("value", 0)) / 100
 
             with AzureReportDBAccessor(self._schema) as report_accessor:
                 with schema_context(self._schema):
