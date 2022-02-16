@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
+import logging
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -16,6 +17,8 @@ from api.utils import DateHelper
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.test import MasuTestCase
 from reporting.provider.gcp.models import GCPTopology
+
+LOG = logging.getLogger(__name__)
 
 
 class ResourceTypesViewTestGcpProjects(MasuTestCase):

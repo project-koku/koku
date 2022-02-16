@@ -27,6 +27,7 @@ BUCKET = FAKE.word()
 P_UUID = FAKE.uuid4()
 P_TYPE = Provider.PROVIDER_AWS
 GEN_NUM_ACT_DEFAULT = 2
+LOG = logging.getLogger(__name__)
 
 
 def _generate_act_for_parent_side_effect(schema, parent_id, num_of_accounts=GEN_NUM_ACT_DEFAULT):
@@ -146,9 +147,12 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
             self.assertIsNotNone(acts_in_db)
             self.assertEqual(acts_in_db.count(), 3)
 
+    @patch.object(AWSOrgUnitCrawler, "_check_if_crawlable")
     @patch("masu.util.aws.common.get_assume_role_session")
-    def test_crawl_account_hierarchy(self, mock_session):
+    def test_crawl_account_hierarchy(self, mock_session, mock_crawlable):
         """Test the crawling for account hierarchy."""
+        # The crawable check throws off our account magic mock side effect count
+        mock_crawlable.return_value = True
         mock_session.client = MagicMock()
         account_side_effect = []
         paginator_side_effect = []
@@ -181,28 +185,26 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with self.assertLogs(logger=crawler_log, level=logging.WARNING):
             unit_crawler.crawl_account_hierarchy()
 
-    @patch("masu.util.aws.common.get_assume_role_session")
-    def test_crawl_list_root_access_denied(self, mock_session):
+    def test_crawl_list_root_access_denied(self):
         """Test botocore list roots access denied."""
         # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/error-handling.html
         logging.disable(logging.NOTSET)
-        mock_session.client = MagicMock()
+        mock_error = MagicMock()
+        mock_error.list_roots.side_effect = _mock_boto3_access_denied
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        unit_crawler._init_session()
-        unit_crawler._client.list_roots.side_effect = _mock_boto3_access_denied
-        with self.assertLogs(logger=crawler_log, level=logging.WARNING):
-            unit_crawler.crawl_account_hierarchy()
+        unit_crawler._client = mock_error
+        unit_crawler._check_if_crawlable()
+        self.assertEqual(False, unit_crawler.crawlable)
 
-    @patch("masu.util.aws.common.get_assume_role_session")
-    def test_general_client_error_denied(self, mock_session):
+    def test_general_client_error_denied(self):
         """Test botocore general ClientError."""
         logging.disable(logging.NOTSET)
-        mock_session.client = MagicMock()
+        mock_error = MagicMock()
+        mock_error.list_roots.side_effect = _mock_boto3_general_client_error
         unit_crawler = AWSOrgUnitCrawler(self.account)
-        unit_crawler._init_session()
-        unit_crawler._client.list_roots.side_effect = _mock_boto3_general_client_error
-        with self.assertLogs(logger=crawler_log, level=logging.WARNING):
-            unit_crawler.crawl_account_hierarchy()
+        unit_crawler._client = mock_error
+        unit_crawler._check_if_crawlable()
+        self.assertEqual(False, unit_crawler.crawlable)
 
     @patch("masu.util.aws.common.get_assume_role_session")
     def test_unknown_exception(self, mock_session):
@@ -215,9 +217,12 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
         with self.assertLogs(logger=crawler_log, level=logging.raiseExceptions):
             unit_crawler.crawl_account_hierarchy()
 
+    @patch.object(AWSOrgUnitCrawler, "_check_if_crawlable")
     @patch("masu.util.aws.common.get_assume_role_session")
-    def test_crawl_org_for_acts(self, mock_session):
+    def test_crawl_org_for_acts(self, mock_session, mock_crawlable):
         "Test that if an exception is raised the crawl continues"
+        # The crawable check throws off our account magic mock side effect count
+        mock_crawlable.return_value = True
         mock_session.client = MagicMock()
         account_side_effect = []
         paginator_side_effect = []

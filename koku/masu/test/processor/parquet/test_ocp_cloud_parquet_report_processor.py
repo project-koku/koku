@@ -11,6 +11,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
@@ -18,6 +19,7 @@ from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYP
 from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
+from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -106,6 +108,16 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         report_processor = OCPCloudParquetReportProcessor(
             schema_name=self.schema,
             report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+            context={"request_id": self.request_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        self.assertIsInstance(report_processor.db_accessor, GCPReportDBAccessor)
+
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
             provider_uuid=self.ocp_provider_uuid,
             provider_type=Provider.PROVIDER_OCP,
             manifest_id=self.manifest_id,
@@ -143,20 +155,45 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         """Test that we write OCP on Cloud data and create a table."""
         base_file_name = f"{self.ocp_provider_uuid}"
         file_path = f"{self.report_processor.local_path}"
-        df = pd.DataFrame()
+        df = pd.DataFrame({"test": [1, 2, 3]})
         self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0, self.ocp_provider_uuid)
         mock_write.assert_called()
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True)
 
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology):
+    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info):
         """Test that ocp on cloud data is fully processed."""
+        # this is a yes or no check so true is fine
+        mock_cluster_info.return_value = True
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
         self.report_processor.process("", [pd.DataFrame()])
 
         mock_topology.assert_called()
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
+
+    def test_ocp_on_gcp_data_processor(self):
+        """Test that the processor is properly set."""
+        report_processor = OCPCloudParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.gcp_provider_uuid,
+            provider_type=Provider.PROVIDER_GCP,
+            manifest_id=self.manifest_id,
+        )
+        self.assertEqual(report_processor.ocp_on_cloud_data_processor, gcp_match_openshift_resources_and_labels)
+
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    def test_process_no_cluster_info(self, mock_data_processor, mock_create_parquet, mock_cluster_info):
+        """Test that ocp on cloud data is not processed when there is no cluster info."""
+        # this is a yes or no check so false is fine
+        mock_cluster_info.return_value = False
+        self.report_processor.process("", [pd.DataFrame()])
+        mock_data_processor.assert_not_called()
+        mock_create_parquet.assert_not_called()

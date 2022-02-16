@@ -105,6 +105,10 @@ class ProviderManager:
             }
         return {}
 
+    def get_additional_context(self):
+        """Returns additional context information."""
+        return self.model.additional_context if self.model else {}
+
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
         return self.model.customer == current_user.customer

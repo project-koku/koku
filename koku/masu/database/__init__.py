@@ -59,4 +59,7 @@ GCP_REPORT_TABLE_MAP = {
     "bill": "reporting_gcpcostentrybill",
     "product": "reporting_gcpcostentryproductservice",
     "project": "reporting_gcpproject",
+    "ocp_on_gcp_daily_summary": "reporting_ocpgcpcostlineitem_daily_summary_p",
+    "ocp_on_gcp_project_daily_summary": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
+    "ocp_on_gcp_tags_summary": "reporting_ocpgcptags_summary",
 }
