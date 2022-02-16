@@ -522,6 +522,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
         }
+        LOG.info("Running OCP on GCP SQL with params:")
+        LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
