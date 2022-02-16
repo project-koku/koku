@@ -88,7 +88,7 @@ class ResourceTypeView(APIView):
             }
             gcp_project_dict = {
                 "value": "gcp.projects",
-                "path": "/api/cost-management/v1/resource-types/gcp-projectss/",
+                "path": "/api/cost-management/v1/resource-types/gcp-projects/",
                 "count": gcp_project_count,
             }
             cost_model_dict = {
