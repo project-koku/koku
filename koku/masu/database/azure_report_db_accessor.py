@@ -403,6 +403,8 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "pod_column": pod_column,
             "node_column": node_column,
         }
+        LOG.info("Running OCP on Azure SQL with params:")
+        LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):

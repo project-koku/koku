@@ -74,7 +74,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        url = reverse("gcp-gcp-projects")
+        url = reverse("gcp-projects")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
@@ -122,7 +122,7 @@ class ResourceTypesViewTestGcpProjects(MasuTestCase):
             )
         # check that the expected is not zero
         self.assertTrue(expected)
-        url = reverse("gcp-gcp-projects")
+        url = reverse("gcp-projects")
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
