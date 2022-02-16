@@ -38,8 +38,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
     pod_labels varchar,
     volume_labels varchar,
     tags varchar,
-    project_rank integer,
-    data_source_rank integer,
     resource_id_matched boolean
 ) WITH(format = 'PARQUET')
 ;
@@ -72,8 +70,6 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlinei
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
-    project_rank integer,
-    data_source_rank integer,
     azure_source varchar,
     ocp_source varchar,
     year varchar,
@@ -124,8 +120,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     pod_labels,
     volume_labels,
     tags,
-    project_rank,
-    data_source_rank,
     resource_id_matched
 )
 SELECT azure.uuid as azure_uuid,
@@ -173,8 +167,6 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
-    row_number() OVER (partition by azure.uuid, ocp.data_source) as project_rank,
-    row_number() OVER (partition by azure.uuid, ocp.namespace) as data_source_rank,
     max(azure.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -236,8 +228,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     pod_labels,
     volume_labels,
     tags,
-    project_rank,
-    data_source_rank,
     resource_id_matched
 )
 SELECT azure.uuid as azure_uuid,
@@ -285,8 +275,6 @@ SELECT azure.uuid as azure_uuid,
     max(ocp.pod_labels) as pod_labels,
     max(ocp.volume_labels) as volume_labels,
     max(azure.tags) as tags,
-    row_number() OVER (partition by azure.uuid, ocp.data_source) as project_rank,
-    row_number() OVER (partition by azure.uuid, ocp.namespace) as data_source_rank,
     max(azure.resource_id_matched) as resource_id_matched
     FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
     JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
@@ -342,8 +330,6 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
     project_markup_cost,
     pod_labels,
     tags,
-    project_rank,
-    data_source_rank,
     azure_source,
     ocp_source,
     year,
@@ -352,12 +338,11 @@ INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_dai
 )
 WITH cte_rankings AS (
     SELECT pds.azure_uuid,
-        max(pds.data_source_rank) as data_source_rank,
-        max(pds.project_rank) as project_rank
+        count(*) as azure_uuid_count
     FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
     GROUP BY azure_uuid
 )
-SELECT azure_uuid,
+SELECT pds.azure_uuid,
     cluster_id,
     cluster_alias,
     data_source,
@@ -374,84 +359,39 @@ SELECT azure_uuid,
     subscription_guid,
     resource_location,
     unit_of_measure,
-    usage_quantity / project_rank / data_source_rank as usage_quantity,
+    usage_quantity / r.azure_uuid_count as usage_quantity,
     currency,
-    pretax_cost / project_rank / data_source_rank as pretax_cost,
-    markup_cost / project_rank / data_source_rank as markup_cost,
+    pretax_cost / r.azure_uuid_count as pretax_cost,
+    markup_cost / r.azure_uuid_count as markup_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
-        ELSE pretax_cost / project_rank / data_source_rank
+        ELSE pretax_cost / r.azure_uuid_count
     END as pod_cost,
     CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
-        ELSE pretax_cost / project_rank / data_source_rank * cast({{markup}} as decimal(24,9))
+        ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
-    CASE WHEN ocp_azure.pod_labels IS NOT NULL
+    CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
-                cast(json_parse(ocp_azure.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_azure.tags) as map(varchar, varchar))
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
         ELSE json_format(cast(
             map_concat(
-                cast(json_parse(ocp_azure.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_azure.tags) as map(varchar, varchar))
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
     END as pod_labels,
     tags,
-    project_rank,
-    data_source_rank,
     '{{azure_source_uuid | sqlsafe}}' as azure_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
     cast(month(usage_start) as varchar) as month,
     cast(day(usage_start) as varchar) as day
-FROM (
-    SELECT pds.azure_uuid,
-        max(pds.data_source) as data_source,
-        max(pds.cluster_id) as cluster_id,
-        max(pds.cluster_alias) as cluster_alias,
-        pds.namespace,
-        max(pds.node) as node,
-        max(pds.persistentvolumeclaim) as persistentvolumeclaim,
-        max(pds.persistentvolume) as persistentvolume,
-        max(pds.storageclass) as storageclass,
-        max(pds.resource_id) as resource_id,
-        max(pds.usage_start) as usage_start,
-        max(pds.usage_end) as usage_end,
-        max(pds.service_name) as service_name,
-        max(pds.instance_type) as instance_type,
-        max(pds.subscription_guid) as subscription_guid,
-        max(pds.resource_location) as resource_location,
-        max(pds.unit_of_measure) as unit_of_measure,
-        sum(pds.usage_quantity) as usage_quantity,
-        max(pds.currency) as currency,
-        sum(pds.pretax_cost) as pretax_cost,
-        sum(pds.markup_cost) as markup_cost,
-        sum(pds.pod_cost) as pod_cost,
-        sum(pds.project_markup_cost) as project_markup_cost,
-        sum(pds.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-        sum(pds.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
-        sum(pds.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
-        sum(pds.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-        sum(pds.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-        sum(pds.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
-        sum(pds.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
-        max(pds.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-        max(pds.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-        max(pds.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(pds.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        max(pds.pod_labels) as pod_labels,
-        max(pds.volume_labels) as volume_labels,
-        max(pds.tags) as tags,
-        max(r.project_rank) as project_rank,
-        max(r.data_source_rank) as data_source_rank,
-        max(pds.resource_id_matched) as resource_id_matched
-    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
-    JOIN cte_rankings as r
-        ON pds.azure_uuid = r.azure_uuid
-    GROUP BY pds.azure_uuid, pds.namespace
-) as ocp_azure
+FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+JOIN cte_rankings as r
+    ON pds.azure_uuid = r.azure_uuid
 ;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
