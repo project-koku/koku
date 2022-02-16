@@ -82,10 +82,10 @@ def process_gcp_labels(label_string):
     label_dict = {}
     try:
         if label_string:
-            labels = json.loads(label_string.replace("'", '"'))
+            labels = json.loads(label_string)
             label_dict = {entry.get("key"): entry.get("value") for entry in labels}
     except JSONDecodeError:
-        LOG.warning("Unable to process GCP labels.")
+        LOG.debug("Unable to process GCP labels.")
 
     return json.dumps(label_dict)
 

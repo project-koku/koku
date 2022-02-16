@@ -344,6 +344,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def build_query_select_statement(self):
         """Helper to build query select statement."""
         columns_list = self.gcp_big_query_columns.copy()
+        columns_list = [
+            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
+            for col in columns_list
+        ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
