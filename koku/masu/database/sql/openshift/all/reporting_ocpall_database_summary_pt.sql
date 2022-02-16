@@ -59,7 +59,14 @@ SELECT {{source_type}},
                                'AmazonRedshift',
                                'AmazonDocumentDB',
                                'Cosmos DB',
-                               'Cache for Redis'
+                               'Cache for Redis',
+                               'SQL',
+                               'Spanner',
+                               'Bigtable',
+                               'Firestore',
+                               'Firebase',
+                               'Memorystore',
+                               'MongoDB'
                            )
        )
  GROUP

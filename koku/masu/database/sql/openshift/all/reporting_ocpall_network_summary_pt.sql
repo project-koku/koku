@@ -60,7 +60,20 @@ SELECT {{source_type}},
                            'Traffic Manager',
                            'ExpressRoute',
                            'Load Balancer',
-                           'Application Gateway'
+                           'Application Gateway',
+                           'Network',
+                           'VPC',
+                           'Firewall',
+                           'Route',
+                           'IP',
+                           'DNS',
+                           'CDN',
+                           'NAT',
+                           'Traffic Director',
+                           'Service Discovery',
+                           'Cloud Domains',
+                           'Private Service Connect',
+                           'Cloud Armor'
                        )
  GROUP
     BY usage_start,

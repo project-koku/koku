@@ -29,6 +29,19 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         "ExpressRoute",
         "Load Balancer",
         "Application Gateway",
+        "Network",
+        "VPC",
+        "Firewall",
+        "Route",
+        "IP",
+        "DNS",
+        "CDN",
+        "NAT",
+        "Traffic Director",
+        "Service Discovery",
+        "Cloud Domains",
+        "Private Service Connect",
+        "Cloud Armor",
     }
     database_services = {
         "AmazonRDS",
@@ -40,6 +53,13 @@ class OCPAllReportQueryHandler(OCPInfrastructureReportQueryHandlerBase):
         "Database",
         "Cosmos DB",
         "Cache for Redis",
+        "SQL",
+        "Spanner",
+        "Bigtable",
+        "Firestore",
+        "Firebase",
+        "Memorystore",
+        "MongoDB",
     }
 
     def __init__(self, parameters):
