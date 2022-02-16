@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+TMPFILE=/tmp/_migrations.txt
+GITERR=/tmp/_git_err
+_RESTORE=$(git rev-parse HEAD)
+_DIR_RESTORE=$(pwd)
+
+function handle_restore
+{
+    rm -f ${TMPFILE}
+    rm -f ${GITERR}
+    git checkout -q ${_RESTORE}
+    cd ${_DIR_RESTORE}
+}
+
+
+trap "handle_restore" EXIT
+
+cd ${KOKU_PATH}
+git fetch -q
+
+printf "\n"
+
+if [[ -z "$1" || "$1" == "-h" || "$1" == "--help" || "$1" == "-help" ]]
+then
+    printf "\nUsage:\n"
+    printf "\t%s <sha> [<sha> ...]\n\n" ${0##*/}
+    printf "Needs an env var set:\n"
+    printf "\texport KOKU_PATH=/path/to/koku/repo\n\n\n"
+    exit 0
+fi
+
+
+sha=$1
+shift
+
+while [[ -n "${sha}" ]]
+do
+    printf "Checking out sha %s\n" "${sha}"
+    git checkout -q ${sha} 2>${GITERR}
+    if [[ $? -ne 0 ]]
+    then
+        _rc=$?
+        cat ${GITERR} 1>&2
+        handle_restore
+        exit $?
+    fi
+    printf "%s:\n" "${sha}" >>${TMPFILE}
+
+    for mig_dir in $(find ${KOKU_PATH}/koku -type d -name migrations | sort)
+    do
+        ls -1 ${mig_dir}/[0-9]*.py | tail -1 >>${TMPFILE}
+    done
+    [[ ${#} -ge 1 ]] && printf -- "------------------\n" >>${TMPFILE}
+
+    sha=$1
+    shift
+done
+
+printf "\n===========================================\n\n"
+
+cat ${TMPFILE}
+
+printf "\n===========================================\n\n"
+
+handle_restore
