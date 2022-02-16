@@ -86,7 +86,7 @@ def print_migrations(migrations):
 
 def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):
     if not quiet:
-        print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha {new_sha}")
+        print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha: {new_sha}\n")
     new_app_migrations, new_migrations, changed_migrations = compare_sha_migrations(old_sha, new_sha)
     if new_app_migrations or new_migrations or changed_migrations:
         if changed_migrations and not new_app_migrations and not new_migrations:
