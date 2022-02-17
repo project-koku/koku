@@ -652,6 +652,8 @@ class AzureReportQueryHandlerTest(IamTestCase):
             )
         mock_accept.return_value = "text/csv"
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[resource_location]={location}"  # noqa: E501
+        print("\n\n\nThis is the URL: ")
+        print(url)
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1117,7 +1119,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 usage_start__gte=self.dh.this_month_start
             ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
 
+        print("\n\nthis is the url: ")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
+        print(url)
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
 

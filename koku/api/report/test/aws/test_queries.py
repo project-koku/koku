@@ -1812,7 +1812,9 @@ class AWSReportQueryTest(IamTestCase):
             no_reformat = ["instance_type", "storage_type", "account"]
             group_by_options = reformats_data + no_reformat
             for group_by_option in group_by_options:
+                print("\n\n\n\nurl it is hitting")
                 group_by_url = f"?group_by[org_unit_id]=R_001&group_by[{group_by_option}]=*"
+                print(group_by_url)
                 params = self.mocked_query_params(group_by_url, AWSCostView, "costs")
                 handler = AWSReportQueryHandler(params)
                 handler.execute_query()
