@@ -295,6 +295,34 @@ class AWSReportDownloaderTest(MasuTestCase):
         with self.assertRaises(AWSReportDownloaderError):
             downloader._check_size(fakekey, check_inflate=False)
 
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_check_size_fail_access_denied(self, fake_session):
+        """Test _check_size fails if there report has no size."""
+        fake_response = {"Error": {"Code": "AccessDenied"}}
+        fake_client = Mock()
+        fake_client.get_object.side_effect = ClientError(fake_response, "masu-test")
+
+        downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
+        downloader.s3_client = fake_client
+
+        fakekey = self.fake.file_path(depth=random.randint(1, 5), extension=random.choice(["json", "csv.gz"]))
+        with self.assertRaises(AWSReportDownloaderAccessDenied):
+            downloader._check_size(fakekey, check_inflate=False)
+
+    @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
+    def test_check_size_fail_unknown_error(self, fake_session):
+        """Test _check_size fails if there report has no size."""
+        fake_response = {"Error": {"Unknown": "Unknown"}}
+        fake_client = Mock()
+        fake_client.get_object.side_effect = ClientError(fake_response, "masu-test")
+
+        downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
+        downloader.s3_client = fake_client
+
+        fakekey = self.fake.file_path(depth=random.randint(1, 5), extension=random.choice(["json", "csv.gz"]))
+        with self.assertRaises(AWSReportDownloaderError):
+            downloader._check_size(fakekey, check_inflate=False)
+
     @patch("masu.external.downloader.aws.aws_report_downloader.shutil")
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_check_size_inflate_success(self, fake_session, fake_shutil):
