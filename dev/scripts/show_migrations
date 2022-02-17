@@ -16,6 +16,20 @@ MINIMAL = 1
 QUIET = 2
 
 
+def resolve_repo_root():
+    script_path = os.path.abspath(sys.argv[0])
+    return os.path.dirname(script_path)
+
+
+def get_commit_info(sha):
+    ls_command = [GIT, "rev-list", "-n", "1", sha]
+    buff = None
+    with subprocess.Popen(ls_command, stdout=subprocess.PIPE) as git_process:
+        buff = git_process.stdout.read().decode("utf-8").strip()
+
+    return buff
+
+
 def get_migration_info(sha):
     ls_command = [GIT, "ls-tree", "--full-tree", "-r", sha]
     buff = None
@@ -93,7 +107,13 @@ def print_migrations(migrations):
 def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):  # noqa
     rc = 0
     if not quiet:
-        print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha: {new_sha}\n")
+        old = get_commit_info(old_sha)
+        new = get_commit_info(new_sha)
+        print(
+            "\nComparing migrations:\n"
+            f"old sha/tag/branch (sha): {old_sha} ({old})\n"
+            f"new sha/tag/branch (sha): {new_sha} ({new})\n"
+        )
     new_app_migrations, new_migrations, changed_migrations = compare_sha_migrations(old_sha, new_sha)
     if new_app_migrations or new_migrations or changed_migrations:
         do_trino = "trinodb" in new_app_migrations or "trinodb" in new_migrations or "trinodb" in changed_migrations
