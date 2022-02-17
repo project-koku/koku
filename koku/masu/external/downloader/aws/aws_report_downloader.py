@@ -35,10 +35,6 @@ class AWSReportDownloaderNoFileError(Exception):
     """AWS Report Downloader error for missing file."""
 
 
-class AWSReportDownloaderAccessDenied(Exception):
-    """AWS Report Downloader error for access denied."""
-
-
 class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
     """
     AWS Cost and Usage Report Downloader.
@@ -136,7 +132,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if ex.response["Error"]["Code"] == "AccessDenied":
                 msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
                 LOG.info(log_json(self.tracing_id, msg, self.context))
-                raise AWSReportDownloaderAccessDenied(msg)
+                raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
             LOG.error(log_json(self.tracing_id, msg, self.context))
             raise AWSReportDownloaderError(str(ex))
@@ -253,7 +249,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if ex.response["Error"]["Code"] == "AccessDenied":
                 msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
                 LOG.info(log_json(self.tracing_id, msg, self.context))
-                raise AWSReportDownloaderAccessDenied(msg)
+                raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
             LOG.error(log_json(self.tracing_id, msg, self.context))
             raise AWSReportDownloaderError(str(ex))

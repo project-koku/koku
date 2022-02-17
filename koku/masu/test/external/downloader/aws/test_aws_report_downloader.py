@@ -21,7 +21,6 @@ from masu.exceptions import MasuProviderError
 from masu.external import AWS_REGIONS
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
-from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderAccessDenied
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderError
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloaderNoFileError
 from masu.external.report_downloader import ReportDownloader
@@ -306,7 +305,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         downloader.s3_client = fake_client
 
         fakekey = self.fake.file_path(depth=random.randint(1, 5), extension=random.choice(["json", "csv.gz"]))
-        with self.assertRaises(AWSReportDownloaderAccessDenied):
+        with self.assertRaises(AWSReportDownloaderNoFileError):
             downloader._check_size(fakekey, check_inflate=False)
 
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
@@ -404,7 +403,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         downloader = AWSReportDownloader(self.fake_customer_name, self.credentials, self.data_source)
         downloader.s3_client = fake_client
 
-        with self.assertRaises(AWSReportDownloaderAccessDenied):
+        with self.assertRaises(AWSReportDownloaderNoFileError):
             downloader.download_file(self.fake.file_path())
 
     def test_remove_manifest_file(self):
