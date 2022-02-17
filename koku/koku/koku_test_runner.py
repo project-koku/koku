@@ -7,6 +7,7 @@
 import logging
 import os
 import sys
+from unittest.mock import patch
 
 from django.conf import settings
 from django.db import connections
@@ -16,10 +17,13 @@ from scripts.insert_org_tree import UploadAwsTree
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
+from api.models import Provider
 from api.models import Tenant
-from api.report.test.utils import NiseDataLoader
+from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
+from api.report.test.util.nise_data_loader import NiseDataLoader
 from koku.env import ENVIRONMENT
 from reporting.models import OCPEnabledTagKeys
+
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
@@ -39,11 +43,16 @@ class KokuTestRunner(DiscoverRunner):
     def setup_databases(self, **kwargs):
         """Set up database tenant schema."""
         self.keepdb = settings.KEEPDB
-        main_db = setup_databases(
-            self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs
-        )
+        return setup_databases(self.verbosity, self.interactive, self.keepdb, self.debug_sql, self.parallel, **kwargs)
 
-        return main_db
+    # @patch("koku.presto_database._execute")
+    # @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_multipart_sql_query")
+    # @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query")
+    # @patch("masu.processor.report_parquet_processor_base.ReportParquetProcessorBase._execute_sql")
+    # def run_tests(self, test_labels, mock_execute, mock_raw, mock_multipart, mock_presto, extra_tests=None, **kwargs):
+    # def run_tests(self, test_labels, extra_tests=None, **kwargs):
+    #     """Mock Trino DB connections and run tests."""
+    #     return super().run_tests(test_labels, extra_tests=extra_tests, kwargs=kwargs)
 
 
 def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, parallel=0, aliases=None, **kwargs):
@@ -87,18 +96,57 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         with tenant_context(tenant):
                             for tag_key in OCP_ENABLED_TAGS:
                                 OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
-                        data_loader = NiseDataLoader(KokuTestRunner.schema)
+                        data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
                         # Load data
-                        data_loader = NiseDataLoader(KokuTestRunner.schema)
+                        # TODO: COST-444: This NiseDataLoader to be removed and replaced with the commented baker_data_loaders below.
+                        data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
                         data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
                         data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                         data_loader.load_azure_data(customer, "azure_static_data.yml")
-                        data_loader.load_gcp_data(customer, "gcp_static_data.yml")
+
+                        bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
+                        ocp_on_aws_cluster_id = "OCP-on-AWS"
+                        ocp_on_azure_cluster_id = "OCP-on-Azure"
+                        ocp_on_gcp_cluster_id = "OCP-on-GCP"
+                        ocp_on_prem_cluster_id = "OCP-on-Prem"
+
+                        # TODO: COST-444: uncomment these when the above data_loader is removed
+                        # ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
+                        #     ocp_on_aws_cluster_id, on_cloud=True
+                        # )
+                        # ocp_on_azure_ocp_provider, ocp_on_azure_report_periods = bakery_data_loader.load_openshift_data(
+                        #     ocp_on_azure_cluster_id, on_cloud=True
+                        # )
+                        # ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
+                        #     ocp_on_gcp_cluster_id, on_cloud=True
+                        # )
+                        # _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
+                        # _, aws_bills = bakery_data_loader.load_aws_data(
+                        #     linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
+                        # )
+                        # _, azure_bills = bakery_data_loader.load_azure_data(
+                        #     linked_openshift_provider=ocp_on_azure_ocp_provider
+                        # )
+                        _, gcp_bills = bakery_data_loader.load_gcp_data()
+
+                        # bakery_data_loader.load_openshift_on_cloud_data(
+                        #     Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods
+                        # )
+                        # bakery_data_loader.load_openshift_on_cloud_data(
+                        #     Provider.PROVIDER_AZURE_LOCAL,
+                        #     ocp_on_azure_cluster_id,
+                        #     azure_bills,
+                        #     ocp_on_azure_report_periods,
+                        # )
+                        # bakery_data_loader.load_openshift_on_cloud_data(
+                        #     Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
+                        # )
+
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()
@@ -111,9 +159,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                 if parallel > 1:
                     for index in range(parallel):
                         connection.creation.clone_test_db(suffix=str(index + 1), verbosity=verbosity, keepdb=keepdb)
-            # Configure all other connections as mirrors of the first one
             else:
-                connections[alias].creation.set_as_test_mirror(connections[first_alias].settings_dict)
+                connection.creation.set_as_test_mirror(connections[first_alias].settings_dict)
 
     # Configure the test mirrors.
     for alias, mirror_alias in mirrored_aliases.items():

@@ -64,7 +64,6 @@ from api.views import OCPCpuView
 from api.views import OCPGCPCostForecastView
 from api.views import OCPGCPCostView
 from api.views import OCPGCPInstanceTypeView
-from api.views import OCPGCPNamespaceView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
 from api.views import OCPMemoryView
@@ -322,7 +321,8 @@ urlpatterns = [
     path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
-    path("resource-types/gcp-projects/", OCPGCPNamespaceView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    # TODO gcp-gcp-projects should be removed after UI is pushed to prod.
     path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
     path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
     path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),

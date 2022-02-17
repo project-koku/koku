@@ -4,6 +4,7 @@
 #
 """Test the GCPReportDBAccessor utility object."""
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from api.utils import DateHelper
 from masu.database import GCP_REPORT_TABLE_MAP
@@ -61,11 +62,10 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
 
         self.manifest = self.manifest_accessor.add(**self.manifest_dict)
 
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.markup", new_callable=PropertyMock)
     def test_update_summary_cost_model_costs(self, mock_markup):
         """Test to verify GCP derived cost summary is calculated."""
-        markup = {"value": 10, "unit": "percent"}
-        mock_markup.return_value = markup
+        mock_markup.return_value = {"value": 10, "unit": "percent"}
         start_date = self.date_accessor.today_with_timezone("UTC")
         bill_date = start_date.replace(day=1).date()
         dh = DateHelper()

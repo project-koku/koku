@@ -125,8 +125,17 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         size_ok = False
 
-        s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
-        size = int(s3fileobj.get("ContentLength", -1))
+        try:
+            s3fileobj = self.s3_client.get_object(Bucket=self.report.get("S3Bucket"), Key=s3key)
+            size = int(s3fileobj.get("ContentLength", -1))
+        except ClientError as ex:
+            if ex.response["Error"]["Code"] == "AccessDenied":
+                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                raise AWSReportDownloaderNoFileError(msg)
+            msg = f"Error downloading file: Error: {str(ex)}"
+            LOG.error(log_json(self.tracing_id, msg, self.context))
+            raise AWSReportDownloaderError(str(ex))
 
         if size < 0:
             raise AWSReportDownloaderError(f"Invalid size for S3 object: {s3fileobj}")
@@ -237,7 +246,10 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 msg = "Unable to find {} in S3 Bucket: {}".format(s3_filename, self.report.get("S3Bucket"))
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 raise AWSReportDownloaderNoFileError(msg)
-
+            if ex.response["Error"]["Code"] == "AccessDenied":
+                msg = "Unable to access S3 Bucket {}: (AccessDenied)".format(self.report.get("S3Bucket"))
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                raise AWSReportDownloaderNoFileError(msg)
             msg = f"Error downloading file: Error: {str(ex)}"
             LOG.error(log_json(self.tracing_id, msg, self.context))
             raise AWSReportDownloaderError(str(ex))

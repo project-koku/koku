@@ -117,12 +117,19 @@ class TestGCPUtils(MasuTestCase):
 
     def test_process_gcp_labels(self):
         """Test that labels are formatted properly."""
-        label_string = "[{'key': 'key_one', 'value': 'value_one'}, {'key': 'key_two', 'value': 'value_two'}]"
+        label_string = '[{"key": "key_one", "value": "value_one"}, {"key": "key_two", "value": "value_two"}]'
 
         expected = '{"key_one": "value_one", "key_two": "value_two"}'
         label_result = utils.process_gcp_labels(label_string)
 
         self.assertEqual(label_result, expected)
+
+    def test_process_gcp_labels_empty_set(self):
+        """Test that labels are formatted properly."""
+        label_string = []
+        expected = {}
+        label_result = utils.process_gcp_labels(label_string)
+        self.assertEqual(label_result, str(expected))
 
     def test_process_gcp_credits(self):
         """Test that credits are formatted properly."""

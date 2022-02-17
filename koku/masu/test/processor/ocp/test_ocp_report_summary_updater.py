@@ -379,6 +379,10 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             self.assertGreater(period.summary_data_updated_datetime, self.today)
 
     @patch(
+        "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor."
+        "update_line_item_daily_summary_with_enabled_tags"
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_node_label_line_item_daily_table"
     )
     @patch(
@@ -390,7 +394,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_summary_table")
     @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_table")
     def test_update_summary_tables_no_period(
-        self, mock_daily, mock_sum, mock_period, mock_storage_daily, mock_storage_summary, mock_node_daily
+        self,
+        mock_daily,
+        mock_sum,
+        mock_period,
+        mock_storage_daily,
+        mock_storage_summary,
+        mock_node_daily,
+        mock_udt_lids_tags,
     ):
         """Test that summary tables are run for a full month when no report period is found."""
         self.manifest.num_processed_files = self.manifest.num_total_files
@@ -412,7 +423,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_daily.assert_called()
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
+        mock_udt_lids_tags.not_assert_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
         mock_sum.assert_called()
         mock_storage_summary.assert_called()
+        mock_udt_lids_tags.assert_called()

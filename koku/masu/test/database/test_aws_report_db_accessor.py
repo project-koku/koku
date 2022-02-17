@@ -1009,7 +1009,9 @@ class AWSReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(self.aws_provider.uuid, 0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(
+            self.aws_provider.uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
+        )
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -1096,29 +1098,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
-
-    @patch("masu.database.report_db_accessor_base.kpdb.connect")
-    def test_execute_presto_raw_sql_query(self, mock_connect):
-        """Test the presto execute method."""
-        mock_sql = "SELECT number FROM table"
-        mock_result = [[1], [2]]
-        mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
-
-        result = self.accessor._execute_presto_raw_sql_query(self.schema, mock_sql)
-
-        self.assertEqual(result, mock_result)
-
-    @patch("masu.database.report_db_accessor_base.kpdb.connect")
-    def test_execute_presto_multipart_sql_query(self, mock_connect):
-        """Test the presto execute method."""
-        mock_sql = "SELECT number FROM table; SELECT other_number FROM other_table;"
-        mock_result = [[1], [2]]
-        mock_connect.return_value.cursor.return_value.fetchall.return_value = mock_result
-        expected = mock_result + mock_result
-
-        result = self.accessor._execute_presto_multipart_sql_query(self.schema, mock_sql)
-
-        self.assertEqual(result, expected)
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
