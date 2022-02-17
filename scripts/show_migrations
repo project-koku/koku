@@ -16,11 +16,6 @@ MINIMAL = 1
 QUIET = 2
 
 
-def resolve_repo_root():
-    script_path = os.path.abspath(sys.argv[0])
-    return os.path.dirname(script_path)
-
-
 def get_migration_info(sha):
     ls_command = [GIT, "ls-tree", "--full-tree", "-r", sha]
     buff = None
@@ -33,8 +28,8 @@ def get_migration_info(sha):
 def parse_migration_info(buff):
     migrations = MIGRATIONS.findall(buff)
     tmigrations = TMIGRATIONS.search(buff)
-    if tmigrations:
-        tmigrations = [tmigrations.group(0)]
+    tmigrations = [tmigrations.group(0)] if tmigrations else []
+
     return migrations, tmigrations
 
 
@@ -95,17 +90,31 @@ def print_migrations(migrations):
             print(f"\t\t{migration_file}")
 
 
-def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):
+def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):  # noqa
+    rc = 0
     if not quiet:
         print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha: {new_sha}\n")
     new_app_migrations, new_migrations, changed_migrations = compare_sha_migrations(old_sha, new_sha)
     if new_app_migrations or new_migrations or changed_migrations:
-        if changed_migrations and not new_app_migrations and not new_migrations:
-            migration_action_msg = "Migrations may need to be run"
-            rc = 2
-        else:
-            migration_action_msg = "Migrations ** should ** be run"
-            rc = 1
+        do_trino = "trinodb" in new_app_migrations or "trinodb" in new_migrations or "trinodb" in changed_migrations
+        trino_set = {"trinodb"}
+        do_django = (
+            set(new_app_migrations).difference(trino_set)
+            or set(new_migrations).difference(trino_set)
+            or set(changed_migrations).difference(trino_set)
+        )
+        messages = []
+        if do_django:
+            if changed_migrations and not new_app_migrations and not new_migrations:
+                messages.append("Django migrations may need to be run.")
+                rc = 2
+            else:
+                messages.append("Django migrations should be run.")
+                rc = 1
+
+        if do_trino:
+            messages.append("Trino migrations should be run.")
+            rc |= 4
 
         if not quiet:
             if new_app_migrations:
@@ -121,11 +130,10 @@ def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):
                 print_migrations(changed_migrations)
 
         if quiet < QUIET:
-            print(f"\n{migration_action_msg}\n\n")
+            print(f"\n{os.linesep.join(messages)}\n\n")
     else:
         if quiet < QUIET:
             print("No migrations to be run.")
-        rc = 0
 
     return rc
 
