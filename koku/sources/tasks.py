@@ -8,6 +8,7 @@ import logging
 from django.core.exceptions import ObjectDoesNotExist
 
 from api.provider.models import Sources
+from api.provider.provider_manager import ProviderProcessingError
 from koku import celery_app
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import REMOVE_EXPIRED_DATA_QUEUE
@@ -20,7 +21,12 @@ from sources.storage import mark_provider_as_inactive
 LOG = logging.getLogger(__name__)
 
 
-@celery_app.task(name="sources.tasks.delete_source", queue=PRIORITY_QUEUE)
+@celery_app.task(
+    name="sources.tasks.delete_source",
+    autoretry_for=(ProviderProcessingError,),
+    retry_backoff=True,
+    queue=PRIORITY_QUEUE,
+)
 def delete_source(source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
     LOG.info(f"Deactivating Provider {koku_uuid}")
