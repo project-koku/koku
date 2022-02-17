@@ -312,7 +312,7 @@ class AWSReportDownloaderTest(MasuTestCase):
     @patch("masu.util.aws.common.get_assume_role_session", return_value=FakeSession)
     def test_check_size_fail_unknown_error(self, fake_session):
         """Test _check_size fails if there report has no size."""
-        fake_response = {"Error": {"Unknown": "Unknown"}}
+        fake_response = {"Error": {"Code": "Unknown"}}
         fake_client = Mock()
         fake_client.get_object.side_effect = ClientError(fake_response, "masu-test")
 
