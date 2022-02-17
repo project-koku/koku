@@ -42,7 +42,9 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     cluster_capacity_cpu_core_hours double,
     cluster_capacity_memory_gigabyte_hours double,
     volume_labels varchar,
-    tags varchar
+    tags varchar,
+    project_rank integer,
+    data_source_rank integer
 ) WITH(format = 'PARQUET')
 ;
 
@@ -89,6 +91,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
     cluster_capacity_memory_gigabyte_hours double,
     volume_labels varchar,
     tags varchar,
+    project_rank integer,
+    data_source_rank integer,
     gcp_source varchar,
     ocp_source varchar,
     year varchar,
