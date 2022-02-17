@@ -584,7 +584,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not self.is_csv_output:
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -682,7 +682,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         query_sum = ordered_total
         query_data = data
         groupby = self._get_group_by()
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not self.is_csv_output:
             query_data = self.format_for_ui_recursive(groupby, query_data)
         return query_data, query_sum
 

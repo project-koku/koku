@@ -701,6 +701,8 @@ class ReportQueryHandler(QueryHandler):
         overall = []
         print("\n\n\ngroupby")
         print(groupby)
+        print("\n\n")
+        print(out_data)
         if len(groupby) == 0:
             new_value = []
             for value in out_data:
@@ -709,6 +711,8 @@ class ReportQueryHandler(QueryHandler):
             return new_value
         else:
             group = groupby.pop(0)
+            if group.startswith("tags"):
+                group = group[6:]
             for value in out_data:
                 new_out_data = value.get(group + "s")
                 value[group + "s"] = self.format_for_ui_recursive(groupby, new_out_data)
@@ -717,6 +721,7 @@ class ReportQueryHandler(QueryHandler):
 
     def aggregate_currency_codes_ui(self, groupby, out_data):
         """Aggregate currency code info for UI."""
+        all_group_by = self._get_group_by()
         if len(groupby) == 0:
             codes = {
                 Provider.PROVIDER_AWS: "currency_codes",
@@ -724,19 +729,27 @@ class ReportQueryHandler(QueryHandler):
                 Provider.PROVIDER_GCP: "currencys",
             }
             currency_codes = out_data.get(codes.get(self.provider))
-            print("\n\n\n\nOUT DATA: ")
-            print(out_data)
             values = {}
-            total_query = self.aggregate_currency_codes(currency_codes)
+            total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
             values["date"] = total_query["date"]
             values["source_uuid"] = total_query["source_uuid"]
             values["infrastructure"] = total_query["infrastructure"]
             values["supplementary"] = total_query["supplementary"]
             values["cost"] = total_query["cost"]
+            if total_query.get("delta_value"):
+                values["delta_value"] = total_query.get("delta_value")
+            if total_query.get("account_alias"):
+                values["account_alias"] = total_query.get("account_alias")
+            if total_query.get("delta_percent"):
+                values["delta_percent"] = total_query.get("delta_percent")
+            for group in all_group_by:
+                if group.startswith("tags"):
+                    group = group[6:]
+                values[group] = total_query.get(group)
             out_data["values"] = [values]
         return out_data
 
-    def aggregate_currency_codes(self, currency_codes):
+    def aggregate_currency_codes(self, currency_codes, all_group_by):
         """Aggregate and format the data after currency."""
         total_query = {
             "date": None,
@@ -766,6 +779,16 @@ class ReportQueryHandler(QueryHandler):
                 source_uuids = total_query.get("source_uuid")
                 total_query["date"] = data.get("date")
                 total_query["source_uuid"] = source_uuids + data.get("source_uuid")
+                if data.get("delta_value"):
+                    total_query["delta_value"] = total_query.get("delta_value", 0) + data.get("delta_value")
+                if data.get("delta_percent"):
+                    total_query["delta_percent"] = total_query.get("delta_percent", 0) + data.get("delta_percent")
+                if data.get("account_alias"):
+                    total_query["account_alias"] = data.get("account_alias")
+                for group in all_group_by:
+                    if group.startswith("tags"):
+                        group = group[6:]
+                    total_query[group] = data.get(group)
                 for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total"]:
                         orig_value = total_query.get(structure).get(each).get("value")
