@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     pod_labels varchar,
     volume_labels varchar,
     tags varchar,
+    project_rank integer,
+    data_source_rank integer,
     resource_id_matched boolean
 ) WITH(format = 'PARQUET')
 ;
@@ -75,6 +77,8 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpawscostlineite
     project_markup_cost double,
     pod_labels varchar,
     tags varchar,
+    project_rank integer,
+    data_source_rank integer,
     aws_source varchar,
     ocp_source varchar,
     year varchar,
