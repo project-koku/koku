@@ -19,10 +19,10 @@ class CURAccountsDB(CURAccountsInterface):
         """Return account information in dictionary."""
         return {
             "customer_name": provider.customer.schema_name,
-            "credentials": provider.authentication.credentials,
-            "data_source": provider.billing_source.data_source,
+            "credentials": getattr(provider.authentication, "credentials", None),
+            "data_source": getattr(provider.billing_source, "data_source", None),
             "provider_type": provider.type,
-            "schema_name": provider.customer.schema_name,
+            "schema_name": getattr(provider.customer, "schema_name", None),
             "provider_uuid": provider.uuid,
         }
 
