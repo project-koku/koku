@@ -18,7 +18,7 @@ class CURAccountsDB(CURAccountsInterface):
     def get_account_information(provider):
         """Return account information in dictionary."""
         return {
-            "customer_name": provider.customer.schema_name,
+            "customer_name": getattr(provider.customer, "schema_name", None),
             "credentials": getattr(provider.authentication, "credentials", None),
             "data_source": getattr(provider.billing_source, "data_source", None),
             "provider_type": provider.type,
