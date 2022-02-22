@@ -465,7 +465,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         if filters:
             filter_list = []
             for key, value in filters.items():
-                filter_list.append(f"AND {key} = {value}")
+                filter_list.append(f"AND {key} = '{value}'")
             filter_str = "\n".join(filter_list)
             sql += filter_str
 
