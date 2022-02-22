@@ -4,7 +4,6 @@
 #
 """Tasks for Hybrid Committed Spend (HCS)"""
 import logging
-import time
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -34,18 +33,6 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :returns None
     """
 
-    # TODO: implement for HCS
-
-    if start_date is None:
-        start_date = DateHelper().today
-
-    if end_date:
-        LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
-        time.sleep(30)
-    else:
-        LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}")
-        time.sleep(30)
-
     if enable_HCS_processing(provider_uuid, provider, schema_name) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
@@ -57,3 +44,11 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
             f"provider: {provider}"
         )
         LOG.info(log_json(tracing_id, stmt))
+
+        if start_date is None:
+            start_date = DateHelper().today
+
+        if end_date:
+            LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
+        else:
+            LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}")
