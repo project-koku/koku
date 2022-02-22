@@ -30,7 +30,7 @@ LOG = logging.getLogger(__name__)
     max_retries=settings.MAX_SOURCE_DELETE_RETRIES,
     queue=PRIORITY_QUEUE,
 )
-def delete_source(source_id, auth_header, koku_uuid):
+def delete_source(self, source_id, auth_header, koku_uuid):
     """Delete Provider and Source."""
     LOG.info(f"Deactivating Provider {koku_uuid}")
     mark_provider_as_inactive(koku_uuid)
