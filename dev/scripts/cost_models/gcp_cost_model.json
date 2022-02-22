@@ -1,0 +1,13 @@
+{
+    "name": "Cost Management GCP Cost Model",
+    "description": "A cost model for markup on GCP costs.",
+    "source_type": "GCP",
+    "source_uuids": [
+        "PROVIDER_UUID"
+    ],
+    "rates": [],
+    "markup": {
+        "value": 30,
+        "unit": "percent"
+    }
+}
