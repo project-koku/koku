@@ -448,6 +448,29 @@ class ReportDBAccessorBase(KokuDBAccess):
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
 
+    def delete_line_item_daily_summary_entries_for_date_range_raw(
+        self, source_uuid, start_date, end_date, table=None, filters=None
+    ):
+        if table is None:
+            table = self.line_item_daily_summary_table
+        msg = f"Deleting records from {table} from {start_date} to {end_date}"
+        LOG.info(msg)
+
+        sql = f"""
+            DELETE FROM {table._meta.db_table}
+            WHERE source_uuid = '{source_uuid}'
+                AND usage_start >= '{start_date}'
+                AND usage_start <= '{end_date}'
+        """
+        if filters:
+            filter_list = []
+            for key, value in filters.items():
+                filter_list.append(f"AND {key} = {value}")
+            filter_str = "\n".join(filter_list)
+            sql += filter_str
+
+        self._execute_raw_sql_query(table, sql, start_date, end_date)
+
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
