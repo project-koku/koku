@@ -463,7 +463,7 @@ class ReportDBAccessorBase(KokuDBAccess):
                 AND usage_start <= %(end_date)s::date
         """
         if filters:
-            filter_list = [f"AND {k} = %s" for k in filters]
+            filter_list = [f"AND {k} = %({k})s" for k in filters]
             sql += "\n".join(filter_list)
         else:
             filters = {}
