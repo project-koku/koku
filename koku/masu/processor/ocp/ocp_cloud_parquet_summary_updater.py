@@ -112,7 +112,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_aws_bill_id,
                 )
-                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid,
                     start,
                     end,
@@ -222,7 +222,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_azure_bill_id,
                 )
-                accessor.delete_line_item_daily_summary_entries_for_date_range(
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid,
                     start,
                     end,
@@ -323,8 +323,12 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_gcp_bill_id,
                 )
-                accessor.delete_line_item_daily_summary_entries_for_date_range(
-                    self._provider.uuid, start, end, table=OCPGCPCostLineItemProjectDailySummaryP
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                    self._provider.uuid,
+                    start,
+                    end,
+                    table=OCPGCPCostLineItemProjectDailySummaryP,
+                    filters={"cluster_id": cluster_id},
                 )
                 accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
                     start,
