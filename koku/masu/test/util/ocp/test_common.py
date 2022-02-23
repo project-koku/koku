@@ -238,6 +238,26 @@ class OCPUtilTests(MasuTestCase):
             result = utils.match_openshift_labels(td, matched_tags)
             self.assertEqual(result, expected)
 
+    def test_match_openshift_labels_null_value(self):
+        """Test that a label match doesn't return null tag values."""
+        matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
+
+        tag_dicts = [
+            {"tag": json.dumps({"key": "value"}), "expected": '"key": "value"'},
+            {"tag": json.dumps({"key": "other_value"}), "expected": ""},
+            {
+                "tag": json.dumps({"key": "value", "other_key": "other_value"}),
+                "expected": '"key": "value","other_key": "other_value"',
+            },
+            {"tag": json.dumps({"key": "value", "other_key": None}), "expected": '"key": "value"'},
+        ]
+
+        for tag_dict in tag_dicts:
+            td = tag_dict.get("tag")
+            expected = tag_dict.get("expected")
+            result = utils.match_openshift_labels(td, matched_tags)
+            self.assertEqual(result, expected)
+
     def test_get_report_details(self):
         """Test that we handle manifest files properly."""
         with tempfile.TemporaryDirectory() as manifest_path:
