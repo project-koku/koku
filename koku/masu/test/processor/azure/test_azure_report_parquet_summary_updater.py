@@ -76,7 +76,7 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(end, expected_end)
 
     @patch(
-        "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+        "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch(
         "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.populate_tags_summary_table"
