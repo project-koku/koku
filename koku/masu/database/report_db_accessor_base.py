@@ -453,7 +453,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     ):
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table} from {start_date} to {end_date}"
+        msg = f"Deleting records from {table._meta.db_table} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
