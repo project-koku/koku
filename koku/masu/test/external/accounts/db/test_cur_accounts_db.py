@@ -11,6 +11,24 @@ from masu.test import MasuTestCase
 class CURAccountsDBTest(MasuTestCase):
     """Test Cases for the CURAccountsDB object."""
 
+    def test_handle_missing_foreign_data(self):
+        p = Provider.objects.first()
+        p.customer = None
+        p.billing_source = None
+        p.authentication = None
+        exc = None
+
+        try:
+            info = CURAccountsDB.get_account_information(p)
+        except Exception as e:
+            exc = e
+
+        self.assertIsNone(exc)
+        self.assertIsNone(info["customer_name"])
+        self.assertIsNone(info["credentials"])
+        self.assertIsNone(info["data_source"])
+        self.assertIsNone(info["schema_name"])
+
     def test_get_accounts_from_source(self):
         """Test to get all accounts."""
         accounts = CURAccountsDB().get_accounts_from_source()
