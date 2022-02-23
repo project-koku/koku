@@ -458,18 +458,20 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         sql = f"""
             DELETE FROM {table._meta.db_table}
-            WHERE source_uuid = '{source_uuid}'
-                AND usage_start >= '{start_date}'
-                AND usage_start <= '{end_date}'
+            WHERE source_uuid = %(source_uuid)s::uuid
+                AND usage_start >= %(start_date)s::date
+                AND usage_start <= %(end_date)s::date
         """
         if filters:
-            filter_list = []
-            for key, value in filters.items():
-                filter_list.append(f"AND {key} = '{value}'")
-            filter_str = "\n".join(filter_list)
-            sql += filter_str
+            filter_list = [f"AND {k} = %s" for k in filters]
+            sql += "\n".join(filter_list)
+        else:
+            filters = {}
+        filters["source_uuid"] = source_uuid
+        filters["start_date"] = source_date
+        filters["end_date"] = end_date
 
-        self._execute_raw_sql_query(table, sql, start_date, end_date)
+        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters)
 
     def table_exists_trino(self, table_name):
         """Check if table exists."""
