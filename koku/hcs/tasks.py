@@ -56,5 +56,5 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     else:
         LOG.info(
             f"[SKIPPED] Customer not registered with HCS: "
-            f"Schema_name: {schema_name}, provider: {provider}, provider_uuid: {provider_uuid}"
+            f"Schema-name: {schema_name}, provider: {provider}, provider_uuid: {provider_uuid}"
         )

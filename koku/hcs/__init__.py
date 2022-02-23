@@ -20,6 +20,6 @@ def enable_HCS_processing(source_uuid, source_type, account):  # noqa
         account = f"acct{account}"
 
     # context = {"schema-name": account, "source-type": source_type, "source-uuid": source_uuid}
-    context = {"schema-name": account}
+    context = {"schema": account}
     LOG.info(f"enable_hcs_processing context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
