@@ -27,7 +27,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :param provider_uuid:   (str) The provider type
     :param start_date:      The date to start populating the table
     :param end_date:        The date to end on
-    :param schema_name:     (String) db schema name
+    :param schema_name:     (Str) db schema name
     :param tracing_id:      (uuid) for log tracing
 
     :returns None

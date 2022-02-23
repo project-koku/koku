@@ -45,10 +45,11 @@
             "stale": false,
             "strategies": [
                 {
-                    "name": "HCSCustomers",
+                    "name": "schema-strategy",
                     "parameters": {
                         "schema-name": ""
-                    }
+                    },
+                    "constraints": []
                 }
             ],
             "variants": [],
@@ -56,18 +57,6 @@
         }
     ],
     "strategies": [
-        {
-            "name": "HCSCustomers",
-            "description": "accounts for HCS data generation",
-            "parameters": [
-                {
-                    "name": "schema-name",
-                    "type": "list",
-                    "description": "values must start with `acct`",
-                    "required": false
-                }
-            ]
-        },
         {
             "name": "schema-strategy",
             "description": "Enablement based on account/schema number",
