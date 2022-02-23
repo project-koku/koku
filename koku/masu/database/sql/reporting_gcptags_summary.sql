@@ -9,6 +9,7 @@ WITH cte_tag_value AS (
         jsonb_each_text(li.tags) labels
     WHERE li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
+        AND value IS NOT NULL
     {% if bill_ids %}
         AND li.cost_entry_bill_id IN (
         {%- for bill_id in bill_ids -%}
