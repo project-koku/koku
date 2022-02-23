@@ -468,7 +468,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         else:
             filters = {}
         filters["source_uuid"] = source_uuid
-        filters["start_date"] = source_date
+        filters["start_date"] = start_date
         filters["end_date"] = end_date
 
         self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters)
