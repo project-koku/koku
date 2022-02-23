@@ -728,6 +728,7 @@ class ReportQueryHandler(QueryHandler):
                 Provider.PROVIDER_AZURE: "currencys",
                 Provider.PROVIDER_GCP: "currencys",
                 Provider.OCP_AZURE: "currencys",
+                Provider.OCP_GCP: "currencys",
             }
             currency_codes = out_data.get(codes.get(self.provider))
             values = {}
