@@ -506,14 +506,12 @@ def summarize_manifest(report_meta, manifest_uuid):
                         # remove potentially sensitive info from the error message
                         msg = re.sub("{[^}]+}", "{***}", data_collection_message)
                         cr_status["reports"]["data_collection_message"] = msg
-                        LOG.info(
-                            log_json(
-                                manifest_uuid, f"CR Status for invalid manifest: {json.dumps(cr_status)}", context
-                            )
-                        )
-                        # The full CR status is logged above, but we should limit our alert to just the query.
+                        # The full CR status is logged below, but we should limit our alert to just the query.
                         # We can check the full manifest to get the full error.
                         LOG.error(log_json(manifest_uuid, f"data collection error [operator]: {msg}", context))
+                    LOG.info(
+                        log_json(manifest_uuid, f"CR Status for invalid manifest: {json.dumps(cr_status)}", context)
+                    )
                     return  # an invalid payload will fail to summarize, so return before we try
                 LOG.info(
                     log_json(
