@@ -9,6 +9,16 @@ import psycopg2
 from app_common_python import LoadedConfig
 from psycopg2.extras import NamedTupleCursor
 
+my_path = os.path.abspath(__file__)
+my_path = os.path.dirname(os.path.dirname(my_path))
+sys.path.append(os.path.join(my_path, "koku"))
+
+from masu import processor as masup  # noqa
+
+
+UNLEASH_CLIENT = masup.UNLEASH_CLIENT
+enable_trino_processing = masup.enable_trino_processing
+
 
 logging.basicConfig(
     format="truncate_old_tables (%(process)d) :: %(asctime)s: %(message)s",
@@ -49,109 +59,37 @@ def _execute(conn, sql, params=None):
     return cur
 
 
+def get_account_info(conn):
+    sql = """
+select p."uuid" as source_uuid,
+       p."type" as source_type,
+       c.schema_name as "account"
+  from public.api_provider p
+  join public.api_customer c
+    on c.id = p.customer_id
+ where p."type" in ('Azure', 'Azure-local')
+;
+"""
+    res = {}
+    for rec in _execute(conn, sql):
+        res.setdefault(rec.account, []).append(rec)
+
+    return res
+
+
+def get_trino_enabled_accounts(conn):
+    enabled_accounts = []
+    for account, sources in get_account_info(conn).items():
+        if all(enable_trino_processing(s.source_uuid, s.source_type, account) for s in sources):
+            enabled_accounts.append(account)
+
+    return enabled_accounts
+
+
 def validate_tables(conn):
-    accounts = sorted(
-        {
-            "acct1508484",
-            "acct7179461",
-            "acct798863",
-            "acct841855",
-            "acct853019",
-            "acct941133",
-            "acct1051497",
-            "acct1070899",
-            "acct1157386",
-            "acct1192214",
-            "acct1458658",
-            "acct5258694",
-            "acct5463389",
-            "acct5497402",
-            "acct5618348",
-            "acct5618348",
-            "acct5967621",
-            "acct6153718",
-            "acct6164464",
-            "acct6168722",
-            "acct6213188",
-            "acct6243247",
-            "acct6252310",
-            "acct6289401",
-            "acct6313207",
-            "acct6313207",
-            "acct6313207",
-            "acct6335545",
-            "acct6341198",
-            "acct6351153",
-            "acct6357256",
-            "acct6366070",
-            "acct6399820",
-            "acct6399820",
-            "acct6410599",
-            "acct6501002",
-            "acct6753467",
-            "acct6760377",
-            "acct6766577",
-            "acct6841665",
-            "acct6867782",
-            "acct6867782",
-            "acct6932064",
-            "acct6966525",
-            "acct6987056",
-            "acct7003175",
-            "acct7074750",
-            "acct7079262",
-            "acct7096714",
-            "acct7098055",
-            "acct7098705",
-            "acct7099829",
-            "acct7101499",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct531488",
-            "acct7107950",
-            "acct7108119",
-            "acct7108970",
-            "acct7112432",
-            "acct7113273",
-            "acct7117526",
-            "acct7127948",
-            "acct7128681",
-            "acct7152267",
-            "acct7170105",
-            "acct7229729",
-            "acct7238905",
-            "acct7268919",
-            "acct7270635",
-            "acct7272373",
-            "acct7316731",
-            "acct7378535",
-            "acct7386846",
-            "acct7398034",
-            "acct7439217",
-            "acct7517753",
-            "acct7569812",
-            "acct7597468",
-            "acct7620038",
-            "acct7632642",
-            "acct7650990",
-            "acct7688563",
-            "acct8148553",
-            # 'acct1116156',
-            "acct908376",
-        }
-    )
+    accounts = get_trino_enabled_accounts(conn)
+    if not accounts:
+        return ()
 
     tables = [
         # "reporting_ocpusagelineitem",
@@ -240,6 +178,8 @@ def handle_truncate(conn):
 
 
 def main():
+    UNLEASH_CLIENT.initialize_client()
+
     with connect() as conn:
         handle_truncate(conn)
         conn.rollback()
@@ -247,3 +187,106 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # accounts = sorted(
+    #     {
+    #         "acct1508484",
+    #         "acct7179461",
+    #         "acct798863",
+    #         "acct841855",
+    #         "acct853019",
+    #         "acct941133",
+    #         "acct1051497",
+    #         "acct1070899",
+    #         "acct1157386",
+    #         "acct1192214",
+    #         "acct1458658",
+    #         "acct5258694",
+    #         "acct5463389",
+    #         "acct5497402",
+    #         "acct5618348",
+    #         "acct5618348",
+    #         "acct5967621",
+    #         "acct6153718",
+    #         "acct6164464",
+    #         "acct6168722",
+    #         "acct6213188",
+    #         "acct6243247",
+    #         "acct6252310",
+    #         "acct6289401",
+    #         "acct6313207",
+    #         "acct6313207",
+    #         "acct6313207",
+    #         "acct6335545",
+    #         "acct6341198",
+    #         "acct6351153",
+    #         "acct6357256",
+    #         "acct6366070",
+    #         "acct6399820",
+    #         "acct6399820",
+    #         "acct6410599",
+    #         "acct6501002",
+    #         "acct6753467",
+    #         "acct6760377",
+    #         "acct6766577",
+    #         "acct6841665",
+    #         "acct6867782",
+    #         "acct6867782",
+    #         "acct6932064",
+    #         "acct6966525",
+    #         "acct6987056",
+    #         "acct7003175",
+    #         "acct7074750",
+    #         "acct7079262",
+    #         "acct7096714",
+    #         "acct7098055",
+    #         "acct7098705",
+    #         "acct7099829",
+    #         "acct7101499",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct531488",
+    #         "acct7107950",
+    #         "acct7108119",
+    #         "acct7108970",
+    #         "acct7112432",
+    #         "acct7113273",
+    #         "acct7117526",
+    #         "acct7127948",
+    #         "acct7128681",
+    #         "acct7152267",
+    #         "acct7170105",
+    #         "acct7229729",
+    #         "acct7238905",
+    #         "acct7268919",
+    #         "acct7270635",
+    #         "acct7272373",
+    #         "acct7316731",
+    #         "acct7378535",
+    #         "acct7386846",
+    #         "acct7398034",
+    #         "acct7439217",
+    #         "acct7517753",
+    #         "acct7569812",
+    #         "acct7597468",
+    #         "acct7620038",
+    #         "acct7632642",
+    #         "acct7650990",
+    #         "acct7688563",
+    #         "acct8148553",
+    #         # 'acct1116156',
+    #         "acct908376",
+    #     }
+    # )
