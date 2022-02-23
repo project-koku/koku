@@ -80,6 +80,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
+            if self._report_type == "costs":
+                query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -171,5 +173,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
 
         self.query_data = data
-        self.query_sum = self._apply_total_exchange(ordered_total)
+        self.query_sum = ordered_total
+        groupby = self._get_group_by()
+
+        if self._report_type == "costs":
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+
         return self._format_query_response()
