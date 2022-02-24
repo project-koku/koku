@@ -20,7 +20,7 @@ HCS_QUEUE = "hcs"
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_HCS_processing(source_uuid, source_type, account):  # pragma: no cover
+def enable_HCS_processing(source_uuid, source_type, account):  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
     if account and not account.startswith("acct"):
         account = f"acct{account}"
