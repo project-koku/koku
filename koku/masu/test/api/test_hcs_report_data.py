@@ -36,15 +36,32 @@ class HCSDataTests(TestCase):
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider": "AWS",
         }
         expected_key = "HCS Report Data Task ID"
 
-        expected_calls = [call(params["start_date"], params["end_date"])]
+        expected_calls = [
+            call(
+                params["schema"], params["provider"], params["provider_uuid"], params["start_date"], params["end_date"]
+            )
+        ]
 
         if multiple_calls:
             expected_calls = [
-                call(params["start_date"], params["start_date"]),
-                call(params["end_date"], params["end_date"]),
+                call(
+                    params["schema"],
+                    params["provider"],
+                    params["provider_uuid"],
+                    params["start_date"],
+                    params["start_date"],
+                ),
+                call(
+                    params["schema"],
+                    params["provider"],
+                    params["provider_uuid"],
+                    params["end_date"],
+                    params["end_date"],
+                ),
             ]
 
         response = self.client.get(reverse(self.ENDPOINT), params)
