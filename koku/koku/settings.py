@@ -475,6 +475,9 @@ PROMETHEUS_PUSHGATEWAY = ENVIRONMENT.get_value("PROMETHEUS_PUSHGATEWAY", default
 # Flag for automatic data ingest on Provider create
 AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 
+# Flag for maximum retries for source delete before proceeding
+MAX_SOURCE_DELETE_RETRIES = 25
+
 # Demo Accounts list
 DEMO_ACCOUNTS = {}
 try:
