@@ -81,11 +81,14 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
+            if self._report_type == "costs" and not is_csv_output:
+                query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -102,8 +105,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -178,4 +179,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
         self.query_sum = ordered_total
         self.query_data = data
+        groupby = self._get_group_by()
+        if self._report_type == "costs" and not is_csv_output:
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
