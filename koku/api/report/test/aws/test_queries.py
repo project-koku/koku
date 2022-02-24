@@ -1758,7 +1758,6 @@ class AWSReportQueryTest(IamTestCase):
                 group_params = self.mocked_query_params(group_url, AWSCostView, "costs")
                 group_handler = AWSReportQueryHandler(group_params)
                 group_data = group_handler.execute_query()
-                group_total = group_handler.execute_query().get("total", None)
                 self.assertIsNotNone(filter_total)
                 self.assertEqual(filter_data.get("total"), group_data.get("total"))
 
