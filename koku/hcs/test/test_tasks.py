@@ -31,7 +31,7 @@ class TestHCSTasks(HCSTestCase):
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
-    @patch("hcs.enable_HCS_processing", enable_hcs_processing_mock)
+    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
     def test_get_report_dates(self):
         """Test with start and end dates provided"""
         from hcs.tasks import collect_hcs_report_data
@@ -43,7 +43,7 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}", _logs.output[1])
 
-    @patch("hcs.enable_HCS_processing", bool(True))
+    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
     def test_get_report_no_start_date(self):
         """Test to with no start or end dates provided"""
         from hcs.tasks import collect_hcs_report_data
@@ -54,7 +54,7 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}", _logs.output[1])
 
-    @patch("hcs.enable_HCS_processing", bool(True))
+    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
     def test_get_report_no_end_date(self):
         """TTest to with no start end provided"""
         from hcs.tasks import collect_hcs_report_data
