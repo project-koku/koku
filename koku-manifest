@@ -61,7 +61,7 @@ mgmt_services/cost-mgmt:koku/python-ibm-platform-services:0.22.6.pipfile
 mgmt_services/cost-mgmt:koku/python-idna:3.3.pipfile
 mgmt_services/cost-mgmt:koku/python-importlib-metadata:4.11.1.pipfile
 mgmt_services/cost-mgmt:koku/python-isodate:0.6.1.pipfile
-mgmt_services/cost-mgmt:koku/python-jinja2:2.11.3.pipfile
+mgmt_services/cost-mgmt:koku/python-jinja2:3.0.3.pipfile
 mgmt_services/cost-mgmt:koku/python-jinjasql:0.1.8.pipfile
 mgmt_services/cost-mgmt:koku/python-jmespath:0.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-kafka-python:2.0.2.pipfile
