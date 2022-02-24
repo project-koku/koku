@@ -4,6 +4,7 @@
 #
 """View for running_celery_tasks endpoint."""
 import logging
+import uuid
 
 import ciso8601
 import pytz
@@ -37,7 +38,9 @@ def hcs_report_data(request):
     provider_uuid = params.get("provider_uuid")
     provider_type = params.get("provider_type")
     schema_name = params.get("schema")
+
     async_results = []
+    tracing_id = str(uuid.uuid4())
 
     report_data_msg_key = "HCS Report Data Task ID"
     error_msg_key = "Error"
@@ -88,7 +91,7 @@ def hcs_report_data(request):
 
         for month in months:
             async_result = collect_hcs_report_data.s(
-                schema_name, provider, provider_uuid, month[0], month[1]
+                schema_name, provider, provider_uuid, month[0], month[1], tracing_id
             ).apply_async(queue=HCS_QUEUE)
             async_results.append({str(month): str(async_result)})
 

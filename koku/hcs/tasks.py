@@ -59,12 +59,15 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
             start_date = DateHelper().today
 
         if end_date:
-            LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}")
+            stmt = f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}"
+            LOG.info(log_json(tracing_id, stmt))
         else:
-            LOG.info(f"OUTPUT FROM HCS TASK, Start-date: {start_date}")
+            stmt = f"OUTPUT FROM HCS TASK, Start-date: {start_date}"
+            LOG.info(log_json(tracing_id, stmt))
 
     else:
-        LOG.info(
+        stmt = (
             f"[SKIPPED] Customer not registered with HCS: "
             f"Schema-name: {schema_name}, provider: {provider}, provider_uuid: {provider_uuid}"
         )
+        LOG.info(log_json(tracing_id, stmt))
