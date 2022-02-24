@@ -999,8 +999,9 @@ class AWSReportQueryTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         expected_units = "USD"
+        org_unit_applied = False
         with tenant_context(self.tenant):
-            result = handler.calculate_total(**{"cost_units": expected_units})
+            result = handler.calculate_total(org_unit_applied, **{"cost_units": expected_units})
         cost_total_value = result.get("cost", {}).get("total", {}).get("value")
         cost_total_units = result.get("cost", {}).get("total", {}).get("units")
         self.assertIsNotNone(cost_total_value)
