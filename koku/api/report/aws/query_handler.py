@@ -326,10 +326,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         # Add each of the sub_org sums to the query_sum
         self.query_data = query_data
-        # right here you need to apply currency exchange
         self.query_sum = query_sum
-        # self.query_sum = self._apply_total_exchange(query_sum)
         # reset to the original query filters
+        groupby = self._get_group_by()
+        if self._report_type == "costs" and not self.is_csv_output:
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
 
@@ -560,12 +561,16 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             (Dict): the sum result
         """
         expected_keys = list(sum1)
+        if "date" in expected_keys:
+            expected_keys.remove("date")
         if "value" in expected_keys:
             sum2["value"] = sum1["value"] + sum2["value"]
         else:
             for expected_key in expected_keys:
                 if sum1.get(expected_key) and sum2.get(expected_key):
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
+        if not sum2.get("date") and sum1.get("date"):
+            sum2["date"] = sum1.get("date")
         return sum2
 
     def execute_individual_query(self, org_unit_applied=False):  # noqa: C901
@@ -596,8 +601,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 annotations.pop("count_units", None)
 
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-            # print("\n\n\nquery data here: ")
-            # print(query_data)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(
@@ -681,9 +684,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         query_sum = ordered_total
         query_data = data
-        groupby = self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
-            query_data = self.format_for_ui_recursive(groupby, query_data)
+
         return query_data, query_sum
 
     def calculate_total(self, **units):
@@ -700,8 +701,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         if self._report_type == "costs":
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
-        query_data = query.annotate()
-        query_data = query_data.annotate(**self.annotations)
+        query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
@@ -723,49 +723,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             total_query = self.return_total_query(total_queryset)
         else:
             total_query = query.aggregate(**aggregates)
-        # total_query = {
-        #     "date": None,
-        #     "infra_total": 0,
-        #     "infra_raw": 0,
-        #     "infra_usage": 0,
-        #     "infra_markup": 0,
-        #     "sup_raw": 0,
-        #     "sup_usage": 0,
-        #     "sup_markup": 0,
-        #     "sup_total": 0,
-        #     "cost_total": 0,
-        #     "cost_raw": 0,
-        #     "cost_usage": 0,
-        #     "cost_markup": 0,
-        # }
-        # for query_set in total_queryset:
-        #     base = query_set.get("currency_code")
-        #     total_query["date"] = query_set.get("date")
-        #     exchange_rate = self._get_exchange_rate(base)
-        #     for value in [
-        #         "infra_total",
-        #         "infra_raw",
-        #         "infra_usage",
-        #         "infra_markup",
-        #         "sup_raw",
-        #         "sup_total",
-        #         "sup_usage",
-        #         "sup_markup",
-        #         "cost_total",
-        #         "cost_raw",
-        #         "cost_usage",
-        #         "cost_markup",
-        #     ]:
-        #         orig_value = total_query[value]
-        #         print("\n\nExchange Rate and value: ")
-        #         print(exchange_rate)
-        #         print(value)
-        #         print(float(query_set.get(value)))
-        #         total_query[value] = orig_value + float(query_set.get(value) * exchange_rate)
 
         for unit_key, _ in units.items():
             total_query[unit_key] = self.currency
-            # total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts
