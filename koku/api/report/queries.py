@@ -721,7 +721,9 @@ class ReportQueryHandler(QueryHandler):
                 new_out_data = value.get(group + "s")
                 org_id = value.get("id")
                 org_type = value.get("type")
-                value[group + "s"] = self.format_for_ui_recursive(groupby, new_out_data, level=level, org_id=org_id, org_type=org_type)
+                value[group + "s"] = self.format_for_ui_recursive(
+                    groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
+                )
                 overall.append(value)
         return overall
 
