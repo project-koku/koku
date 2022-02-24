@@ -10,7 +10,7 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-SCRIPTDIR = $(TOPDIR)/scripts
+SCRIPTDIR = $(TOPDIR)/dev/scripts
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -75,7 +75,7 @@ help:
 	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
-	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'scripts/aws_org_tree.yml'."
+	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'dev/scripts/aws_org_tree.yml'."
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
@@ -168,32 +168,32 @@ lint:
 	pre-commit run --all-files
 
 clear-testing:
-	$(PREFIX) $(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
+	$(PREFIX) $(PYTHON) $(TOPDIR)/dev/scripts/clear_testing.py -p $(TOPDIR)/testing
 
 clear-trino:
 	$(PREFIX) rm -fr ./.trino/
 
 create-test-customer: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/dev/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
 create-test-customer-no-sources: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(TOPDIR)/dev/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 delete-test-sources:
-	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
+	$(PYTHON) $(TOPDIR)/dev/scripts/delete_test_sources.py
 
 delete-cost-models:
-	$(PYTHON) $(TOPDIR)/scripts/delete_cost_models.py
+	$(PYTHON) $(TOPDIR)/dev/scripts/delete_cost_models.py
 
 delete-test-customer-data: delete-test-sources delete-cost-models
 
 load-test-customer-data:
-	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
+	$(TOPDIR)/dev/scripts/load_test_customer_data.sh $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
-		$(PYTHON) $(TOPDIR)/scripts/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
+		$(PYTHON) $(TOPDIR)/dev/scripts/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
 	else \
 		echo "This make target requires python3." ; \
 	fi
@@ -364,7 +364,7 @@ docker-up-koku:
 
 _koku-wait:
 	@echo "Waiting on koku status: "
-	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
+	@until ./dev/scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
          printf "." ; \
          sleep 1 ; \
      done
