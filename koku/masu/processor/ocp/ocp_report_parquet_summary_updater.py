@@ -126,7 +126,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     end,
                 )
                 # This will process POD and STORAGE together
-                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(self._provider.uuid, start, end)
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
