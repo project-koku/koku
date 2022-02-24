@@ -238,10 +238,9 @@ class ProviderManager:
         if self.sources_model and not from_sources:
             err_msg = f"Provider {self._uuid} must be deleted via Sources Integration Service"
             raise ProviderManagerError(err_msg)
-
         if from_sources and self.get_is_provider_processing():
             err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
-            if retry_count and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
+            if retry_count is not None and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
                 raise ProviderProcessingError(err_msg)
 
         if self.is_removable_by_user(current_user):
