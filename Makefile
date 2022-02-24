@@ -226,10 +226,10 @@ reset-db-statistics:
 requirements:
 	pipenv lock
 	pipenv lock -r > docs/rtd_requirements.txt
-	python scripts/create_manifest.py
+	python dev/scripts/create_manifest.py
 
 manifest:
-	python scripts/create_manifest.py
+	python dev/scripts/create_manifest.py
 
 check-manifest:
 	.github/scripts/check_manifest.sh
