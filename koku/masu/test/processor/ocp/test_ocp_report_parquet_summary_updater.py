@@ -65,7 +65,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater."

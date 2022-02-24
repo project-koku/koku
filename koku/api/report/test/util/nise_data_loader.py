@@ -19,7 +19,7 @@ from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
-from api.utils import DateHelper
+from api.report.test.util.data_loader import DataLoader
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
 from masu.processor.tasks import refresh_materialized_views
@@ -28,42 +28,15 @@ from masu.processor.tasks import update_summary_tables
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 
 
-class NiseDataLoader:
+class NiseDataLoader(DataLoader):
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, num_days=10):
+    def __init__(self, schema, customer, num_days=10):
         """Initialize the data loader."""
-        self.dh = DateHelper()
-        self.schema = schema
+        super().__init__(schema, customer, num_days=10)
         self.nise_data_path = Config.TMP_DIR
         if not os.path.exists(self.nise_data_path):
             os.makedirs(self.nise_data_path)
-        self.dates = self.get_test_data_dates(num_days)
-
-    def get_test_data_dates(self, num_days):
-        """Return a list of tuples with dates for nise data."""
-        end_date = self.dh.today
-        if end_date.day == 1:
-            end_date += relativedelta(days=1)
-        n_days_ago = self.dh.n_days_ago(end_date, num_days)
-        start_date = n_days_ago
-        if self.dh.this_month_start > n_days_ago:
-            start_date = self.dh.this_month_start
-
-        prev_month_start = start_date - relativedelta(months=1)
-        prev_month_end = end_date - relativedelta(months=1)
-        days_of_data = prev_month_end.day - prev_month_start.day
-
-        if days_of_data < num_days:
-            extra_days = num_days - days_of_data
-            prev_month_end = prev_month_end + relativedelta(days=extra_days)
-            if prev_month_end > self.dh.last_month_end:
-                prev_month_end = self.dh.last_month_end
-
-        return [
-            (prev_month_start, prev_month_end, self.dh.last_month_start),
-            (start_date, end_date, self.dh.this_month_start),
-        ]
 
     def prepare_template(self, provider_type, static_data_file):
         """Prepare the Jinja template for static data."""
