@@ -444,7 +444,15 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "start": str(datetime.today()),
             "end": str(datetime.today()),
         }
-        expected_meta = report_meta
+        expected_meta = {
+            "schema_name": report_meta.get("schema_name"),
+            "provider_type": report_meta.get("provider_type"),
+            "provider_uuid": report_meta.get("provider_uuid"),
+            "manifest_id": report_meta.get("manifest_id"),
+            "start": report_meta.get("start"),
+            "end": report_meta.get("end"),
+            "manifest_uuid": "1234",
+        }
 
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)

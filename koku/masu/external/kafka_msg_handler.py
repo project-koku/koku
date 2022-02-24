@@ -487,8 +487,10 @@ def summarize_manifest(report_meta, manifest_uuid):
 
     """
     async_id = None
+    schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
     provider_uuid = report_meta.get("provider_uuid")
+    provider_type = report_meta.get("provider_type")
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
@@ -498,6 +500,12 @@ def summarize_manifest(report_meta, manifest_uuid):
 
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
+            new_report_meta = {
+                "schema_name": schema_name,
+                "provider_type": provider_type,
+                "provider_uuid": provider_uuid,
+                "manifest_id": manifest_id,
+            }
             if start_date and end_date:
                 if "0001-01-01 00:00:00+00:00" in [str(start_date), str(end_date)]:
                     cr_status = report_meta.get("cr_status", {})
@@ -520,7 +528,10 @@ def summarize_manifest(report_meta, manifest_uuid):
                         context,
                     )
                 )
-            async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
+                new_report_meta["start"] = start_date
+                new_report_meta["end"] = end_date
+                new_report_meta["manifest_uuid"] = manifest_uuid
+            async_id = summarize_reports.s([new_report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
 
