@@ -329,7 +329,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.query_sum = query_sum
         # reset to the original query filters
         groupby = self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
+        if self._report_type == "costs" and not self.is_csv_output and not org_unit_applied:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
@@ -351,7 +351,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _build_sum(self, query, annotations):
+    def _build_sum(self, query, annotations, org_unit_applied):
         """Build the sum results for the query."""
         sum_units = {}
 
@@ -375,7 +375,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_units["usage_units"] = units_value
             if annotations.get("count_units"):
                 sum_units["count_units"] = count_units_fallback
-            query_sum = self.calculate_total(**sum_units)
+            query_sum = self.calculate_total(org_unit_applied, **sum_units)
         else:
             sum_units["cost_units"] = cost_units_fallback
             if annotations.get("count_units"):
@@ -589,7 +589,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not self.is_csv_output:
+            if self._report_type == "costs" and not self.is_csv_output and not org_unit_applied:
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -622,7 +622,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     return False
                 return True
 
-            query_sum = self._build_sum(query, annotations)
+            query_sum = self._build_sum(query, annotations, org_unit_applied)
 
             if self._limit and query_data and not org_unit_applied:
                 query_data = self._group_by_ranks(query, query_data)
@@ -687,7 +687,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         return query_data, query_sum
 
-    def calculate_total(self, **units):
+    def calculate_total(self, org_unit_applied, **units):
         """Calculate aggregated totals for the query.
 
         Args:
@@ -698,7 +698,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not org_unit_applied:
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
