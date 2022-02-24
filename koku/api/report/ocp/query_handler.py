@@ -231,7 +231,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
+        self.query_sum = ordered_total
         self.query_sum = self._apply_total_exchange(ordered_total)
+
         return self._format_query_response()
 
     def get_cluster_capacity(self, query_data):  # noqa: C901
