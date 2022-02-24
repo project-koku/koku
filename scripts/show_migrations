@@ -1,0 +1,154 @@
+#!/usr/bin/env python
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+
+GIT = shutil.which("git")
+MIGRATIONS = re.compile(r".+migrations/[0-9]+.*\.py")
+TMIGRATIONS = re.compile(r".+migrate_trino.py")
+MIGRATION = re.compile("/migrations/(.+)")
+VERBOSE = 0
+MINIMAL = 1
+QUIET = 2
+
+
+def get_migration_info(sha):
+    ls_command = [GIT, "ls-tree", "--full-tree", "-r", sha]
+    buff = None
+    with subprocess.Popen(ls_command, stdout=subprocess.PIPE) as git_process:
+        buff = git_process.stdout.read().decode("utf-8")
+
+    return buff
+
+
+def parse_migration_info(buff):
+    migrations = MIGRATIONS.findall(buff)
+    tmigrations = TMIGRATIONS.search(buff)
+    tmigrations = [tmigrations.group(0)] if tmigrations else []
+
+    return migrations, tmigrations
+
+
+def get_all_migrations(migrations, tmigrations):
+    latest_migrations = {}
+    for migration in migrations:
+        info, path = migration.split("\t")
+        obj_id = info.split(" ")[-1]
+        app, _, migration_file = path.split(os.path.sep)[-3:]
+        migration_number = migration_file[:4]
+        latest_migrations.setdefault(app, {})[migration_number] = {"obj_id": obj_id, "file": migration_file}
+
+    # Make the migrate trino script look like it came from a django app structure
+    for migration in tmigrations:
+        info, path = migration.split("\t")
+        obj_id = info.split(" ")[-1]
+        migration_file = path.split(os.path.sep)[-1]
+        latest_migrations.setdefault("trinodb", {})["0001"] = {"obj_id": obj_id, "file": migration_file}
+
+    return latest_migrations
+
+
+def get_sha_migrations(sha):
+    return get_all_migrations(*parse_migration_info(get_migration_info(sha)))
+
+
+def compare_sha_migrations(old_sha, new_sha):
+    new_app_migrations = {}
+    new_migrations_files = {}
+    changed_migrations = {}
+    old_sha_migrations = get_sha_migrations(old_sha)
+    new_sha_migrations = get_sha_migrations(new_sha)
+
+    new_apps = sorted(set(new_sha_migrations).difference(set(old_sha_migrations)))
+    if new_apps:
+        for new_app in new_apps:
+            new_app_migrations.setdefault(new_app, []).extend(
+                m["file"] for _, m in new_sha_migrations[new_app].items()
+            )
+
+    for app in sorted(old_sha_migrations):
+        old_migrations = old_sha_migrations[app]
+        new_migrations = new_sha_migrations[app]
+        for migration_number in sorted(set(list(old_migrations) + list(new_migrations))):
+            if migration_number in new_migrations and migration_number not in old_migrations:
+                new_migrations_files.setdefault(app, []).append(new_migrations[migration_number]["file"])
+            elif migration_number in new_migrations and migration_number in old_migrations:
+                if old_migrations.get(migration_number).get("obj_id") != new_migrations[migration_number]["obj_id"]:
+                    changed_migrations.setdefault(app, []).append(new_migrations[migration_number]["file"])
+
+    return new_app_migrations, new_migrations_files, changed_migrations
+
+
+def print_migrations(migrations):
+    for app in migrations:
+        print(f"\t{app}:")
+        for migration_file in migrations[app]:
+            print(f"\t\t{migration_file}")
+
+
+def handle_migration_compare(old_sha, new_sha, quiet=VERBOSE):  # noqa
+    rc = 0
+    if not quiet:
+        print(f"\nComparing migrations:\nold sha: {old_sha}\nnew sha: {new_sha}\n")
+    new_app_migrations, new_migrations, changed_migrations = compare_sha_migrations(old_sha, new_sha)
+    if new_app_migrations or new_migrations or changed_migrations:
+        do_trino = "trinodb" in new_app_migrations or "trinodb" in new_migrations or "trinodb" in changed_migrations
+        trino_set = {"trinodb"}
+        do_django = (
+            set(new_app_migrations).difference(trino_set)
+            or set(new_migrations).difference(trino_set)
+            or set(changed_migrations).difference(trino_set)
+        )
+        messages = []
+        if do_django:
+            if changed_migrations and not new_app_migrations and not new_migrations:
+                messages.append("Django migrations may need to be run.")
+                rc = 2
+            else:
+                messages.append("Django migrations should be run.")
+                rc = 1
+
+        if do_trino:
+            messages.append("Trino migrations should be run.")
+            rc |= 4
+
+        if not quiet:
+            if new_app_migrations:
+                print("New apps were created:")
+                print_migrations(new_app_migrations)
+
+            if new_migrations:
+                print("New migrations were created:")
+                print_migrations(new_migrations)
+
+            if changed_migrations:
+                print("Migrations changed between shas")
+                print_migrations(changed_migrations)
+
+        if quiet < QUIET:
+            print(f"\n{os.linesep.join(messages)}\n\n")
+    else:
+        if quiet < QUIET:
+            print("No migrations to be run.")
+
+    return rc
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--old-sha", type=str, dest="old_sha", metavar="OLD", required=True, help="Earlier sha")
+    parser.add_argument("-n", "--new-sha", type=str, dest="new_sha", metavar="NEW", required=True, help="Later sha")
+    parser.add_argument(
+        "-s", "--short", action="store_true", dest="short", default=False, required=False, help="Minimal output"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", dest="quiet", default=False, required=False, help="No output"
+    )
+    args = parser.parse_args()
+    args.short |= args.quiet
+
+    sys.exit(handle_migration_compare(args.old_sha, args.new_sha, quiet=int(args.short) + int(args.quiet)))
