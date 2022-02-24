@@ -494,8 +494,6 @@ def summarize_manifest(report_meta, manifest_uuid):
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
-    report_meta["manifest_uuid"] = manifest_uuid
-
     context = {"account": report_meta.get("schema_name"), "provider_uuid": provider_uuid}
 
     with ReportManifestDBAccessor() as manifest_accesor:
