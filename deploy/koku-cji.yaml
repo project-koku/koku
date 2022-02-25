@@ -1,0 +1,93 @@
+---
+apiVersion: template.openshift.io/v1
+kind: Template
+metadata:
+  name: koku-cji
+objects:
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdApp
+  metadata:
+    name: koku-cji
+  spec:
+    database:
+      sharedDbAppName: koku
+    dependencies:
+      - koku
+    envName: ${ENV_NAME}
+    jobs:
+    - name: script-runner-${IMAGE_TAG}-${CJI_INVOCATION}
+      podSpec:
+        args:
+        - /bin/bash
+        - -c
+        - ${APP_ROOT}/scripts/job_script.sh
+        env:
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
+        - name: PROMETHEUS_MULTIPROC_DIR
+          value: ${PROMETHEUS_DIR}
+        - name: CLOWDER_ENABLED
+          value: ${CLOWDER_ENABLED}
+        - name: CJI_INVOCATION
+          value: ${CJI_INVOCATION}
+        image: ${IMAGE}:${IMAGE_TAG}
+        resources:
+          limits:
+            cpu: ${KOKU_CPU_LIMIT}
+            memory: ${KOKU_MEMORY_LIMIT}
+          requests:
+            cpu: ${KOKU_CPU_REQUEST}
+            memory: ${KOKU_MEMORY_REQUEST}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: koku-cji-v${IMAGE_TAG}-${CJI_INVOCATION}
+  spec:
+    appName: koku-cji
+    jobs:
+      - script-runner-${IMAGE_TAG}-${CJI_INVOCATION}
+parameters:
+- name: ENV_NAME
+  required: true
+  value: koku-env
+- description: Image tag
+  name: IMAGE_TAG
+  required: true
+  value: latest
+- description: Image
+  name: IMAGE
+  required: true
+  value: quay.io/cloudservices/koku
+- displayName: Presto/Trino host
+  name: PRESTO_HOST
+  value: trino-coordinator
+- displayName: Presto/Trino port
+  name: PRESTO_PORT
+  value: "10000"
+- displayName: Prometheus multiproc dir
+  name: PROMETHEUS_DIR
+  value: /tmp
+- name: CLOWDER_ENABLED
+  required: true
+  value: "True"
+- name: CJI_INVOCATION
+  required: true
+  value: "00"
+- displayName: Memory Request
+  name: KOKU_MEMORY_REQUEST
+  required: true
+  value: 512Mi
+- displayName: Memory Limit
+  name: KOKU_MEMORY_LIMIT
+  required: true
+  value: 1Gi
+- displayName: CPU Request
+  name: KOKU_CPU_REQUEST
+  required: true
+  value: 300m
+- displayName: CPU Limit
+  name: KOKU_CPU_LIMIT
+  required: true
+  value: 600m
