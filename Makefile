@@ -168,32 +168,32 @@ lint:
 	pre-commit run --all-files
 
 clear-testing:
-	$(PREFIX) $(PYTHON) $(TOPDIR)/dev/scripts/clear_testing.py -p $(TOPDIR)/testing
+	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 clear-trino:
 	$(PREFIX) rm -fr ./.trino/
 
 create-test-customer: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/dev/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
 create-test-customer-no-sources: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/dev/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 delete-test-sources:
-	$(PYTHON) $(TOPDIR)/dev/scripts/delete_test_sources.py
+	$(PYTHON) $(SCRIPTDIR)/delete_test_sources.py
 
 delete-cost-models:
-	$(PYTHON) $(TOPDIR)/dev/scripts/delete_cost_models.py
+	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
 delete-test-customer-data: delete-test-sources delete-cost-models
 
 load-test-customer-data:
-	$(TOPDIR)/dev/scripts/load_test_customer_data.sh $(start) $(end)
+	$(SCRIPTDIR)/load_test_customer_data.sh $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
-		$(PYTHON) $(TOPDIR)/dev/scripts/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
+		$(PYTHON) $(SCRIPTDIR)/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
 	else \
 		echo "This make target requires python3." ; \
 	fi
@@ -235,7 +235,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(SCRIPTDIR)/run_migrations.sh $(applabel) $(migration)
+	scripts/run_migrations.sh $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
