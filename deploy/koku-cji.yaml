@@ -34,8 +34,8 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: CJI_INVOCATION
           value: ${CJI_INVOCATION}
-        # - name: UNLEASH_CACHE_DIR
-        #   value: ${UNLEASH_CACHE_DIR}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
         # - name: ENABLE_PARQUET_PROCESSING
         #   value: ${ENABLE_PARQUET_PROCESSING}
         # - name: ENABLE_TRINO_ACCOUNTS
@@ -103,8 +103,8 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 600m
-# - name: UNLEASH_CACHE_DIR
-#   value: /tmp/unleash
+- name: UNLEASH_CACHE_DIR
+  value: /tmp/unleash
 # - name: ENABLE_PARQUET_PROCESSING
 #   value: False
 # - name: ENABLE_TRINO_ACCOUNTS

@@ -1,4 +1,8 @@
 #! /usr/bin/env python3.8
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import datetime
 import logging
 import os
@@ -7,82 +11,42 @@ import time
 from decimal import Decimal
 
 import psycopg2
+from lite.config import CONFIGURATOR
+from lite.env import ENVIRONMENT
+from lite.env import ROOT_DIR
+from lite.unleash import new_unleash_client
 from psycopg2.extras import NamedTupleCursor
-from UnleashClient import UnleashClient
-from UnleashClient.strategies import Strategy
 
-my_path = os.path.abspath(__file__)
-my_path = os.path.dirname(os.path.dirname(my_path))
-BASE_DIR = os.path.join(my_path, "koku")
-sys.path.append(BASE_DIR)
-
-from koku.env import ENVIRONMENT  # noqa
-from koku.configurator import CONFIGURATOR  # noqa
+# Lite is being used here so that the functionality can be used
+# without dragging in all of koku
+# ROOT_DIR is an envirion.Path instance
 
 
-LOGGING_LEVEL = getattr(logging, os.environ.get("KOKU_LOG_LEVEL", "INFO"))
-logging.basicConfig(
-    format="truncate_old_tables (%(process)d) :: %(asctime)s: %(message)s",
-    datefmt="%m/%d/%Y %I:%M:%S %p",
-    level=LOGGING_LEVEL,
-)
-LOG = logging.getLogger("truncate_old_tables")
-
-
+# Struct to hold predefined, static settings
+# This is here so the django.settings module does not have to be imported.
 class settings:
+    LOGGING_LEVEL = getattr(logging, ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO"))
     UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
     UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
     UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
     UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
     UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
-    UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=os.path.join(BASE_DIR, "..", ".unleash"))
+    UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=str(ROOT_DIR.path(".unleash")))
     ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
     ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
     ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
     ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
 
-class KokuUnleashClient(UnleashClient):
-    """Koku Unleash Client."""
-
-    def destroy(self):
-        """Override destroy so that cache is not deleted."""
-        self.fl_job.remove()
-        if self.metric_job:
-            self.metric_job.remove()
-        self.scheduler.shutdown()
-
-
-class SchemaStrategy(Strategy):
-    def load_provisioning(self) -> list:
-        return self.parameters["schema-name"]
-
-    def apply(self, context):
-        default_value = False
-        if "schema" in context and context["schema"] is not None:
-            default_value = context["schema"] in self.parsed_provisioning
-        return default_value
-
-
-strategies = {
-    # All new strategies should be added here.
-    "schema-strategy": SchemaStrategy
-}
-headers = {}
-if settings.UNLEASH_TOKEN:
-    headers["Authorization"] = f"Bearer {settings.UNLEASH_TOKEN}"
-
-
-UNLEASH_CLIENT = KokuUnleashClient(
-    url=settings.UNLEASH_URL,
-    app_name="Cost Management",
-    environment=ENVIRONMENT.get_value("KOKU_SENTRY_ENVIRONMENT", default="development"),
-    instance_id=ENVIRONMENT.get_value("APP_POD_NAME", default="unleash-client-python"),
-    custom_headers=headers,
-    custom_strategies=strategies,
-    cache_directory=settings.UNLEASH_CACHE_DIR,
-    verbose_log_level=LOGGING_LEVEL,
+logging.basicConfig(
+    format="truncate_old_tables (%(process)d) :: %(asctime)s: %(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S %p",
+    level=settings.LOGGING_LEVEL,
 )
+LOG = logging.getLogger("truncate_old_tables")
+
+
+UNLEASH_CLIENT = new_unleash_client(settings)
 
 
 def trino_enabled_env(source_uuid, source_type, account):  # noqa
@@ -102,7 +66,7 @@ def trino_enabled_unleash(source_uuid, source_type, account):  # noqa
         account = f"acct{account}"
 
     context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
-    LOG.info(f"Trion enabled unleash check: {context}")
+    LOG.info(f"Trino enabled unleash check: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("cost-trino-processor", context))
 
 
@@ -119,7 +83,6 @@ def connect():
     url = f"{engine}://{user}:{passwd}@{host}:{port}/{db}?sslmode=prefer&application_name={app}"
     LOG.info(f"Connecting to {db} at {host}:{port} as {user}")
 
-    # return psycopg2.connect(url, cursor_factory=RealDictCursor)
     return psycopg2.connect(url, cursor_factory=NamedTupleCursor)
 
 
@@ -160,12 +123,12 @@ def get_trino_enabled_accounts(conn):
 
         enabled_flags = []
         for source in sources:
-            res = trino_enabled_env(source.source_uuid, source.source_type, account)
-            if not res:
+            env_res = trino_enabled_env(source.source_uuid, source.source_type, account)
+            if not env_res:
                 unleash_res = trino_enabled_unleash(source.source_uuid, source.source_type, account)
                 unleash_request += 1
 
-            enabled_flags.append(res or unleash_res)
+            enabled_flags.append(env_res or unleash_res)
             # Assumes unleash is set at the schema level
             if unleash_res:
                 break
