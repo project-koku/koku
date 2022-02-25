@@ -16,6 +16,7 @@ WITH cte_tag_value(key, value, report_period_id, namespace) AS (
     {% endif %}
         AND li.usage_start >= {{start_date}}
         AND li.usage_start <= {{end_date}}
+        AND value IS NOT NULL
     GROUP BY key, value, li.report_period_id, li.namespace, li.node
 ),
 cte_values_agg AS (
