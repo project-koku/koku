@@ -198,6 +198,11 @@ def decode_timedelta(delta):
 
 
 def handle_truncate(conn):
+    LOG.info("Trino processing settings")
+    LOG.info(f"    ENABLE_PARQUET_PROCESSING = {settings.ENABLE_PARQUET_PROCESSING}")
+    LOG.info(f"    ENABLE_TRINO_SOURCES = {settings.ENABLE_TRINO_SOURCES}")
+    LOG.info(f"    ENABLE_TRINO_ACCOUNTS = {settings.ENABLE_TRINO_ACCOUNTS}")
+    LOG.info(f"    ENABLE_TRINO_SOURCE_TYPE = {settings.ENABLE_TRINO_SOURCE_TYPE}")
     job_start = datetime.datetime.utcnow()
     LOG.info("Truncate job starting")
     missing = 0
