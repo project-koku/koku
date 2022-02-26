@@ -1,54 +1,96 @@
 #! /usr/bin/env python3.8
+#
+# Copyright 2021 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 import datetime
 import logging
 import os
 import sys
+import time
 from decimal import Decimal
 
 import psycopg2
-from app_common_python import LoadedConfig
+from lite.config import CONFIGURATOR
+from lite.env import ENVIRONMENT
+from lite.env import ROOT_DIR
+from lite.unleash import new_unleash_client
 from psycopg2.extras import NamedTupleCursor
 
-my_path = os.path.abspath(__file__)
-my_path = os.path.dirname(os.path.dirname(my_path))
-sys.path.append(os.path.join(my_path, "koku"))
-
-from masu import processor as masup  # noqa
+# Lite is being used here so that the functionality can be used
+# without dragging in all of koku
+# ROOT_DIR is an envirion.Path instance
 
 
-UNLEASH_CLIENT = masup.UNLEASH_CLIENT
-enable_trino_processing = masup.enable_trino_processing
+# Struct to hold predefined, static settings
+# This is here so the django.settings module does not have to be imported.
+class settings:
+    LOGGING_LEVEL = getattr(logging, ENVIRONMENT.get_value("KOKU_LOG_LEVEL", default="INFO"))
+    UNLEASH_HOST = CONFIGURATOR.get_feature_flag_host()
+    UNLEASH_PORT = CONFIGURATOR.get_feature_flag_port()
+    UNLEASH_PREFIX = "https" if str(UNLEASH_PORT) == "443" else "http"
+    UNLEASH_URL = f"{UNLEASH_PREFIX}://{UNLEASH_HOST}:{UNLEASH_PORT}/api"
+    UNLEASH_TOKEN = CONFIGURATOR.get_feature_flag_token()
+    UNLEASH_CACHE_DIR = ENVIRONMENT.get_value("UNLEASH_CACHE_DIR", default=str(ROOT_DIR.path(".unleash")))
+    ENABLE_PARQUET_PROCESSING = ENVIRONMENT.bool("ENABLE_PARQUET_PROCESSING", default=False)
+    ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
+    ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
+    ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
 
 logging.basicConfig(
     format="truncate_old_tables (%(process)d) :: %(asctime)s: %(message)s",
     datefmt="%m/%d/%Y %I:%M:%S %p",
-    level=getattr(logging, os.environ.get("KOKU_LOG_LEVEL", "INFO")),
+    level=settings.LOGGING_LEVEL,
 )
 LOG = logging.getLogger("truncate_old_tables")
+
+
+UNLEASH_CLIENT = new_unleash_client(settings)
+
+
+def trino_enabled_env(source_uuid, source_type, account):  # noqa
+    if account and not account.startswith("acct"):
+        account = f"acct{account}"
+
+    context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
+    LOG.info(f"Trino enabled SETTINGS check: {context}")
+    res = bool(
+        settings.ENABLE_PARQUET_PROCESSING
+        or source_uuid in settings.ENABLE_TRINO_SOURCES
+        or source_type in settings.ENABLE_TRINO_SOURCE_TYPE
+        or account in settings.ENABLE_TRINO_ACCOUNTS
+    )
+    LOG.info(f"    Trino {'enabled' if res else 'disabled'}")
+
+    return res
+
+
+def trino_enabled_unleash(source_uuid, source_type, account):  # noqa
+    if account and not account.startswith("acct"):
+        account = f"acct{account}"
+
+    context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
+    LOG.info(f"Trino enabled UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-trino-processor", context))
+    LOG.info(f"    Trino {'enabled' if res else 'disabled'}")
+
+    return res
 
 
 def connect():
     engine = "postgresql"
     app = os.path.basename(sys.argv[0])
 
-    if bool(os.environ.get("DEVELOPMENT", False)):
-        user = os.environ.get("DATABASE_USER")
-        passwd = os.environ.get("DATABASE_PASSWORD")
-        host = os.environ.get("POSTGRES_SQL_SERVICE_HOST")
-        port = os.environ.get("POSTGRES_SQL_SERVICE_PORT")
-        db = os.environ.get("DATABASE_NAME")
-    else:
-        user = LoadedConfig.database.username
-        passwd = LoadedConfig.database.password
-        host = LoadedConfig.database.hostname
-        port = LoadedConfig.database.port
-        db = LoadedConfig.database.name
+    user = CONFIGURATOR.get_database_user()
+    passwd = CONFIGURATOR.get_database_password()
+    host = CONFIGURATOR.get_database_host()
+    port = CONFIGURATOR.get_database_port()
+    db = CONFIGURATOR.get_database_name()
 
     url = f"{engine}://{user}:{passwd}@{host}:{port}/{db}?sslmode=prefer&application_name={app}"
     LOG.info(f"Connecting to {db} at {host}:{port} as {user}")
 
-    # return psycopg2.connect(url, cursor_factory=RealDictCursor)
     return psycopg2.connect(url, cursor_factory=NamedTupleCursor)
 
 
@@ -71,7 +113,9 @@ select p."uuid" as source_uuid,
 ;
 """
     res = {}
-    for rec in _execute(conn, sql):
+    cur = _execute(conn, sql)
+    LOG.info(f"Initially gathered {cur.rowcount} accounts")
+    for rec in cur:
         res.setdefault(rec.account, []).append(rec)
 
     return res
@@ -79,10 +123,30 @@ select p."uuid" as source_uuid,
 
 def get_trino_enabled_accounts(conn):
     enabled_accounts = []
+    unleash_request = 0
+    unleash_limit = 100
+
     for account, sources in get_account_info(conn).items():
-        if all(enable_trino_processing(s.source_uuid, s.source_type, account) for s in sources):
+        if unleash_request >= unleash_limit:
+            time.sleep(1)
+            unleash_request = 0
+
+        enabled_flags = []
+        for source in sources:
+            env_res = trino_enabled_env(source.source_uuid, source.source_type, account)
+            if not env_res:
+                unleash_res = trino_enabled_unleash(source.source_uuid, source.source_type, account)
+                unleash_request += 1
+
+            enabled_flags.append(env_res or unleash_res)
+            # Assumes unleash is set at the schema level
+            if unleash_res:
+                break
+
+        if all(enabled_flags):
             enabled_accounts.append(account)
 
+    LOG.info(f"Found {len(enabled_accounts)} Trino-enabled accounts")
     return enabled_accounts
 
 
@@ -145,6 +209,11 @@ def decode_timedelta(delta):
 
 
 def handle_truncate(conn):
+    LOG.info("Trino processing settings")
+    LOG.info(f"    ENABLE_PARQUET_PROCESSING = {settings.ENABLE_PARQUET_PROCESSING}")
+    LOG.info(f"    ENABLE_TRINO_SOURCES = {settings.ENABLE_TRINO_SOURCES}")
+    LOG.info(f"    ENABLE_TRINO_ACCOUNTS = {settings.ENABLE_TRINO_ACCOUNTS}")
+    LOG.info(f"    ENABLE_TRINO_SOURCE_TYPE = {settings.ENABLE_TRINO_SOURCE_TYPE}")
     job_start = datetime.datetime.utcnow()
     LOG.info("Truncate job starting")
     missing = 0
@@ -178,6 +247,7 @@ def handle_truncate(conn):
 
 
 def main():
+    LOG.info("Initialize Unleash client")
     UNLEASH_CLIENT.initialize_client()
 
     with connect() as conn:
@@ -187,106 +257,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # accounts = sorted(
-    #     {
-    #         "acct1508484",
-    #         "acct7179461",
-    #         "acct798863",
-    #         "acct841855",
-    #         "acct853019",
-    #         "acct941133",
-    #         "acct1051497",
-    #         "acct1070899",
-    #         "acct1157386",
-    #         "acct1192214",
-    #         "acct1458658",
-    #         "acct5258694",
-    #         "acct5463389",
-    #         "acct5497402",
-    #         "acct5618348",
-    #         "acct5618348",
-    #         "acct5967621",
-    #         "acct6153718",
-    #         "acct6164464",
-    #         "acct6168722",
-    #         "acct6213188",
-    #         "acct6243247",
-    #         "acct6252310",
-    #         "acct6289401",
-    #         "acct6313207",
-    #         "acct6313207",
-    #         "acct6313207",
-    #         "acct6335545",
-    #         "acct6341198",
-    #         "acct6351153",
-    #         "acct6357256",
-    #         "acct6366070",
-    #         "acct6399820",
-    #         "acct6399820",
-    #         "acct6410599",
-    #         "acct6501002",
-    #         "acct6753467",
-    #         "acct6760377",
-    #         "acct6766577",
-    #         "acct6841665",
-    #         "acct6867782",
-    #         "acct6867782",
-    #         "acct6932064",
-    #         "acct6966525",
-    #         "acct6987056",
-    #         "acct7003175",
-    #         "acct7074750",
-    #         "acct7079262",
-    #         "acct7096714",
-    #         "acct7098055",
-    #         "acct7098705",
-    #         "acct7099829",
-    #         "acct7101499",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct531488",
-    #         "acct7107950",
-    #         "acct7108119",
-    #         "acct7108970",
-    #         "acct7112432",
-    #         "acct7113273",
-    #         "acct7117526",
-    #         "acct7127948",
-    #         "acct7128681",
-    #         "acct7152267",
-    #         "acct7170105",
-    #         "acct7229729",
-    #         "acct7238905",
-    #         "acct7268919",
-    #         "acct7270635",
-    #         "acct7272373",
-    #         "acct7316731",
-    #         "acct7378535",
-    #         "acct7386846",
-    #         "acct7398034",
-    #         "acct7439217",
-    #         "acct7517753",
-    #         "acct7569812",
-    #         "acct7597468",
-    #         "acct7620038",
-    #         "acct7632642",
-    #         "acct7650990",
-    #         "acct7688563",
-    #         "acct8148553",
-    #         # 'acct1116156',
-    #         "acct908376",
-    #     }
-    # )
