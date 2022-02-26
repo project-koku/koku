@@ -36,8 +36,8 @@ objects:
           value: ${CJI_INVOCATION}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
-        # - name: ENABLE_PARQUET_PROCESSING
-        #   value: ${ENABLE_PARQUET_PROCESSING}
+        - name: ENABLE_PARQUET_PROCESSING
+          value: ${ENABLE_PARQUET_PROCESSING}
         - name: ENABLE_TRINO_ACCOUNTS
           value: ${ENABLE_TRINO_ACCOUNTS}
         - name: ENABLE_TRINO_SOURCES
@@ -105,8 +105,8 @@ parameters:
   value: 600m
 - name: UNLEASH_CACHE_DIR
   value: /tmp/unleash
-# - name: ENABLE_PARQUET_PROCESSING
-#   value: False
+- name: ENABLE_PARQUET_PROCESSING
+  value: False
 - name: ENABLE_TRINO_ACCOUNTS
   value: ""
 - name: ENABLE_TRINO_SOURCES
