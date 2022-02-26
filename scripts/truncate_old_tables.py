@@ -113,7 +113,9 @@ select p."uuid" as source_uuid,
 ;
 """
     res = {}
-    for rec in _execute(conn, sql):
+    cur = _execute(conn, sql)
+    LOG.info(f"Initially gathered {cur.rowcount} accounts")
+    for rec in cur:
         res.setdefault(rec.account, []).append(rec)
 
     return res
@@ -144,6 +146,7 @@ def get_trino_enabled_accounts(conn):
         if all(enabled_flags):
             enabled_accounts.append(account)
 
+    LOG.info(f"Found {len(enabled_accounts)} Trino-enabled accounts")
     return enabled_accounts
 
 
