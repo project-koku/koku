@@ -11,6 +11,7 @@
 !scripts/run_migrations.sh
 
 # CJI scripts
+!scripts/lite/*
 !scripts/job_script.sh
 !scripts/check_for_migration_app_name.py
 !scripts/migrate_trino.py
