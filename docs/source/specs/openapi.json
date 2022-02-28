@@ -777,6 +777,51 @@
                 }]
             }
         },
+        "/forecasts/openshift/infrastructures/gcp/costs/": {
+            "summary": "OpenShift on GCP Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/metrics/": {
             "get": {
                 "tags": [
@@ -2233,6 +2278,222 @@
                 }]
             }
         },
+        "/reports/openshift/infrastructures/gcp/costs/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on GCP cost reports",
+                "operationId": "getOpenShiftGCPCostReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCosts"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/gcp/storage/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on GCP storage data",
+                "operationId": "getOpenShiftGCPInventoryStorageReport",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/openshift/infrastructures/gcp/instance-types/": {
+            "get": {
+                "tags": [
+                    "OpenShift Reports"
+                ],
+                "summary": "Query to obtain OpenShift on GCP instance data",
+                "operationId": "getOpenShiftGCPInventoryInstanceReport",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportOpenShiftAWSInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/openshift/infrastructures/azure/costs/": {
             "get": {
                 "tags": [
@@ -3018,6 +3279,79 @@
                 }
             }
         },
+        "/account-settings/": {
+            "get": {
+              "tags": [
+                "Account Settings"
+              ],
+              "summary": "Obtain the current account settings",
+              "operationId": "getUserSettings",
+              "responses": {
+                "200": {
+                  "description": "An object describing the users current account settings",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/UserSettings"
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "User Account Settings not found",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+        "/account-settings/{setting}": {
+            "get": {
+              "tags": [
+                "Account Settings"
+              ],
+              "summary": "Obtain a specific current user account setting",
+              "parameters": [
+                {
+                  "name": "setting",
+                  "in": "path",
+                  "description": "Name of a setting to get",
+                  "required": true,
+                  "schema": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "operationId": "getUserSetting",
+              "responses": {
+                "200": {
+                  "description": "An object describing a specific current user account setting",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/UserSetting"
+                      }
+                    }
+                  }
+                },
+                "404": {
+                  "description": "User Account Setting not found",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/Error"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
         "/sources/": {
             "get": {
                 "tags": [
@@ -4118,6 +4452,139 @@
                 ],
                 "summary": "Query to obtain OpenShift-on-Azure tags",
                 "operationId": "getOpenShiftAzureTagKeyData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/OCPTagsFilter"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/openshift/infrastructures/gcp/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OpenShift-on-GCP tags",
+                "operationId": "getOpenShiftGCPTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/OCPTagsFilter"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/openshift/infrastructures/gcp/{key}": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OpenShift-on-GCP tags",
+                "operationId": "getOpenShiftGCPTagKeyData",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -5455,6 +5922,13 @@
                                             "example": "My Great Cost Model"
                                         }
                                     }
+                                }
+                            },
+                            "additional_context": {
+                                "type": "object",
+                                "description": "Dictionary containing OpenShift foundational infrastructure type and uuid.",
+                                "example": {
+                                    "crawl_heirarchy": "False"
                                 }
                             }
                         }
@@ -8461,6 +8935,23 @@
                         }
                     }
                 ]
+            },
+            "UserSettings": {
+                "properties": {
+                  "currency": {
+                    "type": "string"
+                  },
+                  "cost_type": {
+                    "type": "string"
+                  }
+                }
+              },
+              "UserSetting": {
+                "properties": {
+                    "setting": {
+                    "type": "string"
+                    }
+                }
             }
         }
     }

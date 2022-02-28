@@ -4,6 +4,7 @@
 #
 """Database accessor for report data."""
 import logging
+import os
 import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -12,12 +13,15 @@ import ciso8601
 import django.apps
 from dateutil.relativedelta import relativedelta
 from django.db import connection
+from django.db import OperationalError
 from django.db import transaction
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
+from api.common import log_json
 from koku.database import execute_delete_sql as exec_del_sql
+from koku.database_exc import get_extended_exception_by_type
 from masu.config import Config
 from masu.database.koku_database_access import KokuDBAccess
 from masu.database.koku_database_access import mini_transaction_delete
@@ -346,7 +350,13 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
-            cursor.execute(sql, params=bind_params)
+            try:
+                cursor.execute(sql, params=bind_params)
+            except OperationalError as exc:
+                db_exc = get_extended_exception_by_type(exc)
+                LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
+                raise db_exc
+
         LOG.info("Finished updating %s.", table)
 
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
@@ -437,6 +447,31 @@ class ReportDBAccessorBase(KokuDBAccess):
             count, _ = mini_transaction_delete(select_query)
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
+
+    def delete_line_item_daily_summary_entries_for_date_range_raw(
+        self, source_uuid, start_date, end_date, table=None, filters=None
+    ):
+        if table is None:
+            table = self.line_item_daily_summary_table
+        msg = f"Deleting records from {table._meta.db_table} from {start_date} to {end_date}"
+        LOG.info(msg)
+
+        sql = f"""
+            DELETE FROM {table._meta.db_table}
+            WHERE source_uuid = %(source_uuid)s::uuid
+                AND usage_start >= %(start_date)s::date
+                AND usage_start <= %(end_date)s::date
+        """
+        if filters:
+            filter_list = [f"AND {k} = %({k})s" for k in filters]
+            sql += "\n".join(filter_list)
+        else:
+            filters = {}
+        filters["source_uuid"] = source_uuid
+        filters["start_date"] = start_date
+        filters["end_date"] = end_date
+
+        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters)
 
     def table_exists_trino(self, table_name):
         """Check if table exists."""

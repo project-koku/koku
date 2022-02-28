@@ -1,0 +1,169 @@
+---
+generators:
+  - OCPGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      nodes:
+        - node:
+          node_name: gcp_compute1
+          node_labels: label_nodeclass:compute
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            fall:
+              pods:
+                - pod:
+                  pod_name: pod_name1a
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:ruby|label_app:fall|label_version:red
+                - pod:
+                  pod_name: pod_name1b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:murphy|label_app:fall|label_version:red|label_qa:checked
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_1
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name1_data
+                    pod_name: pod_name1a
+                    labels: label_environment:ruby|label_app:fall|label_version:red|label_storageclass:banana
+                    capacity_gig: 20
+            snowdown:
+              pods:
+                - pod:
+                  pod_name: pod_name2a
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:ruby|label_app:snowdown|label_version:red
+                - pod:
+                  pod_name: pod_name2b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:ruby|label_app:snowdown|label_version:red|label_qa:checked
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_2
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name2_data
+                    pod_name: pod_name2a
+                    labels: label_environment:ruby|label_app:snowdown|label_version:red|label_storageclass:watermelon
+                    capacity_gig: 20
+        - node:
+          node_name: gcp_compute2
+          node_labels: label_nodeclass:compute
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            cost-management:
+              pods:
+                - pod:
+                  pod_name: pod_name3a
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:clyde|label_app:winter|label_version:green
+                - pod:
+                  pod_name: pod_name3b
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:clyde|label_app:winter|label_version:green|label_qa:checked
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_3
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:clyde|label_app:winter|label_version:green|label_storageclass:apple
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name3_data
+                    pod_name: pod_name3a
+                    labels: label_environment:clyde|label_app:winter|label_version:green|label_storageclass:apple
+                    capacity_gig: 20
+        - node:
+          node_name: gcp_compute3
+          cpu_cores: 4
+          memory_gig: 16
+          namespaces:
+            analytics:
+              pods:
+                - pod:
+                  pod_name: pod_name4a
+                  cpu_request: 2
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:murphy|label_app:spring|label_version:blue
+                - pod:
+                  pod_name: pod_name4b
+                  cpu_request: 2
+                  mem_request_gig: 4
+                  cpu_limit: 2
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:murphy|label_app:spring|label_version:blue|label_qa:checked
+              volumes:
+                - volume:
+                  volume_name: pvc-volume_4
+                  storage_class: gp2
+                  volume_request_gig: 20
+                  labels: label_environment:murphy|label_app:spring|label_version:blue|label_storageclass:orange
+                  volume_claims:
+                  - volume_claim:
+                    volume_claim_name: pod_name4_data
+                    pod_name: pod_name4a
+                    labels: label_environment:murphy|label_app:spring|label_version:blue|label_storageclass:orange
+                    capacity_gig: 20
+        - node:
+          node_name: gcp_master
+          node_labels: label_nodeclass:master
+          cpu_cores: 2
+          memory_gig: 8
+          namespaces:
+            kube-system:
+              pods:
+                - pod:
+                  pod_name: pod_name5
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:murphy|label_app:summer|label_version:yellow
+            openshift:
+              pods:
+                - pod:
+                  pod_name: pod_name6
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+                  labels: label_environment:ruby|label_app:summer|label_version:yellow

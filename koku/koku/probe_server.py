@@ -23,6 +23,10 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
 
     CLOWDER_METRICS_PORT = LoadedConfig.metricsPort
 
+SERVER_TYPE = "liveness/readiness/metrics"
+if ENVIRONMENT.bool("MASU", default=False) or ENVIRONMENT.bool("SOURCES", default=False):
+    SERVER_TYPE = "metrics"
+
 
 def start_probe_server(server_cls, logger=LOG):
     """Start the probe server."""
@@ -34,11 +38,11 @@ def start_probe_server(server_cls, logger=LOG):
         httpd.RequestHandlerClass.ready = False
         httpd.serve_forever()
 
-    logger.info("starting liveness/readiness probe server")
+    logger.info(f"starting {SERVER_TYPE} probe server")
     daemon = threading.Thread(name="probe_server", target=start_server)
     daemon.setDaemon(True)  # Set as a daemon so it will be killed once the main thread is dead.
     daemon.start()
-    logger.info(f"liveness/readiness probe server started on port {httpd.server_port}")
+    logger.info(f"{SERVER_TYPE} probe server started on port {httpd.server_port}")
 
     return httpd
 

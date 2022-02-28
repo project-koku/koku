@@ -35,7 +35,7 @@ INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpaws_storage_summary_p (
         sum(markup_cost),
         max(currency_code),
         {{source_uuid}}::uuid
-    FROM reporting_ocpawscostlineitem_daily_summary
+    FROM reporting_ocpawscostlineitem_daily_summary_p
     WHERE product_family LIKE '%%Storage%%'
         AND unit = 'GB-Mo'
         AND usage_start >= {{start_date}}::date

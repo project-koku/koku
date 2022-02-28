@@ -29,8 +29,9 @@ GCP_CACHE_PREFIX = "gcp-view"
 OPENSHIFT_CACHE_PREFIX = "openshift-view"
 OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
 OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
+OPENSHIFT_GCP_CACHE_PREFIX = "openshift-gcp-view"
 OPENSHIFT_ALL_CACHE_PREFIX = "openshift-all-view"
-SOURCES_PREFIX = "sources"
+SOURCES_CACHE_PREFIX = "sources"
 
 
 def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix=None):
@@ -81,11 +82,12 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
             OPENSHIFT_AWS_CACHE_PREFIX,
             OPENSHIFT_AZURE_CACHE_PREFIX,
             OPENSHIFT_ALL_CACHE_PREFIX,
+            OPENSHIFT_GCP_CACHE_PREFIX,
         )
     elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         cache_key_prefixes = (AZURE_CACHE_PREFIX, OPENSHIFT_AZURE_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
     elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-        cache_key_prefixes = (GCP_CACHE_PREFIX,)
+        cache_key_prefixes = (GCP_CACHE_PREFIX, OPENSHIFT_GCP_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
 
     for cache_key_prefix in cache_key_prefixes:
         invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix)
@@ -93,7 +95,6 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
 
 def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):
     """"Invalidate our view cache for a specific tenant and a list source types."""
-
     for source_type in source_types:
         if source_type in Provider.PROVIDER_LIST:
             invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
@@ -103,7 +104,6 @@ def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types)
 
 def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
     """"Invalidate our view cache for a specific tenant and all (non local) source types."""
-
     non_local_providers = [provider for provider in Provider.PROVIDER_LIST if "-local" not in provider]
 
     for source_type in non_local_providers:

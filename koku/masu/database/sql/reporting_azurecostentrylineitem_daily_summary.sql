@@ -60,7 +60,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
                 ELSE 1::integer
                 END as multiplier,
             CASE
-                WHEN split_part(m.unit_of_measure, ' ', 2) = 'Hours'
+                WHEN split_part(m.unit_of_measure, ' ', 2) IN ('Hours', 'Hour')
                     THEN  'Hrs'
                 WHEN split_part(m.unit_of_measure, ' ', 2) = 'GB/Month'
                     THEN  'GB-Mo'

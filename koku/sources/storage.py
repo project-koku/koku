@@ -395,7 +395,7 @@ def add_provider_koku_uuid(source_id, koku_uuid):
     if source and source.koku_uuid != koku_uuid:
         LOG.info(f"[add_provider_koku_uuid] attached koku_uuid: {koku_uuid} to source_id: {source_id}")
         source_query = Sources.objects.filter(source_id=source.source_id)
-        source_query.update(koku_uuid=koku_uuid)
+        source_query.update(koku_uuid=koku_uuid, provider_id=koku_uuid)
 
 
 def add_source_pause(source_id, pause):

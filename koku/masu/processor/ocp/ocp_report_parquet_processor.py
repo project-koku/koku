@@ -27,9 +27,11 @@ class OCPReportParquetProcessor(ReportParquetProcessorBase):
         numeric_columns = [
             "pod_usage_cpu_core_seconds",
             "pod_request_cpu_core_seconds",
+            "pod_effective_usage_cpu_core_seconds",
             "pod_limit_cpu_core_seconds",
             "pod_usage_memory_byte_seconds",
             "pod_request_memory_byte_seconds",
+            "pod_effective_usage_memory_byte_seconds",
             "pod_limit_memory_byte_seconds",
             "node_capacity_cpu_cores",
             "node_capacity_cpu_core_seconds",

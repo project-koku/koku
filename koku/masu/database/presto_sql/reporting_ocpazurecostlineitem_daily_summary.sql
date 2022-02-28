@@ -1,4 +1,404 @@
-INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+-- First we'll store the data in a "temp" table to do our grouping against
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+(
+    azure_uuid varchar,
+    cluster_id varchar,
+    cluster_alias varchar,
+    data_source varchar,
+    namespace varchar,
+    node varchar,
+    persistentvolumeclaim varchar,
+    persistentvolume varchar,
+    storageclass varchar,
+    resource_id varchar,
+    usage_start timestamp,
+    usage_end timestamp,
+    service_name varchar,
+    instance_type varchar,
+    subscription_guid varchar,
+    resource_location varchar,
+    unit_of_measure varchar,
+    usage_quantity double,
+    currency varchar,
+    pretax_cost double,
+    markup_cost double,
+    pod_cost double,
+    project_markup_cost double,
+    pod_usage_cpu_core_hours double,
+    pod_request_cpu_core_hours double,
+    pod_effective_usage_cpu_core_hours double,
+    pod_limit_cpu_core_hours double,
+    pod_usage_memory_gigabyte_hours double,
+    pod_request_memory_gigabyte_hours double,
+    pod_effective_usage_memory_gigabyte_hours double,
+    node_capacity_cpu_core_hours double,
+    node_capacity_memory_gigabyte_hours double,
+    cluster_capacity_cpu_core_hours double,
+    cluster_capacity_memory_gigabyte_hours double,
+    pod_labels varchar,
+    volume_labels varchar,
+    tags varchar,
+    project_rank integer,
+    data_source_rank integer,
+    resource_id_matched boolean
+) WITH(format = 'PARQUET')
+;
+
+-- Now create our proper table if it does not exist
+CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+(
+    azure_uuid varchar,
+    cluster_id varchar,
+    cluster_alias varchar,
+    data_source varchar,
+    namespace varchar,
+    node varchar,
+    persistentvolumeclaim varchar,
+    persistentvolume varchar,
+    storageclass varchar,
+    resource_id varchar,
+    usage_start timestamp,
+    usage_end timestamp,
+    service_name varchar,
+    instance_type varchar,
+    subscription_guid varchar,
+    resource_location varchar,
+    unit_of_measure varchar,
+    usage_quantity double,
+    currency varchar,
+    pretax_cost double,
+    markup_cost double,
+    pod_cost double,
+    project_markup_cost double,
+    pod_labels varchar,
+    tags varchar,
+    project_rank integer,
+    data_source_rank integer,
+    azure_source varchar,
+    ocp_source varchar,
+    year varchar,
+    month varchar,
+    day varchar
+) WITH(format = 'PARQUET', partitioned_by=ARRAY['azure_source', 'ocp_source', 'year', 'month', 'day'])
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
+;
+
+-- Directly resource_id matching
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
+    azure_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity,
+    currency,
+    pretax_cost,
+    markup_cost,
+    pod_cost,
+    project_markup_cost,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    pod_labels,
+    volume_labels,
+    tags,
+    resource_id_matched
+)
+SELECT azure.uuid as azure_uuid,
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    ocp.data_source,
+    ocp.namespace as namespace,
+    max(ocp.node) as node,
+    max(persistentvolumeclaim) as persistentvolumeclaim,
+    max(persistentvolume) as persistentvolume,
+    max(storageclass) as storageclass,
+    max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
+    max(coalesce(date, usagedatetime)) as usage_start,
+    max(coalesce(date, usagedatetime)) as usage_end,
+    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
+    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
+    max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
+    max(azure.resourcelocation) as resource_location,
+    max(CASE
+            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+                THEN  'Hrs'
+            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
+                THEN  'GB-Mo'
+            WHEN split_part(unitofmeasure, ' ', 2) != ''
+                THEN  split_part(unitofmeasure, ' ', 2)
+            ELSE unitofmeasure
+        END) as unit_of_measure,
+    max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
+    max(coalesce(billingcurrencycode, currency)) as currency,
+    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
+    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
+    cast(NULL as double) as pod_cost,
+    cast(NULL as double) as project_markup_cost,
+    sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
+    sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
+    sum(ocp.pod_effective_usage_cpu_core_hours) as pod_effective_usage_cpu_core_hours,
+    sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
+    sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
+    sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
+    sum(ocp.pod_effective_usage_memory_gigabyte_hours) as pod_effective_usage_memory_gigabyte_hours,
+    max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
+    max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
+    max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
+    max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
+    max(ocp.pod_labels) as pod_labels,
+    max(ocp.volume_labels) as volume_labels,
+    max(azure.tags) as tags,
+    max(azure.resource_id_matched) as resource_id_matched
+    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        on coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
+        AND (
+                (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
+                    OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
+            )
+    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
+        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
+    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
+;
+
+-- Tag matching
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp (
+    azure_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity,
+    currency,
+    pretax_cost,
+    markup_cost,
+    pod_cost,
+    project_markup_cost,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_limit_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    node_capacity_cpu_core_hours,
+    node_capacity_memory_gigabyte_hours,
+    cluster_capacity_cpu_core_hours,
+    cluster_capacity_memory_gigabyte_hours,
+    pod_labels,
+    volume_labels,
+    tags,
+    resource_id_matched
+)
+SELECT azure.uuid as azure_uuid,
+    max(ocp.cluster_id) as cluster_id,
+    max(ocp.cluster_alias) as cluster_alias,
+    ocp.data_source,
+    ocp.namespace,
+    max(ocp.node) as node,
+    max(nullif(ocp.persistentvolumeclaim, '')) as persistentvolumeclaim,
+    max(nullif(ocp.persistentvolume, '')) as persistentvolume,
+    max(nullif(ocp.storageclass, '')) as storageclass,
+    max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
+    max(coalesce(date, usagedatetime)) as usage_start,
+    max(coalesce(date, usagedatetime)) as usage_end,
+    max(nullif(coalesce(servicename, metercategory), '')) as service_name,
+    max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
+    max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
+    max(nullif(azure.resourcelocation, '')) as resource_location,
+    max(CASE
+            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
+                THEN  'Hrs'
+            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
+                THEN  'GB-Mo'
+            WHEN split_part(unitofmeasure, ' ', 2) != ''
+                THEN  split_part(unitofmeasure, ' ', 2)
+            ELSE unitofmeasure
+        END) as unit_of_measure,
+    max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
+    max(coalesce(billingcurrencycode, azure.currency)) as currency,
+    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
+    max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) * cast({{markup}} as decimal(24,9)) as markup_cost, -- pretax_cost x markup = markup_cost
+    cast(NULL as double) as pod_cost,
+    cast(NULL as double) as project_markup_cost,
+    cast(NULL as double) as pod_usage_cpu_core_hours,
+    cast(NULL as double) as pod_request_cpu_core_hours,
+    cast(NULL as double) as pod_effective_usage_cpu_core_hours,
+    cast(NULL as double) as pod_limit_cpu_core_hours,
+    cast(NULL as double) as pod_usage_memory_gigabyte_hours,
+    cast(NULL as double) as pod_request_memory_gigabyte_hours,
+    cast(NULL as double) as pod_effective_usage_memory_gigabyte_hours,
+    cast(NULL as double) as node_capacity_cpu_core_hours,
+    cast(NULL as double) as node_capacity_memory_gigabyte_hours,
+    cast(NULL as double) as cluster_capacity_cpu_core_hours,
+    cast(NULL as double) as cluster_capacity_memory_gigabyte_hours,
+    max(ocp.pod_labels) as pod_labels,
+    max(ocp.volume_labels) as volume_labels,
+    max(azure.tags) as tags,
+    max(azure.resource_id_matched) as resource_id_matched
+    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
+    JOIN hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
+        ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
+        AND (
+                    (strpos(azure.tags, 'openshift_project') !=0 AND strpos(azure.tags, lower(ocp.namespace)) != 0)
+                    OR (strpos(azure.tags, 'openshift_node') != 0 AND strpos(azure.tags,lower(ocp.node)) != 0)
+                    OR (strpos(azure.tags, 'openshift_cluster') != 0 AND (strpos(azure.tags, lower(ocp.cluster_id)) != 0 OR strpos(azure.tags, lower(ocp.cluster_alias)) != 0))
+                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+            )
+    LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+        ON azure.uuid = pds.azure_uuid
+    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
+        AND azure.year = {{year}}
+        AND azure.month = {{month}}
+        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
+        AND ocp.year = {{year}}
+        AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+        AND ocp.usage_start >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND pds.azure_uuid is NULL
+    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
+;
+
+-- Group by to calculate proper cost per project
+
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary (
+    azure_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity,
+    currency,
+    pretax_cost,
+    markup_cost,
+    pod_cost,
+    project_markup_cost,
+    pod_labels,
+    tags,
+    azure_source,
+    ocp_source,
+    year,
+    month,
+    day
+)
+WITH cte_rankings AS (
+    SELECT pds.azure_uuid,
+        count(*) as azure_uuid_count
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+    GROUP BY azure_uuid
+)
+SELECT pds.azure_uuid,
+    cluster_id,
+    cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    resource_id,
+    usage_start,
+    usage_end,
+    service_name,
+    instance_type,
+    subscription_guid,
+    resource_location,
+    unit_of_measure,
+    usage_quantity / r.azure_uuid_count as usage_quantity,
+    currency,
+    pretax_cost / r.azure_uuid_count as pretax_cost,
+    markup_cost / r.azure_uuid_count as markup_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost
+        ELSE pretax_cost / r.azure_uuid_count
+    END as pod_cost,
+    CASE WHEN resource_id_matched = TRUE AND data_source = 'Pod'
+        THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
+        ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
+    END as project_markup_cost,
+    CASE WHEN pds.pod_labels IS NOT NULL
+        THEN json_format(cast(
+            map_concat(
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+        ELSE json_format(cast(
+            map_concat(
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+    END as pod_labels,
+    tags,
+    '{{azure_source_uuid | sqlsafe}}' as azure_source,
+    '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
+    cast(year(usage_start) as varchar) as year,
+    cast(month(usage_start) as varchar) as month,
+    cast(day(usage_start) as varchar) as day
+FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp AS pds
+JOIN cte_rankings as r
+    ON pds.azure_uuid = r.azure_uuid
+;
+
+INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_p (
     uuid,
     report_period_id,
     cluster_id,
@@ -19,238 +419,50 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project
     service_name,
     resource_location,
     usage_quantity,
+    unit_of_measure,
+    currency,
     pretax_cost,
     markup_cost,
-    currency,
-    unit_of_measure,
-    pod_cost,
     project_markup_cost,
+    pod_cost,
     tags,
     source_uuid
 )
-WITH cte_ocp_on_azure_resource_id_joined AS (
-    SELECT azure.uuid as azure_id,
-        max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
-        max(coalesce(date, usagedatetime)) as usage_start,
-        max(coalesce(date, usagedatetime)) as usage_end,
-        max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-        max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
-        max(azure.resourcelocation) as resource_location,
-
-        max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) != '' AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
-                THEN cast(split_part(unitofmeasure, ' ', 1) as integer)
-            ELSE 1
-            END) as multiplier,
-        max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
-                THEN  'Hrs'
-            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
-                THEN  'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
-                THEN  split_part(unitofmeasure, ' ', 2)
-            ELSE unitofmeasure
-        END) as unit_of_measure,
-
-        max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
-        max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-        max(coalesce(billingcurrencycode, currency)) as currency,
-        max(azure.resource_id_matched) as resource_id_matched,
-        max(azure.tags) as tags,
-        max(azure.servicename) as service_name,
-        max(ocp.report_period_id) as report_period_id,
-        max(ocp.cluster_id) as cluster_id,
-        max(ocp.cluster_alias) as cluster_alias,
-        ocp.namespace,
-        ocp.data_source,
-        max(ocp.node) as node,
-        max(json_format(ocp.pod_labels)) as pod_labels,
-        sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-        sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
-        sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-        sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-        sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
-        max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-        max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-        max(ocp.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
-        max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-        max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
-        max(ocp.persistentvolume) as persistentvolume,
-        max(ocp.storageclass) as storageclass,
-        max(json_format(volume_labels)) as volume_labels,
-        max(ocp.persistentvolumeclaim_capacity_gigabyte) as persistentvolumeclaim_capacity_gigabyte,
-        max(ocp.persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
-        sum(ocp.volume_request_storage_gigabyte_months) as volume_request_storage_gigabyte_months,
-        sum(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months
-    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
-            AND (
-                (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.node AND ocp.data_source = 'Pod')
-                    OR (split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9) = ocp.persistentvolume AND ocp.data_source = 'Storage')
-            )
-    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
-        AND azure.year = '{{year | sqlsafe}}'
-        AND azure.month = '{{month | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND ocp.report_period_id = {{report_period_id | sqlsafe}}
-        AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
-        AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
-),
-cte_ocp_on_azure_tag_joined AS (
-    SELECT azure.uuid as azure_id,
-        max(split_part(coalesce(resourceid, instanceid), '/', 9)) as resource_id,
-        max(coalesce(date, usagedatetime)) as usage_start,
-        max(coalesce(date, usagedatetime)) as usage_end,
-        max(json_extract_scalar(json_parse(azure.additionalinfo), '$.ServiceType')) as instance_type,
-        max(coalesce(subscriptionid, subscriptionguid)) as subscription_guid,
-        max(azure.resourcelocation) as resource_location,
-
-        max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) != '' AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
-                THEN cast(split_part(unitofmeasure, ' ', 1) as integer)
-            ELSE 1
-            END) as multiplier,
-        max(CASE
-            WHEN split_part(unitofmeasure, ' ', 2) = 'Hours'
-                THEN  'Hrs'
-            WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
-                THEN  'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
-                THEN  split_part(unitofmeasure, ' ', 2)
-            ELSE unitofmeasure
-        END) as unit_of_measure,
-
-        max(cast(coalesce(azure.quantity, azure.usagequantity) as decimal(24,9))) as usage_quantity,
-        max(cast(coalesce(azure.costinbillingcurrency, azure.pretaxcost) as decimal(24,9))) as pretax_cost,
-        max(coalesce(billingcurrencycode, currency)) as currency,
-        max(azure.resource_id_matched) as resource_id_matched,
-        max(azure.tags) as tags,
-        max(azure.servicename) as service_name,
-        max(ocp.report_period_id) as report_period_id,
-        max(ocp.cluster_id) as cluster_id,
-        max(ocp.cluster_alias) as cluster_alias,
-        ocp.namespace,
-        ocp.data_source,
-        max(ocp.node) as node,
-        max(json_format(ocp.pod_labels)) as pod_labels,
-        sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
-        sum(ocp.pod_request_cpu_core_hours) as pod_request_cpu_core_hours,
-        sum(ocp.pod_limit_cpu_core_hours) as pod_limit_cpu_core_hours,
-        sum(ocp.pod_usage_memory_gigabyte_hours) as pod_usage_memory_gigabyte_hours,
-        sum(ocp.pod_request_memory_gigabyte_hours) as pod_request_memory_gigabyte_hours,
-        max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
-        max(ocp.node_capacity_cpu_core_hours) as node_capacity_cpu_core_hours,
-        max(ocp.node_capacity_memory_gigabytes) as node_capacity_memory_gigabytes,
-        max(ocp.node_capacity_memory_gigabyte_hours) as node_capacity_memory_gigabyte_hours,
-        max(ocp.cluster_capacity_cpu_core_hours) as cluster_capacity_cpu_core_hours,
-        max(ocp.cluster_capacity_memory_gigabyte_hours) as cluster_capacity_memory_gigabyte_hours,
-        max(ocp.persistentvolumeclaim) as persistentvolumeclaim,
-        max(ocp.persistentvolume) as persistentvolume,
-        max(ocp.storageclass) as storageclass,
-        max(json_format(volume_labels)) as volume_labels,
-        max(ocp.persistentvolumeclaim_capacity_gigabyte) as persistentvolumeclaim_capacity_gigabyte,
-        max(ocp.persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
-        sum(ocp.volume_request_storage_gigabyte_months) as volume_request_storage_gigabyte_months,
-        sum(ocp.persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months
-    FROM hive.{{schema | sqlsafe}}.azure_openshift_daily as azure
-    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-        ON coalesce(azure.date, azure.usagedatetime) = ocp.usage_start
-            AND (
-                    json_extract_scalar(azure.tags, '$.openshift_project') = lower(ocp.namespace)
-                    OR json_extract_scalar(azure.tags, '$.openshift_node') = lower(ocp.node)
-                    OR json_extract_scalar(azure.tags, '$.openshift_cluster') IN (lower(ocp.cluster_id), lower(ocp.cluster_alias))
-                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.pod_labels), replace(x, ' ')) != 0))
-                    OR (azure.matched_tag != '' AND any_match(split(azure.matched_tag, ','), x->strpos(json_format(ocp.volume_labels), replace(x, ' ')) != 0))
-            )
-    WHERE azure.source = '{{azure_source_uuid | sqlsafe}}'
-        AND azure.year = '{{year | sqlsafe}}'
-        AND azure.month = '{{month | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-        AND ocp.report_period_id = {{report_period_id | sqlsafe}}
-        AND ocp.usage_start >= date('{{start_date | sqlsafe}}')
-        AND ocp.usage_start <= date('{{end_date | sqlsafe}}')
-    GROUP BY azure.uuid, ocp.namespace, ocp.data_source
-),
-cte_ocp_on_azure_joined AS (
-    SELECT *
-    FROM cte_ocp_on_azure_resource_id_joined
-
-    UNION
-
-    SELECT tag.*
-    FROM cte_ocp_on_azure_tag_joined as tag
-    LEFT JOIN cte_ocp_on_azure_resource_id_joined as rid
-        ON tag.azure_id = rid.azure_id
-    WHERE rid.azure_id IS NULL
-),
-cte_project_counts AS (
-    SELECT azure_id,
-        count(DISTINCT namespace) as project_count
-    FROM cte_ocp_on_azure_joined
-    GROUP BY azure_id
-),
-cte_data_source_counts AS (
-    SELECT azure_id,
-        namespace,
-        count(DISTINCT data_source) as data_source_count
-    FROM cte_ocp_on_azure_joined
-    GROUP BY azure_id, namespace
-)
 SELECT uuid(),
-    ocp_azure.report_period_id,
-    ocp_azure.cluster_id,
-    ocp_azure.cluster_alias,
-    ocp_azure.data_source,
-    ocp_azure.namespace,
-    ocp_azure.node,
-    ocp_azure.persistentvolumeclaim,
-    ocp_azure.persistentvolume,
-    ocp_azure.storageclass,
-    CASE WHEN ocp_azure.pod_labels IS NOT NULL
-        THEN cast(
-            map_concat(
-                cast(json_parse(ocp_azure.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_azure.tags) as map(varchar, varchar))
-            ) as JSON)
-        ELSE cast(
-            map_concat(
-                cast(json_parse(ocp_azure.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(ocp_azure.tags) as map(varchar, varchar))
-            ) as JSON)
-    END as pod_labels,
-    ocp_azure.resource_id,
-    date(ocp_azure.usage_start) as usage_start,
-    date(ocp_azure.usage_end) as usage_end,
+    {{report_period_id | sqlsafe}} as report_period_id,
+    cluster_id as cluster_id,
+    cluster_alias as cluster_alias,
+    data_source,
+    namespace,
+    node,
+    persistentvolumeclaim,
+    persistentvolume,
+    storageclass,
+    json_parse(pod_labels),
+    resource_id,
+    date(usage_start),
+    date(usage_end),
     {{bill_id | sqlsafe}} as cost_entry_bill_id,
-    ocp_azure.subscription_guid,
-    ocp_azure.instance_type,
-    ocp_azure.service_name,
-    ocp_azure.resource_location,
-    ocp_azure.usage_quantity / pc.project_count / dsc.data_source_count as usage_quantity,
-    ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count as pretax_cost,
-    ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9)) as markup_cost,
-    ocp_azure.currency,
-    ocp_azure.unit_of_measure,
-    CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.{{pod_column | sqlsafe}} / ocp_azure.{{cluster_column | sqlsafe}}) * ocp_azure.pretax_cost / dsc.data_source_count
-        ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count
-    END as pod_cost,
-    CASE WHEN ocp_azure.resource_id_matched = TRUE AND ocp_azure.data_source = 'Pod'
-        THEN (ocp_azure.{{pod_column | sqlsafe}} / ocp_azure.{{cluster_column | sqlsafe}}) * ocp_azure.pretax_cost * cast({{markup}} as decimal(24,9)) / dsc.data_source_count
-        ELSE ocp_azure.pretax_cost / pc.project_count / dsc.data_source_count * cast({{markup}} as decimal(24,9))
-    END as project_markup_cost,
-    json_parse(ocp_azure.tags) as tags,
-    UUID '{{azure_source_uuid | sqlsafe}}' as source_uuid
-FROM cte_ocp_on_azure_joined AS ocp_azure
-JOIN cte_project_counts AS pc
-    ON ocp_azure.azure_id = pc.azure_id
-JOIN cte_data_source_counts AS dsc
-    ON ocp_azure.azure_id = dsc.azure_id
-        AND ocp_azure.namespace = dsc.namespace
+    subscription_guid,
+    instance_type,
+    service_name,
+    resource_location,
+    usage_quantity,
+    unit_of_measure,
+    currency,
+    pretax_cost,
+    markup_cost,
+    project_markup_cost,
+    pod_cost,
+    json_parse(tags),
+    cast(azure_source as UUID)
+FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary
+WHERE azure_source = '{{azure_source_uuid | sqlsafe}}'
+    AND ocp_source = '{{ocp_source_uuid | sqlsafe}}'
+    AND year = {{year}}
+    AND lpad(month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
+    AND day in ({{days}})
+;
+
+DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpazurecostlineitem_project_daily_summary_temp
 ;

@@ -7,12 +7,14 @@ import datetime
 import decimal
 from unittest.mock import patch
 
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Sum
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -213,7 +215,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
-        self.accessor.populate_markup_cost(self.azure_provider_uuid, 0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(
+            self.azure_provider_uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
+        )
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -313,8 +317,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto):
+    def test_populate_ocp_on_azure_cost_daily_summary_presto(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -340,9 +345,11 @@ class AzureReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
+        mock_delete.assert_called()
 
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto):
+    def test_populate_ocp_on_azure_cost_daily_summary_presto_memory_distribution(self, mock_presto, mock_delete):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
@@ -368,6 +375,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             distribution,
         )
         mock_presto.assert_called()
+        mock_delete.assert_called()
 
     def test_populate_enabled_tag_keys(self):
         """Test that enabled tag keys are populated."""
@@ -473,3 +481,16 @@ class AzureReportDBAccessorTest(MasuTestCase):
             self.azure_provider_uuid, self.ocp_on_azure_ocp_provider.uuid, start_date, end_date
         )
         mock_presto.assert_called()
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor.table_exists_trino")
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_on_azure_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_on_azure_hive_partition_by_day(
+                [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
+            )
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

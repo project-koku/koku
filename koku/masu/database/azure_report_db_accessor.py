@@ -10,11 +10,14 @@ import uuid
 from datetime import datetime
 
 from dateutil.parser import parse
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
+from api.utils import DateHelper
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
@@ -25,7 +28,7 @@ from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AZURE_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAzureCostLineItemDailySummary
+from reporting.models import OCPAzureCostLineItemDailySummaryP
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryLineItemDaily
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
@@ -207,7 +210,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             else:
                 date_filters = {}
 
-            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, OCPAzureCostLineItemDailySummary)
+            MARKUP_MODELS_BILL = (AzureCostEntryLineItemDailySummary, OCPAzureCostLineItemDailySummaryP)
             OCPALL_MARKUP = (OCPAllCostLineItemDailySummaryP, *OCP_ON_ALL_PERSPECTIVES)
 
             for bill_id in bill_ids:
@@ -320,6 +323,40 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
             self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
+    def delete_ocp_on_azure_hive_partition_by_day(self, days, az_source, ocp_source, year, month):
+        """Deletes partitions individually for each day in days list."""
+        table = "reporting_ocpazurecostlineitem_project_daily_summary"
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
+        if self.table_exists_trino(table):
+            LOG.info(
+                "Deleting partitions for the following: \n\tSchema: %s "
+                "\n\tOCP Source: %s \n\tAzure Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
+                self.schema,
+                ocp_source,
+                az_source,
+                table,
+                year,
+                month,
+                days,
+            )
+            for day in days:
+                for i in range(retries):
+                    try:
+                        sql = f"""
+                            DELETE FROM hive.{self.schema}.{table}
+                                WHERE azure_source = '{az_source}'
+                                AND ocp_source = '{ocp_source}'
+                                AND year = '{year}'
+                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                                AND day = '{day}'"""
+                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        break
+                    except TrinoExternalError as err:
+                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                            continue
+                        else:
+                            raise err
+
     def populate_ocp_on_azure_cost_daily_summary_presto(
         self,
         start_date,
@@ -332,12 +369,21 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         distribution,
     ):
         """Populate the daily cost aggregated summary for OCP on Azure."""
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+        days_list = [str(day.day) for day in days]
+        self.delete_ocp_on_azure_hive_partition_by_day(
+            days_list, azure_provider_uuid, openshift_provider_uuid, year, month
+        )
+
         # default to cpu distribution
-        pod_column = "pod_usage_cpu_core_hours"
-        cluster_column = "cluster_capacity_cpu_core_hours"
+        pod_column = "pod_effective_usage_cpu_core_hours"
+        node_column = "node_capacity_cpu_core_hours"
         if distribution == "memory":
-            pod_column = "pod_usage_memory_gigabyte_hours"
-            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+            pod_column = "pod_effective_usage_memory_gigabyte_hours"
+            node_column = "node_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazurecostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -346,16 +392,19 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "start_date": start_date,
             "end_date": end_date,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": year,
+            "month": month,
+            "days": days_str,
             "azure_source_uuid": azure_provider_uuid,
             "ocp_source_uuid": openshift_provider_uuid,
             "report_period_id": report_period_id,
             "bill_id": bill_id,
             "markup": markup_value,
             "pod_column": pod_column,
-            "cluster_column": cluster_column,
+            "node_column": node_column,
         }
+        LOG.info("Running OCP on Azure SQL with params:")
+        LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
@@ -439,7 +488,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return [json.loads(result[0]) for result in results]
 
     def back_populate_ocp_on_azure_daily_summary(self, start_date, end_date, report_period_id):
-        """Populate the OCP on AWS and OCP daily summary tables. after populating the project table via trino."""
+        """Populate the OCP on Azure and OCP daily summary tables. after populating the project table via trino."""
         table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
 
         sql = pkgutil.get_data(

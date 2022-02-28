@@ -4,8 +4,10 @@
 #
 """Describes the urls and patterns for the API application."""
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
+from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
@@ -19,6 +21,9 @@ from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
+
+ROUTER = DefaultRouter()
+ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 
 urlpatterns = [
     path("status/", get_status, name="server-status"),
@@ -56,3 +61,5 @@ urlpatterns = [
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
 ]
+
+urlpatterns += ROUTER.urls

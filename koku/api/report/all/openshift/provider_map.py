@@ -44,7 +44,7 @@ class OCPAllProviderMap(ProviderMap):
                     "service": "product_code",
                     "az": "availability_zone",
                 },
-                "end_date": "usage_end",
+                "end_date": "usage_start",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [

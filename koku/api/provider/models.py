@@ -69,6 +69,7 @@ class Provider(models.Model):
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
     OCP_AZURE = "OCP_Azure"
+    OCP_GCP = "OCP_GCP"
 
     PROVIDER_CASE_MAPPING = {
         "aws": PROVIDER_AWS,
@@ -110,7 +111,14 @@ class Provider(models.Model):
     # throughout the codebase
     PROVIDER_LIST = [choice[0] for choice in PROVIDER_CHOICES]
     CLOUD_PROVIDER_LIST = [choice[0] for choice in CLOUD_PROVIDER_CHOICES]
-    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [PROVIDER_AWS, PROVIDER_AWS_LOCAL, PROVIDER_AZURE, PROVIDER_AZURE_LOCAL]
+    OPENSHIFT_ON_CLOUD_PROVIDER_LIST = [
+        PROVIDER_AWS,
+        PROVIDER_AWS_LOCAL,
+        PROVIDER_AZURE,
+        PROVIDER_AZURE_LOCAL,
+        PROVIDER_GCP,
+        PROVIDER_GCP_LOCAL,
+    ]
 
     uuid = models.UUIDField(default=uuid4, primary_key=True)
     name = models.CharField(max_length=256, null=False)
@@ -135,6 +143,7 @@ class Provider(models.Model):
     # This field applies to OpenShift providers and identifies
     # which (if any) cloud provider the cluster is on
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
+    additional_context = JSONField(null=True, default=dict)
 
     def save(self, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""
@@ -222,6 +231,10 @@ class Sources(RunTextFieldValidators, models.Model):
     # Unique identifier for koku Provider
     koku_uuid = models.TextField(null=True, unique=True)
 
+    # This allows us to convenitently join source and provider tables with
+    # The Django ORM without using a real database foreign key constraint
+    provider = models.ForeignKey("Provider", null=True, on_delete=models.DO_NOTHING, db_constraint=False)
+
     # This field indicates if the source is paused.
     paused = models.BooleanField(default=False)
 
@@ -241,6 +254,7 @@ class Sources(RunTextFieldValidators, models.Model):
 
     # Availability status
     status = JSONField(null=True, default=dict)
+    additional_context = JSONField(null=True, default=dict)
 
     def __str__(self):
         """Get the string representation."""

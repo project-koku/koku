@@ -8,6 +8,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
+    command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
       - redis
@@ -50,6 +51,7 @@ services:
       - RUN_GUNICORN=${RUN_GUNICORN-}
       - POD_CPU_LIMIT=${POD_CPU_LIMIT-1}
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
+      - ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING}
       - ENABLE_TRINO_SOURCES
       - ENABLE_TRINO_ACCOUNTS
       - ENABLE_TRINO_SOURCE_TYPE
@@ -67,6 +69,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
+      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
     depends_on:
       - koku-base
 
@@ -114,6 +117,7 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
     ports:
       - 5042:8000
       - 5001:9000
@@ -123,6 +127,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
+      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
     depends_on:
       - koku-base
 
@@ -358,7 +363,7 @@ services:
 
   db:
     container_name: koku_db
-    image: postgres:12
+    image: postgres:13
     environment:
     - POSTGRES_DB=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}

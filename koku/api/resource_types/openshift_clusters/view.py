@@ -33,7 +33,7 @@ class OCPClustersView(generics.ListAPIView):
     permission_classes = [OpenShiftAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "ocp_cluster_alias"]
-    search_fields = ["$value", "$ocp_cluster_alias"]
+    search_fields = ["value", "ocp_cluster_alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):

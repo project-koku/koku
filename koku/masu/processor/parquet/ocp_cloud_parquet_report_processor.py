@@ -13,6 +13,7 @@ from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
@@ -21,6 +22,7 @@ from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
+from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
 
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             ocp_on_cloud_data_processor = aws_match_openshift_resources_and_labels
         elif self.provider_type == Provider.PROVIDER_AZURE:
             ocp_on_cloud_data_processor = azure_match_openshift_resources_and_labels
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            ocp_on_cloud_data_processor = gcp_match_openshift_resources_and_labels
 
         return ocp_on_cloud_data_processor
 
@@ -75,6 +79,8 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             return AWSReportDBAccessor(self.schema_name)
         elif self.provider_type == Provider.PROVIDER_AZURE:
             return AzureReportDBAccessor(self.schema_name)
+        elif self.provider_type == Provider.PROVIDER_GCP:
+            return GCPReportDBAccessor(self.schema_name)
         return None
 
     @cached_property
@@ -104,6 +110,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
     def create_ocp_on_cloud_parquet(self, data_frame, parquet_base_filename, file_number, ocp_provider_uuid):
         """Create a parquet file for daily aggregated data."""
         # Add the OCP UUID in case multiple clusters are running on this cloud source.
+        if self._provider_type == Provider.PROVIDER_GCP:
+            if data_frame.first_valid_index() is not None:
+                parquet_base_filename = (
+                    f"{data_frame['invoice_month'].values[0]}{parquet_base_filename[parquet_base_filename.find('_'):]}"
+                )
         file_name = f"{parquet_base_filename}_{file_number}_{ocp_provider_uuid}{PARQUET_EXT}"
         file_path = f"{self.local_path}/{file_name}"
         self._write_parquet_to_file(file_path, file_name, data_frame, file_type=self.report_type)
@@ -122,6 +133,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             LOG.info(msg)
             # Get OpenShift topology data
             with OCPReportDBAccessor(self.schema_name) as accessor:
+                if not accessor.get_cluster_for_provider(ocp_provider_uuid):
+                    LOG.info(
+                        f"No cluster information available for OCP Provider: {ocp_provider_uuid},"
+                        + "skipping OCP on Cloud parquet processing."
+                    )
+                    continue
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)

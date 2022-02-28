@@ -39,7 +39,7 @@ class AWSAccountView(generics.ListAPIView):
     permission_classes = [AwsAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "alias"]
-    search_fields = ["$value", "$alias"]
+    search_fields = ["value", "alias"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):

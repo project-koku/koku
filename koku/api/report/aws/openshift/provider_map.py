@@ -16,8 +16,8 @@ from django.db.models.functions import Coalesce
 
 from api.models import Provider
 from api.report.provider_map import ProviderMap
-from reporting.models import OCPAWSCostLineItemDailySummary
-from reporting.models import OCPAWSCostLineItemProjectDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummaryP
+from reporting.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting.provider.aws.openshift.models import OCPAWSComputeSummaryP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByAccountP
 from reporting.provider.aws.openshift.models import OCPAWSCostSummaryByRegionP
@@ -44,7 +44,7 @@ class OCPAWSProviderMap(ProviderMap):
                     "service": "product_code",
                     "az": "availability_zone",
                 },
-                "end_date": "usage_end",
+                "end_date": "usage_start",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
@@ -137,8 +137,8 @@ class OCPAWSProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummary,
-                            "total": OCPAWSCostLineItemProjectDailySummary,
+                            "query": OCPAWSCostLineItemProjectDailySummaryP,
+                            "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -267,8 +267,8 @@ class OCPAWSProviderMap(ProviderMap):
                     },
                     "storage_by_project": {
                         "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummary,
-                            "total": OCPAWSCostLineItemProjectDailySummary,
+                            "query": OCPAWSCostLineItemProjectDailySummaryP,
+                            "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -408,8 +408,8 @@ class OCPAWSProviderMap(ProviderMap):
                     },
                     "instance_type_by_project": {
                         "tables": {
-                            "query": OCPAWSCostLineItemProjectDailySummary,
-                            "total": OCPAWSCostLineItemProjectDailySummary,
+                            "query": OCPAWSCostLineItemProjectDailySummaryP,
+                            "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -489,7 +489,7 @@ class OCPAWSProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAWSCostLineItemDailySummary, "total": OCPAWSCostLineItemDailySummary},
+                "tables": {"query": OCPAWSCostLineItemDailySummaryP, "total": OCPAWSCostLineItemDailySummaryP},
             }
         ]
 

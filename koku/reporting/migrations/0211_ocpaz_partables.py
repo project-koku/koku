@@ -3,8 +3,8 @@ import django.db.models.deletion
 from django.db import migrations
 from django.db import models
 
-from koku.database import set_partition_mode
-from koku.database import unset_partition_mode
+from koku.database import set_pg_extended_mode
+from koku.database import unset_pg_extended_mode
 
 
 class Migration(migrations.Migration):
@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     dependencies = [("api", "0050_exchangerates"), ("reporting", "0210_ocpaws_partables")]
 
     operations = [
-        migrations.RunPython(code=set_partition_mode, reverse_code=unset_partition_mode),
+        migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
         migrations.CreateModel(
             name="OCPAzureStorageSummaryP",
             fields=[
@@ -338,5 +338,5 @@ class Migration(migrations.Migration):
             model_name="ocpazurecomputesummaryp",
             index=models.Index(fields=["cluster_id"], name="ocpazcompsumm_clust_id"),
         ),
-        migrations.RunPython(code=unset_partition_mode, reverse_code=set_partition_mode),
+        migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
     ]

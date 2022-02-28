@@ -36,7 +36,7 @@ class OCPProviderMap(ProviderMap):
             {
                 "provider": Provider.PROVIDER_OCP,
                 "annotations": {"cluster": "cluster_id"},
-                "end_date": "usage_end",
+                "end_date": "usage_start",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [

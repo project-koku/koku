@@ -8,8 +8,10 @@ from api.models import Provider
 """Model for our cost model metric map."""
 OCP_METRIC_CPU_CORE_USAGE_HOUR = "cpu_core_usage_per_hour"
 OCP_METRIC_CPU_CORE_REQUEST_HOUR = "cpu_core_request_per_hour"
+OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR = "cpu_core_effective_usage_per_hour"
 OCP_METRIC_MEM_GB_USAGE_HOUR = "memory_gb_usage_per_hour"
 OCP_METRIC_MEM_GB_REQUEST_HOUR = "memory_gb_request_per_hour"
+OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR = "memory_gb_effective_usage_per_hour"
 OCP_METRIC_STORAGE_GB_USAGE_MONTH = "storage_gb_usage_per_month"
 OCP_METRIC_STORAGE_GB_REQUEST_MONTH = "storage_gb_request_per_month"
 OCP_NODE_MONTH = "node_cost_per_month"
@@ -25,8 +27,10 @@ SUPPLEMENTARY_COST_TYPE = "Supplementary"
 METRIC_CHOICES = (
     (OCP_METRIC_CPU_CORE_USAGE_HOUR, OCP_METRIC_CPU_CORE_USAGE_HOUR),
     (OCP_METRIC_CPU_CORE_REQUEST_HOUR, OCP_METRIC_CPU_CORE_REQUEST_HOUR),
+    (OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR, OCP_METRIC_CPU_CORE_EFFECTIVE_USAGE_HOUR),
     (OCP_METRIC_MEM_GB_USAGE_HOUR, OCP_METRIC_MEM_GB_USAGE_HOUR),
     (OCP_METRIC_MEM_GB_REQUEST_HOUR, OCP_METRIC_MEM_GB_REQUEST_HOUR),
+    (OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR, OCP_METRIC_MEM_GB_EFFECTIVE_USAGE_HOUR),
     (OCP_METRIC_STORAGE_GB_USAGE_MONTH, OCP_METRIC_STORAGE_GB_USAGE_MONTH),
     (OCP_METRIC_STORAGE_GB_REQUEST_MONTH, OCP_METRIC_STORAGE_GB_REQUEST_MONTH),
     (OCP_NODE_MONTH, OCP_NODE_MONTH),
@@ -73,6 +77,14 @@ COST_MODEL_METRIC_MAP = [
     },
     {
         "source_type": "OCP",
+        "metric": "cpu_core_effective_usage_per_hour",
+        "label_metric": "CPU",
+        "label_measurement": "Effective-usage",
+        "label_measurement_unit": "core-hours",
+        "default_cost_type": "Supplementary",
+    },
+    {
+        "source_type": "OCP",
         "metric": "memory_gb_usage_per_hour",
         "label_metric": "Memory",
         "label_measurement": "Usage",
@@ -84,6 +96,14 @@ COST_MODEL_METRIC_MAP = [
         "metric": "memory_gb_request_per_hour",
         "label_metric": "Memory",
         "label_measurement": "Request",
+        "label_measurement_unit": "GB-hours",
+        "default_cost_type": "Supplementary",
+    },
+    {
+        "source_type": "OCP",
+        "metric": "memory_gb_effective_usage_per_hour",
+        "label_metric": "Memory",
+        "label_measurement": "Effective-usage",
         "label_measurement_unit": "GB-hours",
         "default_cost_type": "Supplementary",
     },

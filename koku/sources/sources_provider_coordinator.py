@@ -50,10 +50,10 @@ class SourcesProviderCoordinator:
             raise SourcesProviderCoordinatorError(str(provider_err))
         return provider
 
-    def destroy_account(self, koku_uuid):
+    def destroy_account(self, koku_uuid, retry_count=None):
         """Call to destroy provider."""
         try:
-            self._provider_builder.destroy_provider(koku_uuid)
+            self._provider_builder.destroy_provider(koku_uuid, retry_count=retry_count)
             destroy_source_event(self._source_id)
         except ProviderBuilderError as provider_err:
             LOG.error(f"Failed to remove provider. Error: {str(provider_err)}")

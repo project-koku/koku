@@ -11,6 +11,7 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 import requests_mock
+from django.core.cache import cache
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -184,8 +185,9 @@ class SourcesViewTests(IamTestCase):
         self.assertIsNotNone(body)
 
     @patch("sources.api.view.ProviderManager", side_effect=ProviderManagerError("test error"))
-    def test_source_list_error(self, _):
+    def test_source_list_zerror(self, _):
         """Test provider_linked is False in list when Provider does not exist."""
+        cache.clear()
         url = reverse("sources-list")
         response = self.client.get(url, content_type="application/json", **self.request_context["request"].META)
         body = response.json()
@@ -196,7 +198,7 @@ class SourcesViewTests(IamTestCase):
 
     @patch("sources.api.view.ProviderManager")
     def test_source_list_provider_success(self, mock_provider_manager):
-        """Test provider_linked is False in list when Provider does not exist."""
+        """Test provider_linked is True in list when Provider exists."""
         provider_manager = ProviderManager(self.azure_provider.uuid)
         mock_provider_manager.return_value = provider_manager
         url = reverse("sources-list")

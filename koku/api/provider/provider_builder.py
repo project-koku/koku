@@ -18,6 +18,8 @@ from api.models import User
 from api.provider.provider_manager import ProviderManager
 from api.provider.provider_manager import ProviderManagerError
 from api.provider.serializers import ProviderSerializer
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
+from koku.cache import SOURCES_CACHE_PREFIX
 from koku.middleware import IdentityHeaderMiddleware
 
 LOG = logging.getLogger(__name__)
@@ -133,6 +135,7 @@ class ProviderBuilder:
             connection.set_schema_to_public()
             raise error
         connection.set_schema_to_public()
+        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         return instance
 
     def update_provider_from_source(self, source):
@@ -154,9 +157,10 @@ class ProviderBuilder:
         serializer.is_valid(raise_exception=True)
         serializer.save()
         connection.set_schema_to_public()
+        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         return instance
 
-    def destroy_provider(self, provider_uuid):
+    def destroy_provider(self, provider_uuid, retry_count=None):
         """Call to destroy provider."""
         connection.set_schema_to_public()
         _, customer, user = self._create_context()
@@ -167,5 +171,6 @@ class ProviderBuilder:
         except ProviderManagerError:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
-            manager.remove(user=user, from_sources=True)
+            manager.remove(user=user, from_sources=True, retry_count=retry_count)
+            invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         connection.set_schema_to_public()

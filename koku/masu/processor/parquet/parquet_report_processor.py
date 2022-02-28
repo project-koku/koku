@@ -34,6 +34,7 @@ from masu.util.azure.common import get_column_converters as azure_column_convert
 from masu.util.common import create_enabled_keys
 from masu.util.common import get_hive_table_path
 from masu.util.common import get_path_prefix
+from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
 from masu.util.ocp.common import detect_type
@@ -195,6 +196,8 @@ class ParquetReportProcessor:
             daily_data_processor = aws_generate_daily_data
         if self.provider_type == Provider.PROVIDER_AZURE:
             daily_data_processor = azure_generate_daily_data
+        if self.provider_type == Provider.PROVIDER_GCP:
+            daily_data_processor = gcp_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
             daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
 
@@ -299,7 +302,7 @@ class ParquetReportProcessor:
 
         return processor
 
-    def convert_to_parquet(self):
+    def convert_to_parquet(self):  # noqa: C901
         """
         Convert archived CSV data from our S3 bucket for a given provider to Parquet.
 
@@ -349,11 +352,10 @@ class ParquetReportProcessor:
                 LOG.warn(log_json(self.tracing_id, msg, self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
-
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
-            if self.provider_type not in (Provider.PROVIDER_AZURE, Provider.PROVIDER_GCP):
-                self.create_daily_parquet(parquet_base_filename, daily_data_frames)
+            if self.provider_type not in (Provider.PROVIDER_AZURE):
+                self.create_daily_parquet(parquet_base_filename, daily_frame)
             if not success:
                 failed_conversion.append(csv_filename)
 
@@ -401,6 +403,8 @@ class ParquetReportProcessor:
                 csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
             ) as reader:
                 for i, data_frame in enumerate(reader):
+                    if data_frame.empty:
+                        continue
                     parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
                     parquet_file = f"{self.local_path}/{parquet_filename}"
                     if self.post_processor:
@@ -465,9 +469,20 @@ class ParquetReportProcessor:
                 daily=True,
             )
         else:
-            return get_path_prefix(
-                self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
-            )
+            if self.report_type == OPENSHIFT_REPORT_TYPE:
+                return get_path_prefix(
+                    self.account,
+                    self.provider_type,
+                    self.provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
+                    report_type=self.report_type,
+                    daily=True,
+                )
+            else:
+                return get_path_prefix(
+                    self.account, self.provider_type, self.provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
+                )
 
     def _write_parquet_to_file(self, file_path, file_name, data_frame, file_type=None):
         """Write Parquet file and send to S3."""

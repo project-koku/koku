@@ -7,6 +7,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
 from django.db.models import Count
 from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Q
@@ -17,8 +18,8 @@ from django.db.models.functions import Coalesce
 from api.models import Provider
 from api.report.provider_map import ProviderMap
 from reporting.models import OCPAzureComputeSummaryP
-from reporting.models import OCPAzureCostLineItemDailySummary
-from reporting.models import OCPAzureCostLineItemProjectDailySummary
+from reporting.models import OCPAzureCostLineItemDailySummaryP
+from reporting.models import OCPAzureCostLineItemProjectDailySummaryP
 from reporting.models import OCPAzureCostSummaryByAccountP
 from reporting.models import OCPAzureCostSummaryByLocationP
 from reporting.models import OCPAzureCostSummaryByServiceP
@@ -38,7 +39,7 @@ class OCPAzureProviderMap(ProviderMap):
                 "provider": Provider.OCP_AZURE,
                 "alias": "subscription_guid",
                 "annotations": {"cluster": "cluster_id"},
-                "end_date": "costentrybill__billing_period_end",
+                "end_date": "costentrybill__billing_period_start",
                 "filters": {
                     "project": {"field": "namespace", "operation": "icontains"},
                     "cluster": [
@@ -110,7 +111,10 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_raw": Sum(F("pretax_cost")),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -131,8 +135,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "costs_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -182,7 +186,10 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -221,9 +228,15 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_raw": Sum(F("pretax_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "usage": Sum(F("usage_quantity")),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("GB-Mo")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("GB-Mo", output_field=CharField()),
+                            ),
                         },
                         "annotations": {
                             "infra_total": Sum(
@@ -244,9 +257,15 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_raw": Sum(F("pretax_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "usage": Sum(F("usage_quantity")),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("GB-Mo")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("GB-Mo", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -267,8 +286,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "storage_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -294,9 +313,15 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("GB-Mo")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("GB-Mo", output_field=CharField()),
+                            ),
                         },
                         "annotations": {
                             "infra_total": Sum(
@@ -321,9 +346,15 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("GB-Mo")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("GB-Mo", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -362,10 +393,16 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_raw": Sum(F("pretax_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_quantity")),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("Hrs")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("Hrs", output_field=CharField()),
+                            ),
                         },
                         "aggregate_key": "usage_quantity",
                         "annotations": {
@@ -387,11 +424,17 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_raw": Sum(F("pretax_cost")),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum(F("usage_quantity")),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("Hrs")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("Hrs", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -414,8 +457,8 @@ class OCPAzureProviderMap(ProviderMap):
                     },
                     "instance_type_by_project": {
                         "tables": {
-                            "query": OCPAzureCostLineItemProjectDailySummary,
-                            "total": OCPAzureCostLineItemProjectDailySummary,
+                            "query": OCPAzureCostLineItemProjectDailySummaryP,
+                            "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
                         "tag_column": "pod_labels",
                         "aggregates": {
@@ -441,10 +484,16 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("Hrs")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("Hrs", output_field=CharField()),
+                            ),
                         },
                         "aggregate_key": "usage_quantity",
                         "annotations": {
@@ -470,11 +519,17 @@ class OCPAzureProviderMap(ProviderMap):
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency"), Value("USD")),
+                            "cost_units": Coalesce(
+                                ExpressionWrapper(Max("currency"), output_field=CharField()),
+                                Value("USD", output_field=CharField()),
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
-                            "usage_units": Coalesce(Max("unit_of_measure"), Value("Hrs")),
+                            "usage_units": Coalesce(
+                                ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
+                                Value("Hrs", output_field=CharField()),
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -498,7 +553,7 @@ class OCPAzureProviderMap(ProviderMap):
                     "tags": {"default_ordering": {"cost_total": "desc"}},
                 },
                 "start_date": "usage_start",
-                "tables": {"query": OCPAzureCostLineItemDailySummary, "total": OCPAzureCostLineItemDailySummary},
+                "tables": {"query": OCPAzureCostLineItemDailySummaryP, "total": OCPAzureCostLineItemDailySummaryP},
             }
         ]
 

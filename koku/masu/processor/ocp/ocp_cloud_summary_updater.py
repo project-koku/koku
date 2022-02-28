@@ -63,6 +63,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
                 self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
             elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
                 self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+            elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
 
             # Update markup for OpenShift tables
             with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
@@ -87,8 +89,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             self._handle_partitions(
                 self._schema,
                 (
-                    "reporting_ocpawscostlineitem_daily_summary",
-                    "reporting_ocpawscostlineitem_project_daily_summary",
+                    "reporting_ocpawscostlineitem_daily_summary_p",
+                    "reporting_ocpawscostlineitem_project_daily_summary_p",
                     "reporting_ocpaws_compute_summary_p",
                     "reporting_ocpaws_cost_summary_p",
                     "reporting_ocpaws_cost_summary_by_account_p",
@@ -162,8 +164,8 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             self._handle_partitions(
                 self._schema,
                 (
-                    "reporting_ocpazurecostlineitem_daily_summary",
-                    "reporting_ocpazurecostlineitem_project_daily_summary",
+                    "reporting_ocpazurecostlineitem_daily_summary_p",
+                    "reporting_ocpazurecostlineitem_project_daily_summary_p",
                     "reporting_ocpallcostlineitem_daily_summary_p",
                     "reporting_ocpallcostlineitem_project_daily_summary_p",
                     "reporting_ocpall_compute_summary_pt",

@@ -2,7 +2,7 @@ version: '3'
 
 services:
   db:
-    image: postgres:12
+    image: postgres:13
     environment:
     - DATABASE_NAME=${DATABASE_NAME-postgres}
     - POSTGRES_USER=${DATABASE_USER-postgres}

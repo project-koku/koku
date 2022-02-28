@@ -41,6 +41,18 @@ def raise_OSError(path):
     raise OSError()
 
 
+class FakeManifest:
+    def __init__(self, num_processed_files=1, num_total_files=1):
+        self.num_processed_files = num_processed_files
+        self.num_total_files = num_total_files
+
+    def get_manifest_by_id(self, manifest_id):
+        return self
+
+    def manifest_ready_for_summary(self, manifest_id):
+        return self.num_processed_files == self.num_total_files
+
+
 class MockError(KafkaError):
     """Test error class."""
 
@@ -402,17 +414,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "file": "/path/to/file.csv",
         }
 
-        class FakeManifest:
-            def __init__(self, num_processed_files=1, num_total_files=1):
-                self.num_processed_files = num_processed_files
-                self.num_total_files = num_total_files
-
-            def get_manifest_by_id(self, manifest_id):
-                return self
-
-            def manifest_ready_for_summary(self, manifest_id):
-                return self.num_processed_files == self.num_total_files
-
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
 
@@ -453,17 +454,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "manifest_uuid": "1234",
         }
 
-        class FakeManifest:
-            def __init__(self, num_processed_files=1, num_total_files=1):
-                self.num_processed_files = num_processed_files
-                self.num_total_files = num_total_files
-
-            def get_manifest_by_id(self, manifest_id):
-                return self
-
-            def manifest_ready_for_summary(self, manifest_id):
-                return self.num_processed_files == self.num_total_files
-
         # Check when manifest is done
         mock_manifest_accessor = FakeManifest(num_processed_files=2, num_total_files=2)
 
@@ -481,6 +471,48 @@ class KafkaMsgHandlerTest(MasuTestCase):
             with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
                 msg_handler.summarize_manifest(report_meta, self.manifest_id)
                 mock_summarize_reports.assert_not_called()
+
+    def test_summarize_manifest_invalid_dates(self):
+        """Test report summarization."""
+        table = [
+            {
+                "name": "invalid end date",
+                "start": str(datetime.today()),
+                "end": "0001-01-01 00:00:00+00:00",
+                "cr_status": {},
+            },
+            {
+                "name": "invalid start date",
+                "start": "0001-01-01 00:00:00+00:00",
+                "end": str(datetime.today()),
+                "cr_status": {"reports": {"data_collection_message": "it's a bad payload"}},
+            },
+            {
+                "name": "invalid start and end dates",
+                "start": "0001-01-01 00:00:00+00:00",
+                "end": "0001-01-01 00:00:00+00:00",
+                "cr_status": {"reports": {"data_collection_message": "it's a bad payload"}},
+            },
+        ]
+
+        report_meta = {
+            "schema_name": "test_schema",
+            "manifest_id": "1",
+            "provider_uuid": uuid.uuid4(),
+            "provider_type": "OCP",
+            "compression": "UNCOMPRESSED",
+            "file": "/path/to/file.csv",
+        }
+        for t in table:
+            with self.subTest(test=t.get("name")):
+                report_meta["start"] = t.get("start")
+                report_meta["end"] = t.get("end")
+                report_meta["cr_status"] = t.get("cr_status")
+
+                with patch("masu.external.kafka_msg_handler.summarize_reports.s") as mock_summarize_reports:
+                    mock_summarize_reports.assert_not_called()
+                    async_id = msg_handler.summarize_manifest(report_meta, self.manifest_id)
+                    self.assertIsNone(async_id)
 
     def test_extract_payload(self):
         """Test to verify extracting payload is successful."""

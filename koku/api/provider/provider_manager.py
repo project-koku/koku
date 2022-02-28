@@ -4,6 +4,7 @@
 #
 """Management capabilities for Provider functionality."""
 import logging
+from datetime import timedelta
 from functools import partial
 
 from django.conf import settings
@@ -41,12 +42,21 @@ class ProviderManagerError(Exception):
         self.message = message
 
 
+class ProviderProcessingError(Exception):
+    """General Exception class for ProviderManager errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderManager errors."""
+        self.message = message
+
+
 class ProviderManager:
     """Provider Manager to manage operations related to backend providers."""
 
     def __init__(self, uuid):
         """Establish provider manager database objects."""
         self._uuid = uuid
+        self.date_helper = DateHelper()
         try:
             self.model = Provider.objects.get(uuid=self._uuid)
         except (ObjectDoesNotExist, ValidationError) as exc:
@@ -78,7 +88,7 @@ class ProviderManager:
         """Get current month data avaiability status."""
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=DateHelper().this_month_start,
+            billing_period_start_datetime=self.date_helper.this_month_start,
             manifest_completed_datetime__isnull=False,
         ).exists()
 
@@ -86,7 +96,7 @@ class ProviderManager:
         """Get current month data avaiability status."""
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=DateHelper().last_month_start,
+            billing_period_start_datetime=self.date_helper.last_month_start,
             manifest_completed_datetime__isnull=False,
         ).exists()
 
@@ -94,6 +104,17 @@ class ProviderManager:
         """Get  data avaiability status."""
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid, manifest_completed_datetime__isnull=False
+        ).exists()
+
+    def get_is_provider_processing(self):
+        """Return a bool determining if the source is currently processing."""
+        today = self.date_helper.today.date()
+        days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid,
+            billing_period_start_datetime=self.date_helper.this_month_start,
+            manifest_creation_datetime__date__in=days_to_check,
+            manifest_completed_datetime__isnull=True,
         ).exists()
 
     def get_infrastructure_info(self):
@@ -104,6 +125,10 @@ class ProviderManager:
                 "uuid": self.model.infrastructure.infrastructure_provider_id,
             }
         return {}
+
+    def get_additional_context(self):
+        """Returns additional context information."""
+        return self.model.additional_context if self.model else {}
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
@@ -205,7 +230,7 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
     @transaction.atomic
-    def remove(self, request=None, user=None, from_sources=False):
+    def remove(self, request=None, user=None, from_sources=False, retry_count=None):
         """Remove the provider with current_user."""
         current_user = user
         if current_user is None and request and request.user:
@@ -213,6 +238,10 @@ class ProviderManager:
         if self.sources_model and not from_sources:
             err_msg = f"Provider {self._uuid} must be deleted via Sources Integration Service"
             raise ProviderManagerError(err_msg)
+        if from_sources and self.get_is_provider_processing():
+            err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
+            if retry_count is not None and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
+                raise ProviderProcessingError(err_msg)
 
         if self.is_removable_by_user(current_user):
             self.model.delete()

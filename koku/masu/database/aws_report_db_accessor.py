@@ -9,10 +9,12 @@ import pkgutil
 import uuid
 
 from dateutil.parser import parse
+from django.conf import settings
 from django.db import connection
 from django.db.models import F
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper
 from koku.database import get_model
@@ -25,7 +27,7 @@ from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.models import OCP_ON_AWS_PERSPECTIVES
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.models import OCPAllCostLineItemProjectDailySummaryP
-from reporting.models import OCPAWSCostLineItemDailySummary
+from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSCostEntry
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSCostEntryLineItem
@@ -367,7 +369,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def delete_ocp_on_aws_hive_partition_by_day(self, days, aws_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
-        table = self._table_map["ocp_on_aws_project_daily_summary"]
+        table = "reporting_ocpawscostlineitem_project_daily_summary"
+        retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
                 "Deleting partitions for the following: \n\tSchema: %s "
@@ -380,18 +383,23 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 month,
                 days,
             )
-            final_sql_list = []
             for day in days:
-                sql = f"""
-                DELETE FROM hive.{self.schema}.{table}
-                    WHERE aws_source = '{aws_source}'
-                    AND ocp_source = '{ocp_source}'
-                    AND year = '{year}'
-                    AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
-                    AND day = '{day}';"""
-                final_sql_list.append(sql)
-            final_sql = "".join(final_sql_list)
-            self._execute_presto_multipart_sql_query(self.schema, final_sql)
+                for i in range(retries):
+                    try:
+                        sql = f"""
+                            DELETE FROM hive.{self.schema}.{table}
+                                WHERE aws_source = '{aws_source}'
+                                AND ocp_source = '{ocp_source}'
+                                AND year = '{year}'
+                                AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
+                                AND day = '{day}'"""
+                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        break
+                    except TrinoExternalError as err:
+                        if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
+                            continue
+                        else:
+                            raise err
 
     def populate_ocp_on_aws_cost_daily_summary_presto(
         self,
@@ -424,11 +432,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             days_list, aws_provider_uuid, openshift_provider_uuid, year, month
         )
 
-        pod_column = "pod_usage_cpu_core_hours"
-        cluster_column = "cluster_capacity_cpu_core_hours"
+        pod_column = "pod_effective_usage_cpu_core_hours"
+        node_column = "node_capacity_cpu_core_hours"
         if distribution == "memory":
-            pod_column = "pod_usage_memory_gigabyte_hours"
-            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+            pod_column = "pod_effective_usage_memory_gigabyte_hours"
+            node_column = "node_capacity_memory_gigabyte_hours"
 
         summary_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpawscostlineitem_daily_summary.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -445,8 +453,10 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "report_period_id": report_period_id,
             "markup": markup_value,
             "pod_column": pod_column,
-            "cluster_column": cluster_column,
+            "node_column": node_column,
         }
+        LOG.info("Running OCP on AWS SQL with params:")
+        LOG.info(summary_sql_params)
         self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
 
     def back_populate_ocp_on_aws_daily_summary(self, start_date, end_date, report_period_id):
@@ -492,7 +502,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
                 )
 
-                OCPAWSCostLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
+                OCPAWSCostLineItemDailySummaryP.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
                     markup_cost=(F("unblended_cost") * markup)
                 )
                 for ocpaws_model in OCP_ON_AWS_PERSPECTIVES:

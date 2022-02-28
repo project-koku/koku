@@ -270,11 +270,15 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
@@ -827,11 +831,15 @@ class OCPPodSummaryP(models.Model):
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -898,11 +906,15 @@ class OCPPodSummaryByProjectP(models.Model):
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
+
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 

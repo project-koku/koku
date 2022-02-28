@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the hcs_report_data endpoint view."""
+import uuid
 from datetime import timedelta
-from unittest.mock import call
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -30,20 +30,22 @@ class HCSDataTests(TestCase):
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         end_date = DateHelper().today
         start_date = end_date - timedelta(days=1)
+
         params = {
             "schema": "acct10001",
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "provider": "AWS",
+            "tracing_id": str(uuid.uuid4()),
         }
         expected_key = "HCS Report Data Task ID"
 
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
-        expected_calls = [call(params["start_date"], params["end_date"])]
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_celery.s.assert_has_calls(expected_calls, any_order=True)
+        mock_celery.s.assert_called()
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_hcs_report_data_schema_missing(self, _):

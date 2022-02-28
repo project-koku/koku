@@ -52,7 +52,8 @@ class AWSProviderMap(ProviderMap):
                     "org_unit_id": "organizational_unit__org_unit_id",
                     "org_unit_single_level": "organizational_unit__org_unit_id",
                 },
-                "end_date": "usage_end",
+                # This is to make sure that the date range generator uses usage_start for >= and <= comparisions
+                "end_date": "usage_start",
                 "filters": {
                     "account": [
                         {

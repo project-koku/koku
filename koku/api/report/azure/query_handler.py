@@ -6,7 +6,10 @@
 import copy
 import logging
 
+from django.db.models import ExpressionWrapper
+from django.db.models import F
 from django.db.models import Value
+from django.db.models.fields import CharField
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
@@ -101,10 +104,18 @@ class AzureReportQueryHandler(ReportQueryHandler):
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
 
         if query.exists():
-            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
+            sum_annotations = {
+                "cost_units": Coalesce(
+                    ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
+                    Value(cost_units_fallback, output_field=CharField()),
+                )
+            }
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-                sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+                sum_annotations["usage_units"] = Coalesce(
+                    ExpressionWrapper(F(self._mapper.usage_units_key), output_field=CharField()),
+                    Value(units_fallback, output_field=CharField()),
+                )
             sum_query = query.annotate(**sum_annotations).order_by()
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)

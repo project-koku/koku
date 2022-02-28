@@ -4,6 +4,7 @@
 #
 """View for GCP Projects."""
 from django.db.models import F
+from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
 from rest_framework import filters
@@ -16,6 +17,7 @@ from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.gcp.models import GCPTopology
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryByGCPProjectP
 
 
 class GCPProjectsView(generics.ListAPIView):
@@ -26,12 +28,12 @@ class GCPProjectsView(generics.ListAPIView):
     permission_classes = [GcpProjectPermission | GcpAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
-    search_fields = ["$value"]
+    search_fields = ["value"]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
         # Reads the users values for GCP project id and displays values related to what the user has access to
-        supported_query_params = ["search", "limit"]
+        supported_query_params = ["search", "limit", "openshift"]
         error_message = {}
         query_holder = None
         # Test for only supported query_params
@@ -40,6 +42,16 @@ class GCPProjectsView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
+                elif key == "openshift":
+                    openshift = self.request.query_params.get("openshift")
+                    if openshift == "true":
+                        self.queryset = (
+                            OCPGCPCostSummaryByGCPProjectP.objects.annotate(
+                                **{"value": F("project_id"), "project": Coalesce(F("project_name"), "project_id")}
+                            )
+                            .values("value", "project")
+                            .distinct()
+                        )
         if request.user.admin:
             return super().list(request)
         if request.user.access:

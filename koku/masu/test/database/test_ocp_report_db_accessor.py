@@ -9,11 +9,13 @@ import uuid
 from unittest.mock import patch
 
 from dateutil import relativedelta
+from django.conf import settings
 from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
+from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
@@ -2729,3 +2731,14 @@ select * from eek where val1 in {{report_period_ids}} ;
                 report_period_id=report_period_id, usage_start__gte=start_date, infrastructure_raw_cost__gt=0
             ).count()
         self.assertEqual(count, 0)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.table_exists_trino")
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_delete_ocp_hive_partition_by_day(self, mock_trino, mock_table_exist):
+        """Test that deletions work with retries."""
+        error = {"errorName": "HIVE_METASTORE_ERROR"}
+        mock_trino.side_effect = TrinoExternalError(error)
+        with self.assertRaises(TrinoExternalError):
+            self.accessor.delete_ocp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
+        mock_trino.assert_called()
+        self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

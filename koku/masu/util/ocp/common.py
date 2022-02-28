@@ -100,9 +100,11 @@ POD_AGG = {
     "resource_id": ["max"],
     "pod_usage_cpu_core_seconds": ["sum"],
     "pod_request_cpu_core_seconds": ["sum"],
+    "pod_effective_usage_cpu_core_seconds": ["sum"],
     "pod_limit_cpu_core_seconds": ["sum"],
     "pod_usage_memory_byte_seconds": ["sum"],
     "pod_request_memory_byte_seconds": ["sum"],
+    "pod_effective_usage_memory_byte_seconds": ["sum"],
     "pod_limit_memory_byte_seconds": ["sum"],
     "node_capacity_cpu_cores": ["max"],
     "node_capacity_cpu_core_seconds": ["sum"],
@@ -427,11 +429,23 @@ def get_column_converters():
     }
 
 
+def add_effective_usage_columns(data_frame, report_type):
+    """Add effective usage columns to pod data frame."""
+    if report_type != "pod_usage":
+        return data_frame
+    data_frame["pod_effective_usage_cpu_core_seconds"] = data_frame[
+        ["pod_usage_cpu_core_seconds", "pod_request_cpu_core_seconds"]
+    ].max(axis=1)
+    data_frame["pod_effective_usage_memory_byte_seconds"] = data_frame[
+        ["pod_usage_memory_byte_seconds", "pod_request_memory_byte_seconds"]
+    ].max(axis=1)
+    return data_frame
+
+
 def ocp_generate_daily_data(data_frame, report_type):
     """Given a dataframe, group the data to create daily data."""
-    # usage_start = data_frame["lineitem_usagestartdate"]
-    # usage_start_dates = usage_start.apply(lambda row: row.date())
-    # data_frame["usage_start"] = usage_start_dates
+    data_frame = add_effective_usage_columns(data_frame, report_type)
+
     if data_frame.empty:
         return data_frame
     group_bys = copy.deepcopy(REPORT_TYPES.get(report_type, {}).get("group_by", []))
@@ -452,6 +466,8 @@ def match_openshift_labels(tag_dict, matched_tags):
     tag_dict = json.loads(tag_dict)
     tag_matches = []
     for key, value in tag_dict.items():
+        if not value:
+            continue
         lower_tag = {key.lower(): value.lower()}
         if lower_tag in matched_tags:
             tag = json.dumps(lower_tag).replace("{", "").replace("}", "")

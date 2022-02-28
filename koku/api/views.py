@@ -14,6 +14,7 @@ from api.forecast.views import OCPAllCostForecastView
 from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
 from api.forecast.views import OCPCostForecastView
+from api.forecast.views import OCPGCPCostForecastView
 from api.metrics.views import metrics
 from api.openapi.view import openapi
 from api.organizations.aws.view import AWSOrgView
@@ -32,6 +33,9 @@ from api.report.azure.openshift.view import OCPAzureStorageView
 from api.report.azure.view import AzureCostView
 from api.report.azure.view import AzureInstanceTypeView
 from api.report.azure.view import AzureStorageView
+from api.report.gcp.openshift.view import OCPGCPCostView
+from api.report.gcp.openshift.view import OCPGCPInstanceTypeView
+from api.report.gcp.openshift.view import OCPGCPStorageView
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
@@ -62,7 +66,9 @@ from api.tags.aws.openshift.view import OCPAWSTagView
 from api.tags.aws.view import AWSTagView
 from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.azure.view import AzureTagView
+from api.tags.gcp.openshift.view import OCPGCPTagView
 from api.tags.gcp.view import GCPTagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
+from api.user_settings.views import AccountSettings
 from api.user_settings.views import UserCostTypeSettings
