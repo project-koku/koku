@@ -36,7 +36,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-005
+    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-006
     ports:
       - 9083:8000
     environment:
@@ -56,7 +56,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/cloudservices/ubi-trino:360-001
+    image: quay.io/cloudservices/ubi-trino:latest
     # build:
     #     context: .
     #     dockerfile: ../../Dockerfile.ubi-trino
