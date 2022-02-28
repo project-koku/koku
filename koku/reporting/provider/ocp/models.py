@@ -266,33 +266,33 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     pod_labels = JSONField(null=True)
 
-    pod_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_request_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_limit_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    node_capacity_cpu_cores = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    node_capacity_cpu_cores = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    node_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    node_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    node_capacity_memory_gigabytes = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    node_capacity_memory_gigabytes = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    node_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    cluster_capacity_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    cluster_capacity_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Volume specific fields
     persistentvolumeclaim = models.CharField(max_length=253, null=True)
@@ -303,13 +303,13 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     volume_labels = JSONField(null=True)
 
-    persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    persistentvolumeclaim_capacity_gigabyte = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    persistentvolumeclaim_capacity_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    volume_request_storage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    persistentvolumeclaim_usage_gigabyte_months = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     # Cost fields
 
@@ -831,7 +831,7 @@ class OCPPodSummaryP(models.Model):
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -839,7 +839,7 @@ class OCPPodSummaryP(models.Model):
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -906,7 +906,7 @@ class OCPPodSummaryByProjectP(models.Model):
 
     pod_request_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_limit_cpu_core_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -914,7 +914,7 @@ class OCPPodSummaryByProjectP(models.Model):
 
     pod_request_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
-    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=12, decimal_places=6, null=True)
+    pod_effective_usage_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
     pod_limit_memory_gigabyte_hours = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
