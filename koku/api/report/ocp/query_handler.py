@@ -232,7 +232,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self.query_data = data
         self.query_sum = ordered_total
-        self.query_sum = self._apply_total_exchange(ordered_total)
+        # self.query_sum = self._apply_total_exchange(ordered_total)
 
         return self._format_query_response()
 

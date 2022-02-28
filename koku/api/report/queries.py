@@ -850,8 +850,8 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-
-        out_data = self._apply_exchange_rate(out_data)
+        if self.provider != Provider.PROVIDER_OCP:
+            out_data = self._apply_exchange_rate(out_data)
         return out_data
 
     def order_by(self, data, order_fields):
