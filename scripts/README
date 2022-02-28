@@ -1,0 +1,7 @@
+This directory holds simple scripts used for stage or production.
+
+entrypoint - contains default command used by the Dockerfile
+run_migrations - contains commands to run postgres db migrations for koku
+job_script - contains the cji script that needs to be run for either stage or production.
+
+cji_scripts: This subfolder contains cloud invocation jobs' scripts used to perform specific jobs in production.
