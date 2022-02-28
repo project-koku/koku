@@ -8,8 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0218_rm_unused_gcp_partables")]
 
     operations = [
-        migrations.RunSQL("DROP view reporting_ocpusagelineitem_daily_summary_presto"),
-        migrations.RunSQL("DROP rule ins_reporting_ocpusagelineitem_daily_summary_presto"),
+        migrations.RunSQL("DROP VIEW IF EXISTS reporting_ocpusagelineitem_daily_summary_presto;"),
         migrations.AlterField(
             model_name="ocppodsummarybyprojectp",
             name="pod_effective_usage_cpu_core_hours",
