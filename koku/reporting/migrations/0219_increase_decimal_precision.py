@@ -8,7 +8,11 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0218_rm_unused_gcp_partables")]
 
     operations = [
-        migrations.RunSQL("DROP VIEW IF EXISTS reporting_ocpusagelineitem_daily_summary_presto;"),
+        migrations.RunSQL(
+            "DROP VIEW IF EXISTS reporting_ocpusagelineitem_daily_summary_presto;", reverse_sql=migrations.RunSQL.noop
+        ),
+        migrations.RunSQL("DROP TABLE IF EXISTS presto_delete_wrapper_log;", reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL("DROP TABLE IF EXISTS presto_pk_delete_wrapper_log;", reverse_sql=migrations.RunSQL.noop),
         migrations.AlterField(
             model_name="ocppodsummarybyprojectp",
             name="pod_effective_usage_cpu_core_hours",
