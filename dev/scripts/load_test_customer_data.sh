@@ -47,7 +47,7 @@ function check_var() {
 
 DEBUG=${DEBUG:-0}
 
-KOKU_PATH=$( cd "$(dirname "$0" | dirname "$(</dev/stdin)/../../")" ; pwd -P )
+KOKU_PATH=$( cd "$(dirname $(dirname "$0") | dirname "$(</dev/stdin)/../../")" ; pwd -P )
 debug_echo "KOKU_PATH: ${KOKU_PATH}"
 
 export PGPASSWORD="${DATABASE_PASSWORD}"
@@ -95,7 +95,7 @@ if [[ $CHECK != 200 ]];then
     exit 0
 fi
 
-YAML_PATH="${KOKU_PATH}/scripts/nise_ymls"
+YAML_PATH="${KOKU_PATH}/dev/scripts/nise_ymls"
 NISE_DATA_PATH="${KOKU_PATH}/testing"
 
 YAML_FILES=("ocp_on_aws/aws_static_data.yml"
@@ -112,7 +112,7 @@ RENDERED_YAML=()
 for fname in ${YAML_FILES[*]}; do
     OUT=$(dirname $YAML_PATH/$fname)/rendered_$(basename $YAML_PATH/$fname)
     debug_echo "rendering ${fname} to ${OUT}"
-    python $KOKU_PATH/scripts/render_nise_yamls.py -f $YAML_PATH/$fname -o $OUT -s "$START_DATE" -e "$END_DATE"
+    python $KOKU_PATH/dev/scripts/render_nise_yamls.py -f $YAML_PATH/$fname -o $OUT -s "$START_DATE" -e "$END_DATE"
     RENDERED_YAML+="$OUT "
 done
 
@@ -150,7 +150,7 @@ function add_cost_models() {
     #
     UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
     if [[ ! -z $UUID ]]; then
-        COST_MODEL_JSON=$(cat "$KOKU_PATH/scripts/$2" | sed -e "s/PROVIDER_UUID/$UUID/g")
+        COST_MODEL_JSON=$(cat "$KOKU_PATH/dev/scripts/$2" | sed -e "s/PROVIDER_UUID/$UUID/g")
 
         debug_echo "creating cost model, source_name: $1, uuid: $UUID"
         curl --header "Content-Type: application/json" \
