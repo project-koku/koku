@@ -1,9 +1,7 @@
-This directory holds a couple of simple scripts to retrieve AWS data and store
-the files in the current directory.
+This directory holds simple scripts used for stage or production.
 
-Boto3 expects you to have configured authentication either via the AWS_PROFILE
-environment variable or the AWS_ACCESS_KEY and AWS_SECRET_ACCESS_KEY
-environment variables.
+entrypoint - contains default command used by the Dockerfile
+run_migrations - contains commands to run postgres db migrations for koku
+job_script - contains the cji script that needs to be run for either stage or production.
 
-Pulling the cost usage data requires you to have access to an AWS account with
-the Cost Usage Report configured.
+cji_scripts: This subfolder contains cloud invocation jobs' scripts used to perform specific jobs in production.

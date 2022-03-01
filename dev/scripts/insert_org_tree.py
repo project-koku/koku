@@ -114,8 +114,8 @@ if "__main__" in __name__:
     requests.get(url)
     sys_args = sys.argv
     sys_args.pop(0)
-    tree_yaml = "scripts/aws_org_tree.yml"
-    nise_yaml = "scripts/nise_ymls/org_tree_aws_static_data.yml"
+    tree_yaml = "dev/scripts/aws_org_tree.yml"
+    nise_yaml = "dev/scripts/nise_ymls/org_tree_aws_static_data.yml"
     schema = "acct10001"
     start_date = str(datetime.today().date())
     masu_host = require_env("MASU_API_HOSTNAME")

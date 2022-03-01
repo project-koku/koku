@@ -34,7 +34,7 @@ repos:
     - id: validate-dashboards
       name: Validate Grafana Dashboards
       description: Ensures dashboard files are valid JSON
-      entry: scripts/validate_dashboards.sh
+      entry: dev/scripts/validate_dashboards.sh
       language: script
       pass_filenames: false
       files: dashboards\/.*\.yaml

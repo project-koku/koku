@@ -4,6 +4,7 @@ branch = True
 omit =
   .tox/*
   scripts/*
+  dev/scripts/*
   *virtualenv/*
   *virtualenvs/*
   *manage.py
