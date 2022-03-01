@@ -345,7 +345,7 @@ class Migration(migrations.Migration):
                 ("interval_start", models.DateTimeField()),
                 ("interval_end", models.DateTimeField()),
                 (
-                    "cost_entry_bill",
+                    "bill",
                     models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.awscostentrybill"),
                 ),
             ],
@@ -629,6 +629,12 @@ class Migration(migrations.Migration):
                 ("markup_cost_savingsplan", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("currency_code", models.CharField(max_length=10)),
                 (
+                    "account_alias",
+                    models.ForeignKey(
+                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
+                    ),
+                ),
+                (
                     "organizational_unit",
                     models.ForeignKey(
                         null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsorganizationalunit"
@@ -662,6 +668,12 @@ class Migration(migrations.Migration):
                 ("markup_cost_blended", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("markup_cost_savingsplan", models.DecimalField(decimal_places=15, max_digits=33, null=True)),
                 ("currency_code", models.CharField(max_length=10)),
+                (
+                    "account_alias",
+                    models.ForeignKey(
+                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
+                    ),
+                ),
                 (
                     "organizational_unit",
                     models.ForeignKey(
