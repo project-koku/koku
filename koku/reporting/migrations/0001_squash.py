@@ -94,7 +94,7 @@ def alter_ids(apps, schema_editor):
         for table in TABLES_P:
             sql = SQL_TMPL.format(table)
             cur.execute(sql)
-    LOG.info("DONE ALTERING IDS")
+    LOG.info("CREATING INDICES")
 
 
 def apply_partitioned_tables_trigger(apps, schema_editor):
