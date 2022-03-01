@@ -9,7 +9,6 @@ from collections import defaultdict
 from decimal import Decimal
 
 from rest_framework import serializers
-from tenant_schemas.utils import schema_context
 
 from api.common import error_obj
 from api.currency.currencies import CURRENCIES
@@ -20,8 +19,6 @@ from api.provider.models import Provider
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
-from koku.settings import KOKU_DEFAULT_CURRENCY
-from reporting.user_settings.models import UserSettings
 
 CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
 MARKUP_CHOICES = (("percent", "%"),)
@@ -447,9 +444,6 @@ class CostModelSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that the source type is acceptable."""
         # The cost model has markup, no rates, and is for a valid non-OpenShift source type
-        data["currency"] = self.get_currency()
-        currenc = data["currency"]
-        LOG.info(f"CURRENCY {currenc}")
         source_type = data.get("source_type")
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
             data["source_type"] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
@@ -459,6 +453,7 @@ class CostModelSerializer(serializers.Serializer):
             and not data.get("rates")
             and data["source_type"] != Provider.PROVIDER_OCP
             and data["source_type"] in SOURCE_TYPE_MAP.keys()
+            and data.get("currency")
         ):
             return data
         if data["source_type"] not in self.metric_map.keys():
@@ -566,16 +561,3 @@ class CostModelSerializer(serializers.Serializer):
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal
-
-    def get_currency(self):
-        """Get currency out of the user settings.
-        Returns:
-            (Str): User set currency or default currency
-        """
-        request = self.context.get("request")
-        with schema_context(request.user.customer.schema_name):
-            try:
-                set_currency = UserSettings.objects.all().first().settings["currency"]
-            except Exception:
-                set_currency = KOKU_DEFAULT_CURRENCY
-        return set_currency
