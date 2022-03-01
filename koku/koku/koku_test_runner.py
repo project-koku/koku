@@ -9,11 +9,11 @@ import os
 import sys
 from unittest.mock import patch
 
+from dev.scripts.insert_org_tree import UploadAwsTree
 from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from scripts.insert_org_tree import UploadAwsTree
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
@@ -99,7 +99,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
-                        tree_yaml = read_yaml.import_yaml(yaml_file_path="scripts/aws_org_tree.yml")
+                        tree_yaml = read_yaml.import_yaml(yaml_file_path="dev/scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
                         # Load data
                         # TODO: COST-444: This NiseDataLoader to be removed and replaced with the commented baker_data_loaders below.
