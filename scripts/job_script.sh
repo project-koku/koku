@@ -1,6 +1,4 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEV_SCRIPT_DIR=${SCRIPT_DIR%/*}/dev/scripts
-
-${SCRIPT_DIR}/truncate_old_tables.py
+${SCRIPT_DIR}/cji_scripts/truncate_old_tables.py
