@@ -16,6 +16,7 @@ from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
+from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -395,7 +396,7 @@ class CostModelSerializer(serializers.Serializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=True)
 
     @property
     def metric_map(self):
@@ -448,12 +449,16 @@ class CostModelSerializer(serializers.Serializer):
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
             data["source_type"] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
 
+        if data.get("currency"):
+            data["currency"] = data.get("currency")
+        else:
+            data["currency"] = get_currency()
+
         if (
             data.get("markup")
             and not data.get("rates")
             and data["source_type"] != Provider.PROVIDER_OCP
             and data["source_type"] in SOURCE_TYPE_MAP.keys()
-            and data.get("currency")
         ):
             return data
         if data["source_type"] not in self.metric_map.keys():
