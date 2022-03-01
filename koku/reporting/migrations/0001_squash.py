@@ -85,6 +85,14 @@ TABLES_P = [
     "reporting_ocp_volume_summary_by_project_p",
     "reporting_ocpallcostlineitem_project_daily_summary_p",
     "reporting_ocpallcostlineitem_daily_summary_p",
+    "reporting_ocpall_compute_summary_pt",
+    "reporting_ocpall_cost_summary_by_account_pt",
+    "reporting_ocpall_cost_summary_by_region_pt",
+    "reporting_ocpall_cost_summary_by_service_pt",
+    "reporting_ocpall_cost_summary_pt",
+    "reporting_ocpall_database_summary_pt",
+    "reporting_ocpall_network_summary_pt",
+    "reporting_ocpall_storage_summary_pt",
 ]
 
 
@@ -4321,7 +4329,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterUniqueTogether(name="partitionedtable", unique_together={("schema_name", "table_name")}),
         migrations.RunSQL("""ALTER TABLE partitioned_tables ALTER COLUMN active SET DEFAULT true"""),
-        migrations.RunPython(code=apply_partitioned_tables_trigger),
+        migrations.RunPython(code=apply_partitioned_tables_trigger, reverse_code=migrations.RunPython.noop),
         migrations.AddIndex(
             model_name="ocptagsvalues", index=models.Index(fields=["key"], name="openshift_tags_value_key_idx")
         ),
@@ -5576,46 +5584,4 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["instance_type"], name="awscompsumm_acct_insttyp"),
         ),
         migrations.RunPython(code=unset_pg_extended_mode, reverse_code=set_pg_extended_mode),
-        migrations.RunSQL(
-            """
-create table if not exists presto_delete_wrapper_log (
-    id uuid primary key default public.uuid_generate_v4(),
-    action_ts timestamptz not null default now(),
-    table_name text not null,
-    where_clause text not null,
-    result_rows bigint
-);
-comment on table presto_delete_wrapper_log is 'Table to log and execute delete statements initiated from Presto';
-comment on column presto_delete_wrapper_log.table_name is 'Target table from which to delete';
-comment on column presto_delete_wrapper_log.where_clause is 'Where clause for delete action';
-comment on column presto_delete_wrapper_log.result_rows is 'Number of records affected by the delete action';
-"""
-        ),
-        migrations.RunSQL(
-            """
-drop trigger if exists tr_presto_before_insert on presto_delete_wrapper_log ;
-create trigger tr_presto_before_insert
-before insert on presto_delete_wrapper_log
-   for each row execute function public.tr_presto_delete_wrapper_log_action();
-"""
-        ),
-        migrations.RunSQL(
-            """
-create table if not exists presto_pk_delete_wrapper_log (
-    transaction_id text not null,
-    action_ts timestamptz not null default now(),
-    table_name text not null,
-    pk_column text not null,
-    pk_value text not null,
-    pk_value_cast text not null
-);
-comment on table presto_pk_delete_wrapper_log is 'Table to hold primary key values to use when bulk-deleting using the presto delete wrapper log';
-comment on column presto_pk_delete_wrapper_log.transaction_id is 'Presto transaction identifier';
-comment on column presto_pk_delete_wrapper_log.table_name is 'Target table in which the primary key values reside';
-comment on column presto_pk_delete_wrapper_log.pk_column is 'Name of the primary key column for the target table';
-comment on column presto_pk_delete_wrapper_log.pk_value is 'String representation of the primary key value';
-comment on column presto_pk_delete_wrapper_log.pk_value_cast is 'Data type to which the string primary key value should be cast';
-create index presto_pk_delete_wrapper_log_tx on presto_pk_delete_wrapper_log (transaction_id, table_name);
-"""
-        ),
     ]
