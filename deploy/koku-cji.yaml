@@ -44,6 +44,10 @@ objects:
           value: ${ENABLE_TRINO_SOURCES}
         - name: ENABLE_TRINO_SOURCE_TYPE
           value: ${ENABLE_TRINO_SOURCE_TYPE}
+        - name: CJI_TRUNC_TABLES
+          value: ${CJI_TRUNC_TABLES}
+        - name: CJI_TRUNC_PROVIDER_TYPES
+          value: ${CJI_TRUNC_PROVIDER_TYPES}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -113,3 +117,7 @@ parameters:
   value: ""
 - name: ENABLE_TRINO_SOURCE_TYPE
   value: GCP
+- name: CJI_TRUNC_TABLES
+  value: ""
+- name: CJI_TRUNC_PROVIDER_TYPES
+  value: ""
