@@ -11,6 +11,8 @@ objects:
   spec:
     database:
       sharedDbAppName: koku
+    # Use Unleash server
+    featureFlags: true
     dependencies:
       - koku
     envName: ${ENV_NAME}
@@ -32,6 +34,16 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: CJI_INVOCATION
           value: ${CJI_INVOCATION}
+        - name: UNLEASH_CACHE_DIR
+          value: ${UNLEASH_CACHE_DIR}
+        # - name: ENABLE_PARQUET_PROCESSING
+        #   value: ${ENABLE_PARQUET_PROCESSING}
+        - name: ENABLE_TRINO_ACCOUNTS
+          value: ${ENABLE_TRINO_ACCOUNTS}
+        - name: ENABLE_TRINO_SOURCES
+          value: ${ENABLE_TRINO_SOURCES}
+        - name: ENABLE_TRINO_SOURCE_TYPE
+          value: ${ENABLE_TRINO_SOURCE_TYPE}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -91,3 +103,13 @@ parameters:
   name: KOKU_CPU_LIMIT
   required: true
   value: 600m
+- name: UNLEASH_CACHE_DIR
+  value: /tmp/unleash
+# - name: ENABLE_PARQUET_PROCESSING
+#   value: False
+- name: ENABLE_TRINO_ACCOUNTS
+  value: ""
+- name: ENABLE_TRINO_SOURCES
+  value: ""
+- name: ENABLE_TRINO_SOURCE_TYPE
+  value: GCP
