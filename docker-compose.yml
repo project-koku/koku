@@ -197,6 +197,8 @@ services:
       - './scripts:/koku/scripts'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/azure_local_0:/tmp/local_container_0'
+      - './testing/local_providers/azure_local_1:/tmp/local_container_1'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
       - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
       - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'

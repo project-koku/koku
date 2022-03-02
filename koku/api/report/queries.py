@@ -707,10 +707,10 @@ class ReportQueryHandler(QueryHandler):
         if level == len(groupby):
             new_value = []
             for value in out_data:
-                org_applied = False
-                if "org_entitie" in groupby:
-                    org_applied = True
-                new_values = self.aggregate_currency_codes_ui(groupby, value, org_applied, org_id, org_type)
+                # org_applied = False
+                # if "org_entitie" in groupby:
+                #     org_applied = True
+                new_values = self.aggregate_currency_codes_ui(value)
                 new_value.append(new_values)
             return new_value
         else:
@@ -727,7 +727,7 @@ class ReportQueryHandler(QueryHandler):
                 overall.append(value)
         return overall
 
-    def aggregate_currency_codes_ui(self, groupby, out_data, org_applied, org_id, org_type):
+    def aggregate_currency_codes_ui(self, out_data):
         """Aggregate currency code info for UI."""
         all_group_by = self._get_group_by()
         codes = {
@@ -738,40 +738,11 @@ class ReportQueryHandler(QueryHandler):
             Provider.OCP_GCP: "currencys",
         }
         currency_codes = out_data.get(codes.get(self.provider))
-        values = {}
         total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
-        if org_id:
-            values["id"] = org_id
-        if org_type:
-            values["type"] = org_type
-        values["date"] = total_query["date"]
-        values["source_uuid"] = total_query["source_uuid"]
-        values["infrastructure"] = total_query["infrastructure"]
-        values["supplementary"] = total_query["supplementary"]
-        values["cost"] = total_query["cost"]
-        if total_query.get("tags_exist"):
-            values["tags_exist"] = total_query.get("tags_exist")
-        if total_query.get("delta_value"):
-            values["delta_value"] = total_query.get("delta_value")
-        if total_query.get("account_alias"):
-            if org_applied:
-                values["alias"] = total_query.get("account_alias")
-            else:
-                values["account_alias"] = total_query.get("account_alias")
-        if total_query.get("delta_percent"):
-            values["delta_percent"] = total_query.get("delta_percent")
-        if out_data.get("id"):
-            values["id"] = out_data.get("id")
-        if out_data.get("type"):
-            values["type"] = out_data.get("type")
-        for group in all_group_by:
-            if group.startswith("tags"):
-                group = group[6:]
-            values[group] = total_query.get(group)
-        out_data["values"] = [values]
+        out_data["values"] = [total_query]
         return out_data
 
-    def aggregate_currency_codes(self, currency_codes, all_group_by):
+    def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
         """Aggregate and format the data after currency."""
         total_query = {
             "date": None,
@@ -801,14 +772,12 @@ class ReportQueryHandler(QueryHandler):
                 source_uuids = total_query.get("source_uuid")
                 total_query["date"] = data.get("date")
                 total_query["source_uuid"] = source_uuids + data.get("source_uuid")
-                if data.get("delta_value"):
-                    total_query["delta_value"] = total_query.get("delta_value", 0) + data.get("delta_value")
-                if data.get("delta_percent"):
-                    total_query["delta_percent"] = total_query.get("delta_percent", 0) + data.get("delta_percent")
-                if data.get("account_alias"):
-                    total_query["account_alias"] = data.get("account_alias")
-                if data.get("tags_exist"):
-                    total_query["tags_exist"] = data.get("tags_exist")
+                for delta in ["delta_value", "delta_percent"]:
+                    if data.get(delta):
+                        total_query[delta] = total_query.get(delta, 0) + data.get(delta)
+                for item in ["account_alias", "tags_exist"]:
+                    if data.get(item):
+                        total_query[item] = data.get(item)
                 for group in all_group_by:
                     if group.startswith("tags"):
                         group = group[6:]
