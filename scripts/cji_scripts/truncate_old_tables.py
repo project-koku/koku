@@ -109,12 +109,15 @@ select p."uuid" as source_uuid,
   from public.api_provider p
   join public.api_customer c
     on c.id = p.customer_id
- where p."type" in ('Azure', 'Azure-local')
+ where p."type" = any( %s )
 ;
 """
+    provider_types = ENVIRONMENT.list("CJI_TRUNC_PROVIDER_TYPES")
+    if not provider_types:
+        provider_types = ["Azure", "Azure-local"]
     res = {}
-    cur = _execute(conn, sql)
-    LOG.info(f"Initially gathered {cur.rowcount} accounts")
+    cur = _execute(conn, sql, (provider_types,))
+    LOG.info(f"Initially gathered {cur.rowcount} accounts for provider_types {provider_types}")
     for rec in cur:
         res.setdefault(rec.account, []).append(rec)
 
@@ -123,6 +126,7 @@ select p."uuid" as source_uuid,
 
 def get_trino_enabled_accounts(conn):
     enabled_accounts = []
+    unleash_res = None
     unleash_request = 0
     unleash_limit = 100
 
@@ -155,14 +159,16 @@ def validate_tables(conn):
     if not accounts:
         return ()
 
-    tables = [
-        # "reporting_ocpusagelineitem",
-        # "reporting_ocpusagelineitem_daily",
-        # "reporting_awscostentrylineitem",
-        # "reporting_awscostentrylineitem_daily",
-        # "reporting_azurecostentrylineitem",
-        "reporting_azurecostentrylineitem_daily"
-    ]
+    tables = ENVIRONMENT.list("CJI_TRUNC_TABLES")
+    if not tables:
+        tables = [
+            # "reporting_ocpusagelineitem",
+            # "reporting_ocpusagelineitem_daily",
+            # "reporting_awscostentrylineitem",
+            # "reporting_awscostentrylineitem_daily",
+            "reporting_azurecostentrylineitem",
+            "reporting_azurecostentrylineitem_daily",
+        ]
 
     sql = """
 with accounts(acct) as (
@@ -214,6 +220,9 @@ def handle_truncate(conn):
     LOG.info(f"    ENABLE_TRINO_SOURCES = {settings.ENABLE_TRINO_SOURCES}")
     LOG.info(f"    ENABLE_TRINO_ACCOUNTS = {settings.ENABLE_TRINO_ACCOUNTS}")
     LOG.info(f"    ENABLE_TRINO_SOURCE_TYPE = {settings.ENABLE_TRINO_SOURCE_TYPE}")
+    LOG.info(f"    CJI_TRUNC_PROVIDER_TYPES = {ENVIRONMENT.list('CJI_TRUNC_PROVIDER_TYPES')}")
+    LOG.info(f"    CJI_TRUMC_TABLES = {ENVIRONMENT.list('CJI_TRUNC_TABLES')}")
+
     job_start = datetime.datetime.utcnow()
     LOG.info("Truncate job starting")
     missing = 0
