@@ -126,6 +126,7 @@ select p."uuid" as source_uuid,
 
 def get_trino_enabled_accounts(conn):
     enabled_accounts = []
+    unleash_res = None
     unleash_request = 0
     unleash_limit = 100
 
