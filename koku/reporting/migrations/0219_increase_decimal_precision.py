@@ -13,114 +13,157 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL("DROP TABLE IF EXISTS presto_delete_wrapper_log;", reverse_sql=migrations.RunSQL.noop),
         migrations.RunSQL("DROP TABLE IF EXISTS presto_pk_delete_wrapper_log;", reverse_sql=migrations.RunSQL.noop),
-        migrations.AlterField(
-            model_name="ocppodsummarybyprojectp",
-            name="pod_effective_usage_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        migrations.RunSQL(
+            """
+                ALTER TABLE reporting_ocpusagelineitem_daily_summary
+                    ALTER COLUMN cluster_capacity_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN cluster_capacity_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN node_capacity_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN node_capacity_cpu_cores TYPE numeric(33, 15),
+                    ALTER COLUMN node_capacity_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN node_capacity_memory_gigabytes TYPE numeric(33, 15),
+                    ALTER COLUMN persistentvolumeclaim_capacity_gigabyte TYPE numeric(33, 15),
+                    ALTER COLUMN persistentvolumeclaim_capacity_gigabyte_months TYPE numeric(33, 15),
+                    ALTER COLUMN persistentvolumeclaim_usage_gigabyte_months TYPE numeric(33, 15),
+                    ALTER COLUMN pod_effective_usage_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_effective_usage_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_limit_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_limit_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_request_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_request_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_usage_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_usage_memory_gigabyte_hours TYPE numeric(33, 15),
+                    ALTER COLUMN volume_request_storage_gigabyte_months TYPE numeric(33, 15)
+            """,
+            state_operations=[
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="cluster_capacity_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="cluster_capacity_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="node_capacity_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="node_capacity_cpu_cores",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="node_capacity_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="node_capacity_memory_gigabytes",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="persistentvolumeclaim_capacity_gigabyte",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="persistentvolumeclaim_capacity_gigabyte_months",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="persistentvolumeclaim_usage_gigabyte_months",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_effective_usage_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_effective_usage_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_limit_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_limit_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_request_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_request_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_usage_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="pod_usage_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocpusagelineitemdailysummary",
+                    name="volume_request_storage_gigabyte_months",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+            ],
         ),
-        migrations.AlterField(
-            model_name="ocppodsummarybyprojectp",
-            name="pod_effective_usage_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        migrations.RunSQL(
+            """
+                ALTER TABLE reporting_ocp_pod_summary_by_project_p
+                    ALTER COLUMN pod_effective_usage_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_effective_usage_memory_gigabyte_hours TYPE numeric(33, 15)
+            """,
+            state_operations=[
+                migrations.AlterField(
+                    model_name="ocppodsummarybyprojectp",
+                    name="pod_effective_usage_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocppodsummarybyprojectp",
+                    name="pod_effective_usage_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+            ],
         ),
-        migrations.AlterField(
-            model_name="ocppodsummaryp",
-            name="pod_effective_usage_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocppodsummaryp",
-            name="pod_effective_usage_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="cluster_capacity_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="cluster_capacity_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="node_capacity_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="node_capacity_cpu_cores",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="node_capacity_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="node_capacity_memory_gigabytes",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="persistentvolumeclaim_capacity_gigabyte",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="persistentvolumeclaim_capacity_gigabyte_months",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="persistentvolumeclaim_usage_gigabyte_months",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_effective_usage_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_effective_usage_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_limit_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_limit_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_request_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_request_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_usage_cpu_core_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="pod_usage_memory_gigabyte_hours",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
-        ),
-        migrations.AlterField(
-            model_name="ocpusagelineitemdailysummary",
-            name="volume_request_storage_gigabyte_months",
-            field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+        migrations.RunSQL(
+            """
+                ALTER TABLE reporting_ocp_pod_summary_p
+                    ALTER COLUMN pod_effective_usage_cpu_core_hours TYPE numeric(33, 15),
+                    ALTER COLUMN pod_effective_usage_memory_gigabyte_hours TYPE numeric(33, 15)
+            """,
+            state_operations=[
+                migrations.AlterField(
+                    model_name="ocppodsummaryp",
+                    name="pod_effective_usage_cpu_core_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+                migrations.AlterField(
+                    model_name="ocppodsummaryp",
+                    name="pod_effective_usage_memory_gigabyte_hours",
+                    field=models.DecimalField(decimal_places=15, max_digits=33, null=True),
+                ),
+            ],
         ),
     ]
