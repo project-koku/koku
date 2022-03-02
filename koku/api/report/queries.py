@@ -647,7 +647,6 @@ class ReportQueryHandler(QueryHandler):
 
     def _get_exchange_rate(self, base_currency):
         """Look up the exchange rate for the target currency."""
-        # TODO: Need to figure out if there is something else we can do here except log the error
         exchange_rates = {}
         for currency in [self.currency, base_currency]:
             try:
@@ -656,15 +655,12 @@ class ReportQueryHandler(QueryHandler):
             except Exception as e:
                 LOG.error(e)
                 return 1
-        # if base_currency and base_currency != self.currency:
         return Decimal(exchange_rates[self.currency] / exchange_rates[base_currency])
-        # return Decimal(exchange_rates[self.currency])
 
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
         if self._report_type == "costs":
-            # if the source_uuid is none then this is the total and we don't need to get an exchange rate
             exchange_rate = 1
             if source_uuid:
                 base_currency = self._get_base_currency(source_uuid[0])
