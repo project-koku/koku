@@ -32,8 +32,6 @@ def create_expected_csv_files(start_date, end_date, invoice_month, etag, keys=Fa
     """Create the list of expected csv."""
     files = list()
     for start, end in date_range_pair(start_date, end_date):
-        if start == end:
-            continue
         end = end + relativedelta(days=1)
         files.append(f"{invoice_month}_{etag}_{start}:{end}.csv")
     if keys:
