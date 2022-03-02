@@ -16,6 +16,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.provider.models import Provider
+from api.utils import get_currency
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
@@ -705,3 +706,42 @@ class CostModelSerializerTest(IamTestCase):
                 serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
                 with self.assertRaises(serializers.ValidationError):
                     serializer.validate_distribution(bad_input)
+
+    def test_defaulting_currency(self):
+        """Test if currency is none it defaults using get_currency method."""
+        ocp_metric = metric_constants.OCP_METRIC_CPU_CORE_USAGE_HOUR
+        ocp_source_type = Provider.PROVIDER_OCP
+        tiered_rates = [{"unit": "USD", "value": 0.22}]
+        ocp_data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "source_type": ocp_source_type,
+            "providers": [{"uuid": self.provider.uuid, "name": self.provider.name}],
+            "markup": {"value": 10, "unit": "percent"},
+            "rates": [{"metric": {"name": ocp_metric}, "tiered_rates": tiered_rates}],
+        }
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=ocp_data, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+            self.assertEqual(instance.currency, get_currency(self.request_context["request"]))
+
+    def test_cost_model_currency(self):
+        """Test if currency is set in cost model."""
+        self.ocp_data["currency"] = "AUD"
+        with tenant_context(self.tenant):
+            instance = None
+            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        self.assertEqual(instance.currency, "AUD")
+
+    def test_invalid_currency(self):
+        """Test failure while handling invalid cost_type."""
+        currency = "invalid"
+        serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.validate_currency(currency)

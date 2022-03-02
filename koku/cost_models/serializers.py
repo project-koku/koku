@@ -396,7 +396,7 @@ class CostModelSerializer(serializers.Serializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
-    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=True)
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
     @property
     def metric_map(self):
@@ -452,7 +452,7 @@ class CostModelSerializer(serializers.Serializer):
         if data.get("currency"):
             data["currency"] = data.get("currency")
         else:
-            data["currency"] = get_currency()
+            data["currency"] = get_currency(self.context.get("request"))
 
         if (
             data.get("markup")
@@ -566,3 +566,12 @@ class CostModelSerializer(serializers.Serializer):
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal
+
+    def validate_currency(self, value):
+        """Validate incoming currency value based on path."""
+
+        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
+        if value not in valid_currency:
+            error = {"currency": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
