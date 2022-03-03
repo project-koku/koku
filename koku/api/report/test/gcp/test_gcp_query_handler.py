@@ -36,6 +36,7 @@ from reporting.models import GCPTagsSummary
 LOG = logging.getLogger(__name__)
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class GCPReportQueryHandlerTest(IamTestCase):
     """Tests for the GCP report query handler."""
 
@@ -90,7 +91,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     result[key] = Decimal(0)
             return result
 
-    def test_execute_sum_query_costs(self):
+    def test_execute_sum_query_costs(self, mocked_exchange_rates):
         """Test that the sum query runs properly for the costs endpoint."""
         url = "?"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -105,7 +106,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         # you can end up comparing to empty .get() are equal.
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-    def test_execute_take_defaults(self):
+    def test_execute_take_defaults(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -116,7 +117,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-    def test_execute_query_current_month_daily(self):
+    def test_execute_query_current_month_daily(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -130,7 +131,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-    def test_execute_query_current_month_monthly(self):
+    def test_execute_query_current_month_monthly(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -144,7 +145,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total").get("value"), current_totals["cost_total"])
 
-    def test_execute_query_current_month_by_service(self):
+    def test_execute_query_current_month_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
             valid_services = [
@@ -175,7 +176,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_query_group_by_partial_filtered_service(self):
+    def test_query_group_by_partial_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         # This might change as we add more gcp generators to nise
         with tenant_context(self.tenant):
@@ -213,7 +214,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_filtered_service(self):
+    def test_execute_query_by_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=*"
@@ -233,7 +234,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for data_item in data:
             self.assertIsInstance(data_item.get("values"), list)
 
-    def test_query_by_partial_filtered_service(self):
+    def test_query_by_partial_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
             valid_services = [
@@ -261,7 +262,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for data_item in data:
             self.assertIsInstance(data_item.get("values"), list)
 
-    def test_execute_query_current_month_by_account(self):
+    def test_execute_query_current_month_by_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -286,7 +287,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(month_item.get("account"))
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_account_by_service(self):
+    def test_execute_query_by_account_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month breakdown by account by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -311,7 +312,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(month_item.get("account"))
                 self.assertIsInstance(month_item.get("services"), list)
 
-    def test_execute_query_curr_month_by_service_w_limit(self):
+    def test_execute_query_curr_month_by_service_w_limit(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service with limit."""
         # This might change as we add more gcp generators to nise
         limit = 1
@@ -344,7 +345,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
             self.assertTrue(other_string_created)
 
-    def test_execute_query_curr_month_by_account_w_order(self):
+    def test_execute_query_curr_month_by_account_w_order(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -375,7 +376,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
-    def test_execute_query_curr_month_by_account_w_order_by_account(self):
+    def test_execute_query_curr_month_by_account_w_order_by_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -408,7 +409,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    def test_execute_query_curr_month_by_project(self):
+    def test_execute_query_curr_month_by_project(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by project."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[gcp_project]=*"  # noqa: E501
         with tenant_context(self.tenant):
@@ -442,7 +443,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_curr_month_by_filtered_project(self):
+    def test_execute_query_curr_month_by_filtered_project(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by filtered project."""
         with tenant_context(self.tenant):
             project = (
@@ -475,7 +476,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_current_month_filter_account(self):
+    def test_execute_query_current_month_filter_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by account."""
         with tenant_context(self.tenant):
             account = GCPCostEntryLineItemDailySummary.objects.filter(
@@ -502,7 +503,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_service(self):
+    def test_execute_query_current_month_filter_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
             service = GCPCostEntryLineItemDailySummary.objects.values("service_id")[0].get("service_id")
@@ -533,7 +534,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_region(self):
+    def test_execute_query_current_month_filter_region(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by region."""
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
@@ -559,7 +560,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.assertIsInstance(month_data, list)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_current_month_filter_region_csv(self, mock_accept):
+    def test_execute_query_current_month_filter_region_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query on monthly filtered by region for csv."""
         mock_accept.return_value = "text/csv"
         url = (
@@ -585,7 +586,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept):
+    def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query for current month on monthly by account with limt as csv."""
         mock_accept.return_value = "text/csv"
 
@@ -609,7 +610,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
 
-    def test_execute_query_w_delta(self):
+    def test_execute_query_w_delta(self, mocked_exchange_rates):
         """Test grouped by deltas."""
         path = reverse("reports-gcp-costs")
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&delta=cost"  # noqa: E501
@@ -687,7 +688,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get("value"), expected_delta_value)
         self.assertEqual(delta.get("percent"), expected_delta_percent)
 
-    def test_execute_query_w_delta_no_previous_data(self):
+    def test_execute_query_w_delta_no_previous_data(self, mocked_exchange_rates):
         """Test deltas with no previous data."""
         url = "?filter[time_scope_value]=-2&delta=cost"
         path = reverse("reports-gcp-costs")
@@ -704,7 +705,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get("value"), total_cost.get("value"))
         self.assertEqual(delta.get("percent"), None)
 
-    def test_execute_query_orderby_delta(self):
+    def test_execute_query_orderby_delta(self, mocked_exchange_rates):
         """Test execute_query with ordering by delta ascending."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[account]=*&delta=cost"  # noqa: E501
         path = reverse("reports-gcp-costs")
@@ -724,7 +725,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
 
-    def test_calculate_total(self):
+    def test_calculate_total(self, mocked_exchange_rates):
         """Test that calculated totals return correctly."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -740,14 +741,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(cost_total.get("value"), current_totals["cost_total"])
         self.assertEqual(cost_total.get("units"), expected_units)
 
-    def test_percent_delta(self):
+    def test_percent_delta(self, mocked_exchange_rates):
         """Test _percent_delta() utility method."""
         url = "?"
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         self.assertEqual(handler._percent_delta(10, 5), 100)
 
-    def test_rank_list_by_account(self):
+    def test_rank_list_by_account(self, mocked_exchange_rates):
         """Test rank list limit with account alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -774,7 +775,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_by_service_alias(self):
+    def test_rank_list_by_service_alias(self, mocked_exchange_rates):
         """Test rank list limit with service_alias grouping."""
         # This might change as we add more gcp generators to nise
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service]=*"  # noqa: E501
@@ -802,7 +803,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_with_offset(self):
+    def test_rank_list_with_offset(self, mocked_exchange_rates):
         """Test rank list limit and offset with account alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -817,7 +818,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_query_costs_with_totals(self):
+    def test_query_costs_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - costs with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -840,7 +841,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsInstance(cost_total_value, Decimal)
                     self.assertGreater(cost_total_value, Decimal(0))
 
-    def test_order_by(self):
+    def test_order_by(self, mocked_exchange_rates):
         """Test that order_by returns properly sorted data."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, GCPCostView)
@@ -875,7 +876,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
-    def test_query_table(self):
+    def test_query_table(self, mocked_exchange_rates):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
             ("?", GCPCostView, GCPCostSummaryP),
@@ -908,7 +909,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 handler = GCPReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    def test_source_uuid_mapping(self, mocked_exchange_rates):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         # Find the correct expected source uuid:
         with tenant_context(self.tenant):
@@ -940,7 +941,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_execute_query_annotate(self):
+    def test_execute_query_annotate(self, mocked_exchange_rates):
         """Test that query enters cost unit and usage unit ."""
         with tenant_context(self.tenant):
             account = GCPCostEntryLineItemDailySummary.objects.filter(
@@ -965,7 +966,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    def test_execute_sum_query_instance_type(self):
+    def test_execute_sum_query_instance_type(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, GCPInstanceTypeView)
@@ -990,7 +991,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_query_instance_types_with_totals(self):
+    def test_query_instance_types_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - instance types with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -1018,7 +1019,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                         value.get("usage", {}).get("value", {}).quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
                     )
 
-    def test_execute_query_annotate_instance_types(self):
+    def test_execute_query_annotate_instance_types(self, mocked_exchange_rates):
         """Test that query enters cost unit and usage unit ."""
         with tenant_context(self.tenant):
             account = GCPCostEntryLineItemDailySummary.objects.filter(
@@ -1046,7 +1047,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    def test_execute_query_group_by_tag(self):
+    def test_execute_query_group_by_tag(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
             tag_object = GCPTagsSummary.objects.first()
@@ -1060,7 +1061,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(query_output.get("total"))
 
-    def test_query_storage_with_totals(self):
+    def test_query_storage_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - storage with totals.
 
         Query for storage, validating that cost totals are present.
@@ -1087,7 +1088,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     service_checked = True
         self.assertTrue(service_checked)
 
-    def test_gcp_date_order_by_cost_desc(self):
+    def test_gcp_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
@@ -1111,19 +1112,19 @@ class GCPReportQueryHandlerTest(IamTestCase):
             if lst and correctlst:
                 self.assertCountEqual(correctlst, lst)
 
-    def test_gcp_date_incorrect_date(self):
+    def test_gcp_date_incorrect_date(self, mocked_exchange_rates):
         wrong_date = "200BC"
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
 
-    def test_gcp_out_of_range_under_date(self):
+    def test_gcp_out_of_range_under_date(self, mocked_exchange_rates):
         wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
 
-    def test_gcp_out_of_range_over_date(self):
+    def test_gcp_out_of_range_over_date(self, mocked_exchange_rates):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):

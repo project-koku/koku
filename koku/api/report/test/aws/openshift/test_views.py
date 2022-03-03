@@ -5,6 +5,7 @@
 """Test the OCP on AWS Report views."""
 import datetime
 import random
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -32,6 +33,7 @@ URLS = [
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAWSReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -42,7 +44,7 @@ class OCPAWSReportViewTest(IamTestCase):
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
 
-    def test_execute_query_ocp_aws_storage(self):
+    def test_execute_query_ocp_aws_storage(self, mocked_exchange_rates):
         """Test that OCP on AWS Storage endpoint works."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -62,7 +64,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_last_thirty_days(self):
+    def test_execute_query_ocp_aws_storage_last_thirty_days(self, mocked_exchange_rates):
         """Test that OCP CPU endpoint works."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -86,7 +88,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_this_month(self):
+    def test_execute_query_ocp_aws_storage_this_month(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -109,7 +111,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_this_month_daily(self):
+    def test_execute_query_ocp_aws_storage_this_month_daily(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -132,7 +134,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_last_month(self):
+    def test_execute_query_ocp_aws_storage_last_month(self, mocked_exchange_rates):
         """Test that data is returned for the last month."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -157,7 +159,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_last_month_daily(self):
+    def test_execute_query_ocp_aws_storage_last_month_daily(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -180,7 +182,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 
-    def test_execute_query_ocp_aws_storage_group_by_limit(self):
+    def test_execute_query_ocp_aws_storage_group_by_limit(self, mocked_exchange_rates):
         """Test that OCP Mem endpoint works with limits."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -225,7 +227,7 @@ class OCPAWSReportViewTest(IamTestCase):
                     )[0].get("usage", {}).get("value")
                     self.assertAlmostEqual(usage_total, totals.get(date))
 
-    def test_others_count_large_limit(self):
+    def test_others_count_large_limit(self, mocked_exchange_rates):
         """Test that OCP Mem endpoint works with limits."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -243,7 +245,7 @@ class OCPAWSReportViewTest(IamTestCase):
         meta = data.get("meta")
         self.assertEqual(meta.get("others"), 0)
 
-    def test_execute_query_ocp_aws_storage_with_delta(self):
+    def test_execute_query_ocp_aws_storage_with_delta(self, mocked_exchange_rates):
         """Test that deltas work for OpenShift on AWS storage."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -326,7 +328,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 delta_value = values[0].get("delta_value")
             self.assertAlmostEqual(delta_value, expected_delta)
 
-    def test_execute_query_ocp_aws_storage_group_by_project(self):
+    def test_execute_query_ocp_aws_storage_group_by_project(self, mocked_exchange_rates):
         """Test that grouping by project filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -353,7 +355,7 @@ class OCPAWSReportViewTest(IamTestCase):
             for project in entry.get("projects", []):
                 self.assertEqual(project.get("project"), project_of_interest)
 
-    def test_execute_query_ocp_aws_storage_group_by_cluster(self):
+    def test_execute_query_ocp_aws_storage_group_by_cluster(self, mocked_exchange_rates):
         """Test that grouping by cluster filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -380,7 +382,7 @@ class OCPAWSReportViewTest(IamTestCase):
             for cluster in entry.get("clusters", []):
                 self.assertEqual(cluster.get("cluster"), cluster_of_interest)
 
-    def test_execute_query_group_by_pod_fails(self):
+    def test_execute_query_group_by_pod_fails(self, mocked_exchange_rates):
         """Test that grouping by pod filters data."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -390,7 +392,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_execute_query_ocp_aws_storage_group_by_node(self):
+    def test_execute_query_ocp_aws_storage_group_by_node(self, mocked_exchange_rates):
         """Test that grouping by node filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -418,7 +420,7 @@ class OCPAWSReportViewTest(IamTestCase):
             for node in entry.get("nodes", []):
                 self.assertEqual(node.get("node"), node_of_interest)
 
-    def test_execute_query_ocp_aws_storage_with_tag_filter(self):
+    def test_execute_query_ocp_aws_storage_with_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered by tag key."""
         with tenant_context(self.tenant):
             labels = (
@@ -457,7 +459,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self):
+    def test_execute_query_ocp_aws_storage_with_wildcard_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered to include entries with tag key."""
         with tenant_context(self.tenant):
             labels = (
@@ -495,7 +497,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_query_ocp_aws_storage_with_tag_group_by(self):
+    def test_execute_query_ocp_aws_storage_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         with tenant_context(self.tenant):
             labels = (
@@ -523,7 +525,7 @@ class OCPAWSReportViewTest(IamTestCase):
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
 
-    def test_execute_query_ocp_aws_storage_with_group_by_tag_and_limit(self):
+    def test_execute_query_ocp_aws_storage_with_group_by_tag_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by tag key and limited."""
         with tenant_context(self.tenant):
             labels = (
@@ -562,7 +564,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue(current_tag_usage <= previous_tag_usage)
                 previous_tag_usage = current_tag_usage
 
-    def test_execute_query_ocp_aws_storage_with_group_by_and_limit(self):
+    def test_execute_query_ocp_aws_storage_with_group_by_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by and limited."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -584,7 +586,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertNotEqual(other, [])
             self.assertIn("Other", other[0].get("node"))
 
-    def test_execute_query_ocp_aws_storage_with_group_by_order_by_and_limit(self):
+    def test_execute_query_ocp_aws_storage_with_group_by_order_by_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by and limited on order by."""
         url = reverse("reports-openshift-aws-storage")
         client = APIClient()
@@ -612,7 +614,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertTrue(current_usage <= previous_usage)
             previous_usage = current_usage
 
-    def test_get_costs(self):
+    def test_get_costs(self, mocked_exchange_rates):
         """Test costs reports runs with a customer owner."""
         url = reverse("reports-openshift-aws-costs")
         client = APIClient()
@@ -623,7 +625,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertIsInstance(json_result.get("data"), list)
         self.assertTrue(len(json_result.get("data")) > 0)
 
-    def test_get_costs_invalid_query_param(self):
+    def test_get_costs_invalid_query_param(self, mocked_exchange_rates):
         """Test costs reports runs with an invalid query param."""
         qs = "group_by%5Binvalid%5D=account1&filter%5Bresolution%5D=daily"
         url = reverse("reports-openshift-aws-costs") + "?" + qs
@@ -631,7 +633,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_get_costs_csv(self):
+    def test_get_costs_csv(self, mocked_exchange_rates):
         """Test CSV output of costs reports."""
         url = reverse("reports-openshift-aws-costs")
         client = APIClient(HTTP_ACCEPT="text/csv")
@@ -643,7 +645,7 @@ class OCPAWSReportViewTest(IamTestCase):
         self.assertEqual(response.accepted_media_type, "text/csv")
         self.assertIsInstance(response.accepted_renderer, CSVRenderer)
 
-    def test_execute_query_ocp_aws_costs_group_by_project(self):
+    def test_execute_query_ocp_aws_costs_group_by_project(self, mocked_exchange_rates):
         """Test that grouping by project filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -668,7 +670,7 @@ class OCPAWSReportViewTest(IamTestCase):
             for project in entry.get("projects", []):
                 self.assertEqual(project.get("project"), project_of_interest)
 
-    def test_execute_query_ocp_aws_instance_type(self):
+    def test_execute_query_ocp_aws_instance_type(self, mocked_exchange_rates):
         """Test that the instance type API runs."""
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -689,7 +691,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 self.assertTrue("cost" in values)
                 self.assertTrue("count" in values)
 
-    def test_execute_query_ocp_aws_instance_type_by_project(self):
+    def test_execute_query_ocp_aws_instance_type_by_project(self, mocked_exchange_rates):
         """Test that the instance type API runs when grouped by project."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -715,7 +717,7 @@ class OCPAWSReportViewTest(IamTestCase):
             for project in entry.get("projects", []):
                 self.assertEqual(project.get("project"), project_of_interest)
 
-    def test_execute_query_default_pagination(self):
+    def test_execute_query_default_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works."""
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -739,7 +741,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         self.assertEqual(len(data), count)
 
-    def test_execute_query_limit_pagination(self):
+    def test_execute_query_limit_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works with a limit."""
         limit = 2
         start_date = self.ten_days_ago.date().strftime("%Y-%m-%d")
@@ -770,7 +772,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertEqual(len(data), limit)
         self.assertEqual(data[0].get("date"), start_date)
 
-    def test_execute_query_limit_offset_pagination(self):
+    def test_execute_query_limit_offset_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works with an offset."""
         limit = 1
         offset = 1
@@ -803,7 +805,7 @@ class OCPAWSReportViewTest(IamTestCase):
             self.assertEqual(len(data), limit)
         self.assertEqual(data[0].get("date"), start_date)
 
-    def test_execute_query_filter_limit_offset_pagination(self):
+    def test_execute_query_filter_limit_offset_pagination(self, mocked_exchange_rates):
         """Test that the ranked group pagination works."""
         limit = 1
         offset = 0
@@ -838,7 +840,7 @@ class OCPAWSReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(projects), limit)
 
-    def test_execute_query_filter_limit_high_offset_pagination(self):
+    def test_execute_query_filter_limit_high_offset_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works."""
         limit = 1
         offset = 10
@@ -873,7 +875,7 @@ class OCPAWSReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(projects), limit)
 
-    def test_execute_query_with_order_by(self):
+    def test_execute_query_with_order_by(self, mocked_exchange_rates):
         """Test that the possible order by options work."""
         order_by_numeric = ["cost", "supplementary", "infrastructure", "usage", "delta"]
         order_by_non_numeric = ["project", "cluster", "node", "account_alias", "region", "service", "product_family"]
@@ -912,7 +914,7 @@ class OCPAWSReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_tag_wo_group(self):
+    def test_order_by_tag_wo_group(self, mocked_exchange_rates):
         """Test that order by tags without a group-by fails."""
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -935,7 +937,7 @@ class OCPAWSReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_order_by_tag_w_wrong_group(self):
+    def test_order_by_tag_w_wrong_group(self, mocked_exchange_rates):
         """Test that order by tags with a non-matching group-by fails."""
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -959,7 +961,7 @@ class OCPAWSReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_order_by_tag_w_tag_group(self):
+    def test_order_by_tag_w_tag_group(self, mocked_exchange_rates):
         """Test that order by tags with a matching group-by tag works."""
         baseurl = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
@@ -984,7 +986,7 @@ class OCPAWSReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_process_multiple_tag_query_params(self):
+    def test_process_multiple_tag_query_params(self, mocked_exchange_rates):
         """Test that grouping by multiple tag keys returns a valid response."""
         with tenant_context(self.tenant):
             labels = (
@@ -1010,7 +1012,7 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_group_bys_with_second_group_by_tag(self):
+    def test_group_bys_with_second_group_by_tag(self, mocked_exchange_rates):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (
@@ -1037,7 +1039,7 @@ class OCPAWSReportViewTest(IamTestCase):
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_delta(self):
+    def test_order_by_delta(self, mocked_exchange_rates):
         """Test that the order_by delta with pagination does not error."""
         limit = 5
         offset = 0
@@ -1076,7 +1078,7 @@ class OCPAWSReportViewTest(IamTestCase):
                             previous_delta = current_delta
             self.assertTrue(compared_deltas)
 
-    def test_order_by_delta_no_delta(self):
+    def test_order_by_delta_no_delta(self, mocked_exchange_rates):
         """Test that the order_by delta with no delta passed in triggers 400."""
         limit = 5
         offset = 0

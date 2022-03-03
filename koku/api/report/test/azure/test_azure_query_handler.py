@@ -44,6 +44,7 @@ from reporting.models import AzureStorageSummaryP
 LOG = logging.getLogger(__name__)
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AzureReportQueryHandlerTest(IamTestCase):
     """Azure report view test cases."""
 
@@ -80,7 +81,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     result[key] = Decimal(0)
             return result
 
-    def test_execute_sum_query(self):
+    def test_execute_sum_query(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, AzureInstanceTypeView)
@@ -105,7 +106,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_execute_sum_query_costs(self):
+    def test_execute_sum_query_costs(self, mocked_exchange_rates):
         """Test that the sum query runs properly for the costs endpoint."""
         url = "?"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -121,7 +122,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_execute_take_defaults(self):
+    def test_execute_take_defaults(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -132,7 +133,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-    def test_execute_query_current_month_daily(self):
+    def test_execute_query_current_month_daily(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -149,7 +150,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_execute_query_current_month_monthly(self):
+    def test_execute_query_current_month_monthly(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -166,7 +167,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_execute_query_current_month_by_service(self):
+    def test_execute_query_current_month_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service."""
         with tenant_context(self.tenant):
             valid_services = [
@@ -200,7 +201,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_filtered_service(self):
+    def test_execute_query_by_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
             valid_services = [
@@ -240,7 +241,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_query_by_partial_filtered_service(self):
+    def test_query_by_partial_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
             valid_services = [
@@ -280,7 +281,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_current_month_by_subscription_guid(self):
+    def test_execute_query_current_month_by_subscription_guid(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by subscription_guid."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -311,7 +312,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_subscription_guid_by_service(self):
+    def test_execute_query_by_subscription_guid_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month breakdown by subscription_guid by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -342,7 +343,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("service_names"), list)
 
-    def test_execute_query_with_counts(self):
+    def test_execute_query_with_counts(self, mocked_exchange_rates):
         """Test execute_query for with counts of unique resources."""
         with tenant_context(self.tenant):
             instance_type = AzureCostEntryProductService.objects.filter(service_name="Virtual Machines").first()
@@ -371,7 +372,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     actual_count = it["values"][0].get("count", {}).get("value")
                     self.assertEqual(actual_count, 1)
 
-    def test_execute_query_curr_month_by_subscription_guid_w_limit(self):
+    def test_execute_query_curr_month_by_subscription_guid_w_limit(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by subscription_guid with limit."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -400,7 +401,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("subscription_guid"), str)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_curr_month_by_subscription_guid_w_order(self):
+    def test_execute_query_curr_month_by_subscription_guid_w_order(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -434,7 +435,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
-    def test_execute_query_curr_month_by_subscription_guid_w_order_by_subscription_guid(self):
+    def test_execute_query_curr_month_by_subscription_guid_w_order_by_subscription_guid(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by subscription_guid with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[subscription_guid]=asc&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -470,7 +471,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    def test_execute_query_curr_month_by_resource_location(self):
+    def test_execute_query_curr_month_by_resource_location(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by resource_location."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[resource_location]=*"  # noqa: E501
         with tenant_context(self.tenant):
@@ -507,7 +508,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_curr_month_by_filtered_resource_location(self):
+    def test_execute_query_curr_month_by_filtered_resource_location(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by filtered resource_location."""
         with tenant_context(self.tenant):
             location = (
@@ -544,7 +545,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_current_month_filter_subscription_guid(self):
+    def test_execute_query_current_month_filter_subscription_guid(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by subscription_guid."""
         with tenant_context(self.tenant):
             subscription_guid = AzureCostEntryLineItemDailySummary.objects.filter(
@@ -574,7 +575,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_service(self):
+    def test_execute_query_current_month_filter_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
             service = AzureCostEntryLineItemDailySummary.objects.values("service_name")[0].get("service_name")
@@ -608,7 +609,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_resource_location(self):
+    def test_execute_query_current_month_filter_resource_location(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by resource_location."""
         with tenant_context(self.tenant):
             location = (
@@ -642,7 +643,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertIsInstance(month_data, list)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept):
+    def test_execute_query_current_month_filter_resource_location_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query on monthly filtered by resource_location for csv."""
         with tenant_context(self.tenant):
             location = (
@@ -678,7 +679,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self, mock_accept):
+    def test_execute_query_curr_month_by_subscription_guid_w_limit_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query for current month on monthly by subscription_guid with limt as csv."""
         mock_accept.return_value = "text/csv"
 
@@ -705,7 +706,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
 
-    def test_execute_query_w_delta(self):
+    def test_execute_query_w_delta(self, mocked_exchange_rates):
         """Test grouped by deltas."""
         path = reverse("reports-azure-costs")
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
@@ -785,7 +786,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get("value"), expected_delta_value)
         self.assertEqual(delta.get("percent"), expected_delta_percent)
 
-    def test_execute_query_w_delta_no_previous_data(self):
+    def test_execute_query_w_delta_no_previous_data(self, mocked_exchange_rates):
         """Test deltas with no previous data."""
         url = "?filter[time_scope_value]=-2&delta=cost"
         path = reverse("reports-azure-costs")
@@ -802,7 +803,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get("value"), total_cost.get("value"))
         self.assertEqual(delta.get("percent"), None)
 
-    def test_execute_query_orderby_delta(self):
+    def test_execute_query_orderby_delta(self, mocked_exchange_rates):
         """Test execute_query with ordering by delta ascending."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[subscription_guid]=*&delta=cost"  # noqa: E501
         path = reverse("reports-azure-costs")
@@ -822,7 +823,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
 
-    def test_calculate_total(self):
+    def test_calculate_total(self, mocked_exchange_rates):
         """Test that calculated totals return correctly."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -838,14 +839,14 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertEqual(cost_total.get("value"), current_totals.get("cost_total"))
         self.assertEqual(cost_total.get("units"), expected_units)
 
-    def test_percent_delta(self):
+    def test_percent_delta(self, mocked_exchange_rates):
         """Test _percent_delta() utility method."""
         url = "?"
         query_params = self.mocked_query_params(url, AzureCostView)
         handler = AzureReportQueryHandler(query_params)
         self.assertEqual(handler._percent_delta(10, 5), 100)
 
-    def test_rank_list_by_subscription_guid(self):
+    def test_rank_list_by_subscription_guid(self, mocked_exchange_rates):
         """Test rank list limit with subscription_guid alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -864,7 +865,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_by_service_name(self):
+    def test_rank_list_by_service_name(self, mocked_exchange_rates):
         """Test rank list limit with service_name grouping."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -883,7 +884,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_with_offset(self):
+    def test_rank_list_with_offset(self, mocked_exchange_rates):
         """Test rank list limit and offset with subscription_guid alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[subscription_guid]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -898,7 +899,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_query_costs_with_totals(self):
+    def test_query_costs_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - costs with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -921,7 +922,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.assertIsInstance(cost_total_value, Decimal)
                     self.assertGreater(cost_total_value, Decimal(0))
 
-    def test_query_instance_types_with_totals(self):
+    def test_query_instance_types_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - instance types with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -952,7 +953,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                         value.get("usage", {}).get("value", {}).quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
                     )
 
-    def test_query_storage_with_totals(self):
+    def test_query_storage_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - storage with totals.
 
         Query for storage, validating that cost totals are present.
@@ -983,7 +984,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     self.assertGreater(value.get("usage", {}).get("value", {}), Decimal(0))
                     self.assertIsNone(value.get("count"))
 
-    def test_order_by(self):
+    def test_order_by(self, mocked_exchange_rates):
         """Test that order_by returns properly sorted data."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -1018,7 +1019,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
-    def test_order_by_null_values(self):
+    def test_order_by_null_values(self, mocked_exchange_rates):
         """Test that order_by returns properly sorted data with null data."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AzureCostView)
@@ -1041,7 +1042,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
-    def test_execute_query_with_tag_filter(self):
+    def test_execute_query_with_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered by tag key."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AzureTagView)
@@ -1077,7 +1078,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
 
-    def test_execute_query_with_wildcard_tag_filter(self):
+    def test_execute_query_with_wildcard_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered to include entries with tag key."""
         # Pick tags for the same month we query on later
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
@@ -1103,7 +1104,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
 
-    def test_execute_query_with_tag_group_by(self):
+    def test_execute_query_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         # Pick tags for the same month we query on later
         url = "filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month"
@@ -1135,7 +1136,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result.get("value"), totals[ag_key], 6)
 
-    def test_query_table(self):
+    def test_query_table(self, mocked_exchange_rates):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
             ("?", AzureCostView, AzureCostSummaryP),
@@ -1177,7 +1178,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 handler = AzureReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    def test_source_uuid_mapping(self, mocked_exchange_rates):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         # Find the correct expected source uuid:
         with tenant_context(self.tenant):
@@ -1209,7 +1210,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_execute_query_annotate(self):
+    def test_execute_query_annotate(self, mocked_exchange_rates):
         """Test that query enters cost unit and usage unit ."""
         with tenant_context(self.tenant):
             subscription_guid = AzureCostEntryLineItemDailySummary.objects.filter(
@@ -1237,7 +1238,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
             month_val = data_item.get("date")
             self.assertEqual(month_val, cmonth_str)
 
-    def test_azure_date_order_by_cost_desc(self):
+    def test_azure_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
@@ -1264,19 +1265,19 @@ class AzureReportQueryHandlerTest(IamTestCase):
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
 
-    def test_azure_date_incorrect_date(self):
+    def test_azure_date_incorrect_date(self, mocked_exchange_rates):
         wrong_date = "200BC"
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
 
-    def test_azure_out_of_range_under_date(self):
+    def test_azure_out_of_range_under_date(self, mocked_exchange_rates):
         wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
 
-    def test_azure_out_of_range_over_date(self):
+    def test_azure_out_of_range_over_date(self, mocked_exchange_rates):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):

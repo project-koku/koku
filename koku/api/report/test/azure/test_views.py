@@ -23,6 +23,7 @@ from api.utils import UnitConverter
 FAKE = Faker()
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AzureReportViewTest(IamTestCase):
     """Azure report view test cases."""
 
@@ -103,7 +104,7 @@ class AzureReportViewTest(IamTestCase):
             "total": {"value": 5475.922451027388, "units": "GB-Mo"},
         }
 
-    def test_convert_units_success(self):
+    def test_convert_units_success(self, mocked_exchange_rates):
         """Test unit conversion succeeds."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -117,7 +118,7 @@ class AzureReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
 
-    def test_convert_units_list(self):
+    def test_convert_units_list(self, mocked_exchange_rates):
         """Test that the list check is hit."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -132,7 +133,7 @@ class AzureReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
 
-    def test_convert_units_total_not_dict(self):
+    def test_convert_units_total_not_dict(self, mocked_exchange_rates):
         """Test that the total not dict block is hit."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -148,7 +149,7 @@ class AzureReportViewTest(IamTestCase):
         self.assertEqual(report_total * 1e9, result_total)
 
     @patch("api.report.azure.query_handler.AzureReportQueryHandler")
-    def test_costview_with_units_success(self, mock_handler):
+    def test_costview_with_units_success(self, mock_handler, mocked_exchange_rates):
         """Test unit conversion succeeds in AzureCostView."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
@@ -171,7 +172,7 @@ class AzureReportViewTest(IamTestCase):
         response = AzureCostView().get(request)
         self.assertIsInstance(response, Response)
 
-    def test_execute_query_w_delta_total(self):
+    def test_execute_query_w_delta_total(self, mocked_exchange_rates):
         """Test that delta=total returns deltas."""
         qs = "delta=cost"
         url = reverse("reports-azure-costs") + "?" + qs
@@ -179,7 +180,7 @@ class AzureReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_w_delta_bad_choice(self):
+    def test_execute_query_w_delta_bad_choice(self, mocked_exchange_rates):
         """Test invalid delta value."""
         bad_delta = "Invalid"
         expected = f'"{bad_delta}" is not a valid choice.'
