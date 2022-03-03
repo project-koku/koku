@@ -100,7 +100,7 @@ def decode_timedelta(delta):
 
 def handle_truncate(conn):
     job_start = datetime.datetime.utcnow()
-    LOG.info("Truncate job starting")
+    LOG.info("OCP on AWS/Azure truncate job starting")
     missing = 0
     exists = 0
     current = 0
@@ -127,7 +127,7 @@ def handle_truncate(conn):
             conn.commit()
 
     job_end = datetime.datetime.utcnow()
-    LOG.info(f"Truncate job completed. Duration: {decode_timedelta(job_end - job_start)}")
+    LOG.info(f"OCP on AWS/Azure truncate job completed. Duration: {decode_timedelta(job_end - job_start)}")
     LOG.info(f"Tables missing: {missing}; Tables truncated: {exists}; Total: {total}")
 
 
