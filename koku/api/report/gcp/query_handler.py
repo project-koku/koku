@@ -192,7 +192,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
                 import ciso8601
