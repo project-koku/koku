@@ -106,6 +106,7 @@ def handle_truncate(conn):
     current = 0
     target_tables = get_valid_tables(conn)
     total = len(target_tables)
+    LOG.info(f"Found {total} tables")
 
     for rec in target_tables:
         current += 1
