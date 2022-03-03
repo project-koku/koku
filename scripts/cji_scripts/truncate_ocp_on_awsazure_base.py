@@ -17,11 +17,11 @@ from psycopg2.extras import NamedTupleCursor
 # Struct to hold predefined, static settings
 # This is here so the django.settings module does not have to be imported.
 logging.basicConfig(
-    format="truncate_old_tables (%(process)d) :: %(asctime)s: %(message)s",
+    format="truncate_ocpawsazure_tables (%(process)d) :: %(asctime)s: %(message)s",
     datefmt="%m/%d/%Y %I:%M:%S %p",
     level=logging.INFO,
 )
-LOG = logging.getLogger("truncate_old_tables")
+LOG = logging.getLogger("truncate_ocpawsazure_tables")
 
 
 def connect():
