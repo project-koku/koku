@@ -6,6 +6,10 @@ class Migration(migrations.Migration):
 
     dependencies = [("reporting", "0219_increase_decimal_precision")]
 
+    # The TRUNCATEs should effectively be a no-op since the truncate CJI has already run
+    # But it allows me to put the RemoveField calls into the state operations so that
+    # multiple ALTER TABLE statements are not thrown when we're just going to drop
+    # the table anyway.
     operations = [
         migrations.RunSQL(
             sql="""TRUNCATE TABLE reporting_ocpawscostlineitem_project_daily_summary;""",
