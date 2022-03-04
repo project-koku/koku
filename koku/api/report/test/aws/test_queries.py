@@ -9,6 +9,7 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -2266,3 +2267,48 @@ class AWSQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+
+class AWSReportQueryTestCurrency(IamTestCase):
+    """Tests the currency function for report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+
+    @patch("api.report.queries.ExchangeRates")
+    def test_get_exchange_rate_expected(self, mock_exchange):
+        """Test that the exchange rate is the set currency divided by the base."""
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        usd_exchange = MagicMock()
+        usd_exchange.exchange_rate = 1
+        aud_exchange = MagicMock()
+        aud_exchange.exchange_rate = 2
+        mock_exchange.objects.get.side_effect = [usd_exchange, aud_exchange]
+        handler.currency = "USD"
+        actual = handler._get_exchange_rate("AUD")
+        self.assertEqual(actual, Decimal(1 / 2))
+
+    def test_exchange_rate_error(self):
+        """Test that an error returns 1."""
+        # since the exchange rates objects are not populated we should return 1
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        actual = handler._get_exchange_rate("AUD")
+        self.assertEqual(actual, 1)
+
+    def test_query_cost_type_passed_in(self):
+        """Test "cost_type" is recognized when passed in."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        for each in data:
+            # assert that the data has both a currency codes and values entry
+            self.assertIsNotNone(each.get("values"))
+            self.assertIsNotNone(each.get("currency_codes"))
