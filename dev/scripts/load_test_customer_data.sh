@@ -108,6 +108,7 @@ YAML_FILES=("ocp_on_aws/aws_static_data.yml"
             "gcp/gcp_static_data.yml"
             "ocp_on_gcp/ocp_static_data.yml"
             "ocp_on_gcp/gcp_static_data.yml")
+#YAML_FILES=("ocp_on_aws/aws_marketplace_static_data.yml")
 
 RENDERED_YAML=()
 for fname in ${YAML_FILES[*]}; do
