@@ -163,6 +163,7 @@ export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
 export PGUSER="${DATABASE_USER}"
 export OS="$(uname)"
 
+log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
     START_DATE=${1:-$(date -v '-1m' +'%Y-%m-01')}
 else
@@ -170,7 +171,8 @@ else
 fi
 
 END_DATE=${2:-$(date +'%Y-%m-%d')}    # defaults to today
-log-debug "Start date: ${START_DATE}, End date: ${END_DATE}"
+log-debug "START_DATE=${START_DATE}"
+log-debug "END_DATE=${END_DATE}"
 
 # this is the default that's in koku.masu.config
 PVC_DIR=/var/tmp/masu
@@ -225,7 +227,7 @@ for fname in ${RENDERED_YAML[*]}; do
 done
 
 # add cost models
-log-info "adding cost models..."
+log-info "Adding cost models..."
 add_cost_models 'Test OCP on Premises' openshift_on_prem_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 add_cost_models 'Test AWS Source' aws_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
@@ -233,7 +235,7 @@ add_cost_models 'Test Azure Source' azure_cost_model.json $KOKU_API_HOSTNAME:$KO
 add_cost_models 'Test GCP Source' gcp_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
 # enable tags
-log-info "enabling OCP tags..."
+log-info "Enabling OCP tags..."
 enable_ocp_tags
 
 # Trigger downloads individually to ensure OCP is processed before cloud sources for OCP on Cloud
