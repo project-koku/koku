@@ -145,6 +145,7 @@ class Migration(migrations.Migration):
         ("reporting", "0217_auto_20220124_1634"),
         ("reporting", "0218_rm_unused_gcp_partables"),
         ("reporting", "0219_increase_decimal_precision"),
+        ("reporting", "0220_drop_ocp_on_aws_azure_base_tables"),
     ]
 
     initial = True
@@ -2293,57 +2294,6 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocpaws_compute_summary_p"},
         ),
         migrations.CreateModel(
-            name="OCPAWSCostLineItemDailySummary",
-            fields=[
-                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                (
-                    "namespace",
-                    django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=253), size=None),
-                ),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_code", models.CharField(max_length=50)),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("instance_type", models.CharField(max_length=50, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("availability_zone", models.CharField(max_length=50, null=True)),
-                ("region", models.CharField(max_length=50, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("tags", models.JSONField(null=True)),
-                ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("normalized_usage_amount", models.FloatField(null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("shared_projects", models.IntegerField(default=1)),
-                ("project_costs", models.JSONField(null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "account_alias",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
-                    ),
-                ),
-                (
-                    "cost_entry_bill",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.awscostentrybill"
-                    ),
-                ),
-                (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpawscostlineitem_daily_summary"},
-        ),
-        migrations.CreateModel(
             name="OCPAWSCostLineItemDailySummaryP",
             fields=[
                 ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
@@ -2393,59 +2343,6 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocpawscostlineitem_daily_summary_p"},
-        ),
-        migrations.CreateModel(
-            name="OCPAWSCostLineItemProjectDailySummary",
-            fields=[
-                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("data_source", models.CharField(max_length=64, null=True)),
-                ("namespace", models.CharField(max_length=253)),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("persistentvolumeclaim", models.CharField(max_length=253, null=True)),
-                ("persistentvolume", models.CharField(max_length=253, null=True)),
-                ("storageclass", models.CharField(max_length=50, null=True)),
-                ("pod_labels", models.JSONField(null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("product_code", models.CharField(max_length=50)),
-                ("product_family", models.CharField(max_length=150, null=True)),
-                ("instance_type", models.CharField(max_length=50, null=True)),
-                ("usage_account_id", models.CharField(max_length=50)),
-                ("availability_zone", models.CharField(max_length=50, null=True)),
-                ("region", models.CharField(max_length=50, null=True)),
-                ("unit", models.CharField(max_length=63, null=True)),
-                ("usage_amount", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("normalized_usage_amount", models.FloatField(null=True)),
-                ("currency_code", models.CharField(max_length=10, null=True)),
-                ("unblended_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("project_markup_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("pod_cost", models.DecimalField(decimal_places=15, max_digits=30, null=True)),
-                ("tags", models.JSONField(null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "account_alias",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.SET_NULL, to="reporting.awsaccountalias"
-                    ),
-                ),
-                (
-                    "cost_entry_bill",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.awscostentrybill"
-                    ),
-                ),
-                (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpawscostlineitem_project_daily_summary"},
         ),
         migrations.CreateModel(
             name="OCPAWSCostLineItemProjectDailySummaryP",
@@ -2800,46 +2697,6 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocpazure_compute_summary_p"},
         ),
         migrations.CreateModel(
-            name="OCPAzureCostLineItemDailySummary",
-            fields=[
-                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                (
-                    "namespace",
-                    django.contrib.postgres.fields.ArrayField(base_field=models.CharField(max_length=253), size=None),
-                ),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("subscription_guid", models.TextField()),
-                ("instance_type", models.TextField(null=True)),
-                ("service_name", models.TextField(null=True)),
-                ("resource_location", models.TextField(null=True)),
-                ("tags", models.JSONField(null=True)),
-                ("usage_quantity", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("pretax_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
-                ("currency", models.TextField(null=True)),
-                ("unit_of_measure", models.TextField(null=True)),
-                ("shared_projects", models.IntegerField(default=1)),
-                ("project_costs", models.JSONField(null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "cost_entry_bill",
-                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.azurecostentrybill"),
-                ),
-                (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpazurecostlineitem_daily_summary"},
-        ),
-        migrations.CreateModel(
             name="OCPAzureCostLineItemDailySummaryP",
             fields=[
                 ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
@@ -2878,48 +2735,6 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={"db_table": "reporting_ocpazurecostlineitem_daily_summary_p"},
-        ),
-        migrations.CreateModel(
-            name="OCPAzureCostLineItemProjectDailySummary",
-            fields=[
-                ("uuid", models.UUIDField(default=uuid.uuid4, primary_key=True, serialize=False)),
-                ("cluster_id", models.CharField(max_length=50, null=True)),
-                ("cluster_alias", models.CharField(max_length=256, null=True)),
-                ("data_source", models.CharField(max_length=64, null=True)),
-                ("namespace", models.CharField(max_length=253)),
-                ("node", models.CharField(max_length=253, null=True)),
-                ("persistentvolumeclaim", models.CharField(max_length=253, null=True)),
-                ("persistentvolume", models.CharField(max_length=253, null=True)),
-                ("storageclass", models.CharField(max_length=50, null=True)),
-                ("pod_labels", models.JSONField(null=True)),
-                ("resource_id", models.CharField(max_length=253, null=True)),
-                ("usage_start", models.DateField()),
-                ("usage_end", models.DateField()),
-                ("subscription_guid", models.TextField()),
-                ("instance_type", models.TextField(null=True)),
-                ("service_name", models.TextField(null=True)),
-                ("resource_location", models.TextField(null=True)),
-                ("usage_quantity", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
-                ("unit_of_measure", models.TextField(null=True)),
-                ("currency", models.TextField(null=True)),
-                ("pretax_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
-                ("markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
-                ("project_markup_cost", models.DecimalField(decimal_places=9, max_digits=17, null=True)),
-                ("pod_cost", models.DecimalField(decimal_places=6, max_digits=24, null=True)),
-                ("tags", models.JSONField(null=True)),
-                ("source_uuid", models.UUIDField(null=True)),
-                (
-                    "cost_entry_bill",
-                    models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.azurecostentrybill"),
-                ),
-                (
-                    "report_period",
-                    models.ForeignKey(
-                        null=True, on_delete=django.db.models.deletion.CASCADE, to="reporting.ocpusagereportperiod"
-                    ),
-                ),
-            ],
-            options={"db_table": "reporting_ocpazurecostlineitem_project_daily_summary"},
         ),
         migrations.CreateModel(
             name="OCPAzureCostLineItemProjectDailySummaryP",
@@ -4737,36 +4552,6 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["instance_type"], name="p_ocpaz_prj_inst_typ_idx"),
         ),
         migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(fields=["usage_start"], name="ocpazure_proj_usage_start_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(
-                fields=["namespace"], name="ocpazure_proj_namespace_idx", opclasses=["varchar_pattern_ops"]
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(fields=["node"], name="ocpazure_proj_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(fields=["resource_id"], name="ocpazure_proj_resource_id_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="ocpazure_proj_pod_labels_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(fields=["service_name"], name="ocpazure_proj_service_name_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemprojectdailysummary",
-            index=models.Index(fields=["instance_type"], name="ocpazure_proj_inst_type_idx"),
-        ),
-        migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
             index=models.Index(fields=["usage_start"], name="p_ocpaz_use_strt_idx"),
         ),
@@ -4793,34 +4578,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="ocpazurecostlineitemdailysummaryp",
             index=models.Index(fields=["instance_type"], name="p_ocpaz_inst_typ_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["usage_start"], name="ocpazure_usage_start_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["namespace"], name="ocpazure_namespace_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["node"], name="ocpazure_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["resource_id"], name="ocpazure_resource_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="ocpazure_tags_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["service_name"], name="ocpazure_service_name_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpazurecostlineitemdailysummary",
-            index=models.Index(fields=["instance_type"], name="ocpazure_instance_type_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpazurecomputesummaryp",
@@ -4917,36 +4674,6 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["instance_type"], name="p_ocpaws_prj_inst_typ_idx"),
         ),
         migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(fields=["usage_start"], name="cost_proj_sum_ocp_usage_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(
-                fields=["namespace"], name="cost__proj_sum_namespace_idx", opclasses=["varchar_pattern_ops"]
-            ),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(fields=["node"], name="cost_proj_sum_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(fields=["resource_id"], name="cost_proj_sum_resource_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["pod_labels"], name="cost_proj_pod_labels_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(fields=["product_family"], name="ocp_aws_proj_prod_fam_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemprojectdailysummary",
-            index=models.Index(fields=["instance_type"], name="ocp_aws_proj_inst_type_idx"),
-        ),
-        migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
             index=models.Index(fields=["usage_start"], name="p_cost_sum_ocpaws_use_idx"),
         ),
@@ -4973,34 +4700,6 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="ocpawscostlineitemdailysummaryp",
             index=models.Index(fields=["instance_type"], name="p_ocpaws_inst_typ_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["usage_start"], name="cost_summary_ocp_usage_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["namespace"], name="cost_summary_namespace_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["node"], name="cost_summary_node_idx", opclasses=["varchar_pattern_ops"]),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["resource_id"], name="cost_summary_resource_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=django.contrib.postgres.indexes.GinIndex(fields=["tags"], name="cost_tags_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["product_family"], name="ocp_aws_product_family_idx"),
-        ),
-        migrations.AddIndex(
-            model_name="ocpawscostlineitemdailysummary",
-            index=models.Index(fields=["instance_type"], name="ocp_aws_instance_type_idx"),
         ),
         migrations.AddIndex(
             model_name="ocpawscomputesummaryp", index=models.Index(fields=["usage_start"], name="ocpawscompsumm_usst")
