@@ -217,17 +217,14 @@ ocp_on_azure_project_daily_summary_storage = Recipe(  # Storage data_source
 
 ocp_on_gcp_daily_summary = Recipe(
     "OCPGCPCostLineItemDailySummaryP",
+    namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
     node=cycle(f"gcp_node_{i}" for i in range(GCP_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-{i}{i}{i}{i}{i}{i}{i}" for i in range(GCP_CONSTANTS.length - 1)),
     project_id=cycle(OCP_CONSTANTS["namespaces"]),
     project_name=cycle(OCP_CONSTANTS["storage_classes"]),  # maybe this can change, idk
-    namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
     service_id=cycle(GCP_CONSTANTS["service_ids"]),
     service_alias=cycle(GCP_CONSTANTS["service_aliases"]),
-    sku_id=cycle(GCP_CONSTANTS["service_ids"]),
-    sku_alias=cycle(GCP_CONSTANTS["sku_aliases"]),
     unit=cycle(GCP_CONSTANTS["units"]),
-    resource_location="US East",
     _fill_optional=True,
     _bulk_create=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
@@ -236,11 +233,11 @@ ocp_on_gcp_daily_summary = Recipe(
 ocp_on_gcp_project_daily_summary_pod = Recipe(  # Pod data_source
     "OCPGCPCostLineItemProjectDailySummaryP",
     data_source="Pod",
+    namespace=cycle(OCP_CONSTANTS["namespaces"]),
     node=cycle(f"gcp_node_{i}" for i in range(GCP_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-{i}{i}{i}{i}{i}{i}{i}" for i in range(GCP_CONSTANTS.length - 1)),
     project_id=cycle(OCP_CONSTANTS["namespaces"]),
     project_name=cycle(OCP_CONSTANTS["storage_classes"]),  # maybe this can change, idk
-    namespace=cycle(OCP_CONSTANTS["namespaces"]),
     pod_labels=cycle(OCP_CONSTANTS["pod_labels"]),
     persistentvolumeclaim=None,
     persistentvolume=None,
@@ -258,11 +255,11 @@ ocp_on_gcp_project_daily_summary_pod = Recipe(  # Pod data_source
 ocp_on_gcp_project_daily_summary_storage = Recipe(  # Storage data_source
     "OCPGCPCostLineItemProjectDailySummaryP",
     data_source="Storage",
+    namespace=cycle(OCP_CONSTANTS["namespaces"]),
     node=cycle(f"gcp_node_{i}" for i in range(GCP_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-{i}{i}{i}{i}{i}{i}{i}" for i in range(GCP_CONSTANTS.length - 1)),
     project_id=cycle(OCP_CONSTANTS["namespaces"]),
     project_name=cycle(OCP_CONSTANTS["storage_classes"]),  # maybe this can change, idk
-    namespace=cycle(OCP_CONSTANTS["namespaces"]),
     persistentvolumeclaim=cycle(f"pvc_gcp_{i}" for i in range(GCP_CONSTANTS.length - 1)),
     persistentvolume=cycle(f"pv_gcp{i}" for i in range(GCP_CONSTANTS.length - 1)),
     storageclass=cycle(OCP_CONSTANTS["storage_classes"]),

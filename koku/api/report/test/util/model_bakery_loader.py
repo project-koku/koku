@@ -347,25 +347,40 @@ class ModelBakeryDataLoader(DataLoader):
             daily_summary_recipe = "api.report.test.util.ocp_on_aws_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_aws_project_daily_summary_storage"
-            dbaccessor, tags_update_method = AWSReportDBAccessor, "populate_ocp_on_aws_tags_summary_table"
+            dbaccessor, tags_update_method, ui_update_method = (
+                AWSReportDBAccessor,
+                "populate_ocp_on_aws_tags_summary_table",
+                "populate_ocp_on_aws_ui_summary_tables",
+            )
             with schema_context(self.schema):
                 account_alias = random.choice(list(AWSAccountAlias.objects.all()))
             unique_fields = {"currency_code": self.currency, "account_alias": account_alias}
+            unique_ui_sql_params = {}
         elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             daily_summary_recipe = "api.report.test.util.ocp_on_azure_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_storage"
-            dbaccessor, tags_update_method = AzureReportDBAccessor, "populate_ocp_on_azure_tags_summary_table"
+            dbaccessor, tags_update_method, ui_update_method = (
+                AzureReportDBAccessor,
+                "populate_ocp_on_azure_tags_summary_table",
+                "populate_ocp_on_azure_ui_summary_tables",
+            )
             unique_fields = {"currency": self.currency, "subscription_guid": self.faker.uuid4()}
+            unique_ui_sql_params = {}
         elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             daily_summary_recipe = "api.report.test.util.ocp_on_gcp_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_pod"
             project_summary_storage_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_storage"
-            dbaccessor, tags_update_method = GCPReportDBAccessor, "populate_ocp_on_gcp_tags_summary_table"
+            dbaccessor, tags_update_method, ui_update_method = (
+                GCPReportDBAccessor,
+                "populate_ocp_on_gcp_tags_summary_table",
+                "populate_ocp_on_gcp_ui_summary_tables",
+            )
             unique_fields = {
                 "currency": self.currency,
                 "account_id": self.faker.pystr_format(string_format="####################"),
             }
+            unique_ui_sql_params = {}
 
         provider = Provider.objects.filter(type=provider_type).first()
         for dates, bill, report_period in zip(self.dates, bills, report_periods):
@@ -415,7 +430,21 @@ class ModelBakeryDataLoader(DataLoader):
                         **unique_fields,
                     )
         with dbaccessor(self.schema) as accessor:
+            # update tags
             cls_method = getattr(accessor, tags_update_method)
             cls_method([bill.id for bill in bills], self.first_start_date, self.last_end_date)
+
+            # update ui tables
+            sql_params = {
+                "schema_name": self._schema,
+                "start_date": start_date,
+                "end_date": end_date,
+                "source_uuid": provider.uuid,
+                "cluster_id": cluster_id,
+                "cluster_alias": cluster_id,
+                **unique_ui_sql_params,
+            }
+            cls_method = getattr(accessor, ui_update_method)
+            cls_method(sql_params)
 
         refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)

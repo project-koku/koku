@@ -122,9 +122,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         # ocp_on_azure_ocp_provider, ocp_on_azure_report_periods = bakery_data_loader.load_openshift_data(
                         #     ocp_on_azure_cluster_id, on_cloud=True
                         # )
-                        # ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
-                        #     ocp_on_gcp_cluster_id, on_cloud=True
-                        # )
+                        ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
+                            ocp_on_gcp_cluster_id, on_cloud=True
+                        )
                         # _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
                         # _, aws_bills = bakery_data_loader.load_aws_data(
                         #     linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
@@ -143,9 +143,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         #     azure_bills,
                         #     ocp_on_azure_report_periods,
                         # )
-                        # bakery_data_loader.load_openshift_on_cloud_data(
-                        #     Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
-                        # )
+                        bakery_data_loader.load_openshift_on_cloud_data(
+                            Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
+                        )
 
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]

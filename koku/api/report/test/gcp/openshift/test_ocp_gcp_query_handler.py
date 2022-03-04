@@ -437,7 +437,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
     # The issue is that the ocp on gcp tables can only be populated through
     # trino leaving us in a sticky spot as far as unittesting.
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
@@ -471,7 +470,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
         with tenant_context(self.tenant):
@@ -489,7 +487,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
         self.assertIsNotNone(total)
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "service__icontains": service}
+        filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
@@ -509,11 +507,10 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_current_month_filter_service(self):
         """Test execute_query for current month on monthly filtered by service."""
         with tenant_context(self.tenant):
-            service = OCPGCPCostLineItemDailySummaryP.objects.values("service")[0].get("service")
+            service = OCPGCPCostLineItemDailySummaryP.objects.values("service_alias")[0].get("service_alias")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]={service}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -525,7 +522,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "service__icontains": service}
+        filters = {**self.this_month_filter, "service_alias__icontains": service}
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
@@ -541,11 +538,10 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_current_month_filter_account(self):
         """Test execute_query for current month on monthly filtered by account."""
         with tenant_context(self.tenant):
-            account = OCPGCPCostLineItemDailySummaryP.objects.values("account")[0].get("account")
+            account = OCPGCPCostLineItemDailySummaryP.objects.values("account_id")[0].get("account_id")
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={account}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -555,7 +551,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.this_month_filter, "account": account}
+        filters = {**self.this_month_filter, "account_id": account}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -567,7 +563,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_w_delta(self):
         """Test grouped by deltas."""
 
@@ -604,14 +599,14 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             with tenant_context(self.tenant):
                 curr = OCPGCPCostLineItemDailySummaryP.objects.filter(
                     usage_start__gte=v_this_month_start, usage_start__lte=v_today, account=sub.get("account")
-                ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = OCPGCPCostLineItemDailySummaryP.objects.filter(
                     usage_start__gte=v_last_month_start,
                     usage_start__lte=v_today_last_month,
                     account=sub.get("account"),
-                ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
             expected_delta_value = Decimal(current_total - prev_total)
@@ -630,12 +625,12 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             curr = OCPGCPCostLineItemDailySummaryP.objects.filter(
                 usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             current_total = Decimal(curr.get("value"))
 
             prev = OCPGCPCostLineItemDailySummaryP.objects.filter(
                 usage_start__gte=self.dh.last_month_start, usage_start__lte=self.dh.today - relativedelta(months=1)
-            ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -647,7 +642,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertEqual(delta.get("value", "str"), expected_delta_value)
         self.assertEqual(delta.get("percent", "str"), expected_delta_percent)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_query_instance_types_with_totals(self):
         """Test execute_query() - instance types with totals.
 
@@ -672,15 +666,11 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                         value.get("cost", {}).get("total", {}).get("value").quantize(Decimal(".0001"), ROUND_HALF_UP),
                         Decimal(0),
                     )
-                    # FIXME: usage doesn't have units yet. waiting on MSFT
-                    # self.assertIsInstance(value.get('usage', {}).get('value'), Decimal)
-                    # self.assertGreater(value.get('usage', {}).get('value'), Decimal(0))
                     self.assertIsInstance(value.get("usage", {}), dict)
                     self.assertGreaterEqual(
                         value.get("usage", {}).get("value", {}).quantize(Decimal(".0001"), ROUND_HALF_UP), Decimal(0)
                     )
 
-    @skip("Skipping until unittests are on Trino.")
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
@@ -695,7 +685,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertEqual(result.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
         self.assertEqual(result.get("cost", {}).get("total", {}).get("units", "not-USD"), expected_units)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_curr_month_by_account_w_limit(self):
         """Test execute_query for current month on monthly breakdown by account with limit."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
@@ -722,7 +711,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("account"), str)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    @skip("Skipping until unittests are on Trino.")
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept):
         """Test execute_query for current month on monthly by account with limt as csv."""
@@ -754,7 +742,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             self.assertEqual(month, cmonth_str)
         self.assertEqual(len(subs), 1)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_curr_month_by_account_w_order(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[account]=*"  # noqa: E501
@@ -786,7 +773,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_curr_month_by_account_w_order_by_account(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[account]=asc&group_by[account]=*"  # noqa: E501
@@ -820,7 +806,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    @skip("Skipping until unittests are on Trino.")
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPGCPCostView, OCPGCPInstanceTypeView, OCPGCPStorageView]
@@ -847,7 +832,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_curr_month_by_cluster(self):
         """Test execute_query for current month on monthly breakdown by group_by cluster."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
@@ -874,7 +858,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_current_month_by_account(self):
         """Test execute_query for current month on monthly breakdown by account."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
@@ -900,7 +883,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("values"), list)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
         valid_services = list(GCP_SERVICES.keys())
@@ -928,7 +910,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertIn(name, valid_services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_query_current_month_daily(self):
         """Test execute_query for current month on daily breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
@@ -944,7 +925,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-    @skip("Skipping until unittests are on Trino.")
     def test_execute_sum_query_instance_types_2(self):
         """Test that the sum query runs properly."""
         url = "?"
