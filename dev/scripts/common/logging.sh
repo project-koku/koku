@@ -35,6 +35,6 @@ log-err() {
 log-debug() {
     local _debug=$(tr '[:upper:]' '[:lower:]' <<<"$DEBUG")
     if [[ ! -z "${DEBUG}" && ${_debug} == true ]];then
-        log "TRACE" "${TRACE} $@"
+        log "DEBUG" "${TRACE} $@"
     fi
 }
