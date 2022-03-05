@@ -187,8 +187,9 @@ delete-cost-models:
 
 delete-test-customer-data: delete-test-sources delete-cost-models
 
+TEST_SOURCE=all
 load-test-customer-data:
-	$(SCRIPTDIR)/load_test_customer_data.sh $(start) $(end)
+	$(SCRIPTDIR)/load_test_customer_data.sh $(TEST_SOURCE) $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
