@@ -64,6 +64,28 @@ KOKU_URL_PREFIX=http://$KOKU_API_HOSTNAME:$KOKU_PORT/api/cost-management
 # yml files
 YAML_PATH="${DEV_SCRIPTS_PATH}/nise_ymls"
 
+# export variables to env
+export PGPASSWORD="${DATABASE_PASSWORD}"
+export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
+export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
+export PGUSER="${DATABASE_USER}"
+export OS="$(uname)"
+
+log-info "Calculating dates..."
+if [[ $OS = "Darwin" ]]; then
+    START_DATE=${2:-$(date -v '-1m' +'%Y-%m-01')}
+else
+    START_DATE=${2:-$(date --date='last month' + '%Y-%m-01')}
+fi
+
+END_DATE=${3:-$(date +'%Y-%m-%d')}    # defaults to today
+log-debug "START_DATE=${START_DATE}"
+log-debug "END_DATE=${END_DATE}"
+
+# this is the default that's in koku.masu.config
+PVC_DIR=/var/tmp/masu
+
+
 check-api-status() {
   # API status validation.
   #
@@ -188,27 +210,6 @@ nise_report(){
   $NISE report $@
 }
 
-# export variables to env
-export PGPASSWORD="${DATABASE_PASSWORD}"
-export PGPORT="${POSTGRES_SQL_SERVICE_PORT}"
-export PGHOST="${POSTGRES_SQL_SERVICE_HOST}"
-export PGUSER="${DATABASE_USER}"
-export OS="$(uname)"
-
-log-info "Calculating dates..."
-if [[ $OS = "Darwin" ]]; then
-    START_DATE=${2:-$(date -v '-1m' +'%Y-%m-01')}
-else
-    START_DATE=${2:-$(date --date='last month' + '%Y-%m-01')}
-fi
-
-END_DATE=${3:-$(date +'%Y-%m-%d')}    # defaults to today
-log-debug "START_DATE=${START_DATE}"
-log-debug "END_DATE=${END_DATE}"
-
-# this is the default that's in koku.masu.config
-PVC_DIR=/var/tmp/masu
-
 # AWS customer data
 build_aws_data() {
   local _source_name="AWS"
@@ -230,14 +231,14 @@ build_aws_data() {
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
   nise_report aws-marketplace --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
-  log-info "cleanup ${_source_name} rendered YAML files..."
+  log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
   add_cost_models 'Test AWS Source' aws_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
-  log-info "trigger downloads..."
+  log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
 }
 
@@ -262,13 +263,13 @@ build_azure_data() {
   nise_report azure --static-report-file "$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report
   nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --version-two
 
-  log-info "cleanup ${_source_name} rendered YAML files..."
+  log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test Azure Source' azure_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
-  log-info "trigger downloads..."
+  log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
 }
 
@@ -293,13 +294,13 @@ build_gcp_data() {
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0"
 
-  log-info "cleanup ${_source_name} rendered YAML files..."
+  log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test GCP Source' gcp_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
-  log-info "trigger downloads..."
+  log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
 }
 
@@ -316,13 +317,13 @@ build_onprem_data() {
   log-info "Building OpenShift on ${_source_name} report data..."
   nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
 
-  log-info "cleanup ${_source_name} rendered YAML files..."
+  log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test OCP on Premises' openshift_on_prem_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
 
-  log-info "trigger downloads..."
+  log-info "Trigger downloads..."
   trigger_download "${_download_types[@]}"
 }
 
