@@ -7,6 +7,7 @@
 import logging
 import os
 import sys
+from unittest.mock import patch
 
 from dev.scripts.insert_org_tree import UploadAwsTree
 from django.conf import settings
@@ -16,6 +17,7 @@ from django.test.utils import get_unique_databases_and_mirrors
 from tenant_schemas.utils import tenant_context
 
 from api.models import Customer
+from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
 from api.report.test.util.nise_data_loader import NiseDataLoader
