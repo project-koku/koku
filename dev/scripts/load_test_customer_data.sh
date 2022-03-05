@@ -216,6 +216,10 @@ build_aws_data() {
                      "ocp_on_aws/aws_marketplace_static_data.yml"
                      "ocp_on_aws/ocp_static_data.yml")
 
+  local _rendered_yaml_files=("$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml"
+                              "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml"
+                              "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml")
+
   local _download_types=("Test AWS Source" "Test OCP on AWS")
 
   log-info "Rendering ${_source_name} YAML files..."
@@ -227,7 +231,7 @@ build_aws_data() {
   nise_report aws-marketplace --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "cleanup ${_source_name} rendered YAML files..."
-  cleanup_rendered_files
+  cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test OCP on AWS' openshift_on_aws_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
@@ -244,6 +248,10 @@ build_azure_data() {
                      "ocp_on_azure/ocp_static_data.yml"
                      "azure_v2.yml")
 
+  local _rendered_yaml_files=("$YAML_PATH/ocp_on_azure/rendered_azure_static_data.yml"
+                              "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml"
+                              "$YAML_PATH/rendered_azure_v2.yml")
+
   local _download_types=("Test OCP on GCP" "Test GCP Source" "Test OCPGCP Source")
 
   log-info "Rendering ${_source_name} YAML files..."
@@ -255,7 +263,7 @@ build_azure_data() {
   nise_report azure --static-report-file "$YAML_PATH/rendered_azure_v2.yml" --azure-container-name "$NISE_DATA_PATH/local_providers/azure_local" --azure-report-name azure-report-v2 --version-two
 
   log-info "cleanup ${_source_name} rendered YAML files..."
-  cleanup_rendered_files
+  cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test Azure Source' azure_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
@@ -271,6 +279,10 @@ build_gcp_data() {
                      "ocp_on_gcp/ocp_static_data.yml"
                      "ocp_on_gcp/gcp_static_data.yml")
 
+  local _rendered_yaml_files=("$YAML_PATH/gcp/rendered_gcp_static_data.yml"
+                              "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml"
+                              "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml")
+
   local _download_types=("Test OCP on Azure" "Test Azure Source" "Test Azure v2 Source")
 
   log-info "Rendering ${_source_name} YAML files..."
@@ -282,7 +294,7 @@ build_gcp_data() {
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0"
 
   log-info "cleanup ${_source_name} rendered YAML files..."
-  cleanup_rendered_files
+  cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test GCP Source' gcp_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
@@ -295,7 +307,7 @@ build_gcp_data() {
 build_onprem_data() {
   local _source_name="ON-PREM"
   local _yaml_files=("ocp/ocp_on_premise.yml")
-
+  local _rendered_yaml_files=("$YAML_PATH/ocp/rendered_ocp_on_premise.yml")
   local _download_types=("Test OCP on Premises")
 
   log-info "Rendering ${_source_name} YAML files..."
@@ -305,7 +317,7 @@ build_onprem_data() {
   nise_report ocp --static-report-file "$YAML_PATH/ocp/rendered_ocp_on_premise.yml" --ocp-cluster-id my-ocp-cluster-3 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
 
   log-info "cleanup ${_source_name} rendered YAML files..."
-  cleanup_rendered_files
+  cleanup_rendered_files "${_rendered_yaml_files[@]}"
 
   log-info "Adding ${_source_name} cost models..."
   add_cost_models 'Test OCP on Premises' openshift_on_prem_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
