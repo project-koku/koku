@@ -80,6 +80,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
         """
         expected_providers = [
             self.aws_provider,
+            self.ocp_provider,
             self.ocp_on_aws_ocp_provider,
             self.ocp_on_azure_ocp_provider,
             self.ocp_on_gcp_ocp_provider,

@@ -1,11 +1,9 @@
 """Test for the CostModels model."""
 import logging
-import random
 
 from faker import Faker
 from tenant_schemas.utils import tenant_context
 
-from api.provider.models import Provider
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.test import MasuTestCase
@@ -27,11 +25,9 @@ class CostModelTest(MasuTestCase):
         """Set up the shared variables for each test case."""
         super().setUp()
         with tenant_context(self.tenant):
-            self.cost_model = CostModel.objects.create(
-                name=FAKE.word(), description=FAKE.word(), source_type=random.choice(Provider.PROVIDER_CHOICES)
-            )
-            self.cost_model_map = CostModelMap.objects.create(
-                cost_model=self.cost_model, provider_uuid=self.aws_provider_uuid
+            self.cost_model = CostModel.objects.first()
+            self.cost_model_map = CostModelMap.objects.get(
+                cost_model=self.cost_model, provider_uuid=self.ocp_provider_uuid
             )
 
     def test_delete_cost_model_instance(self):
