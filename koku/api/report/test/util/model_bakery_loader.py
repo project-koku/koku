@@ -355,7 +355,6 @@ class ModelBakeryDataLoader(DataLoader):
             with schema_context(self.schema):
                 account_alias = random.choice(list(AWSAccountAlias.objects.all()))
             unique_fields = {"currency_code": self.currency, "account_alias": account_alias}
-            unique_ui_sql_params = {}
         elif provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             daily_summary_recipe = "api.report.test.util.ocp_on_azure_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_azure_project_daily_summary_pod"
@@ -366,7 +365,6 @@ class ModelBakeryDataLoader(DataLoader):
                 "populate_ocp_on_azure_ui_summary_tables",
             )
             unique_fields = {"currency": self.currency, "subscription_guid": self.faker.uuid4()}
-            unique_ui_sql_params = {}
         elif provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             daily_summary_recipe = "api.report.test.util.ocp_on_gcp_daily_summary"
             project_summary_pod_recipe = "api.report.test.util.ocp_on_gcp_project_daily_summary_pod"
@@ -378,15 +376,15 @@ class ModelBakeryDataLoader(DataLoader):
             )
             unique_fields = {
                 "currency": self.currency,
-                "account_id": self.faker.pystr_format(string_format="####################"),
+                "account_id": self.faker.pystr_format(string_format="???????????????"),
             }
-            unique_ui_sql_params = {}
 
         provider = Provider.objects.filter(type=provider_type).first()
         for dates, bill, report_period in zip(self.dates, bills, report_periods):
-            start_date = dates[0]
-            end_date = dates[1]
-            LOG.info(f"load ocp-on-{provider.type} data for start: {start_date}, end: {end_date}")
+            start_date, end_date, bill_date = dates
+            if provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+                unique_fields["invoice_month"] = bill_date.strftime("%Y%m")
+            LOG.info(f"load OCP-on-{provider.type} data for start: {start_date}, end: {end_date}")
             with schema_context(self.schema):
                 days = (end_date - start_date).days
                 for i in range(days):
@@ -436,13 +434,12 @@ class ModelBakeryDataLoader(DataLoader):
 
             # update ui tables
             sql_params = {
-                "schema_name": self._schema,
-                "start_date": start_date,
-                "end_date": end_date,
+                "schema_name": self.schema,
+                "start_date": self.first_start_date,
+                "end_date": self.last_end_date,
                 "source_uuid": provider.uuid,
                 "cluster_id": cluster_id,
                 "cluster_alias": cluster_id,
-                **unique_ui_sql_params,
             }
             cls_method = getattr(accessor, ui_update_method)
             cls_method(sql_params)

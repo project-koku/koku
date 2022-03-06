@@ -4,11 +4,9 @@
 #
 """Test the Report Queries."""
 import logging
-from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -26,6 +24,7 @@ from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
 from api.report.gcp.openshift.view import OCPGCPCostView
 from api.report.gcp.openshift.view import OCPGCPInstanceTypeView
 from api.report.gcp.openshift.view import OCPGCPStorageView
+from api.report.test.util.constants import GCP_SERVICE_ALIASES
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
@@ -36,9 +35,8 @@ from reporting.models import OCPGCPCostSummaryByServiceP
 from reporting.models import OCPGCPCostSummaryP
 from reporting.models import OCPGCPStorageSummaryP
 
-LOG = logging.getLogger(__name__)
 
-GCP_SERVICES = {}
+LOG = logging.getLogger(__name__)
 
 
 class OCPGCPQueryHandlerTestNoData(IamTestCase):
@@ -59,14 +57,14 @@ class OCPGCPQueryHandlerTestNoData(IamTestCase):
 
     def test_execute_sum_query_instance_types_1(self):
         """Test that the sum query runs properly for instance-types."""
-        url = "?group_by[account]=*"
+        url = "?group_by[account]=not-a-real-account"
         query_params = self.mocked_query_params(url, OCPGCPInstanceTypeView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        keys_units = {"cost": "USD", "infrastructure": "USD", "supplementary": "USD", "usage": "hour"}
+        keys_units = {"usage": "hour", "infrastructure": "USD", "supplementary": "USD", "cost": "USD"}
         has_total_list = ["cost", "infrastructure", "supplementary"]
         for key, unit in keys_units.items():
             self.assertIsNotNone(total.get(key))
@@ -390,30 +388,27 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         # handler = OCPGCPReportQueryHandler(query_params)
         # self.assertEqual(handler.query_table, OCPGCPDatabaseSummaryP)
 
-    @skip("This test needs to be re-engineered")
     def test_ocp_gcp_date_order_by_cost_desc(self):
         """Test execute_query with order by date for correct order of services."""
-        # execute query
         yesterday = self.dh.yesterday.date()
-        lst = []
-        correctlst = []
-        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"  # noqa: E501
+        url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # test query output
+        cost_annotation = handler.report_annotations.get("cost_total")
+        with tenant_context(self.tenant):
+            expected = list(
+                OCPGCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
+                .values("service_id")
+                .annotate(cost=cost_annotation)
+                .order_by("-cost")
+            )
+        correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                for service in element.get("services"):
-                    correctlst.append(service.get("service"))
-        for element in data:
-            # Check if there is any data in services
-            for service in element.get("services"):
-                lst.append(service.get("service"))
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
-            lst = []
 
     def test_ocp_gcp_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -433,10 +428,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPGCPCostView)
 
-    # Note: The OCP on GCP processing is currently trino-only
-    # The issue is that the ocp on gcp tables can only be populated through
-    # trino leaving us in a sticky spot as far as unittesting.
-
     def test_execute_query_by_filtered_cluster(self):
         """Test execute_query monthly breakdown by filtered cluster."""
         with tenant_context(self.tenant):
@@ -454,7 +445,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
-                filters.update({qf.composed_query_string(): qf.parameter})
+                filters[qf.composed_query_string()] = qf.parameter
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -491,7 +482,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
-                filters.update({qf.composed_query_string(): qf.parameter})
+                filters[qf.composed_query_string()] = qf.parameter
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -526,7 +517,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         for filt in handler._mapper.report_type_map.get("filter"):
             if filt:
                 qf = QueryFilter(**filt)
-                filters.update({qf.composed_query_string(): qf.parameter})
+                filters[qf.composed_query_string()] = qf.parameter
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         self.assertIsNotNone(total.get("cost"))
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
@@ -576,20 +567,10 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(data)
 
         subs = data[0].get("accounts", [{}])
-        if isinstance(self.dh.this_month_start, datetime):
-            v_this_month_start = self.dh.this_month_start.date()
-        else:
-            v_this_month_start = self.dh.this_month_start
-        if isinstance(self.dh.today, datetime):
-            v_today = self.dh.today.date()
-            v_today_last_month = (self.dh.today - relativedelta(months=1)).date()
-        else:
-            v_today = self.dh.today
-            v_today_last_month = self.dh.today = relativedelta(months=1)
-        if isinstance(self.dh.last_month_start, datetime):
-            v_last_month_start = self.dh.last_month_start.date()
-        else:
-            v_last_month_start = self.dh.last_month_start
+        v_today = self.dh.today.date()
+        v_this_month_start = self.dh.this_month_start.date()
+        v_today_last_month = (self.dh.today - relativedelta(months=1)).date()
+        v_last_month_start = self.dh.last_month_start.date()
 
         for sub in subs:
             current_total = Decimal(0)
@@ -597,16 +578,16 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
             # fetch the expected sums from the DB.
             with tenant_context(self.tenant):
-                curr = OCPGCPCostLineItemDailySummaryP.objects.filter(
-                    usage_start__gte=v_this_month_start, usage_start__lte=v_today, account=sub.get("account")
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                curr = OCPGCPCostSummaryByAccountP.objects.filter(
+                    usage_start__gte=v_this_month_start, usage_start__lte=v_today, account_id=sub.get("account")
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 current_total = Decimal(curr.get("value"))
 
-                prev = OCPGCPCostLineItemDailySummaryP.objects.filter(
+                prev = OCPGCPCostSummaryByAccountP.objects.filter(
                     usage_start__gte=v_last_month_start,
                     usage_start__lte=v_today_last_month,
-                    account=sub.get("account"),
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                    account_id=sub.get("account"),
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
             expected_delta_value = Decimal(current_total - prev_total)
@@ -623,14 +604,14 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
         # fetch the expected sums from the DB.
         with tenant_context(self.tenant):
-            curr = OCPGCPCostLineItemDailySummaryP.objects.filter(
+            curr = OCPGCPCostSummaryByAccountP.objects.filter(
                 usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             current_total = Decimal(curr.get("value"))
 
-            prev = OCPGCPCostLineItemDailySummaryP.objects.filter(
+            prev = OCPGCPCostSummaryByAccountP.objects.filter(
                 usage_start__gte=self.dh.last_month_start, usage_start__lte=self.dh.today - relativedelta(months=1)
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -698,7 +679,9 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
         self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -721,26 +704,20 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         handler = OCPGCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-
         self.assertIsNotNone(data)
-        self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertIsNotNone(total.get("cost"))
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertIsNotNone(current_totals)
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
-        with tenant_context(self.tenant):
-            tag_count = OCPGCPCostLineItemDailySummaryP.objects.values(handler._mapper.tag_column).distinct().count()
-
-        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        self.assertEqual(len(data), tag_count)
-        subs = set()
+        cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
+        self.assertEqual(len(data), 1)
         for data_item in data:
-            subs.add(data_item.get("account"))
-            month = data_item.get("date", "not-a-date")
+            month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
-        self.assertEqual(len(subs), 1)
 
     def test_execute_query_curr_month_by_account_w_order(self):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
@@ -806,7 +783,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    def test_source_uuid_mapping(self):
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPGCPCostView, OCPGCPInstanceTypeView, OCPGCPStorageView]
         with tenant_context(self.tenant):
@@ -820,14 +797,9 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, endpoint)
                 handler = OCPGCPReportQueryHandler(query_params)
                 query_output = handler.execute_query()
-                for dictionary in query_output.get("data"):
-                    for _, value in dictionary.items():
-                        if isinstance(value, list):
-                            for item in value:
-                                if isinstance(item, dict):
-                                    if "values" in item.keys():
-                                        value = item["values"][0]
-                                        source_uuid_list.extend(value.get("source_uuid"))
+                for dikt in query_output.get("data", {}):
+                    for v in dikt.get("values", []):
+                        source_uuid_list.extend(v.get("source_uuid"))
         self.assertNotEquals(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
@@ -885,7 +857,6 @@ class OCPGCPQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        valid_services = list(GCP_SERVICES.keys())
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPGCPCostView)
         handler = OCPGCPReportQueryHandler(query_params)
@@ -907,7 +878,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 name = month_item.get("service")
-                self.assertIn(name, valid_services)
+                self.assertIn(name, GCP_SERVICE_ALIASES)
                 self.assertIsInstance(month_item.get("values"), list)
 
     def test_execute_query_current_month_daily(self):
@@ -935,7 +906,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
-        filters = {**self.ten_day_filter, "instance_type__isnull": False, "unit__exact": "Hrs"}
+        filters = {**self.ten_day_filter, "instance_type__isnull": False}
         current_totals = self.get_totals_by_time_scope(aggregates, filters)
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
