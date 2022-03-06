@@ -132,7 +132,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         # _, azure_bills = bakery_data_loader.load_azure_data(
                         #     linked_openshift_provider=ocp_on_azure_ocp_provider
                         # )
-                        _, gcp_bills = bakery_data_loader.load_gcp_data()
+                        _, gcp_bills = bakery_data_loader.load_gcp_data(
+                            linked_openshift_provider=ocp_on_gcp_ocp_provider
+                        )
 
                         # bakery_data_loader.load_openshift_on_cloud_data(
                         #     Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods

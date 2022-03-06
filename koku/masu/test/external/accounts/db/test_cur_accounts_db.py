@@ -46,6 +46,7 @@ class CURAccountsDBTest(MasuTestCase):
                     [
                         self.ocp_on_aws_ocp_provider.authentication.credentials,
                         self.ocp_on_azure_ocp_provider.authentication.credentials,
+                        self.ocp_on_gcp_ocp_provider.authentication.credentials,
                     ],
                 )
                 self.assertTrue(
