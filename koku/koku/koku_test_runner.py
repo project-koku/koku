@@ -125,7 +125,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
                             ocp_on_gcp_cluster_id, on_cloud=True
                         )
-                        # _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
+                        _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
                         # _, aws_bills = bakery_data_loader.load_aws_data(
                         #     linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
                         # )

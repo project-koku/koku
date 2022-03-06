@@ -5,6 +5,7 @@
 """Test utilities."""
 import logging
 import random
+from datetime import datetime
 from datetime import timedelta
 from itertools import cycle
 from itertools import product
@@ -115,6 +116,8 @@ class ModelBakeryDataLoader(DataLoader):
             if provider_type == Provider.PROVIDER_OCP:
                 data["report_period_start"] = bill_date
                 data["report_period_end"] = month_end + timedelta(days=1)
+                data["summary_data_creation_datetime"] = datetime.now()
+                data["summary_data_updated_datetime"] = datetime.now()
             else:
                 data["billing_period_start"] = bill_date
                 data["billing_period_end"] = month_end
