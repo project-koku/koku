@@ -9,6 +9,7 @@ from tenant_schemas.utils import schema_context
 
 from api.metrics import constants as metric_constants
 from api.models import Provider
+from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from cost_models.models import CostModel
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.test import MasuTestCase
@@ -52,6 +53,16 @@ def build_rates():
     return rates, mapping
 
 
+def parse_expected():
+    rates_list = OCP_ON_PREM_COST_MODEL.get("rates")
+    result = {"Infrastructure": {}, "Supplementary": {}}
+    for rate in rates_list:
+        name = rate["metric"]["name"]
+        cost_type = rate["cost_type"]
+        result[cost_type][name] = rate["tiered_rates"][0]["value"]
+    return result
+
+
 class CostModelDBAccessorTest(MasuTestCase):
     """Test Cases for the CostModelDBAccessor object."""
 
@@ -60,17 +71,17 @@ class CostModelDBAccessorTest(MasuTestCase):
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
         self.schema = "acct10001"
-        self.creator = ReportObjectCreator(self.schema)
+        # self.creator = ReportObjectCreator(self.schema)
 
-        reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        report = self.creator.create_ocp_report(reporting_period)
-        self.creator.create_ocp_usage_line_item(reporting_period, report)
-        self.creator.create_ocp_node_label_line_item(reporting_period, report)
+        # reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
+        # report = self.creator.create_ocp_report(reporting_period)
+        # self.creator.create_ocp_usage_line_item(reporting_period, report)
+        # self.creator.create_ocp_node_label_line_item(reporting_period, report)
         self.rates, self.expected_value_rate_mapping = build_rates()
         self.markup = {"value": 10, "unit": "percent"}
-        self.cost_model = self.creator.create_cost_model(
-            self.provider_uuid, Provider.PROVIDER_OCP, self.rates, self.markup
-        )
+        with schema_context(self.schema):
+            self.cost_model = CostModel.objects.first()
+        self.expected = parse_expected()
 
     def test_initializer(self):
         """Test initializer."""
@@ -111,7 +122,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(cpu_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = cpu_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["cpu_core_usage_per_hour"][cost_type]
+                expected_value = self.expected[cost_type]["cpu_core_usage_per_hour"]
                 self.assertEqual(value_result, expected_value)
 
     def test_get_memory_gb_usage_per_hour_rates(self):
@@ -121,7 +132,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(mem_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = mem_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["memory_gb_usage_per_hour"][cost_type]
+                expected_value = self.expected[cost_type]["memory_gb_usage_per_hour"]
                 self.assertEqual(value_result, expected_value)
 
     def test_get_cpu_core_request_per_hour_rates(self):
@@ -131,7 +142,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(cpu_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = cpu_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["cpu_core_request_per_hour"][cost_type]
+                expected_value = self.expected[cost_type]["cpu_core_request_per_hour"]
                 self.assertEqual(value_result, expected_value)
 
     def test_get_memory_gb_request_per_hour_rates(self):
@@ -141,7 +152,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(mem_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = mem_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["memory_gb_request_per_hour"][cost_type]
+                expected_value = self.expected[cost_type]["memory_gb_request_per_hour"]
                 self.assertEqual(value_result, expected_value)
 
     def test_get_storage_gb_usage_per_month_rates(self):
@@ -151,7 +162,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(storage_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = storage_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["storage_gb_usage_per_month"][cost_type]
+                expected_value = self.expected[cost_type]["storage_gb_usage_per_month"]
                 self.assertEqual(value_result, expected_value)
 
     def test_get_storage_gb_request_per_month_rates(self):
@@ -161,14 +172,12 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(storage_rates), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = storage_rates.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["storage_gb_request_per_month"][cost_type]
+                expected_value = self.expected[cost_type]["storage_gb_request_per_month"]
                 self.assertEqual(value_result, expected_value)
 
     def test_markup(self):
         """Test to make sure markup dictionary is returned."""
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
-            markup = cost_model_accessor.markup
-            self.assertEqual(markup, self.markup)
             markup = cost_model_accessor.markup
             self.assertEqual(markup, self.markup)
 
@@ -188,7 +197,7 @@ class CostModelDBAccessorTest(MasuTestCase):
             self.assertEqual(type(node_cost), dict)
             for cost_type in ["Infrastructure", "Supplementary"]:
                 value_result = node_cost.get("tiered_rates", {}).get(cost_type, {})[0].get("value", 0)
-                expected_value = self.expected_value_rate_mapping["node_cost_per_month"][cost_type]
+                expected_value = self.expected[cost_type]["node_cost_per_month"]
                 self.assertEqual(value_result, expected_value)
 
     def test_infrastructure_rates(self):
@@ -197,7 +206,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             result_infra_rates = cost_model_accessor.infrastructure_rates
             for metric_name in result_infra_rates.keys():
-                expected_value = self.expected_value_rate_mapping[metric_name][cost_type]
+                expected_value = self.expected[cost_type][metric_name]
                 self.assertEqual(result_infra_rates[metric_name], expected_value)
 
     def test_supplementary_rates(self):
@@ -206,7 +215,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.provider_uuid) as cost_model_accessor:
             result_sup_rates = cost_model_accessor.supplementary_rates
             for metric_name in result_sup_rates.keys():
-                expected_value = self.expected_value_rate_mapping[metric_name][cost_type]
+                expected_value = self.expected[cost_type][metric_name]
                 self.assertEqual(result_sup_rates[metric_name], expected_value)
 
 

@@ -138,6 +138,7 @@ class ModelBakeryDataLoader(DataLoader):
                 description=OCP_ON_PREM_COST_MODEL.get("description"),
                 rates=OCP_ON_PREM_COST_MODEL.get("rates"),
                 distribution=OCP_ON_PREM_COST_MODEL.get("distribution"),
+                markup=OCP_ON_PREM_COST_MODEL.get("markup"),
                 source_type=provider.type,
                 currency=self.currency,
                 _fill_optional=True,

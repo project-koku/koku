@@ -174,7 +174,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 6)
+            self.assertEqual(len(results), 7)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 

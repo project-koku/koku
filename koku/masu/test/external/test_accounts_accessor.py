@@ -31,6 +31,7 @@ class AccountsAccessorTest(MasuTestCase):
                     self.assertIn(
                         account.get("credentials"),
                         [
+                            self.ocp_provider.authentication.credentials,  # OCP-on-Prem
                             self.ocp_on_aws_ocp_provider.authentication.credentials,
                             self.ocp_on_azure_ocp_provider.authentication.credentials,
                             self.ocp_on_gcp_ocp_provider.authentication.credentials,
