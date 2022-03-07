@@ -313,8 +313,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "source_uuid": self.gcp_test_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
             "source_type": "GCP",
         }
         distribution = None
@@ -415,8 +413,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "source_uuid": self.gcp_test_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
             "source_type": "GCP",
         }
         mock_ui_tables.assert_called_with(sql_params)
