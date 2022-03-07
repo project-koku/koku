@@ -27,6 +27,7 @@ jobs:
             koku/
             .github/postgres
             .github/scripts/check_migrations.sh
+            .github/workflows/unittests.yml
             Pipfile.lock
 
       - id: check-files
