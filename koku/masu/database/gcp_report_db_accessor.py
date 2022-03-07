@@ -528,10 +528,15 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in tables:
-            summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=sql_params)
+        dh = DateHelper()
+        invoice_month_list = dh.gcp_find_invoice_months_in_date_range(sql_params["start_date"], sql_params["end_date"])
+        for invoice_month in invoice_month_list:
+            for table_name in tables:
+                sql_params["invoice_month"] = invoice_month
+                summary_sql = pkgutil.get_data("masu.database", f"sql/gcp/openshift/{table_name}.sql")
+                summary_sql = summary_sql.decode("utf-8")
+                summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
+                self._execute_raw_sql_query(table_name, summary_sql, bind_params=list(summary_sql_params))
 
     def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
