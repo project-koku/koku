@@ -17,6 +17,12 @@ from api.report.test.util.constants import OCP_CONSTANTS
 
 fake = Faker()
 
+
+def decimal_yielder():
+    while True:
+        yield fake.pydecimal(left_digits=13, right_digits=8, positive=True)
+
+
 billing_source = Recipe("ProviderBillingSource", data_source={})
 provider = Recipe("Provider", billing_source=foreign_key(billing_source))
 
@@ -31,7 +37,6 @@ aws_daily_summary = Recipe(
     region=cycle(AWS_GEOG["regions"]),
     availability_zone=cycle(AWS_GEOG["availability_zones"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=AWS_CONSTANTS.length,
 )
 
@@ -44,7 +49,6 @@ azure_daily_summary = Recipe(
     unit_of_measure=cycle(AZURE_CONSTANTS["units_of_measure"]),
     resource_location="US East",
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=AZURE_CONSTANTS.length,
 )
 
@@ -55,12 +59,11 @@ gcp_daily_summary = Recipe(
     sku_id=cycle(GCP_CONSTANTS["service_ids"]),
     sku_alias=cycle(GCP_CONSTANTS["sku_aliases"]),
     unit=cycle(GCP_CONSTANTS["units"]),
-    usage_amount=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    unblended_cost=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    markup_cost=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    credit_amount=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
+    usage_amount=cycle(decimal_yielder()),
+    unblended_cost=cycle(decimal_yielder()),
+    markup_cost=cycle(decimal_yielder()),
+    credit_amount=cycle(decimal_yielder()),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=GCP_CONSTANTS.length,
 )
 
@@ -70,23 +73,22 @@ ocp_usage_pod = Recipe(  # Pod data_source
     node=cycle(f"node_{i}" for i in range(OCP_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000000{i}" for i in range(OCP_CONSTANTS.length - 1)),
     namespace=cycle(OCP_CONSTANTS["namespaces"]),
-    pod_limit_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_usage_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_request_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_effective_usage_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_limit_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_usage_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_request_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    pod_effective_usage_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_cpu_cores=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_memory_gigabytes=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    cluster_capacity_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    cluster_capacity_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
+    pod_limit_cpu_core_hours=cycle(decimal_yielder()),
+    pod_usage_cpu_core_hours=cycle(decimal_yielder()),
+    pod_request_cpu_core_hours=cycle(decimal_yielder()),
+    pod_effective_usage_cpu_core_hours=cycle(decimal_yielder()),
+    pod_limit_memory_gigabyte_hours=cycle(decimal_yielder()),
+    pod_usage_memory_gigabyte_hours=cycle(decimal_yielder()),
+    pod_request_memory_gigabyte_hours=cycle(decimal_yielder()),
+    pod_effective_usage_memory_gigabyte_hours=cycle(decimal_yielder()),
+    node_capacity_cpu_cores=cycle(decimal_yielder()),
+    node_capacity_cpu_core_hours=cycle(decimal_yielder()),
+    node_capacity_memory_gigabytes=cycle(decimal_yielder()),
+    node_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
+    cluster_capacity_cpu_core_hours=cycle(decimal_yielder()),
+    cluster_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
     pod_labels=cycle(OCP_CONSTANTS["pod_labels"]),
     _fill_optional=False,
-    _bulk_create=True,
     _quantity=OCP_CONSTANTS.length,
 )
 
@@ -99,19 +101,18 @@ ocp_usage_storage = Recipe(  # Storage data_source
     persistentvolumeclaim=cycle(f"pvc_{i}" for i in range(OCP_CONSTANTS.length - 1)),
     persistentvolume=cycle(f"pv_{i}" for i in range(OCP_CONSTANTS.length - 1)),
     storageclass=cycle(OCP_CONSTANTS["storage_classes"]),
-    persistentvolumeclaim_capacity_gigabyte=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    persistentvolumeclaim_capacity_gigabyte_months=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    volume_request_storage_gigabyte_months=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    persistentvolumeclaim_usage_gigabyte_months=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_cpu_cores=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_memory_gigabytes=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    node_capacity_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    cluster_capacity_cpu_core_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
-    cluster_capacity_memory_gigabyte_hours=fake.pydecimal(left_digits=13, right_digits=8, positive=True),
+    persistentvolumeclaim_capacity_gigabyte=cycle(decimal_yielder()),
+    persistentvolumeclaim_capacity_gigabyte_months=cycle(decimal_yielder()),
+    volume_request_storage_gigabyte_months=cycle(decimal_yielder()),
+    persistentvolumeclaim_usage_gigabyte_months=cycle(decimal_yielder()),
+    node_capacity_cpu_cores=cycle(decimal_yielder()),
+    node_capacity_cpu_core_hours=cycle(decimal_yielder()),
+    node_capacity_memory_gigabytes=cycle(decimal_yielder()),
+    node_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
+    cluster_capacity_cpu_core_hours=cycle(decimal_yielder()),
+    cluster_capacity_memory_gigabyte_hours=cycle(decimal_yielder()),
     volume_labels=cycle(OCP_CONSTANTS["pvc_labels"]),
     _fill_optional=False,
-    _bulk_create=True,
     _quantity=OCP_CONSTANTS.length,
 )
 
@@ -125,7 +126,6 @@ ocp_on_aws_daily_summary = Recipe(
     product_family=cycle(AWS_CONSTANTS["product_families"]),
     unit=cycle(AWS_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )
 
@@ -144,7 +144,6 @@ ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
     product_family=cycle(AWS_CONSTANTS["product_families"]),
     unit=cycle(AWS_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )
 
@@ -162,7 +161,6 @@ ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
     product_family=cycle(AWS_CONSTANTS["product_families"]),
     unit=cycle(AWS_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AWS_CONSTANTS.length, 9),
 )
 
@@ -176,7 +174,6 @@ ocp_on_azure_daily_summary = Recipe(
     unit_of_measure=cycle(AZURE_CONSTANTS["units_of_measure"]),
     resource_location="US East",
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AZURE_CONSTANTS.length, 9),
 )
 
@@ -194,7 +191,6 @@ ocp_on_azure_project_daily_summary_pod = Recipe(  # Pod data_source
     instance_type=cycle(AZURE_CONSTANTS["instance_types"]),
     unit_of_measure=cycle(AZURE_CONSTANTS["units_of_measure"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AZURE_CONSTANTS.length, 9),
 )
 
@@ -211,7 +207,6 @@ ocp_on_azure_project_daily_summary_storage = Recipe(  # Storage data_source
     instance_type=cycle(AZURE_CONSTANTS["instance_types"]),
     unit_of_measure=cycle(AZURE_CONSTANTS["units_of_measure"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(AZURE_CONSTANTS.length, 9),
 )
 
@@ -226,7 +221,6 @@ ocp_on_gcp_daily_summary = Recipe(
     service_alias=cycle(GCP_CONSTANTS["service_aliases"]),
     unit=cycle(GCP_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
 )
 
@@ -248,7 +242,6 @@ ocp_on_gcp_project_daily_summary_pod = Recipe(  # Pod data_source
     sku_alias=cycle(GCP_CONSTANTS["sku_aliases"]),
     unit=cycle(GCP_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
 )
 
@@ -269,6 +262,5 @@ ocp_on_gcp_project_daily_summary_storage = Recipe(  # Storage data_source
     sku_alias=cycle(GCP_CONSTANTS["sku_aliases"]),
     unit=cycle(GCP_CONSTANTS["units"]),
     _fill_optional=True,
-    _bulk_create=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
 )

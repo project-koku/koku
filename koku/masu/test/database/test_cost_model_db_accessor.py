@@ -70,13 +70,7 @@ class CostModelDBAccessorTest(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider_uuid = self.ocp_provider_uuid
-        self.schema = "acct10001"
-        # self.creator = ReportObjectCreator(self.schema)
 
-        # reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
-        # report = self.creator.create_ocp_report(reporting_period)
-        # self.creator.create_ocp_usage_line_item(reporting_period, report)
-        # self.creator.create_ocp_node_label_line_item(reporting_period, report)
         self.rates, self.expected_value_rate_mapping = build_rates()
         self.markup = {"value": 10, "unit": "percent"}
         with schema_context(self.schema):
@@ -225,10 +219,11 @@ class CostModelDBAccessorTestNoRateOrMarkup(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider_uuid = self.ocp_provider_uuid
+        # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
+        self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
 
-        reporting_period = self.creator.create_ocp_report_period(self.ocp_provider_uuid)
+        reporting_period = self.creator.create_ocp_report_period(self.provider_uuid)
         report = self.creator.create_ocp_report(reporting_period)
         self.creator.create_ocp_usage_line_item(reporting_period, report)
         self.creator.create_ocp_node_label_line_item(reporting_period, report)
@@ -254,7 +249,6 @@ class CostModelDBAccessorNoCostModel(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
         self.provider_uuid = "3c6e687e-1a09-4a05-970c-2ccf44b0952e"
-        self.schema = "acct10001"
 
     def test_get_rates_no_cost_model(self):
         """Test that get_rates returns empty dict when cost model does not exist."""
@@ -344,8 +338,8 @@ class CostModelDBAccessorTagRatesTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider_uuid = self.ocp_provider_uuid
-        self.schema = "acct10001"
+        # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
+        self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
 
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)
@@ -433,8 +427,8 @@ class CostModelDBAccessorTagRatesPriceListTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider_uuid = self.ocp_provider_uuid
-        self.schema = "acct10001"
+        # Use an OCP provider that does not have a cost model. Any OCP-on-X OCP provider will do
+        self.provider_uuid = self.ocpaws_provider_uuid
         self.creator = ReportObjectCreator(self.schema)
 
         reporting_period = self.creator.create_ocp_report_period(provider_uuid=self.provider_uuid)

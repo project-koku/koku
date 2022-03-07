@@ -450,7 +450,7 @@ class OCPReportViewTest(IamTestCase):
 
         # assert the others count is correct
         meta = data.get("meta")
-        self.assertEqual(meta.get("others"), num_nodes - 1)
+        self.assertEqual(meta.get("others"), num_nodes)
 
         # Check if limit returns the correct number of results, and
         # that the totals add up properly
@@ -582,7 +582,7 @@ class OCPReportViewTest(IamTestCase):
             expected_total = cost if cost is not None else 0
         total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertNotEqual(total, Decimal(0))
-        self.assertEqual(total, expected_total)
+        self.assertAlmostEqual(total, expected_total, 6)
 
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
@@ -804,7 +804,7 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
-        self.assertEqual(delta, expected_delta)
+        self.assertAlmostEqual(delta, expected_delta, 6)
         for item in data.get("data"):
             date = item.get("date")
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
@@ -1284,7 +1284,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("total", {}).get("value")
             else:
                 result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, expected)
+            self.assertAlmostEqual(result, expected, 6)
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1384,42 +1384,49 @@ class OCPReportViewTest(IamTestCase):
         order_mapping = ["cost", "infrastructure", "supplementary"]
 
         for option in order_by_options:
-            print(option)
-            url = reverse("reports-openshift-cpu")
-            client = APIClient()
-            order_by_dict_key = f"order_by[{option}]"
-            params = {
-                "filter[resolution]": "monthly",
-                "filter[time_scope_value]": "-1",
-                "filter[time_scope_units]": "month",
-                "group_by[node]": "*",
-                order_by_dict_key: "desc",
-                "filter[limit]": 5,
-            }
+            with self.subTest(test=option):
+                client = APIClient()
+                order_by_dict_key = f"order_by[{option}]"
+                params = {
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-1",
+                    "filter[time_scope_units]": "month",
+                    "group_by[node]": "*",
+                    order_by_dict_key: "desc",
+                    "filter[limit]": 5,
+                }
 
-            url = url + "?" + urlencode(params, quote_via=quote_plus)
-            response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+                url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.json()
-            data = data.get("data", [])
-            data_key = None
-            if option in order_mapping:
-                data_key = option
-                previous_value = (
-                    data[0].get("nodes", [])[0].get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
-                )
-            else:
-                previous_value = data[0].get("nodes", [])[0].get("values", [])[0].get(option, {}).get("value")
-            for entry in data[0].get("nodes", []):
-                if "Other" in entry.get("node", ""):
-                    continue
-                if data_key:
-                    current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                data = response.json()
+                data = data.get("data", [])
+                self.assertTrue(data)
+                nodes = data[0].get("nodes", [])
+                data_key = None
+                if option in order_mapping:
+                    data_key = option
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                        break
                 else:
-                    current_value = entry.get("values", [])[0].get(option, {}).get("value")
-                self.assertTrue(current_value <= previous_value)
-                previous_value = current_value
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(option, {}).get("value")
+                        break
+                for entry in nodes:
+                    if entry.get("node", "") in ("Others", "no-node"):
+                        continue
+                    if data_key:
+                        current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                    else:
+                        current_value = entry.get("values", [])[0].get(option, {}).get("value")
+                    self.assertTrue(current_value <= previous_value)
+                    previous_value = current_value
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
