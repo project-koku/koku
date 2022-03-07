@@ -50,7 +50,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
         Provider.PROVIDER_AZURE_LOCAL,
     ):
         stmt = (
-            f"Running HCS data collection for schema_name: {schema_name}, provider_uuid: {provider_uuid}, "
+            f"Run HCS data collection for schema_name: {schema_name}, provider_uuid: {provider_uuid}, "
             f"provider: {provider}"
         )
         LOG.info(log_json(tracing_id, stmt))
