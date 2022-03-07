@@ -223,3 +223,5 @@ trigger_download 'Test Azure v2 Source'
 trigger_download 'Test GCP Source'
 trigger_download 'Test IBM Source'
 trigger_download 'Test OCPGCP Source'
+
+trigger_download 'something bogus'
