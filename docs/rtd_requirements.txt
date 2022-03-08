@@ -47,7 +47,7 @@ djangorestframework-csv==2.1.1
 djangorestframework==3.13.1
 fcache==0.4.7
 flake8==4.0.1
-google-api-core==2.6.1; python_version >= '3.6'
+google-api-core==2.7.0; python_version >= '3.6'
 google-api-python-client==2.39.0
 google-auth-httplib2==0.1.0
 google-auth==2.6.0
@@ -75,9 +75,9 @@ mccabe==0.6.1
 mmh3==3.0.0
 msrest==0.6.21
 msrestazure==0.6.4
-numpy==1.22.3; python_version < '3.10' and platform_machine != 'aarch64' and platform_machine != 'arm64'
+numpy==1.22.3; python_version >= '3.8'
 oauthlib==3.2.0; python_version >= '3.6'
-oci==2.59.0
+oci==2.60.0
 ordered-set==4.1.0; python_version >= '3.7'
 packaging==21.3; python_version >= '3.6'
 pandas==1.4.1

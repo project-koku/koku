@@ -99,6 +99,7 @@ YAML_PATH="${KOKU_PATH}/dev/scripts/nise_ymls"
 NISE_DATA_PATH="${KOKU_PATH}/testing"
 
 YAML_FILES=("ocp_on_aws/aws_static_data.yml"
+            "ocp_on_aws/aws_marketplace_static_data.yml"
             "ocp_on_aws/ocp_static_data.yml"
             "ocp_on_azure/azure_static_data.yml"
             "ocp_on_azure/ocp_static_data.yml"
@@ -107,6 +108,7 @@ YAML_FILES=("ocp_on_aws/aws_static_data.yml"
             "gcp/gcp_static_data.yml"
             "ocp_on_gcp/ocp_static_data.yml"
             "ocp_on_gcp/gcp_static_data.yml")
+#YAML_FILES=("ocp_on_aws/aws_marketplace_static_data.yml")
 
 RENDERED_YAML=()
 for fname in ${YAML_FILES[*]}; do
@@ -119,6 +121,7 @@ done
 # OpenShift on AWS
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
 $NISE report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
+$NISE report aws-marketplace --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
 # OpenShift on Azure
 $NISE report ocp --static-report-file "$YAML_PATH/ocp_on_azure/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-2 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"

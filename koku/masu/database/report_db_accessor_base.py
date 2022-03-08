@@ -457,7 +457,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
         sql = f"""
-            DELETE FROM {table._meta.db_table}
+            DELETE FROM {self.schema}.{table._meta.db_table}
             WHERE source_uuid = %(source_uuid)s::uuid
                 AND usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
