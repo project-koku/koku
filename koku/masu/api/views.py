@@ -4,6 +4,10 @@
 #
 """API views for import organization"""
 # flake8: noqa
+from db_performance.dbp_views import dbsettings
+from db_performance.dbp_views import lockinfo
+from db_performance.dbp_views import stat_activity
+from db_performance.dbp_views import stat_statements
 from masu.api.crawl_account_hierarchy import crawl_account_hierarchy
 from masu.api.download import download_report
 from masu.api.enabled_tags import enabled_tags
