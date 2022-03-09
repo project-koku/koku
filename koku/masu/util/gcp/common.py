@@ -199,8 +199,8 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     special_case_tag_matched = tags.str.contains(
         "|".join(
             [
-                fr"openshift_cluster.*{cluster_id}",
-                fr"openshift_cluster.*{cluster_alias}",
+                f"openshift_cluster.*{cluster_id}",
+                f"openshift_cluster.*{cluster_alias}",
                 "openshift_project",
                 "openshift_node",
             ]
