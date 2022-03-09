@@ -1,0 +1,331 @@
+#
+# Copyright 2022 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
+import logging
+import os
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
+
+RELEASE = "release"
+MAJOR = "major"
+MINOR = "minor"
+
+TERMINATE_ACTION = "terminate"
+CANCEL_ACTION = "cancel"
+
+SERVER_VERSION = []
+
+
+LOG = logging.getLogger(__name__)
+
+
+class LogInterface:
+    def __init__(self, log, user):
+        self._log = log
+        self.user = user
+
+    def __getattr__(self, attr):
+        if attr in ("info", "warning", "debug", "error", "critical"):
+            self.loglevel = attr
+            return self.logit
+        else:
+            return getattr(self._log, attr)
+
+    def logit(self, message, *args, **kwargs):
+        message = f"USER:{self.user} {message}"
+        getattr(self._log, self.loglevel)(message, *args, **kwargs)
+
+
+class DBPerformanceStats:
+    def __init__(self, user, configurator, application_name="database_performance_stats"):
+        self.user = user
+        self.log = LogInterface(LOG, self.user)
+        self.config = configurator
+        self.application_name = application_name
+        self._connect()
+
+    def __enter__(self):
+        self._connect()
+        return self
+
+    def __exit__(self, extype, exval, extrace):
+        self._disconnect()
+
+    def __del__(self):
+        self._disconnect()
+
+    def _disconnect(self):
+        if self.conn and not self.conn.closed:
+            self.conn.rollback()
+            self.conn.close()
+            self.conn = None
+
+    def _connect(self):
+        # engine = "postgresql"
+        if not self.conn or self.conn.closed:
+            conn_args = {
+                "user": self.config.get_database_user(),
+                "password": self.config.get_database_password(),
+                "host": self.config.get_database_host(),
+                "port": self.config.get_database_port(),
+                "dbname": self.config.get_database_name(),
+                "application_name": self.application_name,
+            }
+            if self.config.get_database_ca():
+                ssl_opts = {"sslmode": "verify-full", "sslrootcert": self.config.get_database_ca_file()}
+            else:
+                ssl_opts = {"sslmode": "prefer"}
+            conn_args.update(ssl_opts)
+
+            self.log.info(
+                f"Connecting to {conn_args['dbname']} at {conn_args['host']}:{conn_args['port']} as {conn_args['user']}"
+            )
+            self.conn = psycopg2.connect(cursor_factory=RealDictCursor, **conn_args)
+
+    def _execute(self, sql, params):
+        cur = self.conn.cursor()
+        try:
+            _sql = cur.mogrify(sql, params or None).decode("utf-8")
+            self.log.info(f"EXEC SQL:{_sql}")
+            cur.execute(_sql)
+        except Exception as e:
+            self.log.error(f"{type(e).__name__} ERROR:{os.linesep}SQL: {sql}{os.linesep}PARAMS: {params}")
+            raise
+
+        return cur
+
+    def get_pg_settings(self, setting_names=None, limit=None, offset=None):
+        params = {}
+        if setting_names:
+            where_clause = " where name = any(%(setting_names)s) "
+            params["setting_names"] = list(setting_names)
+        else:
+            where_clause = ""
+        limit_clause = self._handle_limit(limit, params)
+        offset_clause = self._handle_offset(offset, params)
+
+        sql = f"""
+select row_number() over (partition by category) as category_setting_num,
+       category,
+       name,
+       coalesce(short_desc, extra_desc) as description,
+       unit,
+       context,
+       setting,
+       boot_val,
+       reset_val,
+       pending_restart
+  from pg_settings
+{where_clause}
+{limit_clause}
+{offset_clause}
+;
+"""
+        cur = self._execute(sql, params or None)
+        return cur.fetchall()
+
+    def get_pg_engine_version(self):
+        global SERVER_VERSION
+        if not SERVER_VERSION:
+            sql = """
+select (boot_val::int / 10000::int)::int as "release",
+       ((boot_val::int / 100)::int % 100::int)::int as "major",
+       (boot_val::int % 100::int)::int as "minor"
+  from pg_settings
+ where name = 'server_version_num';
+"""
+            res = self._execute(sql).fetchone()
+            SERVER_VERSION.extend(res)
+
+        return SERVER_VERSION
+
+    def _handle_limit(self, limit, params):
+        if isinstance(limit, int) and limit > 0:
+            limit_clause = " limit %(limit)s "
+            params["limit"] = limit
+        else:
+            limit_clause = ""
+
+        return limit_clause
+
+    def _handle_offset(self, offset, params):
+        if isinstance(offset, int) and offset >= 0:
+            offset_clause = " offset %(offset)s "
+            params["offset"] = offset
+        else:
+            offset_clause = ""
+
+        return offset_clause
+
+    def get_statement_stats(self, limit=None, offset=None):
+        params = {}
+
+        limit_clause = self._handle_limit(limit, params)
+        offset_clause = self._handle_offset(offset, params)
+        col_name_sep = "_" if self.get_pg_engine_version()[RELEASE] < 13 else "_exec_"
+        sql = f"""
+select d.datname as "database",
+       r.rolname as "role",
+       s.calls,
+       s.rows,
+       s.mean{col_name_sep}time,
+       s.max{col_name_sep}time,
+       s.query
+  from public.pg_stat_statements s
+  left
+  join pg_database d
+    on d.oid = s.dbid
+  left
+  join pg_roles r
+    on r.oid = s.userid
+ order
+    by d.datname,
+       s.mean{col_name_sep}time
+ {limit_clause}
+ {offset_clause}
+;
+"""
+        self.log.info(f"requesting data from pg_stat_statements")
+        return self._execute(sql, params).fetchall()
+
+    def get_lock_info(self, limit=None, offset=None):
+        params = {}
+        limit_clause = self._handle_limit(limit, params)
+        offset_clause = self._handle_offset(offset, params)
+        sql = f"""
+-- LINKED LOCK QUERY
+WITH RECURSIVE lockinfo as (
+SELECT blocked_locks.pid::int     AS blocked_pid,
+       blocked_activity.usename::text  AS blocked_user,
+       blocking_locks.pid::int     AS blocking_pid,
+       blocking_activity.usename::text AS blocking_user,
+       blocked_activity.query::text    AS blocked_statement,
+       blocking_activity.query::text   AS current_statement_in_blocking_process
+  FROM pg_catalog.pg_locks         blocked_locks
+  JOIN pg_catalog.pg_stat_activity blocked_activity
+    ON blocked_activity.pid = blocked_locks.pid
+  JOIN pg_catalog.pg_locks         blocking_locks
+    ON blocking_locks.locktype = blocked_locks.locktype
+   AND blocking_locks.database IS NOT DISTINCT FROM blocked_locks.database
+   AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+   AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+   AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+   AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid
+   AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+   AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+   AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+   AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+   AND blocking_locks.pid != blocked_locks.pid
+  JOIN pg_catalog.pg_stat_activity blocking_activity
+    ON blocking_activity.pid = blocking_locks.pid
+ WHERE NOT blocked_locks.granted
+),
+linked_lockinfo as (
+SELECT ROW_NUMBER() OVER (PARTITION BY p.blocking_pid) as id,
+       p.blocking_pid,
+       p.blocking_user,
+       p.blocked_pid,
+       p.blocked_user,
+       0 as depth,
+       p.blocked_statement,
+       p.current_statement_in_blocking_process as blocking_statement
+  FROM lockinfo as p
+ WHERE p.blocking_pid NOT IN (
+                                 SELECT DISTINCT
+                                        x.blocked_pid
+                                   FROM lockinfo as x
+                             )
+ UNION ALL
+SELECT ROW_NUMBER() OVER (PARTITION BY p.blocking_pid) as id,
+       c.blocking_pid,
+       c.blocking_user,
+       c.blocked_pid,
+       c.blocked_user,
+       p.depth + 1 as depth,
+       c.blocked_statement,
+       c.current_statement_in_blocking_process as blocking_statement
+  FROM lockinfo as c
+  JOIN linked_lockinfo as p
+    ON p.blocked_pid = c.blocking_pid
+)
+SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pid,
+       CASE WHEN id = 1 THEN blocking_user ELSE null::text END::text as blocking_user,
+       blocked_pid,
+       blocked_user,
+       blocked_statement,
+       CASE WHEN id = 1 THEN blocking_statement ELSE null::text END::text as blocking_statement
+  FROM linked_lockinfo
+{limit_clause}
+{offset_clause}
+;
+"""
+        self.log.info(f"requsting blocked process information")
+        return self._execute(sql, params)
+
+    def get_activity(self, pid=[], state=[], include_self=False, limit=None, offset=None):
+        params = {}
+
+        conditions = []
+        if pid:
+            include_self = True
+            conditions.append("pid = any(%(pid)s::oid[]) ")
+            params["pid"] = pid
+        if state:
+            conditions.append("state = any(%(state)s::text[]) ")
+            params["state"] = state
+        if not include_self:
+            conditions.append("pid != %(mypid)s ")
+            params["mypid"] = self.conn.get_backend_pid()
+        where_clause = f" where {f'{os.linesep}   and '.join(conditions)}" if conditions else ""
+        limit_clause = self._handle_limit(limit, params)
+        offset_clause = self._handle_offset(offset, params)
+
+        sql = f"""
+select datname as "db_name",
+       usename as "username",
+       pid as "backend_pid",
+       application_name,
+       client_addr as "client_ip_address",
+       backend_start,
+       xact_start,
+       query_start,
+       state_change,
+       wait_event_type,
+       wait_event,
+       state,
+       query
+  from pg_stat_activity
+{where_clause}
+{limit_clause}
+{offset_clause}
+;
+"""
+
+        self.log.info(f"requsting connection activity")
+        return self._execute(sql, params).fetchall()
+
+    def terminate_cancel_backends(self, backends=[], action_type=None):
+        if not backends:
+            return None
+
+        if action_type not in (TERMINATE_ACTION, CANCEL_ACTION):
+            raise ValueError(f"Illegal action_type value '{action_type}'")
+
+        sql = f"""
+select pid,
+       pg_{action_type}_backend(pid) as "{action_type}"
+  from unnest(%(backends)s::int[]) pid;
+"""
+        params = {"backends": backends}
+        return self._execute(sql, params).fetchall()
+
+    def terminate_backends(self, backends=[]):
+        self.log.info(f"Terminating backend pids {backends}")
+        return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
+
+    def cancel_backends(self, backends=[]):
+        self.log.info(f"Cancellikng backend pids {backends}")
+        return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)

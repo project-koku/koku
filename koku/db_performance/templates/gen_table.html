@@ -1,0 +1,37 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+    </head>
+    <body>
+        <h1>DB Performance Statistics</h1>
+        <h2>{{page_header}}</h2>
+        <table>
+{% for rec in data %}
+    {% if loop.first %}
+            <thead>
+                <tr>
+                    <th></th>
+        {% for field in fields %}
+                        <th>{{field}}</th>
+        {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+    {% endif %}
+                <tr>
+                    <td></td>
+    {% for field in fields %}
+                        <td>{{rec[field]}}</td>
+    {% endfor %}
+                </tr>
+    {% if loop.last %}
+            </tbody>
+    {% endif %}
+{% endfor %}
+        </table>
+    </body>
+</html>
