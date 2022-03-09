@@ -5,18 +5,25 @@ SPDX-License-Identifier: Apache-2.0
 <html>
     <head>
         <title>Cost Management DB Performance Statistics</title>
+        <style>
+            tbody > tr:nth-child(even) {background-color: #e7e7e7;}
+            th {vertical-align: top; border-bottom: 1px solid black; background-color: #cecece;}
+            td {vertical-align: top; padding-left: 0.5em; padding-right: 0.5em;}
+            th:not(:first-child) {border-left: 1px solid black}
+            td:not(:first-child) {border-left: 1px solid black}
+        </style>
     </head>
     <body>
         <h1>DB Performance Statistics</h1>
-        <h2>{{page_header}}</h2>
-        <table>
+        <h2 id="data_header">{{page_header}}</h2>
+        <table id="generic_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
             <thead>
                 <tr>
                     <th></th>
         {% for field in fields %}
-                        <th>{{field}}</th>
+                        <th id="{{field}}">{{field}}</th>
         {% endfor %}
                 </tr>
             </thead>
@@ -25,7 +32,7 @@ SPDX-License-Identifier: Apache-2.0
                 <tr>
                     <td></td>
     {% for field in fields %}
-                        <td>{{rec[field]}}</td>
+                        <td id="{{field}}">{{rec[field]}}</td>
     {% endfor %}
                 </tr>
     {% if loop.last %}

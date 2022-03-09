@@ -9,9 +9,9 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 
-RELEASE = "release"
-MAJOR = "major"
-MINOR = "minor"
+RELEASE = 0
+MAJOR = 1
+MINOR = 2
 
 TERMINATE_ACTION = "terminate"
 CANCEL_ACTION = "cancel"
@@ -22,27 +22,10 @@ SERVER_VERSION = []
 LOG = logging.getLogger(__name__)
 
 
-class LogInterface:
-    def __init__(self, log, user):
-        self._log = log
-        self.user = user
-
-    def __getattr__(self, attr):
-        if attr in ("info", "warning", "debug", "error", "critical"):
-            self.loglevel = attr
-            return self.logit
-        else:
-            return getattr(self._log, attr)
-
-    def logit(self, message, *args, **kwargs):
-        message = f"USER:{self.user} {message}"
-        getattr(self._log, self.loglevel)(message, *args, **kwargs)
-
-
 class DBPerformanceStats:
     def __init__(self, user, configurator, application_name="database_performance_stats"):
+        self.conn = None
         self.user = user
-        self.log = LogInterface(LOG, self.user)
         self.config = configurator
         self.application_name = application_name
         self._connect()
@@ -80,48 +63,58 @@ class DBPerformanceStats:
                 ssl_opts = {"sslmode": "prefer"}
             conn_args.update(ssl_opts)
 
-            self.log.info(
-                f"Connecting to {conn_args['dbname']} at {conn_args['host']}:{conn_args['port']} as {conn_args['user']}"
-            )
+            LOG.info(self._prep_log_message("Connecting to {dbname} at {host}:{port} as {user}".format(**conn_args)))
             self.conn = psycopg2.connect(cursor_factory=RealDictCursor, **conn_args)
 
     def _execute(self, sql, params):
         cur = self.conn.cursor()
         try:
             _sql = cur.mogrify(sql, params or None).decode("utf-8")
-            self.log.info(f"EXEC SQL:{_sql}")
+            LOG.info(self._prep_log_message(f"EXEC SQL:{_sql}"))
             cur.execute(_sql)
         except Exception as e:
-            self.log.error(f"{type(e).__name__} ERROR:{os.linesep}SQL: {sql}{os.linesep}PARAMS: {params}")
+            LOG.error(
+                self._prep_log_message(f"{type(e).__name__} ERROR:{os.linesep}SQL: {sql}{os.linesep}PARAMS: {params}")
+            )
             raise
 
         return cur
 
-    def get_pg_settings(self, setting_names=None, limit=None, offset=None):
+    def _prep_log_message(self, message):
+        return f"USER:{self.user} {message}"
+
+    def get_pg_settings(self, setting_names=None):
         params = {}
         if setting_names:
-            where_clause = " where name = any(%(setting_names)s) "
+            where_clause = "            where name = any(%(setting_names)s) "
             params["setting_names"] = list(setting_names)
         else:
             where_clause = ""
-        limit_clause = self._handle_limit(limit, params)
-        offset_clause = self._handle_offset(offset, params)
 
         sql = f"""
-select row_number() over (partition by category) as category_setting_num,
-       category,
-       name,
-       coalesce(short_desc, extra_desc) as description,
-       unit,
-       context,
-       setting,
-       boot_val,
-       reset_val,
-       pending_restart
-  from pg_settings
+select case when s.category_setting_num = 1 then s.category else ''::text end as category,
+       s.name,
+       s.description,
+       s.unit,
+       s.context,
+       s.setting,
+       s.boot_val,
+       s.reset_val,
+       s.pending_restart
+  from (
+           select row_number() over (partition by category) as category_setting_num,
+                  category,
+                  name,
+                  coalesce(short_desc, extra_desc) as description,
+                  unit,
+                  context,
+                  setting,
+                  boot_val,
+                  reset_val,
+                  pending_restart
+             from pg_settings
 {where_clause}
-{limit_clause}
-{offset_clause}
+       ) as s
 ;
 """
         cur = self._execute(sql, params or None)
@@ -137,8 +130,8 @@ select (boot_val::int / 10000::int)::int as "release",
   from pg_settings
  where name = 'server_version_num';
 """
-            res = self._execute(sql).fetchone()
-            SERVER_VERSION.extend(res)
+            res = self._execute(sql, None).fetchone()
+            SERVER_VERSION.extend(res.values())
 
         return SERVER_VERSION
 
@@ -160,7 +153,7 @@ select (boot_val::int / 10000::int)::int as "release",
 
         return offset_clause
 
-    def get_statement_stats(self, limit=None, offset=None):
+    def get_statement_stats(self, limit=100, offset=None):
         params = {}
 
         limit_clause = self._handle_limit(limit, params)
@@ -188,7 +181,7 @@ select d.datname as "database",
  {offset_clause}
 ;
 """
-        self.log.info(f"requesting data from pg_stat_statements")
+        LOG.info(self._prep_log_message(f"requesting data from pg_stat_statements"))
         return self._execute(sql, params).fetchall()
 
     def get_lock_info(self, limit=None, offset=None):
@@ -262,13 +255,16 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
 {offset_clause}
 ;
 """
-        self.log.info(f"requsting blocked process information")
-        return self._execute(sql, params)
+        LOG.info(self._prep_log_message(f"requsting blocked process information"))
+        res = self._execute(sql, params).fetchall()
+        if not res:
+            res = [{"Result": "No blocking locks"}]
+        return res
 
     def get_activity(self, pid=[], state=[], include_self=False, limit=None, offset=None):
         params = {}
 
-        conditions = []
+        conditions = ["datname is not null"]
         if pid:
             include_self = True
             conditions.append("pid = any(%(pid)s::oid[]) ")
@@ -279,7 +275,7 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
         if not include_self:
             conditions.append("pid != %(mypid)s ")
             params["mypid"] = self.conn.get_backend_pid()
-        where_clause = f" where {f'{os.linesep}   and '.join(conditions)}" if conditions else ""
+        where_clause = f" where {f'{os.linesep}   and '.join(conditions)}"
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
 
@@ -299,12 +295,17 @@ select datname as "db_name",
        query
   from pg_stat_activity
 {where_clause}
+ order
+    by datname,
+       state,
+       now() - xact_start,
+       now() - query_start
 {limit_clause}
 {offset_clause}
 ;
 """
 
-        self.log.info(f"requsting connection activity")
+        LOG.info(self._prep_log_message(f"requsting connection activity"))
         return self._execute(sql, params).fetchall()
 
     def terminate_cancel_backends(self, backends=[], action_type=None):
@@ -323,9 +324,9 @@ select pid,
         return self._execute(sql, params).fetchall()
 
     def terminate_backends(self, backends=[]):
-        self.log.info(f"Terminating backend pids {backends}")
+        LOG.info(self._prep_log_message(f"Terminating backend pids {backends}"))
         return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
 
     def cancel_backends(self, backends=[]):
-        self.log.info(f"Cancellikng backend pids {backends}")
+        LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)

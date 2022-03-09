@@ -19,6 +19,7 @@ from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import lockinfo
+from masu.api.views import pg_engine_version
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import stat_activity
@@ -64,10 +65,11 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
-    path("dbsettings", dbsettings, name="dbsettings"),
-    path("lockinfo", lockinfo, name="lockinfo"),
-    path("stat_activity", stat_activity, name="stat_activity"),
-    path("stat_statements", stat_statements, name="stat_statements"),
+    path("dbsettings/", dbsettings, name="db_settings"),
+    path("lockinfo/", lockinfo, name="lock_info"),
+    path("stat_activity/", stat_activity, name="conn_activity"),
+    path("stat_statements/", stat_statements, name="stmt_stats"),
+    path("dbversion/", pg_engine_version, name="db_version"),
 ]
 
 urlpatterns += ROUTER.urls

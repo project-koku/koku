@@ -6,6 +6,7 @@
 # flake8: noqa
 from db_performance.dbp_views import dbsettings
 from db_performance.dbp_views import lockinfo
+from db_performance.dbp_views import pg_engine_version
 from db_performance.dbp_views import stat_activity
 from db_performance.dbp_views import stat_statements
 from masu.api.crawl_account_hierarchy import crawl_account_hierarchy
