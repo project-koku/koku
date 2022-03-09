@@ -176,7 +176,7 @@ select d.datname as "database",
     on r.oid = s.userid
  order
     by d.datname,
-       s.mean{col_name_sep}time
+       s.mean{col_name_sep}time desc
  {limit_clause}
  {offset_clause}
 ;
