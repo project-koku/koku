@@ -187,17 +187,26 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     tags = data_frame["labels"]
     tags = tags.str.lower()
 
+    cluster_id = cluster_topology.get("cluster_id")
+    cluster_alias = cluster_topology.get("cluster_alias")
+
     LOG.info("Matching OpenShift on GCP by labels.")
-    ocp_matched = tags.str.contains("kubernetes-io-cluster-")
+    ocp_matched = tags.str.contains(f"kubernetes-io-cluster-{cluster_id}|kubernetes-io-cluster-{cluster_alias}")
 
     data_frame["ocp_matched"] = ocp_matched
-    data_frame["cluster_id"] = cluster_topology.get("cluster_id")
+    data_frame["cluster_id"] = cluster_id
 
     special_case_tag_matched = tags.str.contains(
-        "|".join(["openshift_cluster", "openshift_project", "openshift_node"])
+        "|".join(
+            [
+                fr"openshift_cluster.*{cluster_id}",
+                fr"openshift_cluster.*{cluster_alias}",
+                "openshift_project",
+                "openshift_node",
+            ]
+        )
     )
     data_frame["special_case_tag_matched"] = special_case_tag_matched
-
     if matched_tags:
         tag_keys = []
         tag_values = []

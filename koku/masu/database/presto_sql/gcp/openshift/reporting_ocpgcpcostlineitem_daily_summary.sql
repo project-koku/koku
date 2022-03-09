@@ -201,6 +201,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
@@ -304,8 +305,6 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
-                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
@@ -314,6 +313,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
