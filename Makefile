@@ -72,6 +72,7 @@ help:
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
+	@echo "                                          @param  TEST_SOURCE - load a specific source's data (aws, azure, gcp, onprem, all(default))"
 	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
