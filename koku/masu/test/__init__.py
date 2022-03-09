@@ -52,6 +52,9 @@ class MasuTestCase(IamTestCase):
         self.ocpgcp_provider_uuid = str(self.ocp_on_gcp_ocp_provider.uuid)
 
         self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpaws_ocp_cluster_id = self.ocp_on_aws_ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpazure_ocp_cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpgcp_ocp_cluster_id = self.ocp_on_gcp_ocp_provider.authentication.credentials.get("cluster_id")
 
         self.ocp_db_auth = self.ocp_provider.authentication
         self.aws_db_auth = self.aws_provider.authentication
