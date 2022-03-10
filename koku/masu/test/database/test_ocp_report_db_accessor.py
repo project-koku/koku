@@ -6,6 +6,7 @@
 import random
 import string
 import uuid
+from decimal import Decimal
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -41,6 +42,12 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
+
+# from django.db.models import DecimalField
+# from django.db.models import Sum
+# from django.db.models import Value
+# from django.db.models.functions import Coalesce
+# from koku.database import KeyDecimalTransform
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -1000,7 +1007,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             self.cluster_id,
             self.cluster_id,
             metric_constants.CPU_DISTRIBUTION,
-            self.provider_uuid,
+            self.ocpgcp_provider_uuid,
         )
 
         monthly_cost_rows = (
@@ -1334,15 +1341,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         infrastructure_monthly_cost_json__isnull=False,
@@ -1356,7 +1356,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -1384,15 +1384,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         infrastructure_monthly_cost_json__isnull=False,
@@ -1407,7 +1400,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -1437,15 +1430,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             with self.subTest(distribution=distribution):
                 default_val = random.randrange(1, 100)
                 node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         supplementary_monthly_cost_json__isnull=False,
@@ -1460,7 +1446,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -1468,9 +1454,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     # assert that after the update, there are now the monthly values
                     # for the two different nodes that did not have a value defined
                     self.assertEqual(qset.count(), 2)
-                    qset_total = 0
-                    for value in qset:
-                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    qset_total = sum(value.supplementary_monthly_cost_json.get(distribution, 0) for value in qset)
+
                     expected_total = default_val * 2
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
@@ -1480,7 +1465,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         Test that the monthly infrastructure cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        key_value_pairs = {"app": ["banking", "mobile", "weather"]}
+        key_value_pairs = {"app": ["temperature", "length", "time"]}
         pvc_tag_rates = {}
         rate_total = 0
         for key, values in key_value_pairs.items():
@@ -1488,7 +1473,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for value in values:
                 pvc_rate = random.randrange(1, 100)
                 values_dict[value] = pvc_rate
-                if value == "mobile":
+                if value == "length":
                     rate_total += pvc_rate
                 rate_total += pvc_rate
             pvc_tag_rates[key] = values_dict
@@ -1496,15 +1481,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
-
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
@@ -1518,7 +1496,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
@@ -1554,16 +1532,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1579,16 +1549,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
                     # assert that after the update, there are now the monthly values for
                     # the three different nodes that have a value
                     self.assertEqual(qset.count(), 3)
-                    qset_total = 0
-                    for value in qset:
-                        qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
+                    qset_total = sum(value.supplementary_monthly_cost_json.get(distribution, 0) for value in qset)
+
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(rate_total, qset_total)
 
@@ -1597,32 +1566,36 @@ class OCPReportDBAccessorTest(MasuTestCase):
         Test that the monthly supplementary cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        key_value_pairs = {"app": ["banking", "mobile", "weather"]}
-        pvc_tag_rates = {}
-        rate_total = 0
-        for key, values in key_value_pairs.items():
-            values_dict = {}
-            for value in values:
-                pvc_rate = random.randrange(1, 100)
-                values_dict[value] = pvc_rate
-                if value == "mobile":
-                    rate_total += pvc_rate
-                rate_total += pvc_rate
-            pvc_tag_rates[key] = values_dict
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
-        with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
 
+        key_value_pairs = {"app": ["temperature", "length", "luminosity"]}
+        pvc_tag_rates = {}
+        rate_total = 0
+        pvc_count = 0
+        for key, values in key_value_pairs.items():
+            values_dict = {}
+            for i, value in enumerate(values, 1):
+                with schema_context(self.schema):
+                    num_pvcs = (
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            usage_start__gte=start_date,
+                            cluster_id=self.cluster_id,
+                            volume_labels__contains={key: value},
+                        )
+                        .values_list("persistentvolumeclaim")
+                        .distinct()
+                        .count()
+                    )
+                    pvc_count += num_pvcs
+                pvc_rate = i * 33
+                values_dict[value] = pvc_rate
+                rate_total += pvc_rate * num_pvcs
+            pvc_tag_rates[key] = values_dict
+
+        with schema_context(self.schema):
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1638,16 +1611,26 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
-                self.provider_uuid,
+                self.ocpgcp_provider_uuid,
             )
             # assert that after the update, there are now the monthly values for
             # the three different PVCs that have a value
-            self.assertEqual(qset.count(), 4)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
+            self.assertEqual(qset.count(), pvc_count)
+            # field = f"supplementary_monthly_cost_json__{metric_constants.PVC_DISTRIBUTION}"
+            # qset_total = qset.annotate(
+            #     total=Sum(
+            #         Coalesce(
+            #             KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+            #             Value(0, output_field=DecimalField()),
+            #         )
+            #     )
+            # ).values()
+            qset_total = sum(
+                value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0) for value in qset
+            )
+
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(rate_total, qset_total)
 
@@ -1656,20 +1639,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
         Test that the monthly infrastructure cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        default_val = random.randrange(1, 100)
-        node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
+        expected_total = random.randrange(1, 100)
+        node_tag_rates = {"app": {"default_value": expected_total, "defined_keys": ["temperature", "length"]}}
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
-
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
@@ -1685,18 +1661,17 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
 
             # assert that after the update, there is now the cluster cost for the PVC
             self.assertEqual(qset.count(), 1)
-            qset_total = 0
-            for value in qset:
-                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
-            # there are three PVC tags and we said two already have defined rates
-            expected_total = default_val
+            qset_total = sum(
+                value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION) for value in qset
+            )
+
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
 
@@ -1710,15 +1685,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
-
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
@@ -1734,7 +1702,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
@@ -1762,16 +1730,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1789,7 +1749,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -1812,12 +1772,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
-
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1833,7 +1789,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
@@ -1862,12 +1818,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
-
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1883,7 +1835,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
@@ -1911,16 +1863,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1936,7 +1880,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -1971,16 +1915,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1996,7 +1932,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2031,16 +1967,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = end_date.strftime("%Y-%m-%d")
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -2056,7 +1984,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2081,15 +2009,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
             with self.subTest(distribution=distribution):
                 default_val = random.randrange(1, 100)
                 node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         infrastructure_monthly_cost_json__isnull=False,
@@ -2104,7 +2025,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2133,15 +2054,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = end_date.strftime("%Y-%m-%d")
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         infrastructure_monthly_cost_json__isnull=False,
@@ -2156,7 +2070,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2183,15 +2097,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         supplementary_monthly_cost_json__isnull=False,
@@ -2206,7 +2113,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2235,16 +2142,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = "OCP-on-Azure"
+                self.cluster_id = self.ocpgcp_ocp_cluster_id
                 with schema_context(self.schema):
-                    # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-                    k_v = (
-                        OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"})
-                        .values()
-                        .first()
-                    )
-                    c_a = k_v.get("cluster_alias")
-
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -2262,7 +2161,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         start_date,
                         end_date,
                         self.cluster_id,
-                        c_a,
+                        self.cluster_id,
                         distribution,
                         self.provider_uuid,
                     )
@@ -2291,12 +2190,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = OCPUsageLineItemDailySummary.objects.filter(pod_labels__contains={"app": "banking"}).values().first()
-            c_a = k_v.get("cluster_alias")
-
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -2312,7 +2207,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
                 self.provider_uuid,
             )
@@ -2340,7 +2235,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
@@ -2349,14 +2244,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 for cost, cost_fields in cost_type.items():
                     rate_costs = {}
                     # go through and populate values for the key value pairs for this usage and cost type
-                    node_tag_rates = {}
-                    for key, values in key_value_pairs.items():
-                        values_dict = {}
-                        for value in values:
-                            node_rate = random.randrange(1, 100)
-                            values_dict[value] = node_rate
-                        node_tag_rates[key] = values_dict
-                    rate_costs[cost] = node_tag_rates
+                    rate_costs[cost] = {
+                        key: {value: Decimal(random.randrange(1, 100)) for value in values}
+                        for key, values in key_value_pairs.items()
+                    }
                     # define the arguments for the function based on what usage type needs to be tested
                     if usage_type == "Infrastructure":
                         infrastructure_rates = rate_costs
@@ -2426,13 +2317,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 msg=f"Metric: {cost}, Value: {value}, usage_type: {usage_type}, id: {item}"
                             ):
                                 if vals.get("usage_start") >= start_date.date():
-                                    expected_diff = float(vals.get("hours") * rate)
+                                    expected_diff = Decimal(vals.get("hours") * rate)
                                 else:
-                                    expected_diff = 0
-                                actual_diff = vals.get("after").get(cost_fields[0]) - vals.get("before").get(
-                                    cost_fields[0]
+                                    expected_diff = Decimal(0)
+                                actual_diff = Decimal(vals.get("after").get(cost_fields[0])) - Decimal(
+                                    vals.get("before").get(cost_fields[0])
                                 )
-                                self.assertAlmostEqual(actual_diff, expected_diff)
+                                self.assertAlmostEqual(actual_diff, expected_diff, 0)
 
     def test_populate_tag_based_default_usage_costs(self):  # noqa: C901
         """Test that the usage costs are updated correctly when default tag values are passed in."""
@@ -2449,7 +2340,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpgcp_ocp_cluster_id
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
@@ -2541,13 +2432,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                                 else:
                                     if vals.get("usage_start") >= start_date.date():
                                         rate = rate_costs.get(cost).get("app").get("default_value")
-                                        expected_diff = float(vals.get("hours") * rate)
+                                        expected_diff = Decimal(vals.get("hours") * rate)
                                     else:
-                                        expected_diff = 0
-                                actual_diff = vals.get("after").get(cost_fields[0]) - vals.get("before").get(
-                                    cost_fields[0]
+                                        expected_diff = Decimal(0)
+                                actual_diff = Decimal(vals.get("after").get(cost_fields[0])) - Decimal(
+                                    vals.get("before").get(cost_fields[0])
                                 )
-                                self.assertAlmostEqual(actual_diff, expected_diff)
+                                self.assertAlmostEqual(actual_diff, expected_diff, 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""

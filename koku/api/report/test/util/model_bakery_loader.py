@@ -53,7 +53,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.currency = "USD"  # self.faker.currency_code()
         self.num_tag_keys = 5
         self.tag_keys = [self.faker.slug() for _ in range(self.num_tag_keys)]
-        self.tags = [{"app": self.faker.slug()}] + [{key: self.faker.slug()} for key in self.tag_keys]
+        self.tags = [{"app": "mobile"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
 
@@ -66,8 +66,8 @@ class ModelBakeryDataLoader(DataLoader):
                 for key in dikt.keys():
                     with schema_context(self.schema):
                         baker.make(table_name, key=key)
-        # with schema_context(self.schema):
-        #     baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
+        with schema_context(self.schema):
+            baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
 
     def create_provider(self, provider_type, credentials, billing_source, name, linked_openshift_provider=None):
         """Create a Provider record"""

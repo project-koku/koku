@@ -93,9 +93,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                         )
-                        with tenant_context(tenant):
-                            for tag_key in OCP_ENABLED_TAGS:
-                                OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
+                        # with tenant_context(tenant):
+                        #     for tag_key in OCP_ENABLED_TAGS:
+                        #         OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
                         data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
