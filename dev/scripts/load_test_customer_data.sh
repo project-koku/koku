@@ -148,9 +148,9 @@ trigger_download() {
   #
   local _download_types=("$@")
   for download_type in "${_download_types[@]}"; do
-    UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$1'" | head -1 | sed -e 's/^[ \t]*//')
+    UUID=$(psql $DATABASE_NAME --no-password --tuples-only -c "SELECT uuid from public.api_provider WHERE name = '$download_type'" | head -1 | sed -e 's/^[ \t]*//')
     if [[ ! -z $UUID ]]; then
-        log-info "Triggering download for, source_name: $1, uuid: $UUID"
+        log-info "Triggering download for, source_name: $download_type, uuid: $UUID"
         RESPONSE=$(curl -s -w "%{http_code}\n" ${MASU_URL_PREFIX}/v1/download/?provider_uuid=$UUID)
         STATUS_CODE=${RESPONSE: -3}
         DATA=${RESPONSE:: -3}
