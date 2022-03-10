@@ -733,6 +733,7 @@ class ReportQueryHandler(QueryHandler):
             Provider.PROVIDER_GCP: "currencys",
             Provider.OCP_AZURE: "currencys",
             Provider.OCP_GCP: "currencys",
+            Provider.OCP_AWS: "currency_codes",
         }
         currency_codes = out_data.get(codes.get(self.provider))
         total_query = self.aggregate_currency_codes(currency_codes, all_group_by)

@@ -149,7 +149,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             group_by = ["account"] + group_by
         query_data = self.format_for_ui_recursive(group_by, query_data)
         query_data_results = self.format_sub_orgs(query_data_results)
-        # group_by_format_keys.append("currency_code")
         for each_day in query_data:
             accounts = each_day.get("accounts", [])
             # rename id/alias and add type
@@ -605,7 +604,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not self.is_csv_output:
+            if self._report_type == "costs":
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
