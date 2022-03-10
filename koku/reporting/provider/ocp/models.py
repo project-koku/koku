@@ -299,7 +299,7 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     persistentvolume = models.CharField(max_length=253, null=True)
 
-    storageclass = models.CharField(max_length=50, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
 
     volume_labels = JSONField(null=True)
 
@@ -404,7 +404,7 @@ class OCPStorageLineItem(models.Model):
 
     persistentvolume = models.CharField(max_length=253)
 
-    storageclass = models.CharField(max_length=50, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
 
     persistentvolumeclaim_capacity_bytes = models.DecimalField(max_digits=73, decimal_places=9, null=True)
 
@@ -453,7 +453,7 @@ class OCPStorageLineItemDaily(models.Model):
 
     persistentvolume = models.CharField(max_length=253)
 
-    storageclass = models.CharField(max_length=50, null=True)
+    storageclass = models.CharField(max_length=253, null=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
 
