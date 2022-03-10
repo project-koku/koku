@@ -74,7 +74,7 @@ function run_smoke_tests() {
 }
 
 function run_trino_smoke_tests() {
-    if check_for_labels "trino-smoke-tests|gcp_smoke_tests"
+    if check_for_labels "trino-smoke-tests|gcp-smoke-tests"
     then
         echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
         ENABLE_PARQUET_PROCESSING="true"
