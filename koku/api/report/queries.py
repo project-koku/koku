@@ -696,31 +696,32 @@ class ReportQueryHandler(QueryHandler):
         """Format the data for the UI."""
         level += 1
         overall = []
-        if org_unit_applied:
-            groupby = ["org_entitie"] + groupby
-            if "account" in groupby:
-                groupby.remove("account")
-        if level == len(groupby):
-            new_value = []
-            for value in out_data:
-                # org_applied = False
-                # if "org_entitie" in groupby:
-                #     org_applied = True
-                new_values = self.aggregate_currency_codes_ui(value)
-                new_value.append(new_values)
-            return new_value
-        else:
-            group = groupby[level]
-            if group.startswith("tags"):
-                group = group[6:]
-            for value in out_data:
-                new_out_data = value.get(group + "s")
-                org_id = value.get("id")
-                org_type = value.get("type")
-                value[group + "s"] = self.format_for_ui_recursive(
-                    groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
-                )
-                overall.append(value)
+        if out_data:
+            if org_unit_applied:
+                groupby = ["org_entitie"] + groupby
+                if "account" in groupby:
+                    groupby.remove("account")
+            if level == len(groupby):
+                new_value = []
+                for value in out_data:
+                    # org_applied = False
+                    # if "org_entitie" in groupby:
+                    #     org_applied = True
+                    new_values = self.aggregate_currency_codes_ui(value)
+                    new_value.append(new_values)
+                return new_value
+            else:
+                group = groupby[level]
+                if group.startswith("tags"):
+                    group = group[6:]
+                for value in out_data:
+                    new_out_data = value.get(group + "s")
+                    org_id = value.get("id")
+                    org_type = value.get("type")
+                    value[group + "s"] = self.format_for_ui_recursive(
+                        groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
+                    )
+                    overall.append(value)
         return overall
 
     def aggregate_currency_codes_ui(self, out_data):
@@ -771,7 +772,7 @@ class ReportQueryHandler(QueryHandler):
                 for delta in ["delta_value", "delta_percent"]:
                     if data.get(delta):
                         total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account_alias", "tags_exist"]:
+                for item in ["account", "account_alias", "tags_exist"]:
                     if data.get(item):
                         total_query[item] = data.get(item)
                 for group in all_group_by:

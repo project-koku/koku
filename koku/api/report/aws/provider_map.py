@@ -49,7 +49,7 @@ class AWSProviderMap(ProviderMap):
                     "account": "usage_account_id",
                     "service": "product_code",
                     "az": "availability_zone",
-                    "org_unit_id": "organizational_unit__org_unit_id",
+                    "org_unit_id": "organizational_unit_id__org_unit_id",
                     "org_unit_single_level": "organizational_unit__org_unit_id",
                 },
                 # This is to make sure that the date range generator uses usage_start for >= and <= comparisions
@@ -341,6 +341,10 @@ class AWSProviderMap(ProviderMap):
                 ("account", "service"): AWSCostSummaryByServiceP,
                 ("product_family",): AWSCostSummaryByServiceP,
                 ("account", "product_family"): AWSCostSummaryByServiceP,
+                ("account", "org_unit_id"): AWSCostSummaryByAccountP,
+                ("org_unit_id",): AWSCostSummaryByAccountP,
+                ("org_unit_single_level",): AWSCostSummaryByAccountP,
+                ("account", "org_unit_single_level"): AWSCostSummaryByAccountP,
             },
             "instance_type": {
                 "default": AWSComputeSummaryP,

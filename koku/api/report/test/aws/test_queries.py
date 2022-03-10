@@ -125,7 +125,7 @@ class AWSReportQueryTest(IamTestCase):
                 "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"], "org_unit_path": "R_001"},
                 "OU_001": {
                     "accounts": ["9999999999991", "9999999999992"],
-                    "org_units": [],
+                    "org_units": ["OU_005"],
                     "org_unit_path": "R_001&OU_001",
                 },
                 "OU_002": {"accounts": [], "org_units": ["OU_003"], "org_unit_path": "R_001&OU_002"},
