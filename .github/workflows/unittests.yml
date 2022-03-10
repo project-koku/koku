@@ -38,7 +38,7 @@ jobs:
 
   unit-tests:
     needs: setup
-    if: ${{ needs.setup.outputs.run-tests == 'true' }}
+    if: ${{ needs.setup.outputs.run-tests == 'true' }} || ${{ github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false

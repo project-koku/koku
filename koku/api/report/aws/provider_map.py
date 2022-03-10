@@ -351,8 +351,15 @@ class AWSProviderMap(ProviderMap):
                 ("account",): AWSComputeSummaryByAccountP,
                 ("instance_type",): AWSComputeSummaryP,
                 ("account", "instance_type"): AWSComputeSummaryByAccountP,
+                ("account", "org_unit_id"): AWSComputeSummaryByAccountP,
+                ("org_unit_id",): AWSComputeSummaryByAccountP,
             },
-            "storage": {"default": AWSStorageSummaryP, ("account",): AWSStorageSummaryByAccountP},
+            "storage": {
+                "default": AWSStorageSummaryP,
+                ("account",): AWSStorageSummaryByAccountP,
+                ("account", "org_unit_id"): AWSStorageSummaryByAccountP,
+                ("org_unit_id",): AWSStorageSummaryByAccountP,
+            },
             "database": {
                 "default": AWSDatabaseSummaryP,
                 ("service",): AWSDatabaseSummaryP,

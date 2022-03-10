@@ -1,14 +1,14 @@
 -- Clear out old entries first
-DELETE FROM postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_p
-WHERE usage_start >= date('{{start_date | sqlsafe}}')
-    AND usage_start <= date('{{end_date | sqlsafe}}')
-    AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
-    AND cluster_id = '{{cluster_id | sqlsafe}}'
-    AND source_uuid = cast('{{source_uuid | sqlsafe}}' AS UUID)
+DELETE FROM {{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_p
+WHERE usage_start >= {{start_date}}::date
+    AND usage_start <= {{end_date}}::date
+    AND invoice_month = {{invoice_month}}
+    AND cluster_id = {{cluster_id}}
+    AND source_uuid = {{source_uuid}}::uuid
 ;
 
 -- Populate the daily aggregate line item data
-INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_p (
+INSERT INTO {{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_p (
     id,
     cluster_id,
     cluster_alias,
@@ -26,7 +26,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
     credit_amount,
     invoice_month
 )
-    SELECT uuid(),
+    SELECT uuid_generate_v4() as id,
         cluster_id,
         cluster_alias,
         usage_start,
@@ -42,7 +42,7 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
         source_uuid,
         sum(credit_amount) as credit_amount,
         invoice_month
-    FROM postgres.{{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
+    FROM {{schema_name | sqlsafe}}.reporting_ocpgcpcostlineitem_daily_summary_p
     -- Get data for this month or last month
     WHERE (service_alias LIKE '%%Network%%'
         OR service_alias LIKE '%%VPC%%'
@@ -57,11 +57,11 @@ INSERT INTO postgres.{{schema_name | sqlsafe}}.reporting_ocpgcp_network_summary_
         OR service_alias LIKE '%%Cloud Domains%%'
         OR service_alias LIKE '%%Private Service Connect%%'
         OR service_alias LIKE '%%Cloud Armor%%')
-        AND usage_start >= date('{{start_date | sqlsafe}}')
-        AND usage_start <= date('{{end_date | sqlsafe}}')
-        AND invoice_month = '{{year | sqlsafe}}{{month | sqlsafe}}'
-        AND cluster_id = '{{cluster_id | sqlsafe}}'
-        AND source_uuid = cast('{{source_uuid | sqlsafe}}' AS UUID)
+        AND usage_start >= {{start_date}}::date
+        AND usage_start <= {{end_date}}::date
+        AND invoice_month = {{invoice_month}}
+        AND cluster_id = {{cluster_id}}
+        AND source_uuid = {{source_uuid}}::uuid
     GROUP BY cluster_id,
         cluster_alias,
         usage_start,
