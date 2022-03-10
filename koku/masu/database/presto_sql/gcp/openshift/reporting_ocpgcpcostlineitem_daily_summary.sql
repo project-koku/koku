@@ -420,11 +420,11 @@ SELECT pds.gcp_uuid,
     unblended_cost / r.gcp_uuid_count as unblended_cost,
     markup_cost / r.gcp_uuid_count as markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9)) / r.gcp_uuid_count
         ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN data_source = 'Pod'
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / r.gcp_uuid_count
         ELSE unblended_cost / r.gcp_uuid_count
     END as pod_cost,
     pod_usage_cpu_core_hours,
