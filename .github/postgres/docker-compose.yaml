@@ -9,6 +9,8 @@ services:
     - POSTGRES_PASSWORD=${DATABASE_PASSWORD-postgres}
     ports:
       - 5432:5432
+    volumes:
+      - ./pg_init:/docker-entrypoint-initdb.d
     command:
       - postgres
       - -c
