@@ -521,7 +521,7 @@ def update_cost_model_costs(
         f" schema_name: {schema_name},\n"
         f" provider_uuid: {provider_uuid},\n"
         f" start_date: {start_date},\n"
-        f" start_date: {end_date},\n"
+        f" end_date: {end_date},\n"
         f" tracing_id: {tracing_id}"
     )
     LOG.info(log_json(tracing_id, stmt))

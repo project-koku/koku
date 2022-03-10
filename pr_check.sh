@@ -55,7 +55,7 @@ function run_smoke_tests() {
 
     bonfire deploy \
         ${APP_NAME} \
-        --ref-env insights-stage \
+        --ref-env insights-production \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
@@ -74,7 +74,7 @@ function run_smoke_tests() {
 }
 
 function run_trino_smoke_tests() {
-    if check_for_labels "trino-smoke-tests"
+    if check_for_labels "trino-smoke-tests|gcp-smoke-tests"
     then
         echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
         ENABLE_PARQUET_PROCESSING="true"
