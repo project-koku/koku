@@ -181,7 +181,7 @@ select d.datname as "database",
  {offset_clause}
 ;
 """
-        LOG.info(self._prep_log_message(f"requesting data from pg_stat_statements"))
+        LOG.info(self._prep_log_message("requesting data from pg_stat_statements"))
         return self._execute(sql, params).fetchall()
 
     def get_lock_info(self, limit=None, offset=None):
@@ -255,7 +255,7 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
 {offset_clause}
 ;
 """
-        LOG.info(self._prep_log_message(f"requsting blocked process information"))
+        LOG.info(self._prep_log_message("requsting blocked process information"))
         res = self._execute(sql, params).fetchall()
         if not res:
             res = [{"Result": "No blocking locks"}]
@@ -305,7 +305,7 @@ select datname as "db_name",
 ;
 """
 
-        LOG.info(self._prep_log_message(f"requsting connection activity"))
+        LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
 
     def terminate_cancel_backends(self, backends=[], action_type=None):
