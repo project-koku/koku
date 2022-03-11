@@ -109,6 +109,7 @@ mgmt_services/cost-mgmt:koku/python-soupsieve:2.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-sqlparse:0.4.2.pipfile
 mgmt_services/cost-mgmt:koku/python-statsmodels:0.13.2.pipfile
 mgmt_services/cost-mgmt:koku/python-trino:0.310.0.pipfile
+mgmt_services/cost-mgmt:koku/python-typing-extensions:4.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-tzdata:2021.5.pipfile
 mgmt_services/cost-mgmt:koku/python-tzlocal:4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-ujson:5.1.0.pipfile

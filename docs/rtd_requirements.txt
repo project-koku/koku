@@ -50,7 +50,7 @@ djangorestframework-csv==2.1.1
 djangorestframework==3.13.1
 fcache==0.4.7
 flake8==4.0.1
-google-api-core==2.5.0; python_version >= '3.6'
+google-api-core[grpc]==2.5.0; python_version >= '3.6'
 google-api-python-client==2.38.0
 google-auth-httplib2==0.1.0
 google-auth==2.6.0
@@ -116,6 +116,7 @@ soupsieve==2.3.1; python_version >= '3.6'
 sqlparse==0.4.2; python_version >= '3.5'
 statsmodels==0.13.2
 trino==0.310.0
+typing-extensions==4.1.1; python_version >= '3.6'
 tzdata==2021.5; python_version >= '3.6'
 tzlocal==4.1; python_version >= '3.6'
 ujson==5.1.0
