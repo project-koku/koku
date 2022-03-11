@@ -507,6 +507,7 @@ def summarize_manifest(report_meta, manifest_uuid):
             if start_date and end_date:
                 if "0001-01-01 00:00:00+00:00" in [str(start_date), str(end_date)]:
                     cr_status = report_meta.get("cr_status", {})
+                    context["cluster-id"] = cr_status.get("clusterID", "no-cluster-id")
                     data_collection_message = cr_status.get("reports", {}).get("data_collection_message", "")
                     if data_collection_message:
                         # remove potentially sensitive info from the error message
