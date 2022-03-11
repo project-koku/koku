@@ -65,11 +65,11 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
-    path("dbsettings/", dbsettings, name="db_settings"),
-    path("lockinfo/", lockinfo, name="lock_info"),
-    path("stat_activity/", stat_activity, name="conn_activity"),
-    path("stat_statements/", stat_statements, name="stmt_stats"),
-    path("dbversion/", pg_engine_version, name="db_version"),
+    path("db-performance/db-settings/", dbsettings, name="db_settings"),
+    path("db-performance/lock-info/", lockinfo, name="lock_info"),
+    path("db-performance/stat-activity/", stat_activity, name="conn_activity"),
+    path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
+    path("db-performance/db-version/", pg_engine_version, name="db_version"),
 ]
 
 urlpatterns += ROUTER.urls
