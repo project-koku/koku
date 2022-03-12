@@ -37,7 +37,7 @@ function clear_stmt_stats() {
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
         <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button>
-        <table id="generic_table" cellspacing="0">
+        <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
             <thead>

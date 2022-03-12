@@ -2,7 +2,6 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import ast
 import base64
 import json
 import logging
@@ -69,7 +68,7 @@ def validate_identity(identity_header):
         LOG.warning("No identity found.")
         raise PermissionDenied("You must be logged into Red Hat.")
 
-    if identity["type"] != "User" or "user" not in identity or not identity["user"]:
+    if identity["type"] != "User" or not identity.get("user"):
         LOG.warning("Invalid identity found.")
         raise PermissionDenied("Invalid identity. Ensure that your are logged into Red Hat.")
 
@@ -78,7 +77,7 @@ def validate_identity(identity_header):
         LOG.warning("Malformed identity found.")
         raise PermissionDenied("Malformed identity. Ensure that your are logged into Red Hat.")
 
-    if not ast.literal_eval(entitlements.get("cost_management", {}).get("is_entitled", "False")):
+    if not entitlements.get("cost_management", {}).get("is_entitled", False):
         LOG.warning("Improper access detected.")
         raise PermissionDenied("You do not access to cost management. Please see an administrator to get access.")
 
@@ -107,7 +106,8 @@ def lockinfo(request):
         targets.append("blocked_pid")
 
     action_urls = [reverse("db_cancel_connection")]
-    if request.query_params.get("terminator") == "true":
+    if request.query_params.get("terminate") == "enable":
+        LOG.info("Enabling the pg_stat_activity terminate action template.")
         template = "t_action_table.html"
         action_urls.append(reverse("db_terminate_connection"))
     else:
@@ -185,7 +185,8 @@ def stat_activity(request):
     """Get any blocked and blocking process data"""
 
     action_urls = [reverse("db_cancel_connection")]
-    if request.query_params.get("terminator") == "true":
+    if request.query_params.get("terminate") == "enable":
+        LOG.info("Enabling the pg_stat_activity terminate action template.")
         template = "t_action_table.html"
         action_urls.append(reverse("db_terminate_connection"))
     else:

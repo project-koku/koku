@@ -108,3 +108,11 @@ class TestDBPerformanceClass(IamTestCase):
 
             res = dbp.terminate_backends([-1, -2])
             self.assertTrue(all(not c["terminate"] for c in res))
+
+    def test_pg_stat_statements_reset(self):
+        """Test that pg_stat_statements can be reset."""
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            before_stats = dbp.get_statement_stats()
+            dbp.pg_stat_statements_reset()
+            after_stats = dbp.get_statement_stats()
+            self.assertTrue(len(after_stats) < len(before_stats))
