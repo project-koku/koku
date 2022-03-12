@@ -23,9 +23,9 @@ LOG = logging.getLogger(__name__)
 
 
 class DBPerformanceStats:
-    def __init__(self, user, configurator, application_name="database_performance_stats"):
+    def __init__(self, username, configurator, application_name="database_performance_stats"):
         self.conn = None
-        self.user = user
+        self.username = username
         self.config = configurator
         self.application_name = application_name
         self._connect()
@@ -81,7 +81,7 @@ class DBPerformanceStats:
         return cur
 
     def _prep_log_message(self, message):
-        return f"USER:{self.user} {message}"
+        return f"USER:{self.username} {message}"
 
     def get_pg_settings(self, setting_names=None):
         params = {}
@@ -95,8 +95,8 @@ class DBPerformanceStats:
 select case when s.category_setting_num = 1 then s.category else ''::text end as category,
        s.name,
        s.description,
-       s.unit,
        s.context,
+       s.unit,
        s.setting,
        s.boot_val,
        s.reset_val,
@@ -164,8 +164,8 @@ select d.datname as "database",
        r.rolname as "role",
        s.calls,
        s.rows,
-       s.mean{col_name_sep}time,
-       s.max{col_name_sep}time,
+       s.mean{col_name_sep}time as mean_exec_time,
+       s.max{col_name_sep}time as max_exec_time,
        s.query
   from public.pg_stat_statements s
   left
@@ -249,7 +249,7 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
        blocked_pid,
        blocked_user,
        blocked_statement,
-       CASE WHEN id = 1 THEN blocking_statement ELSE null::text END::text as blocking_statement
+       CASE WHEN id = 1 THEN blocking_statement ELSE null::text END::text as blckng_proc_curr_stmt
   FROM linked_lockinfo
 {limit_clause}
 {offset_clause}
@@ -283,15 +283,15 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
 select datname as "db_name",
        usename as "username",
        pid as "backend_pid",
-       application_name,
-       client_addr as "client_ip_address",
+       application_name as "app_name",
+       client_addr as "client_ip",
        backend_start,
        xact_start,
        query_start,
        state_change,
-       wait_event_type,
-       wait_event,
+       '('::text || wait_event_type || ') '::text || wait_event as "wait_type_event",
        state,
+       case when state = 'active' then now() - query_start else null end::text as "active_time",
        query
   from pg_stat_activity
 {where_clause}
@@ -330,3 +330,12 @@ select pid,
     def cancel_backends(self, backends=[]):
         LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
+
+    def pg_stat_statements_reset(self):
+        sql = """
+select pg_stat_statements_reset();
+"""
+        LOG.info(self._prep_log_message(f"Clearing pg_stat_statements"))
+        self._execute(sql, None)
+
+        return [{"pg_stat_statements_reset": True}]

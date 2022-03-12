@@ -6,8 +6,8 @@ from django.db import connection
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
-from masu.api.db_performance import DBPerformanceStats
-from masu.api.db_performance import SERVER_VERSION
+from masu.api.db_performance.db_performance import DBPerformanceStats
+from masu.api.db_performance.db_performance import SERVER_VERSION
 
 
 class TestDBPerformanceClass(IamTestCase):
