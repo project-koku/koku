@@ -363,9 +363,6 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Execute a single presto query"""
         presto_conn = kpdb.connect(schema=schema)
         presto_cur = presto_conn.cursor()
-        LOG.info("-------------Executing SQL--------------")
-        LOG.info(sql)
-        LOG.info(bind_params)
         presto_cur.execute(sql, bind_params)
         return presto_cur.fetchall()
 
