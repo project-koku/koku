@@ -333,7 +333,7 @@ select pid,
 
     def pg_stat_statements_reset(self):
         sql = """
-select pg_stat_statements_reset();
+select public.pg_stat_statements_reset();
 """
         LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
         self._execute(sql, None)
