@@ -46,6 +46,9 @@ def _check_cost_report_access(tenancy):
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
+    # return a auth friendly format
+    return config, tenancy
+
 
 class OCIProvider(ProviderInterface):
     """Provider interface defnition."""
