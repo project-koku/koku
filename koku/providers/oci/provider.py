@@ -4,6 +4,7 @@
 #
 """Oracel cloud infrastructure provider implementation to be used by Koku."""
 import logging
+import os
 
 import oci
 from oci.exceptions import ClientError
@@ -18,12 +19,16 @@ from masu.config import Config
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+USER = os.environ["OCI_CLI_USER"]
+KEY_FILE = os.environ["OCI_CLI_KEY_FILE"]
+FINGERPRINT = os.environ["OCI_CLI_FINGERPRINT"]
+TENANCY = os.environ["OCI_CLI_TENANCY"]
 
 
-def _check_cost_report_access(tenancy):
+def _check_cost_report_access(customer_tenancy):
     """Check for provider cost and usage report access."""
     # CUR bucket is made from customers tenancy name
-    reporting_bucket = tenancy
+    reporting_bucket = customer_tenancy
 
     # The Object Storage namespace used for the reports is bling; the bucket name is the tenancy OCID.
     reporting_namespace = "bling"
@@ -31,8 +36,15 @@ def _check_cost_report_access(tenancy):
     # Download all usage and cost files."" will downlaod both usage and cost files.
     prefix_file = ""
 
-    # Get the list of reports TODO this needs to be updated!!!
-    config = oci.config.from_file(oci.config.DEFAULT_LOCATION, oci.config.DEFAULT_PROFILE)
+    # Get the list of reports
+    # https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clienvironmentvariables.htm!!!
+    config = {
+        "user": USER,
+        "key_file": KEY_FILE,
+        "fingerprint": FINGERPRINT,
+        "tenancy": TENANCY,
+        "region": "uk-london-1",
+    }
 
     object_storage = oci.object_storage.ObjectStorageClient(config)
     try:
@@ -42,12 +54,12 @@ def _check_cost_report_access(tenancy):
 
     except (ClientError, OciConnectionError) as oci_error:
         key = ProviderErrors.OCI_NO_REPORT_FOUND
-        message = f"Unable to obtain cost and usage reports with tenant/bucket: {tenancy}."
+        message = f"Unable to obtain cost and usage reports with tenant/bucket: {customer_tenancy}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
     # return a auth friendly format
-    return config, tenancy
+    return config, customer_tenancy
 
 
 class OCIProvider(ProviderInterface):
