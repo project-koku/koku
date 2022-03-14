@@ -2,8 +2,6 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-from unittest import skip
-
 from django.db import connection
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -100,7 +98,6 @@ class TestDBPerformanceClass(IamTestCase):
             activity = dbp.get_activity(state=["COMPLETELY INVALID STATE HERE!"])
             self.assertEqual(activity, [])
 
-    @skip("Lingering issue with pg_stat_statement_extension in jenkins env")
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
         verify_pg_stat_statements()

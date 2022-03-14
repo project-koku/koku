@@ -167,8 +167,15 @@ select d.datname as "database",
        r.rolname as "role",
        s.calls,
        s.rows,
+       s.min{col_name_sep}time as min_exec_time,
        s.mean{col_name_sep}time as mean_exec_time,
        s.max{col_name_sep}time as max_exec_time,
+       s.shared_blks_hit,
+       s.shared_blks_read,
+       s.local_blks_hit,
+       s.local_blks_read,
+       s.temp_blks_read,
+       s.temp_blks_written,
        s.query
   from public.pg_stat_statements s
   left
@@ -227,7 +234,7 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
             res = [{"Result": "No blocking locks"}]
         return res
 
-    def get_activity(self, pid=[], state=[], include_self=False, limit=None, offset=None):
+    def get_activity(self, pid=[], state=[], include_self=False, limit=250, offset=None):
         params = {}
 
         conditions = ["datname is not null"]
@@ -247,8 +254,8 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
 
         sql = f"""
 -- CONNECTION ACTIVITY QUERY
-select datname as "db_name",
-       usename as "username",
+select datname as "database",
+       usename as "role",
        pid as "backend_pid",
        application_name as "app_name",
        client_addr as "client_ip",

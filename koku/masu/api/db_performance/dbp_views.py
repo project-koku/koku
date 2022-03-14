@@ -134,7 +134,7 @@ def stat_statements(request):
         set_null_display(rec)
         rec["_attrs"] = {"query": 'class="pre monospace"'}
         rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
-        for col in ("mean_exec_time", "max_exec_time"):
+        for col in ("min_exec_time", "mean_exec_time", "max_exec_time"):
             attrs = ['class="sans"']
             if rec[col] > query_bad_threshold:
                 attrs.append('style="background-color: #d16969;"')

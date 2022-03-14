@@ -6,7 +6,6 @@
 import base64
 import json
 import logging
-from unittest import skip
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -57,7 +56,6 @@ class TestDBPerformance(IamTestCase):
         self.assertIn("Connection Activity", html)
         self.assertIn("backend_pid", html)
 
-    @skip("Lingering issue with pg_stat_statement_extension in jenkins env")
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_stmt_stats(self, mok_middl):
         """Test the stat statements view."""
