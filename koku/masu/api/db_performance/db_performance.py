@@ -92,6 +92,7 @@ class DBPerformanceStats:
             where_clause = ""
 
         sql = f"""
+-- GROUPED PG SETTINGS
 select case when s.category_setting_num = 1 then s.category else ''::text end as category,
        s.name,
        s.description,
@@ -124,6 +125,7 @@ select case when s.category_setting_num = 1 then s.category else ''::text end as
         global SERVER_VERSION
         if not SERVER_VERSION:
             sql = """
+-- PARSED PG ENGINE VERSION
 select (boot_val::int / 10000::int)::int as "release",
        ((boot_val::int / 100)::int % 100::int)::int as "major",
        (boot_val::int % 100::int)::int as "minor"
@@ -160,6 +162,7 @@ select (boot_val::int / 10000::int)::int as "release",
         offset_clause = self._handle_offset(offset, params)
         col_name_sep = "_" if self.get_pg_engine_version()[RELEASE] < 13 else "_exec_"
         sql = f"""
+-- STATEMENT STATISTICS
 select d.datname as "database",
        r.rolname as "role",
        s.calls,
@@ -189,8 +192,7 @@ select d.datname as "database",
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
         sql = f"""
--- LINKED LOCK QUERY
-WITH RECURSIVE lockinfo as (
+-- LOCK INFO QUERY
 SELECT blocked_locks.pid::int     AS blocked_pid,
        blocked_activity.usename::text  AS blocked_user,
        blocking_locks.pid::int     AS blocking_pid,
@@ -215,42 +217,6 @@ SELECT blocked_locks.pid::int     AS blocked_pid,
   JOIN pg_catalog.pg_stat_activity blocking_activity
     ON blocking_activity.pid = blocking_locks.pid
  WHERE NOT blocked_locks.granted
-),
-linked_lockinfo as (
-SELECT ROW_NUMBER() OVER (PARTITION BY p.blocking_pid) as id,
-       p.blocking_pid,
-       p.blocking_user,
-       p.blocked_pid,
-       p.blocked_user,
-       0 as depth,
-       p.blocked_statement,
-       p.current_statement_in_blocking_process as blocking_statement
-  FROM lockinfo as p
- WHERE p.blocking_pid NOT IN (
-                                 SELECT DISTINCT
-                                        x.blocked_pid
-                                   FROM lockinfo as x
-                             )
- UNION ALL
-SELECT ROW_NUMBER() OVER (PARTITION BY p.blocking_pid) as id,
-       c.blocking_pid,
-       c.blocking_user,
-       c.blocked_pid,
-       c.blocked_user,
-       p.depth + 1 as depth,
-       c.blocked_statement,
-       c.current_statement_in_blocking_process as blocking_statement
-  FROM lockinfo as c
-  JOIN linked_lockinfo as p
-    ON p.blocked_pid = c.blocking_pid
-)
-SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pid,
-       CASE WHEN id = 1 THEN blocking_user ELSE null::text END::text as blocking_user,
-       blocked_pid,
-       blocked_user,
-       blocked_statement,
-       CASE WHEN id = 1 THEN blocking_statement ELSE null::text END::text as blckng_proc_curr_stmt
-  FROM linked_lockinfo
 {limit_clause}
 {offset_clause}
 ;
@@ -280,6 +246,7 @@ SELECT CASE WHEN id = 1 THEN blocking_pid ELSE null::int END::int as blocking_pi
         offset_clause = self._handle_offset(offset, params)
 
         sql = f"""
+-- CONNECTION ACTIVITY QUERY
 select datname as "db_name",
        usename as "username",
        pid as "backend_pid",
@@ -316,6 +283,7 @@ select datname as "db_name",
             raise ValueError(f"Illegal action_type value '{action_type}'")
 
         sql = f"""
+-- {action_type.upper()} QUERY
 select pid,
        pg_{action_type}_backend(pid) as "{action_type}"
   from unnest(%(backends)s::int[]) pid;
@@ -333,6 +301,7 @@ select pid,
 
     def pg_stat_statements_reset(self):
         sql = """
+-- RESET STATISTICS
 select public.pg_stat_statements_reset();
 """
         LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
