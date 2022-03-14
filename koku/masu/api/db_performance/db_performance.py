@@ -193,12 +193,12 @@ select d.datname as "database",
         offset_clause = self._handle_offset(offset, params)
         sql = f"""
 -- LOCK INFO QUERY
-SELECT blocked_locks.pid::int     AS blocked_pid,
-       blocked_activity.usename::text  AS blocked_user,
-       blocking_locks.pid::int     AS blocking_pid,
+SELECT blocking_locks.pid::int     AS blocking_pid,
        blocking_activity.usename::text AS blocking_user,
+       blocked_locks.pid::int     AS blocked_pid,
+       blocked_activity.usename::text  AS blocked_user,
        blocked_activity.query::text    AS blocked_statement,
-       blocking_activity.query::text   AS current_statement_in_blocking_process
+       blocking_activity.query::text   AS blckng_proc_curr_stmt
   FROM pg_catalog.pg_locks         blocked_locks
   JOIN pg_catalog.pg_stat_activity blocked_activity
     ON blocked_activity.pid = blocked_locks.pid
