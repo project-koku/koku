@@ -21,9 +21,9 @@ SPDX-License-Identifier: Apache-2.0
         <script>
             function do_terminate(target_pid) {
                 // var terminate_url = '{{action_urls[1]}}';
-                _msg = "This SQL will terminate the backend pid: " + target_pid + " ?\n"
+                _msg = "This SQL will terminate the backend pid: " + target_pid + "\n"
                        + "This will close the connection.\n\n"
-                       + "SELECT pg_terminate_backend(" + target_pid + ")";
+                       + "SELECT pg_terminate_backend(" + target_pid + ");";
                 window.alert(_msg);
                 location.reload();
                 // if ( window.confirm(_msg) ) {
@@ -54,11 +54,11 @@ SPDX-License-Identifier: Apache-2.0
 
             function do_cancel(target_pid) {
                 // var cancel_url = '{{action_urls[0]}}';
-                _msg = "This SQL will cancel the backend pid: " + target_pid + " ?\n"
+                _msg = "This SQL will cancel the backend pid: " + target_pid + "\n"
                         + "This will halt the current action for that connection.\n"
                         + "If the backend process is idle, this may not work. \n"
                         + "Try a second time before terminating.\n\n"
-                        + "SELECT pg_cancel_backend(" + target_pid + ")";
+                        + "SELECT pg_cancel_backend(" + target_pid + ");";
                 window.alert(_msg);
                 location.reload();
                 // if ( window.confirm(_msg) ) {

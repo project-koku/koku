@@ -87,8 +87,16 @@ def lockinfo(request):
             for t in targets:
                 rec[f"_raw_{t}"] = rec[t]
             if template != "gen_table.html":
-                rec["blocking_pid"] = f'<a href="{activity_url}">{rec["blocking_pid"]}</a>'
-                rec["blocked_pid"] = f'<a href="{activity_url}">{rec["blocked_pid"]}</a>'
+                rec["blocking_pid"] = (
+                    f'<a href="{activity_url}" title="Click this link to see the '
+                    + f'current activity for pids {rec["_raw_blocking_pid"]}, '
+                    + f'{rec["_raw_blocked_pid"]}">{rec["_raw_blocking_pid"]}</a>'
+                )
+                rec["blocked_pid"] = (
+                    f'<a href="{activity_url}" title="Click this link to see the '
+                    + f'current activity for pids {rec["_raw_blocked_pid"]}, '
+                    + f'{rec["_raw_blocking_pid"]}">{rec["_raw_blocked_pid"]}</a>'
+                )
             rec["blocked_statement"] = format_sql(
                 rec["blocked_statement"], reindent=True, indent_realigned=True, keyword_case="upper"
             )
@@ -136,7 +144,7 @@ def stat_statements(request):
                 attrs.append('style="background-color: #69d172;"')
             rec["_attrs"][col] = " ".join(attrs)
 
-    action_urls = [reverse("clear_statement_statistics")]
+    # action_urls = [reverse("clear_statement_statistics")]
 
     page_header = "Statement Statistics"
     return HttpResponse(
@@ -145,7 +153,7 @@ def stat_statements(request):
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
             template="stats_table.html",
-            action_urls=action_urls,
+            # action_urls=action_urls,
         )
     )
 
