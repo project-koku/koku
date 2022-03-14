@@ -265,8 +265,7 @@ select datname as "db_name",
  order
     by datname,
        state,
-       now() - xact_start,
-       now() - query_start
+       extract(epoch from now() - query_start) desc
 {limit_clause}
 {offset_clause}
 ;
