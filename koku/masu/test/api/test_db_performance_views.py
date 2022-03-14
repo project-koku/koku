@@ -13,7 +13,6 @@ from django.urls import reverse
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.test.iam_test_case import IamTestCase
-from masu.test.api.db_perf_test_common import verify_pg_stat_statements
 
 
 LOG = logging.getLogger(__name__)
@@ -59,7 +58,6 @@ class TestDBPerformance(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_stmt_stats(self, mok_middl):
         """Test the stat statements view."""
-        verify_pg_stat_statements()
         response = self.client.get(reverse("stmt_stats"), **self._get_headers())
         html = response.content.decode("utf-8")
         self.assertIn('id="stmt_stats_table"', html)

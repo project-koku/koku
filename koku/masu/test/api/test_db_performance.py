@@ -8,7 +8,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 from masu.api.db_performance.db_performance import SERVER_VERSION
-from masu.test.api.db_perf_test_common import verify_pg_stat_statements
 
 
 class TestDBPerformanceClass(IamTestCase):
@@ -100,7 +99,6 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
-        verify_pg_stat_statements()
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             stats = dbp.get_statement_stats()
             self.assertTrue(0 < len(stats) <= 100)
