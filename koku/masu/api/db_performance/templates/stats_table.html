@@ -18,7 +18,7 @@ SPDX-License-Identifier: Apache-2.0
             th:not(:first-child) {border-left: 1px solid black;}
             td:not(:first-child) {border-left: 1px solid black;}
         </style>
-        <script>
+        <!-- <script>
 function clear_stmt_stats() {
     if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
         xhttp = new XMLHttpRequest();
@@ -30,13 +30,13 @@ function clear_stmt_stats() {
         location.reload();
     }
 }
-        </script>
+        </script> -->
     </head>
     <body>
         <h1>Database Performance</h1>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
-        <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button>
+        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button> -->
         <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}

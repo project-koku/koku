@@ -2,13 +2,10 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import base64
-import json
 import logging
 import os
 from decimal import Decimal
 
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -16,7 +13,6 @@ from jinja2 import Template as JinjaTemplate
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 from sqlparse import format as format_sql
 
 from .db_performance import DBPerformanceStats
@@ -33,16 +29,9 @@ TEMPLATE_PATH = os.path.join(MY_PATH, "templates")
 # TERMINATE_URL = 1
 
 
-def render_template(page_header, fields, data, targets=(), template="gen_table.html", action_urls=[], subheader=""):
+def render_template(page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
     tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template), "rt").read())
-    return tmpl.render(
-        page_header=page_header,
-        fields=fields,
-        data=data,
-        targets=targets,
-        action_urls=action_urls,
-        subheader=subheader,
-    )
+    return tmpl.render(page_header=page_header, fields=fields, data=data, targets=targets, action_urls=action_urls)
 
 
 def set_null_display(rec, null_display_val=""):
@@ -52,41 +41,9 @@ def set_null_display(rec, null_display_val=""):
     return rec
 
 
-def get_identity(request):
-    rh_ident_header = request.META.get("HTTP_X_RH_IDENTITY")
-    if not rh_ident_header:
-        return None
-
-    identity = json.loads(base64.b64decode(rh_ident_header).decode("utf-8"))
-    return identity
-
-
-def validate_identity(identity_header):
-    identity = identity_header.get("identity")
-    entitlements = identity_header.get("entitlements")
-    if not identity:
-        LOG.warning("No identity found.")
-        raise PermissionDenied("You must be logged into Red Hat.")
-
-    if identity["type"] != "User" or not identity.get("user"):
-        LOG.warning("Invalid identity found.")
-        raise PermissionDenied("Invalid identity. Ensure that your are logged into Red Hat.")
-
-    user = identity["user"]
-    if not user.get("username") or not user.get("email"):
-        LOG.warning("Malformed identity found.")
-        raise PermissionDenied("Malformed identity. Ensure that your are logged into Red Hat.")
-
-    if not entitlements.get("cost_management", {}).get("is_entitled", False):
-        LOG.warning("Improper access detected.")
-        raise PermissionDenied("You do not access to cost management. Please see an administrator to get access.")
-
-
 def get_identity_username(request):
-    ident = get_identity(request)
-    validate_identity(ident)
-    user = ident["identity"]["user"]
-    return f"{user['username']} ({user['email']})"
+    # This is a placeholder for now. This should resolve a username once actions are enabled.
+    return "koku-user"
 
 
 @never_cache
@@ -105,15 +62,17 @@ def lockinfo(request):
     if "blocked_pid" in data[0]:
         targets.append("blocked_pid")
 
-    action_urls = [reverse("db_cancel_connection")]
-    if request.query_params.get("terminate") == "enable":
-        LOG.info("Enabling the pg_stat_activity terminate action template.")
-        template = "t_action_table.html"
-        action_urls.append(reverse("db_terminate_connection"))
-    elif request.query_params.get("cancel") == "enable":
-        template = "action_table.html"
-    else:
-        template = "gen_table.html"
+    # action_urls = [reverse("db_cancel_connection")]
+    # if request.query_params.get("terminate") == "enable":
+    #     LOG.info("Enabling the pg_stat_activity terminate action template.")
+    #     template = "t_action_table.html"
+    #     action_urls.append(reverse("db_terminate_connection"))
+    # elif request.query_params.get("cancel") == "enable":
+    #     template = "action_table.html"
+    # else:
+    #     template = "gen_table.html"
+
+    template = "t_action_table.html"
 
     if targets:
         for rec in data:
@@ -145,7 +104,7 @@ def lockinfo(request):
             data,
             targets=targets,
             template=template,
-            action_urls=action_urls,
+            # action_urls=action_urls,
         )
     )
 
@@ -197,16 +156,17 @@ def stat_statements(request):
 def stat_activity(request):
     """Get any blocked and blocking process data"""
 
-    action_urls = [reverse("db_cancel_connection")]
-    if request.query_params.get("terminate") == "enable":
-        LOG.info("Enabling the pg_stat_activity terminate action template.")
-        template = "t_action_table.html"
-        action_urls.append(reverse("db_terminate_connection"))
-    elif request.query_params.get("cancel") == "enable":
-        template = "action_table.html"
-    else:
-        template = "gen_table.html"
+    # action_urls = [reverse("db_cancel_connection")]
+    # if request.query_params.get("terminate") == "enable":
+    #     LOG.info("Enabling the pg_stat_activity terminate action template.")
+    #     template = "t_action_table.html"
+    #     action_urls.append(reverse("db_terminate_connection"))
+    # elif request.query_params.get("cancel") == "enable":
+    #     template = "action_table.html"
+    # else:
+    #     template = "gen_table.html"
 
+    template = "t_action_table.html"
     states = request.query_params.get("states", "")
     states = states.split(",") if states else []
     pids = request.query_params.get("pids", "")
@@ -237,9 +197,10 @@ def stat_activity(request):
 
     page_header = "Connection Activity"
     return HttpResponse(
-        render_template(
-            page_header, fields, data, targets=("backend_pid",), template=template, action_urls=action_urls
-        )
+        render_template(page_header, fields, data, targets=("backend_pid",), template=template)
+        # render_template(
+        #     page_header, fields, data, targets=("backend_pid",), template=template, action_urls=action_urls
+        # )
     )
 
 
@@ -283,50 +244,3 @@ def pg_engine_version(request):
 
     page_header = "PostgreSQL Engine Version"
     return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
-
-
-@never_cache
-@api_view(http_method_names=["GET"])
-@permission_classes((AllowAny,))
-def pg_cancel_backend(request):
-    """Get any blocked and blocking process data"""
-
-    backends = request.META.get("HTTP_PARAM_DB_CONNID")
-    if backends:
-        backends = [int(pid) for pid in backends.split("<")]
-
-    data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.cancel_backends(backends)
-
-    return Response(data or {})
-
-
-@never_cache
-@api_view(http_method_names=["GET"])
-@permission_classes((AllowAny,))
-def pg_terminate_backend(request):
-    """Get any blocked and blocking process data"""
-
-    backends = request.META.get("HTTP_PARAM_DB_CONNID")
-    if backends:
-        backends = [int(pid) for pid in backends.split("<")]
-
-    data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.terminate_backends(backends)
-
-    return Response(data or {})
-
-
-@never_cache
-@api_view(http_method_names=["GET"])
-@permission_classes((AllowAny,))
-def clear_statement_statistics(request):
-    """Get any blocked and blocking process data"""
-
-    data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.pg_stat_statements_reset()
-
-    return Response(data)

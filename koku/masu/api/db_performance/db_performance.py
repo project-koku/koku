@@ -274,36 +274,37 @@ select datname as "db_name",
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
 
-    def terminate_cancel_backends(self, backends=[], action_type=None):
-        if not backends:
-            return None
 
-        if action_type not in (TERMINATE_ACTION, CANCEL_ACTION):
-            raise ValueError(f"Illegal action_type value '{action_type}'")
+#     def terminate_cancel_backends(self, backends=[], action_type=None):
+#         if not backends:
+#             return None
 
-        sql = f"""
--- {action_type.upper()} QUERY
-select pid,
-       pg_{action_type}_backend(pid) as "{action_type}"
-  from unnest(%(backends)s::int[]) pid;
-"""
-        params = {"backends": backends}
-        return self._execute(sql, params).fetchall()
+#         if action_type not in (TERMINATE_ACTION, CANCEL_ACTION):
+#             raise ValueError(f"Illegal action_type value '{action_type}'")
 
-    def terminate_backends(self, backends=[]):
-        LOG.info(self._prep_log_message(f"Terminating backend pids {backends}"))
-        return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
+#         sql = f"""
+# -- {action_type.upper()} QUERY
+# select pid,
+#        pg_{action_type}_backend(pid) as "{action_type}"
+#   from unnest(%(backends)s::int[]) pid;
+# """
+#         params = {"backends": backends}
+#         return self._execute(sql, params).fetchall()
 
-    def cancel_backends(self, backends=[]):
-        LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
-        return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
+#     def terminate_backends(self, backends=[]):
+#         LOG.info(self._prep_log_message(f"Terminating backend pids {backends}"))
+#         return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
 
-    def pg_stat_statements_reset(self):
-        sql = """
--- RESET STATISTICS
-select public.pg_stat_statements_reset();
-"""
-        LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
-        self._execute(sql, None)
+#     def cancel_backends(self, backends=[]):
+#         LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
+#         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
 
-        return [{"pg_stat_statements_reset": True}]
+#     def pg_stat_statements_reset(self):
+#         sql = """
+# -- RESET STATISTICS
+# select public.pg_stat_statements_reset();
+# """
+#         LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
+#         self._execute(sql, None)
+
+#         return [{"pg_stat_statements_reset": True}]

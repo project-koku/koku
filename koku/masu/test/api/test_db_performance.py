@@ -10,6 +10,7 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 from masu.api.db_performance.db_performance import SERVER_VERSION
+from masu.test.api.db_perf_test_common import verify_pg_stat_statements
 
 
 class TestDBPerformanceClass(IamTestCase):
@@ -102,29 +103,8 @@ class TestDBPerformanceClass(IamTestCase):
     @skip("Lingering issue with pg_stat_statement_extension in jenkins env")
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
+        verify_pg_stat_statements()
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             stats = dbp.get_statement_stats()
             self.assertTrue(0 < len(stats) <= 100)
             self.assertIn("calls", stats[0])
-
-    def test_term_cancl_backend(self):
-        """Test calls to cancel and terminate backend pids."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            self.assertIsNone(dbp.terminate_cancel_backends())
-            with self.assertRaises(ValueError):
-                dbp.terminate_cancel_backends([-1])
-
-            res = dbp.cancel_backends([-1, -2])
-            self.assertTrue(all(not c["cancel"] for c in res))
-
-            res = dbp.terminate_backends([-1, -2])
-            self.assertTrue(all(not c["terminate"] for c in res))
-
-    @skip("Lingering issue with pg_stat_statement_extension in jenkins env")
-    def test_pg_stat_statements_reset(self):
-        """Test that pg_stat_statements can be reset."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            before_stats = dbp.get_statement_stats()
-            dbp.pg_stat_statements_reset()
-            after_stats = dbp.get_statement_stats()
-            self.assertTrue(len(after_stats) < len(before_stats))

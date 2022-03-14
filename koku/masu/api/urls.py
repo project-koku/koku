@@ -10,7 +10,6 @@ from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
-from masu.api.views import clear_statement_statistics
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import dbsettings
 from masu.api.views import download_report
@@ -20,9 +19,7 @@ from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import lockinfo
-from masu.api.views import pg_cancel_backend
 from masu.api.views import pg_engine_version
-from masu.api.views import pg_terminate_backend
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import stat_activity
@@ -73,9 +70,6 @@ urlpatterns = [
     path("db-performance/stat-activity/", stat_activity, name="conn_activity"),
     path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
-    path("db-performance/cancel-backend-pid/", pg_cancel_backend, name="db_cancel_connection"),
-    path("db-performance/terminate-backend-pid/", pg_terminate_backend, name="db_terminate_connection"),
-    path("db-performance/stat-statements-reset/", clear_statement_statistics, name="clear_statement_statistics"),
 ]
 
 urlpatterns += ROUTER.urls
