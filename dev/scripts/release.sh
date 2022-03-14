@@ -25,13 +25,13 @@ source $DEV_SCRIPTS_PATH/common/utils.sh
 
 check_migrations() {
   local _last_tag_sha=$(git ls-remote --tags --sort=committerdate --sort="v:refname" ${REMOTE_PROJECT} | tail -n1 | awk '{print$1}')
-  local _latest_tag_sha=$(git ls-remote ${REMOTE_PROJECT} main| awk '{print$1}')
+  local _latest_main_sha=$(git ls-remote ${REMOTE_PROJECT} main| awk '{print$1}')
 
   log-debug "Last Tag sha: $_last_tag_sha"
-  log-debug "Lastest Tag sha: $_latest_tag_sha"
+  log-debug "Lastest Main sha: $_latest_main_sha"
 
   log-info "${DEV_SCRIPTS_PATH}/show_migrations -o $_last_tag_sha -n $_latest_tag_sha"
-  ${DEV_SCRIPTS_PATH}/show_migrations -o $_last_tag_sha -n $_latest_tag_sha
+  ${DEV_SCRIPTS_PATH}/show_migrations -o $_last_tag_sha -n $_latest_main_sha
 }
 
 #
