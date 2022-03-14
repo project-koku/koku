@@ -335,7 +335,7 @@ select pid,
         sql = """
 select pg_stat_statements_reset();
 """
-        LOG.info(self._prep_log_message(f"Clearing pg_stat_statements"))
+        LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
         self._execute(sql, None)
 
         return [{"pg_stat_statements_reset": True}]
