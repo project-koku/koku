@@ -6,6 +6,7 @@
 import base64
 import json
 import logging
+from unittest import skip
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
@@ -47,7 +48,7 @@ class TestDBPerformance(IamTestCase):
         """Test the lock information view."""
         response = self.client.get(reverse("lock_info"), **self._get_headers())
         html = response.content.decode("utf-8")
-        self.assertIn('id="action_table"', html)
+        self.assertIn('id="generic_table"', html)
         self.assertIn("Lock Information", html)
 
         # response = self.client.get(reverse('lock_info'), {"terminate": "enable"}, **self._get_headers())
@@ -58,10 +59,9 @@ class TestDBPerformance(IamTestCase):
         """Test the stat activity view."""
         response = self.client.get(reverse("conn_activity"), **self._get_headers())
         html = response.content.decode("utf-8")
-        self.assertIn('id="action_table"', html)
+        self.assertIn('id="generic_table"', html)
         self.assertIn("Connection Activity", html)
         self.assertIn("backend_pid", html)
-        self.assertIn('id="cancel-', html)
 
         # response = self.client.get(reverse('conn_activity'), {"terminate": "enable"}, **self._get_headers())
         # self.assertIn('id="term_action_table"', html)
@@ -112,6 +112,7 @@ class TestDBPerformance(IamTestCase):
         # data = json.loads(response.content)
         # self.assertEqual(data, [{"pid": -199, "terminate": False}])
 
+    @skip("Lingering issue with pg_stat_statement_extension in jenkins env")
     @patch("koku.middleware.MASU", return_value=True)
     def test_reset_stats(self, mok_middl):
         """Test the statement stats reset interface."""
