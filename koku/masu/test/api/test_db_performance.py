@@ -11,6 +11,14 @@ from masu.api.db_performance.db_performance import SERVER_VERSION
 
 
 class TestDBPerformanceClass(IamTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        conn = connection.connection
+        with conn.cursor() as cur:
+            cur.execute("create extension if not exists pg_stat_statements;;")
+
     def test_separate_connection(self):
         """Test that the DBPerformanceStats class uses a separate connetion"""
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:

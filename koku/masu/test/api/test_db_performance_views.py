@@ -9,6 +9,7 @@ import logging
 from unittest.mock import patch
 
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -25,6 +26,14 @@ LOG = logging.getLogger(__name__)
 @override_settings(ROOT_URLCONF="masu.urls")
 class TestDBPerformance(IamTestCase):
     """Test cases for the running_celery_tasks endpoint."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        conn = connection.connection
+        with conn.cursor() as cur:
+            cur.execute("create extension if not exists pg_stat_statements;;")
 
     def _get_headers(self):
         return self.request_context["request"].META.copy()
