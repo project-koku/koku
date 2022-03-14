@@ -81,6 +81,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                     serialize=connection.settings_dict.get("TEST", {}).get("SERIALIZE", True),
                 )
 
+                with connection.cursor() as cur:
+                    cur.execute("CREATE EXTENSION IF NOT EXISTS pg_stat_statements SCHEMA public;")
+
                 try:
                     tenant, created = Tenant.objects.get_or_create(schema_name=Tenant._TEMPLATE_SCHEMA)
                     if created:
