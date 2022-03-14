@@ -10,7 +10,6 @@ SPDX-License-Identifier: Apache-2.0
             .monospace {font-family: 'Courier New', Courier, monospace;}
             .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
             .left-btn {float: left}
-            .right-btn {float: right}
             hr {width: 100%;}
             tbody > tr:not(:first-child) > td {border-top: 1px solid black;}
             tbody > tr:nth-child(even) {background-color: #e7e7e7;}
@@ -99,8 +98,12 @@ SPDX-License-Identifier: Apache-2.0
     {% for target in targets %}
         {% set raw_target = rec["_raw_" + target] %}
                             <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Cancel {{target}} {{raw_target}}</button>
-                            <span style="display:inline-block; width:1em;"></span>
-                            <button class="right-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Terminate {{target}} {{raw_target}}</button>
+                            <br/>
+   {% endfor %}
+                            <br />
+    {% for target in targets %}
+        {% set raw_target = rec["_raw_" + target] %}
+                            <button class="left-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Terminate {{target}} {{raw_target}}</button>
                             <br/>
    {% endfor %}
                         </div>

@@ -110,8 +110,10 @@ def lockinfo(request):
         LOG.info("Enabling the pg_stat_activity terminate action template.")
         template = "t_action_table.html"
         action_urls.append(reverse("db_terminate_connection"))
-    else:
+    elif request.query_params.get("cancel") == "enable":
         template = "action_table.html"
+    else:
+        template = "gen_table.html"
 
     if targets:
         for rec in data:
@@ -125,8 +127,9 @@ def lockinfo(request):
             activity_url = f'{reverse("conn_activity")}?pids={rec["blocking_pid"]},{rec["blocked_pid"]}'
             for t in targets:
                 rec[f"_raw_{t}"] = rec[t]
-            rec["blocking_pid"] = f'<a href="{activity_url}">{rec["blocking_pid"]}</a>'
-            rec["blocked_pid"] = f'<a href="{activity_url}">{rec["blocked_pid"]}</a>'
+            if template != "gen_table.html":
+                rec["blocking_pid"] = f'<a href="{activity_url}">{rec["blocking_pid"]}</a>'
+                rec["blocked_pid"] = f'<a href="{activity_url}">{rec["blocked_pid"]}</a>'
             rec["blocked_statement"] = format_sql(
                 rec["blocked_statement"], reindent=True, indent_realigned=True, keyword_case="upper"
             )
@@ -199,8 +202,10 @@ def stat_activity(request):
         LOG.info("Enabling the pg_stat_activity terminate action template.")
         template = "t_action_table.html"
         action_urls.append(reverse("db_terminate_connection"))
-    else:
+    elif request.query_params.get("cancel") == "enable":
         template = "action_table.html"
+    else:
+        template = "gen_table.html"
 
     states = request.query_params.get("states", "")
     states = states.split(",") if states else []
