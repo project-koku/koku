@@ -237,7 +237,7 @@ check-manifest:
 	.github/scripts/check_manifest.sh
 
 release:
-	scripts/show_migrations -o $(shell git tag | tail -1) -n main
+	${SCRIPTDIR}/release.sh
 
 run-migrations:
 	scripts/run_migrations.sh $(applabel) $(migration)
