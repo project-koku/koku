@@ -116,7 +116,10 @@ def lockinfo(request):
     if targets:
         for rec in data:
             set_null_display(rec)
-            rec["attrs"] = {"blocked_query": 'class="pre monospace"', "blckng_proc_curr_stmt": 'class="pre monospace"'}
+            rec["attrs"] = {
+                "blocked_statement": 'class="pre monospace"',
+                "blckng_proc_curr_stmt": 'class="pre monospace"',
+            }
             rec["blocked_statement"] = format_sql(
                 rec["blocked_statement"], reindent=True, indent_realigned=True, keyword_case="upper"
             )
