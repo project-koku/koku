@@ -18,17 +18,15 @@ SPDX-License-Identifier: Apache-2.0
             td:not(:first-child) {border-left: 1px solid black;}
         </style>
         <script>
-            function do_cancel(target_id) {
-                var cell = document.getElementById(target_id);
-                var pid = cell.innerText;
+            function do_cancel(target_pid) {
                 var cancel_url = '{{action_urls[0]}}';
-                _msg = "Cancel backend pid: " + pid + " ?\n"
+                _msg = "Cancel backend pid: " + target_pid + " ?\n"
                               + "This will halt the current action for that connection.";
                 if ( window.confirm(_msg) ) {
                     var xhttp = new XMLHttpRequest();
                     var cancel_data = null;
                     xhttp.open("GET", cancel_url, false);
-                    xhttp.setRequestHeader("PARAM-DB-CONNID", pid)
+                    xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid)
                     xhttp.send()
                     if (xhttp.status == 200) {
                         cancel_data = JSON.parse(xhttp.responseText)[0]
@@ -66,11 +64,12 @@ SPDX-License-Identifier: Apache-2.0
                 <tr>
                     <td id="row-{{rec_loop.index}}.action">
     {% for target in targets %}
-                        <button id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{target}}-{{rec_loop.index}}');">Cancel {{target}} {{rec[target]}}</button><br>
+        {% set raw_target = rec["_raw_" + target] %}
+                        <button id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Cancel {{target}} {{raw_target}}</button><br>
     {% endfor %}
                     </td>
     {% for field in fields %}
-                        <td id="{{field}}-{{rec_loop.index}}" {% if field in rec.get("attrs", {}) %} {{rec["attrs"][field]}} {% endif %}>{{rec[field]}}</td>
+                        <td id="{{field}}-{{rec_loop.index}}" {% if field in rec.get("_attrs", {}) %} {{rec["_attrs"][field]}} {% endif %}>{{rec[field]}}</td>
     {% endfor %}
                 </tr>
     {% if rec_loop.last %}

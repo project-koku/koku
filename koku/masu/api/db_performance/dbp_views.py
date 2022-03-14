@@ -116,10 +116,17 @@ def lockinfo(request):
     if targets:
         for rec in data:
             set_null_display(rec)
-            rec["attrs"] = {
+            rec["_attrs"] = {
                 "blocked_statement": 'class="pre monospace"',
                 "blckng_proc_curr_stmt": 'class="pre monospace"',
+                "blocking_pid": 'class="sans"',
+                "blocked_pid": 'class="sans"',
             }
+            activity_url = f'{reverse("conn_activity")}?pids={rec["blocking_pid"]},{rec["blocked_pid"]}'
+            for t in targets:
+                rec[f"_raw_{t}"] = rec[t]
+            rec["blocking_pid"] = f'<a href="{activity_url}">{rec["blocking_pid"]}</a>'
+            rec["blocked_pid"] = f'<a href="{activity_url}">{rec["blocked_pid"]}</a>'
             rec["blocked_statement"] = format_sql(
                 rec["blocked_statement"], reindent=True, indent_realigned=True, keyword_case="upper"
             )
@@ -131,7 +138,7 @@ def lockinfo(request):
     return HttpResponse(
         render_template(
             page_header,
-            tuple(f for f in data[0] if f != "attrs") if data else (),
+            tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
             targets=targets,
             template=template,
@@ -155,7 +162,7 @@ def stat_statements(request):
 
     for rec in data:
         set_null_display(rec)
-        rec["attrs"] = {"query": 'class="pre monospace"'}
+        rec["_attrs"] = {"query": 'class="pre monospace"'}
         rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
         for col in ("mean_exec_time", "max_exec_time"):
             attrs = ['class="sans"']
@@ -165,7 +172,7 @@ def stat_statements(request):
                 attrs.append('style="background-color: #c7d169;"')
             else:
                 attrs.append('style="background-color: #69d172;"')
-            rec["attrs"][col] = " ".join(attrs)
+            rec["_attrs"][col] = " ".join(attrs)
 
     action_urls = [reverse("clear_statement_statistics")]
 
@@ -173,7 +180,7 @@ def stat_statements(request):
     return HttpResponse(
         render_template(
             page_header,
-            tuple(f for f in data[0] if f != "attrs") if data else (),
+            tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
             template="stats_table.html",
             action_urls=action_urls,
@@ -205,10 +212,11 @@ def stat_activity(request):
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
         data = dbp.get_activity(pid=pids, state=states, include_self=include_self)
 
-    fields = tuple(f for f in data[0] if f != "attrs") if data else ()
+    fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
     for rec in data:
         set_null_display(rec)
-        rec["attrs"] = {
+        rec["_raw_backend_pid"] = rec["backend_pid"]
+        rec["_attrs"] = {
             "query": 'class="pre monospace"',
             "state": 'class="monospace"',
             "backend_pid": 'class="sans"',
@@ -243,7 +251,7 @@ def dbsettings(request):
     for rec in data:
         set_null_display(rec)
 
-        rec["attrs"] = {
+        rec["_attrs"] = {
             "name": 'class="monospace"',
             "unit": 'class="monospace"',
             "setting": 'class="monospace"',
@@ -253,7 +261,9 @@ def dbsettings(request):
         }
 
     page_header = "Database Settings"
-    return HttpResponse(render_template(page_header, tuple(f for f in data[0] if f != "attrs") if data else (), data))
+    return HttpResponse(
+        render_template(page_header, tuple(f for f in data[0] if not f.startswith("_")) if data else (), data)
+    )
 
 
 @never_cache

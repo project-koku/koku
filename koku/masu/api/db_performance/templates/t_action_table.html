@@ -20,20 +20,18 @@ SPDX-License-Identifier: Apache-2.0
             td:not(:first-child) {border-left: 1px solid black;}
         </style>
         <script>
-            function do_terminate(target_id) {
-                var cell = document.getElementById(target_id);
-                var pid = cell.innerText;
+            function do_terminate(target_pid) {
                 var terminate_url = '{{action_urls[1]}}';
-                _msg = "Terminate backend pid: " + pid + " ?\n"
+                _msg = "Terminate backend pid: " + target_pid + " ?\n"
                        + "This will close the connection.";
                 if ( window.confirm(_msg) ) {
-                    _msg = 'Enter "TERMINATE" to terminate connection: ' + pid;
+                    _msg = 'Enter "TERMINATE" to terminate connection: ' + target_pid;
                     var reconfirm = window.prompt(_msg);
                     if ((reconfirm !== null) && (reconfirm == "TERMINATE")) {
                         var xhttp = new XMLHttpRequest();
                         var terminate_data = null;
                         xhttp.open("GET", terminate_url, false);
-                        xhttp.setRequestHeader("PARAM-DB-CONNID", pid)
+                        xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid)
                         xhttp.send()
                         if (xhttp.status == 200) {
                             terminate_data = JSON.parse(xhttp.responseText)[0]
@@ -52,17 +50,15 @@ SPDX-License-Identifier: Apache-2.0
                 }
             }
 
-            function do_cancel(target_id) {
-                var cell = document.getElementById(target_id);
-                var pid = cell.innerText;
+            function do_cancel(target_pid) {
                 var cancel_url = '{{action_urls[0]}}';
-                _msg = "Cancel backend pid: " + pid + " ?\n"
+                _msg = "Cancel backend pid: " + target_pid + " ?\n"
                               + "This will halt the current action for that connection.";
                 if ( window.confirm(_msg) ) {
                     var xhttp = new XMLHttpRequest();
                     var cancel_data = null;
                     xhttp.open("GET", cancel_url, false);
-                    xhttp.setRequestHeader("PARAM-DB-CONNID", pid)
+                    xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid)
                     xhttp.send()
                     if (xhttp.status == 200) {
                         cancel_data = JSON.parse(xhttp.responseText)[0]
@@ -101,15 +97,16 @@ SPDX-License-Identifier: Apache-2.0
                     <td id="row-{{rec_loop.index}}.action">
                         <div>
     {% for target in targets %}
-                            <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{target}}-{{rec_loop.index}}');">Cancel {{target}} {{rec[target]}}</button>
+        {% set raw_target = rec["_raw_" + target] %}
+                            <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Cancel {{target}} {{raw_target}}</button>
                             <span style="display:inline-block; width:1em;"></span>
-                            <button class="right-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{target}}-{{rec_loop.index}}');">Terminate {{target}} {{rec[target]}}</button>
+                            <button class="right-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Terminate {{target}} {{raw_target}}</button>
                             <br/>
    {% endfor %}
                         </div>
                     </td>
     {% for field in fields %}
-                    <td id="{{field}}-{{rec_loop.index}}" {% if field in rec.get("attrs", {}) %} {{rec["attrs"][field]}} {% endif %}>{{rec[field]}}</td>
+                    <td id="{{field}}-{{rec_loop.index}}" {% if field in rec.get("_attrs", {}) %} {{rec["_attrs"][field]}} {% endif %}>{{rec[field]}}</td>
     {% endfor %}
                 </tr>
     {% if rec_loop.last %}

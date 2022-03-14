@@ -53,7 +53,7 @@ function clear_stmt_stats() {
                 <tr>
                     <td></td>
     {% for field in fields %}
-                    <td id="{{field}}" {% if field in rec.get("attrs", {}) %} {{rec["attrs"][field]}} {% endif %}>{{rec[field]}}</td>
+                    <td id="{{field}}" {% if field in rec.get("_attrs", {}) %} {{rec["_attrs"][field]}} {% endif %}>{{rec[field]}}</td>
     {% endfor %}
                 </tr>
     {% if loop.last %}
