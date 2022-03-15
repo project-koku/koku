@@ -46,14 +46,11 @@ create_db() {
 
 
 # Parse $_PG_CREATE_DATABASES by ',' into a bash array variable -- "dbname|owner,dbname|owner..."
-if [[ -n "${_PG_CREATE_DATABASES}" ]]
-then
-    IFS=, read -a _databases <<<${_PG_CREATE_DATABASES}
-    for _database in ${_databases[@]}
-    do
-        # parse $_database by '|' into discrete variables -- "dbname|owner"
-        IFS='|' read _dbname _owner <<<${_database}
-        create_user "${_owner}"
-        create_db "${_dbname}" "${_owner}"
-    done
-fi
+IFS=, read -a _databases <<<${_PG_CREATE_DATABASES}
+for _database in ${_databases[@]}
+do
+    # parse $_database by '|' into discrete variables -- "dbname|owner"
+    IFS='|' read _dbname _owner <<<${_database}
+    create_user "${_owner}"
+    create_db "${_dbname}" "${_owner}"
+done
