@@ -19,10 +19,6 @@ from masu.config import Config
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
-USER = os.environ["OCI_CLI_USER"]
-KEY_FILE = os.environ["OCI_CLI_KEY_FILE"]
-FINGERPRINT = os.environ["OCI_CLI_FINGERPRINT"]
-TENANCY = os.environ["OCI_CLI_TENANCY"]
 
 
 def _check_cost_report_access(customer_tenancy):
@@ -39,10 +35,10 @@ def _check_cost_report_access(customer_tenancy):
     # Get the list of reports
     # https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clienvironmentvariables.htm!!!
     config = {
-        "user": USER,
-        "key_file": KEY_FILE,
-        "fingerprint": FINGERPRINT,
-        "tenancy": TENANCY,
+        "user": os.environ["OCI_CLI_USER"],
+        "key_file": os.environ["OCI_CLI_KEY_FILE"],
+        "fingerprint": os.environ["OCI_CLI_FINGERPRINT"],
+        "tenancy": os.environ["OCI_CLI_TENANCY"],
         "region": "uk-london-1",
     }
 
