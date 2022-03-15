@@ -11,7 +11,6 @@ from django.utils.translation import ugettext as _
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 
-from providers.oci.provider import _check_cost_report_access
 from providers.oci.provider import error_obj
 from providers.oci.provider import OCIProvider
 
@@ -35,7 +34,20 @@ class OCIProviderTestCase(TestCase):
         self.assertEqual(error, expected)
 
     @patch("providers.oci.provider.oci")
-    def test_check_cost_report_access(self, mock_oci_client):
+    @patch(
+        "providers.oci.provider._check_cost_report_access",
+        return_value=(
+            {
+                "user": FAKE.md5(),
+                "key_file": FAKE.md5(),
+                "fingerprint": FAKE.md5(),
+                "tenancy": FAKE.md5(),
+                "region": FAKE.md5(),
+            },
+            FAKE.md5(),
+        ),
+    )
+    def test_check_cost_report_access(self, mock_oci_client, check_cost_report_access):
         """Test_check_cost_report_access success."""
         oci_client = Mock()
         oci_client.data.objects = {
@@ -50,7 +62,7 @@ class OCIProviderTestCase(TestCase):
         }
         mock_oci_client.return_value = oci_client
         try:
-            _check_cost_report_access(FAKE.md5())
+            check_cost_report_access(FAKE.md5())
         except Exception as exc:
             self.fail(exc)
 
