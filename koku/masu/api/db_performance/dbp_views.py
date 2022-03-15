@@ -130,21 +130,23 @@ def stat_statements(request):
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
         data = dbp.get_statement_stats()
 
-    for rec in data:
-        set_null_display(rec)
-        rec["_attrs"] = {"query": 'class="pre monospace"'}
-        rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
-        for col in ("min_exec_time", "mean_exec_time", "max_exec_time"):
-            attrs = ['class="sans"']
-            if rec[col] > query_bad_threshold:
-                attrs.append('style="background-color: #d16969;"')
-            elif rec[col] > query_warn_threshold:
-                attrs.append('style="background-color: #c7d169;"')
-            else:
-                attrs.append('style="background-color: #69d172;"')
-            rec["_attrs"][col] = " ".join(attrs)
+    action_urls = []
+    if "mean_exec_time" in data[0]:
+        for rec in data:
+            set_null_display(rec)
+            rec["_attrs"] = {"query": 'class="pre monospace"'}
+            rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
+            for col in ("min_exec_time", "mean_exec_time", "max_exec_time"):
+                attrs = ['class="sans"']
+                if rec[col] > query_bad_threshold:
+                    attrs.append('style="background-color: #d16969;"')
+                elif rec[col] > query_warn_threshold:
+                    attrs.append('style="background-color: #c7d169;"')
+                else:
+                    attrs.append('style="background-color: #69d172;"')
+                rec["_attrs"][col] = " ".join(attrs)
 
-    # action_urls = [reverse("clear_statement_statistics")]
+        # action_urls.append(reverse("clear_statement_statistics"))
 
     page_header = "Statement Statistics"
     return HttpResponse(
@@ -153,7 +155,7 @@ def stat_statements(request):
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
             template="stats_table.html",
-            # action_urls=action_urls,
+            action_urls=action_urls,
         )
     )
 

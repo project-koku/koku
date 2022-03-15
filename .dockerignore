@@ -8,7 +8,6 @@
 !docs/source/specs/
 !db_functions/
 !scripts/
-!pg_init/
 
 # keep the test files out of the final image
 **/*test*

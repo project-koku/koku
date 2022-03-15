@@ -18,7 +18,6 @@ CANCEL_ACTION = "cancel"
 
 SERVER_VERSION = []
 
-
 LOG = logging.getLogger(__name__)
 
 
@@ -67,7 +66,7 @@ class DBPerformanceStats:
             self.conn = psycopg2.connect(cursor_factory=RealDictCursor, **conn_args)
 
     def _execute(self, sql, params):
-        cur = self.conn.cursor()
+        cur = self.conn.cursor(cursor_factory=RealDictCursor)
         try:
             _sql = cur.mogrify(sql, params or None).decode("utf-8")
             LOG.info(self._prep_log_message(f"EXEC SQL:{_sql}"))
@@ -155,6 +154,23 @@ select (boot_val::int / 10000::int)::int as "release",
 
         return offset_clause
 
+    def _validate_pg_stat_statements(self):
+        sql = """
+select oid
+  from pg_extension
+ where extname = 'pg_stat_statements';
+"""
+        extn = self._execute(sql, None).fetchone()
+        sql = """
+select oid
+  from pg_class
+ where relnamespace = 'public'::regnamespace
+   and relname = 'pg_stat_statements'
+   and relkind = 'v';
+"""
+        view = self._execute(sql, None).fetchone()
+        return bool(extn) and bool(extn.get("oid")) and bool(view) and bool(view.get("oid"))
+
     def get_statement_stats(self, limit=100, offset=None):
         params = {}
 
@@ -192,7 +208,10 @@ select d.datname as "database",
 ;
 """
         LOG.info(self._prep_log_message("requesting data from pg_stat_statements"))
-        return self._execute(sql, params).fetchall()
+        if self._validate_pg_stat_statements():
+            return self._execute(sql, params).fetchall()
+        else:
+            return [{"Result": "pg_stat_statements extension not installled"}]
 
     def get_lock_info(self, limit=None, offset=None):
         params = {}
