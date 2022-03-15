@@ -812,7 +812,92 @@
         ]
       }
     },
-    "/gcp_invoice_monthly_cost/": {
+    "/db-performance/db-version/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbVersion",
+          "description": "Returns a HTML document showing the database version.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database version.",
+              "content": "text/html"
+            }
+          },
+          "tags": [
+            "db-performance",
+            "db-version"
+          ]
+        }
+      },
+      "/db-performance/db-settings/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbSettings",
+          "description": "Returns a HTML document showing the database software settings.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database software settings.",
+              "content": "text/html"
+            }
+          },
+          "tags": [
+            "db-performance",
+            "db-settings"
+          ]
+        }
+      },
+      "/db-performance/stat-statements/": {
+        "get": {
+          "summary": "Returns a table showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "operationId": "dbPerformanceStatStatements",
+          "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+              "content": "text/html"
+            }
+          },
+          "tags": [
+            "db-performance",
+            "stat-statements"
+          ]
+        }
+      },
+      "/db-performance/stat-activity/": {
+        "get": {
+          "summary": "Returns a table showing current connection activity.",
+          "operationId": "dbPerformanceStatActivity",
+          "description": "Returns a HTML document showing current connection activity.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing current connection activity.",
+              "content": "text/html"
+            }
+          },
+          "tags": [
+            "db-performance",
+            "stat-activity"
+          ]
+        }
+      },
+      "/db-performance/lock-info/": {
+        "get": {
+          "summary": "Returns a table showing any detected blocking locks.",
+          "operationId": "dbPerformanceLockInfo",
+          "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+              "content": "text/html"
+            }
+          },
+          "tags": [
+            "db-performance",
+            "lock-info"
+          ]
+        }
+      },
+      "/gcp_invoice_monthly_cost/": {
       "get": {
         "summary": "Returns dictionary with cost mappings for continuity checks",
         "operationId": "gcpInvoiceMonthlyCost",
