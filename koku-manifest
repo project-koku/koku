@@ -41,7 +41,7 @@ mgmt_services/cost-mgmt:koku/python-djangorestframework-csv:2.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-fcache:0.4.7.pipfile
 mgmt_services/cost-mgmt:koku/python-flake8:4.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-google-api-core:2.7.1.pipfile
-mgmt_services/cost-mgmt:koku/python-google-api-python-client:2.40.0.pipfile
+mgmt_services/cost-mgmt:koku/python-google-api-python-client:2.41.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth:2.6.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-auth-httplib2:0.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-google-cloud-bigquery:2.34.2.pipfile
@@ -63,14 +63,14 @@ mgmt_services/cost-mgmt:koku/python-jinjasql:0.1.8.pipfile
 mgmt_services/cost-mgmt:koku/python-jmespath:0.10.0.pipfile
 mgmt_services/cost-mgmt:koku/python-kafka-python:2.0.2.pipfile
 mgmt_services/cost-mgmt:koku/python-kombu:4.6.11.pipfile
-mgmt_services/cost-mgmt:koku/python-markupsafe:1.1.1.pipfile
+mgmt_services/cost-mgmt:koku/python-markupsafe:2.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-mccabe:0.6.1.pipfile
 mgmt_services/cost-mgmt:koku/python-mmh3:3.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-msrest:0.6.21.pipfile
 mgmt_services/cost-mgmt:koku/python-msrestazure:0.6.4.pipfile
 mgmt_services/cost-mgmt:koku/python-numpy:1.22.3.pipfile
 mgmt_services/cost-mgmt:koku/python-oauthlib:3.2.0.pipfile
-mgmt_services/cost-mgmt:koku/python-oci:2.60.0.pipfile
+mgmt_services/cost-mgmt:koku/python-oci:2.60.1.pipfile
 mgmt_services/cost-mgmt:koku/python-ordered-set:4.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-packaging:21.3.pipfile
 mgmt_services/cost-mgmt:koku/python-pandas:1.4.1.pipfile
