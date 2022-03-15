@@ -15,6 +15,9 @@ from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
+from cost_models.models import CostModel
+from api.provider.provider_manager import ProviderManager
+from koku.settings import KOKU_DEFAULT_CURRENCY
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
@@ -113,20 +116,38 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _apply_total_exchange(self, data):
         """Overwrite this function because the structure is different for ocp."""
+        source_uuid = data.get("source_uuid")
+        print("\n\n\nsource_uuid")
+        print(source_uuid)
+        base_currency = KOKU_DEFAULT_CURRENCY
         if self._report_type == "costs":
-            exchange_rate = self._get_exchange_rate()
-            for key, value in data.items():
-                if (
-                    key.endswith("raw")
-                    or key.endswith("usage")
-                    or key.endswith("distributed")
-                    or key.endswith("markup")
-                    or key.endswith("total")
-                ):
-                    data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
-                elif key.endswith("units"):
-                    data[key] = self.currency
+            exchange_rate = 1
+            if source_uuid:
+                base_currency = self._get_base_currency(source_uuid[0])
+                exchange_rate = self._get_exchange_rate(base_currency)
+                for key, value in data.items():
+                    if (
+                        key.endswith("raw")
+                        or key.endswith("usage")
+                        or key.endswith("distributed")
+                        or key.endswith("markup")
+                        or key.endswith("total")
+                    ):
+                        data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
+                    elif key.endswith("units"):
+                        data[key] = self.currency
         return data
+
+    def _get_base_currency(self, source_uuid):
+        """Look up the report base currency."""
+        print("\n\nsource uuid: ")
+        print(source_uuid)
+        pm = ProviderManager(source_uuid)
+        cost_models = pm.get_cost_models(self.tenant)
+        if cost_models:
+            cm = cost_models[0]
+            return cm.currency
+        return KOKU_DEFAULT_CURRENCY
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -139,15 +160,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+            group_by_value = self._get_group_by()
+            query_group_by = ["date"] + group_by_value
+            if self._report_type == "costs":
+                query_group_by.append("source_uuid_id")
+
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-            group_by_value = self._get_group_by()
-
-            query_group_by = ["date"] + group_by_value
+            # query_data = query_data.values(*query_group_by)
+            # query_data = query_data.annotate(**self.report_annotations)
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
-
+            # annotations = self._mapper.report_type_map.get("annotations")
+            # query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            print("\n\n\nquerydata query")
+            print(query_data.query)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -158,8 +186,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                if self._report_type == "costs":
+                    metrics = query_data.annotate(**aggregates)
+                    metric_sum = self.return_total_query(metrics)
+                else:
+                    metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
+            print("this is the metric sum: ")
+            print(metric_sum)
+            print("\n\n\nquery data: ")
+            print(query_data)
+            print("\nquery sum:")
+            print(query_sum)
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
@@ -220,9 +258,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self._mapper.cost_units_key}
-        if self._mapper.usage_units_key:
-            sum_init["usage_units"] = self._mapper.usage_units_key
+        sum_init = {"cost_units": self.currency}
+        print("\n\n\n\nsum init :")
+        print(sum_init)
+        print("query_sum")
+        print(query_sum)
         query_sum.update(sum_init)
 
         ordered_total = {

@@ -822,6 +822,11 @@ class ReportQueryHandler(QueryHandler):
             out_data.append(cur)
         if self.provider != Provider.PROVIDER_OCP:
             out_data = self._apply_exchange_rate(out_data)
+        else:
+            print("We are an OCP provider")
+            out_data = self._apply_exchange_rate(out_data)
+            # need to get the cost model associated with the provider
+
         return out_data
 
     def order_by(self, data, order_fields):
