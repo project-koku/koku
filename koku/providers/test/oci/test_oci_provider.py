@@ -9,7 +9,6 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
-from oci.exceptions import ServiceError
 from rest_framework.exceptions import ValidationError
 
 from providers.oci.provider import _check_cost_report_access
@@ -55,7 +54,19 @@ class OCIProviderTestCase(TestCase):
         except Exception as exc:
             self.fail(exc)
 
-    @patch("providers.oci.provider._check_cost_report_access", return_value=True)
+    @patch(
+        "providers.oci.provider._check_cost_report_access",
+        return_value=(
+            {
+                "user": FAKE.md5(),
+                "key_file": FAKE.md5(),
+                "fingerprint": FAKE.md5(),
+                "tenancy": FAKE.md5(),
+                "region": FAKE.md5(),
+            },
+            FAKE.md5(),
+        ),
+    )
     def test_cost_usage_source_is_reachable(self, check_cost_report_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = OCIProvider()
@@ -74,10 +85,22 @@ class OCIProviderTestCase(TestCase):
             data_source = None
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
-    def test_cost_usage_source_is_reachable_no_bucket_access(self):
-        """Verify that the cost usage source bukcet is not accessible."""
+    @patch(
+        "providers.oci.provider._check_cost_report_access",
+        return_value=(
+            {
+                "user": FAKE.md5(),
+                "key_file": FAKE.md5(),
+                "fingerprint": FAKE.md5(),
+                "tenancy": FAKE.md5(),
+                "region": FAKE.md5(),
+            }
+        ),
+    )
+    def test_cost_usage_source_is_reachable_no_bucket_access(self, check_cost_report_access):
+        """Verify that the cost usage source bucket is not accessible."""
         provider_interface = OCIProvider()
-        with self.assertRaises(ServiceError):
-            credentials = {"tenant": "fake"}
+        with self.assertRaises(ValidationError):
+            credentials = {"tenant": None}
             data_source = None
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
