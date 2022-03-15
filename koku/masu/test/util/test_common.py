@@ -271,6 +271,8 @@ class CommonUtilTests(MasuTestCase):
             current_month_bill = bills.filter(billing_period_start=dh.this_month_start).first()
             last_month_bill = bills.filter(billing_period_start=dh.last_month_start).first()
 
+            current_month_bill.summary_data_creation_datetime = datetime.now()
+            current_month_bill.save()
             # Current month, previously summarized
             self.assertFalse(common_utils.determine_if_full_summary_update_needed(current_month_bill))
             # Previous month

@@ -21,6 +21,8 @@ from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
+LOG = logging.getLogger(__name__)
+
 
 class FakeDownloader:
     """Fake Downloader for tests."""
@@ -174,7 +176,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 5)
+            self.assertEqual(len(results), 6)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 

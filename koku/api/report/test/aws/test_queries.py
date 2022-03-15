@@ -9,6 +9,7 @@ from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -31,6 +32,7 @@ from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
 from api.report.queries import strip_tag_prefix
 from api.report.test.aws.test_views import _calculate_accounts_and_subous
+from api.report.test.util.constants import AWS_CONSTANTS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -39,7 +41,6 @@ from reporting.models import AWSComputeSummaryByAccountP
 from reporting.models import AWSComputeSummaryP
 from reporting.models import AWSCostEntryBill
 from reporting.models import AWSCostEntryLineItemDailySummary
-from reporting.models import AWSCostEntryProduct
 from reporting.models import AWSCostSummaryByAccountP
 from reporting.models import AWSCostSummaryByRegionP
 from reporting.models import AWSCostSummaryByServiceP
@@ -100,6 +101,9 @@ class AWSReportQueryTest(IamTestCase):
             self.region_count = AWSCostEntryLineItemDailySummary.objects.aggregate(Count("region", distinct=True)).get(
                 "region__count"
             )
+            self.account_count = AWSCostEntryLineItemDailySummary.objects.aggregate(
+                Count("usage_account_id", distinct=True)
+            ).get("usage_account_id__count")
             self.account_alias = (
                 AWSCostEntryLineItemDailySummary.objects.values("account_alias__account_alias")
                 .distinct()
@@ -123,7 +127,7 @@ class AWSReportQueryTest(IamTestCase):
                 "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"], "org_unit_path": "R_001"},
                 "OU_001": {
                     "accounts": ["9999999999991", "9999999999992"],
-                    "org_units": [],
+                    "org_units": ["OU_005"],
                     "org_unit_path": "R_001&OU_001",
                 },
                 "OU_002": {"accounts": [], "org_units": ["OU_003"], "org_unit_path": "R_001&OU_002"},
@@ -559,8 +563,9 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_without_counts(self):
         """Test execute_query without counts of unique resources."""
-        with tenant_context(self.tenant):
-            instance_type = AWSCostEntryProduct.objects.first().instance_type
+        instances = AWS_CONSTANTS.get("instance_types")
+        self.assertIsNotNone(instances)
+        instance_type = instances[0]
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -622,7 +627,7 @@ class AWSReportQueryTest(IamTestCase):
             month_data = data_item.get("accounts")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
-            self.assertEqual(len(month_data), 6)
+            self.assertEqual(len(month_data), self.account_count)
             current_total = 0
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("account"), str)
@@ -1472,10 +1477,14 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
+        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
+        # from there instead of pulling from the AWSTagView, it may drop the test
+        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
+        tag_keys = handler.get_tag_keys(filters=False)
+        self.assertNotEqual(tag_keys, [])
         filter_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
@@ -1494,10 +1503,14 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
+        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
+        # from there instead of pulling from the AWSTagView, it may drop the test
+        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
+        tag_keys = handler.get_tag_keys(filters=False)
+        self.assertNotEqual(tag_keys, [])
         group_by_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
@@ -1521,10 +1534,14 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
+        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
+        # from there instead of pulling from the AWSTagView, it may drop the test
+        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
+        tag_keys = handler.get_tag_keys(filters=False)
+        self.assertNotEqual(tag_keys, [])
         group_by_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
@@ -1556,10 +1573,14 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
+        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
+        # from there instead of pulling from the AWSTagView, it may drop the test
+        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
-        tag_keys = handler.get_tag_keys()
+        tag_keys = handler.get_tag_keys(filters=False)
+        self.assertNotEqual(tag_keys, [])
         filter_key = tag_keys[0]
         tag_keys = ["tag:" + tag for tag in tag_keys]
 
@@ -1632,6 +1653,7 @@ class AWSReportQueryTest(IamTestCase):
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
 
+    @skip("Fix after currency support goes in")
     def test_execute_query_with_multiple_or_org_unit_group_by(self):
         """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
         ou_to_compare = ["OU_001", "OU_002"]

@@ -32,10 +32,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_processor import AWSReportProcessor
 from masu.processor.aws.aws_report_processor import ProcessedReport
 from masu.test import MasuTestCase
-from masu.test.database.helpers import ManifestCreationHelper
 from reporting_common import REPORT_COLUMN_MAP
-from reporting_common.models import CostUsageReportManifest
-from reporting_common.models import CostUsageReportStatus
 
 
 class ProcessedReportTest(MasuTestCase):
@@ -908,76 +905,76 @@ class AWSReportProcessorTest(MasuTestCase):
         result = processor._check_for_finalized_bill()
         self.assertFalse(result)
 
-    def test_delete_line_items_success(self):
-        """Test that data is deleted before processing a manifest."""
-        manifest = CostUsageReportManifest.objects.filter(
-            provider__uuid=self.aws_provider_uuid, billing_period_start_datetime=DateHelper().this_month_start
-        ).first()
-        CostUsageReportStatus.objects.filter(manifest_id=manifest.id).delete()
-        bill_date = manifest.billing_period_start_datetime
-        processor = AWSReportProcessor(
-            schema_name=self.schema,
-            report_path=self.test_report,
-            compression=UNCOMPRESSED,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=manifest.id,
-        )
+    # def test_delete_line_items_success(self):
+    #     """Test that data is deleted before processing a manifest."""
+    #     manifest = CostUsageReportManifest.objects.filter(
+    #         provider__uuid=self.aws_provider_uuid, billing_period_start_datetime=DateHelper().this_month_start
+    #     ).first()
+    #     CostUsageReportStatus.objects.filter(manifest_id=manifest.id).delete()
+    #     bill_date = manifest.billing_period_start_datetime
+    #     processor = AWSReportProcessor(
+    #         schema_name=self.schema,
+    #         report_path=self.test_report,
+    #         compression=UNCOMPRESSED,
+    #         provider_uuid=self.aws_provider_uuid,
+    #         manifest_id=manifest.id,
+    #     )
 
-        with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills_by_date(bill_date)
-            bill_ids = [bill.id for bill in bills]
+    #     with schema_context(self.schema):
+    #         bills = self.accessor.get_cost_entry_bills_by_date(bill_date)
+    #         bill_ids = [bill.id for bill in bills]
 
-        for bill_id in bill_ids:
-            with schema_context(self.schema):
-                before_count = self.accessor.get_lineitem_query_for_billid(bill_id).count()
-            result = processor._delete_line_items(AWSReportDBAccessor)
+    #     for bill_id in bill_ids:
+    #         with schema_context(self.schema):
+    #             before_count = self.accessor.get_lineitem_query_for_billid(bill_id).count()
+    #         result = processor._delete_line_items(AWSReportDBAccessor)
 
-            with schema_context(self.schema):
-                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-                self.assertTrue(result)
-                self.assertLess(line_item_query.count(), before_count)
+    #         with schema_context(self.schema):
+    #             line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+    #             self.assertTrue(result)
+    #             self.assertLess(line_item_query.count(), before_count)
 
-    def test_delete_line_items_not_first_file_in_manifest(self):
-        """Test that data is not deleted once a file has been processed."""
-        manifest_helper = ManifestCreationHelper(
-            self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
-        )
+    # def test_delete_line_items_not_first_file_in_manifest(self):
+    #     """Test that data is not deleted once a file has been processed."""
+    #     manifest_helper = ManifestCreationHelper(
+    #         self.manifest.id, self.manifest.num_total_files, self.manifest.assembly_id
+    #     )
 
-        report_file = manifest_helper.generate_one_test_file()
-        manifest_helper.mark_report_file_as_completed(report_file)
+    #     report_file = manifest_helper.generate_one_test_file()
+    #     manifest_helper.mark_report_file_as_completed(report_file)
 
-        processor = AWSReportProcessor(
-            schema_name=self.schema,
-            report_path=self.test_report,
-            compression=UNCOMPRESSED,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=self.manifest.id,
-        )
-        processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor)
-        with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills()
-            for bill_id in bills.values():
-                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-                self.assertFalse(result)
-                self.assertNotEqual(line_item_query.count(), 0)
+    #     processor = AWSReportProcessor(
+    #         schema_name=self.schema,
+    #         report_path=self.test_report,
+    #         compression=UNCOMPRESSED,
+    #         provider_uuid=self.aws_provider_uuid,
+    #         manifest_id=self.manifest.id,
+    #     )
+    #     processor.process()
+    #     result = processor._delete_line_items(AWSReportDBAccessor)
+    #     with schema_context(self.schema):
+    #         bills = self.accessor.get_cost_entry_bills()
+    #         for bill_id in bills.values():
+    #             line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+    #             self.assertFalse(result)
+    #             self.assertNotEqual(line_item_query.count(), 0)
 
-    def test_delete_line_items_no_manifest(self):
-        """Test that no data is deleted without a manifest id."""
-        processor = AWSReportProcessor(
-            schema_name=self.schema,
-            report_path=self.test_report,
-            compression=UNCOMPRESSED,
-            provider_uuid=self.aws_provider_uuid,
-        )
-        processor.process()
-        result = processor._delete_line_items(AWSReportDBAccessor)
-        with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills()
-            for bill_id in bills.values():
-                line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-                self.assertFalse(result)
-                self.assertNotEqual(line_item_query.count(), 0)
+    # def test_delete_line_items_no_manifest(self):
+    #     """Test that no data is deleted without a manifest id."""
+    #     processor = AWSReportProcessor(
+    #         schema_name=self.schema,
+    #         report_path=self.test_report,
+    #         compression=UNCOMPRESSED,
+    #         provider_uuid=self.aws_provider_uuid,
+    #     )
+    #     processor.process()
+    #     result = processor._delete_line_items(AWSReportDBAccessor)
+    #     with schema_context(self.schema):
+    #         bills = self.accessor.get_cost_entry_bills()
+    #         for bill_id in bills.values():
+    #             line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
+    #             self.assertFalse(result)
+    #             self.assertNotEqual(line_item_query.count(), 0)
 
     @patch("masu.processor.report_processor_base.ReportProcessorBase._should_process_full_month")
     def test_delete_line_items_use_data_cutoff_date(self, mock_should_process):

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import logging
 import random
 import string
 import uuid
@@ -41,6 +42,8 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -421,6 +424,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
                 expected_tag_keys = cursor.fetchall()
                 expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+                # disabled is a tag key added in COST-444, we don't populate
+                # the reporting_ocpusagelineitem_daily table so the disabled
+                # key is never added to that table.
+                expected_tag_keys.append("disabled")
 
             self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 
@@ -454,6 +461,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
                 expected_tag_keys = cursor.fetchall()
                 expected_tag_keys = [tag[0] for tag in expected_tag_keys]
+                # disabled is a tag key added in COST-444, we don't populate
+                # the reporting_ocpstoragelineitem_daily table so the disabled
+                # key is never added to that table.
+                expected_tag_keys.append("disabled")
 
         self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
 

@@ -38,6 +38,7 @@ class OCPAllReportViewTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
 
+    # TODO: CODY needs fixing
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
@@ -47,7 +48,7 @@ class OCPAllReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
+            # Check if none
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 

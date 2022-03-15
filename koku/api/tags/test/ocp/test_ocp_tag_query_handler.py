@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+import logging
+
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -13,10 +15,13 @@ from api.query_filter import QueryFilterCollection
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
+from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPTagsValues
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPTagQueryHandlerTest(IamTestCase):
@@ -217,6 +222,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_cluster_filter(self):
         """Test that tags from a cluster are returned with the cluster filter."""
+        # Note: By default the OCP tag handler only grabs enabled keys
         url = "?filter[cluster]=OCP-on-AWS&filter[type]=storage"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
@@ -228,7 +234,9 @@ class OCPTagQueryHandlerTest(IamTestCase):
                 .distinct()
                 .all()
             )
-            tag_keys = [tag.get("key") for tag in storage_tag_keys]
+            enabled_tags = list(OCPEnabledTagKeys.objects.values("key").all())
+            enabled = [tag.get("key") for tag in enabled_tags]
+            tag_keys = [tag.get("key") for tag in storage_tag_keys if tag.get("key") in enabled]
 
         result = handler.get_tag_keys()
         self.assertEqual(sorted(result), sorted(tag_keys))

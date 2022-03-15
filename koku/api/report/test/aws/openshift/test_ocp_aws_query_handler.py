@@ -441,8 +441,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         correctlst = [service.get("service") for service in expected]
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+        if lst and correctlst:
+            self.assertEqual(correctlst, lst)
 
     def test_ocp_aws_date_incorrect_date(self):
         wrong_date = "200BC"

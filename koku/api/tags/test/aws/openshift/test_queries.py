@@ -3,16 +3,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP-on-AWS tag query handler."""
+import logging
+
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.test.util.constants import OCP_POD_LABELS
 from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
 from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPAWSTagQueryHandlerTest(IamTestCase):
@@ -133,7 +138,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_for_key_filter(self):
         """Test that the execute query runs properly with key query."""
-        key = "version"
+        key = list(OCP_POD_LABELS[0].keys())[0]
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)

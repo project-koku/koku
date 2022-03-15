@@ -3,12 +3,19 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Settings views."""
+import logging
+import random
+
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
+from reporting.models import OCPAWSTagsSummary
+
+LOG = logging.getLogger(__name__)
 
 
 class SettingsViewTest(IamTestCase):
@@ -84,38 +91,26 @@ class SettingsViewTest(IamTestCase):
 
     def test_post_settings_tag_enabled(self):
         """Test settings POST calls change enabled tags"""
-        test_matrix = [
-            {
-                "name": "test01",
-                "enabled_tags": [
-                    "aws-app",
-                    "aws-environment",
-                    "openshift-environment",
-                    "openshift-storageclass",
-                    "openshift-version",
-                ],
-            },
-            {"name": "test02", "enabled_tags": ["aws-environment", "openshift-storageclass", "openshift-version"]},
-            {"name": "test03", "enabled_tags": ["openshift-storageclass", "openshift-version"]},
-            {"name": "test04", "enabled_tags": ["openshift-version"]},
-        ]
+        with schema_context(self.schema_name):
+            tags = OCPAWSTagsSummary.objects.distinct("key").values_list("key", flat=True)
+            keys_list = [f"aws-{tag}" for tag in tags]
+            max_idx = len(keys_list)
+        for _ in ["test01", "test02", "test03", "test04"]:
+            enabled_tags = list(set(random.choices(keys_list, k=random.randint(0, max_idx))))
+            with self.subTest(enabled_tags=enabled_tags):
+                body = {"api": {"settings": {"tag-management": {"enabled": enabled_tags}}}}
+                response = self.post_settings(body)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        for test in test_matrix:
-            enabled_tags = test.get("enabled_tags")
+                response = self.get_settings()
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            body = {"api": {"settings": {"tag-management": {"enabled": enabled_tags}}}}
-            response = self.post_settings(body)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+                duallist = self.get_duallist_from_response(response)
+                resp_enabled_tags = duallist.get("initialValue")
+                self.assertEqual(len(resp_enabled_tags), len(enabled_tags))
 
-            response = self.get_settings()
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-            duallist = self.get_duallist_from_response(response)
-            resp_enabled_tags = duallist.get("initialValue")
-            self.assertEqual(len(resp_enabled_tags), len(enabled_tags))
-
-            for tag in enabled_tags:
-                self.assertIn(tag, resp_enabled_tags)
+                for tag in enabled_tags:
+                    self.assertIn(tag, resp_enabled_tags)
 
     def test_post_settings_ocp_tag_enabled_invalid_tag(self):
         """Test setting OCP tags as enabled with invalid tag key."""

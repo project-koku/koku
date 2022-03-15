@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import logging
 import random
 from decimal import Decimal
 from unittest import skip
@@ -19,6 +20,8 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -392,6 +395,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 supplementary_monthly_cost_json__isnull=False
             ).first()
+
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("cpu"), 0)
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("memory"), 0)
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("pvc"), 0)

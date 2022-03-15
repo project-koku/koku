@@ -104,8 +104,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         # Load data
                         # TODO: COST-444: This NiseDataLoader to be removed and replaced with the commented baker_data_loaders below.
                         data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
-                        data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
-                        data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
+                        # data_loader.load_openshift_data(customer, "ocp_aws_static_data.yml", "OCP-on-AWS")
+                        # data_loader.load_aws_data(customer, "aws_static_data.yml", day_list=day_list)
                         data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
                         data_loader.load_azure_data(customer, "azure_static_data.yml")
 
@@ -116,27 +116,27 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         ocp_on_prem_cluster_id = "OCP-on-Prem"
 
                         # TODO: COST-444: uncomment these when the above data_loader is removed
-                        # ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
-                        #     ocp_on_aws_cluster_id, on_cloud=True
-                        # )
+                        ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
+                            ocp_on_aws_cluster_id, on_cloud=True
+                        )
                         # ocp_on_azure_ocp_provider, ocp_on_azure_report_periods = bakery_data_loader.load_openshift_data(
                         #     ocp_on_azure_cluster_id, on_cloud=True
                         # )
                         # ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
                         #     ocp_on_gcp_cluster_id, on_cloud=True
                         # )
-                        # _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
-                        # _, aws_bills = bakery_data_loader.load_aws_data(
-                        #     linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
-                        # )
+                        _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
+                        _, aws_bills = bakery_data_loader.load_aws_data(
+                            linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
+                        )
                         # _, azure_bills = bakery_data_loader.load_azure_data(
                         #     linked_openshift_provider=ocp_on_azure_ocp_provider
                         # )
                         _, gcp_bills = bakery_data_loader.load_gcp_data()
 
-                        # bakery_data_loader.load_openshift_on_cloud_data(
-                        #     Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods
-                        # )
+                        bakery_data_loader.load_openshift_on_cloud_data(
+                            Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods
+                        )
                         # bakery_data_loader.load_openshift_on_cloud_data(
                         #     Provider.PROVIDER_AZURE_LOCAL,
                         #     ocp_on_azure_cluster_id,

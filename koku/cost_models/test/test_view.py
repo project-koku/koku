@@ -55,8 +55,12 @@ class CostModelViewTests(IamTestCase):
                 "usage": {"usage_start": None, "usage_end": None},
             }
         ]
+        self.cost_model_name = "Test Cost Model for test_view.py"
+        # We have one preloaded cost model with bakery so the idx for
+        # the cost model we are creating in the results return is 1
+        self.results_idx = 1
         self.fake_data = {
-            "name": "Test Cost Model",
+            "name": self.cost_model_name,
             "description": "Test",
             "source_type": self.ocp_source_type,
             "source_uuids": [self.provider.uuid],
@@ -159,7 +163,8 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_success(self):
         """Test that we can read a cost model."""
-        cost_model = CostModel.objects.first()
+        cost_model = CostModel.objects.filter(name=self.cost_model_name).first()
+        self.assertTrue(cost_model)
         url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
@@ -188,13 +193,13 @@ class CostModelViewTests(IamTestCase):
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test" % reverse("cost-models-list")
+        url = "%s?name=test_view" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
 
         url = "%s?description=eSt" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
@@ -202,7 +207,7 @@ class CostModelViewTests(IamTestCase):
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
         self.assertEqual(results[0]["description"], "Test")
 
         url = "%s?description=Fo" % reverse("cost-models-list")
@@ -226,7 +231,7 @@ class CostModelViewTests(IamTestCase):
         self.fake_data["rates"][0]["tiered_rates"][0]["value"] = new_value
 
         with tenant_context(self.tenant):
-            cost_model = CostModel.objects.first()
+            cost_model = CostModel.objects.filter(name=self.cost_model_name).first()
             url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
         client = APIClient()
         response = client.put(url, self.fake_data, format="json", **self.headers)
@@ -322,9 +327,9 @@ class CostModelViewTests(IamTestCase):
         for keyname in ["meta", "links", "data"]:
             self.assertIn(keyname, response.data)
         self.assertIsInstance(response.data.get("data"), list)
-        self.assertEqual(len(response.data.get("data")), 1)
-
-        cost_model = response.data.get("data")[0]
+        model = CostModel.objects.filter(name=self.cost_model_name).first()
+        self.assertTrue(model)
+        cost_model = response.data.get("data")[self.results_idx]
         self.assertIsNotNone(cost_model.get("uuid"))
         self.assertIsNotNone(cost_model.get("sources"))
         self.assertEqual(

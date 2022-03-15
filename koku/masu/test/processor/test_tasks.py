@@ -21,8 +21,6 @@ from uuid import uuid4
 import faker
 from dateutil import relativedelta
 from django.core.cache import caches
-from django.db.models import Max
-from django.db.models import Min
 from django.db.utils import IntegrityError
 from tenant_schemas.utils import schema_context
 
@@ -529,88 +527,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # have something to pull from
         self.start_date = DateHelper().today.replace(day=1)
 
-    @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
-    @patch("masu.processor.tasks.update_cost_model_costs")
-    def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
-        """Test that the summary table task runs."""
-        provider = Provider.PROVIDER_AWS
-        provider_aws_uuid = self.aws_provider_uuid
-
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
-
-        with schema_context(self.schema):
-            daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
-            summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
-            daily_query.delete()
-            summary_query.delete()
-
-            initial_daily_count = daily_query.count()
-            initial_summary_count = summary_query.count()
-
-        self.assertEqual(initial_daily_count, 0)
-        self.assertEqual(initial_summary_count, 0)
-
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, synchronous=True)
-
-        with schema_context(self.schema):
-            self.assertNotEqual(daily_query.count(), initial_daily_count)
-            self.assertNotEqual(summary_query.count(), initial_summary_count)
-
-        mock_chain.return_value.apply_async.assert_called()
-
-    @patch("masu.processor.tasks.chain")
-    def test_update_summary_tables_aws_end_date(self, mock_charge_info):
-        """Test that the summary table task respects a date range."""
-        provider = Provider.PROVIDER_AWS_LOCAL
-        provider_aws_uuid = self.aws_provider_uuid
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-
-        start_date = DateHelper().last_month_start
-
-        end_date = DateHelper().last_month_end
-
-        daily_table = getattr(self.aws_accessor.report_schema, daily_table_name)
-        summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
-        ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
-        with schema_context(self.schema):
-            daily_table.objects.all().delete()
-            summary_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
-                Min("interval_start")
-            )["interval_start__min"]
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
-                Max("interval_start")
-            )["interval_start__max"]
-
-        # The summary tables will only include dates where there is data
-        expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, synchronous=True)
-
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_end__max"]
-
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
-
-        with schema_context(self.schema):
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_end__max"]
-
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
-
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
@@ -637,22 +553,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
-
-        with schema_context(self.schema):
-            daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
-            daily_query.delete()
-
-            initial_daily_count = daily_query.count()
-
-        self.assertEqual(initial_daily_count, 0)
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
-
-        with schema_context(self.schema):
-            self.assertNotEqual(daily_query.count(), initial_daily_count)
-
         update_cost_model_costs(
             schema_name=self.schema,
             provider_uuid=provider_ocp_uuid,
@@ -697,56 +600,60 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
-    @patch("masu.processor.tasks.chain")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates")
-    def test_update_summary_tables_ocp_end_date(self, mock_cpu_rate, mock_mem_rate, mock_charge_info):
-        """Test that the summary table task respects a date range."""
-        mock_cpu_rate.return_value = 1.5
-        mock_mem_rate.return_value = 2.5
-        provider = Provider.PROVIDER_OCP
-        provider_ocp_uuid = self.ocp_test_provider_uuid
-        ce_table_name = OCP_REPORT_TABLE_MAP["report"]
-        daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
+    # @patch("masu.processor.tasks.chain")
+    # @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates")
+    # @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates")
+    # def test_update_summary_tables_ocp_end_date(self, mock_cpu_rate, mock_mem_rate, mock_charge_info):
+    #     """Test that the summary table task respects a date range."""
+    #     mock_cpu_rate.return_value = 1.5
+    #     mock_mem_rate.return_value = 2.5
+    #     provider = Provider.PROVIDER_OCP
+    #     provider_ocp_uuid = self.ocp_test_provider_uuid
+    #     ce_table_name = OCP_REPORT_TABLE_MAP["report"]
+    #     daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
 
-        start_date = DateHelper().last_month_start
-        end_date = DateHelper().last_month_end
-        daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
-        ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
+    #     start_date = DateHelper().last_month_start
+    #     end_date = DateHelper().last_month_end
+    #     daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
+    #     ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
 
-        with schema_context(self.schema):
-            daily_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
-                Min("interval_start")
-            )["interval_start__min"]
+    #     with schema_context(self.schema):
+    #         daily_table.objects.all().delete()
+    #         ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
+    #             Min("interval_start")
+    #         )["interval_start__min"]
 
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
-                Max("interval_start")
-            )["interval_start__max"]
+    #         ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
+    #             Max("interval_start")
+    #         )["interval_start__max"]
 
-        # The summary tables will only include dates where there is data
-        expected_start_date = max(start_date, ce_start_date)
-        expected_end_date = min(end_date, ce_end_date)
+    #     # The summary tables will only include dates where there is data
+    #     expected_start_date = max(start_date, ce_start_date)
+    #     expected_end_date = min(end_date, ce_end_date)
 
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_end__max"]
+    #     update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+    #     with schema_context(self.schema):
+    #         daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
+    #         result_start_date = daily_entry["usage_start__min"]
+    #         result_end_date = daily_entry["usage_end__max"]
 
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
+    #     self.assertEqual(result_start_date, expected_start_date.date())
+    #     self.assertEqual(result_end_date, expected_end_date.date())
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
+        # COST-444: We use start & end date based off manifest
         provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
-        expected_start_date = start_date.strftime("%Y-%m-%d")
-        expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        billing_period_start = manifest.billing_period_start_datetime
+        expected_start_date = billing_period_start.strftime("%Y-%m-%d")
+        expected_end_date = DateHelper().month_end(billing_period_start).strftime("%Y-%m-%d")
         tracing_id = "1234"
 
         update_summary_tables(

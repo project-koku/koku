@@ -151,25 +151,25 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             updater.update_summary_tables(start_date_str, end_date_str)
             mock_ocp_on_aws.assert_not_called()
 
-    def test_update_summary_tables(self):
-        """Test that summary tables are updated correctly."""
-        start_date = self.dh.this_month_start
-        end_date = self.dh.this_month_end
-        updater = OCPCloudReportSummaryUpdater(
-            schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
-        )
+    # def test_update_summary_tables(self):
+    #     """Test that summary tables are updated correctly."""
+    #     start_date = self.dh.this_month_start
+    #     end_date = self.dh.this_month_end
+    #     updater = OCPCloudReportSummaryUpdater(
+    #         schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
+    #     )
 
-        with AWSReportDBAccessor(self.schema) as aws_accessor:
-            summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-            query = aws_accessor._get_db_obj_query(summary_table_name)
-            query.delete()
-            initial_count = query.count()
+    #     with AWSReportDBAccessor(self.schema) as aws_accessor:
+    #         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
+    #         query = aws_accessor._get_db_obj_query(summary_table_name)
+    #         query.delete()
+    #         initial_count = query.count()
 
-        updater.update_summary_tables(start_date, end_date)
+    #     updater.update_summary_tables(start_date, end_date)
 
-        with AWSReportDBAccessor(self.schema) as aws_accessor:
-            query = aws_accessor._get_db_obj_query(summary_table_name)
-            self.assertNotEqual(query.count(), initial_count)
+    #     with AWSReportDBAccessor(self.schema) as aws_accessor:
+    #         query = aws_accessor._get_db_obj_query(summary_table_name)
+    #         self.assertNotEqual(query.count(), initial_count)
 
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
