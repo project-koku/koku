@@ -65,7 +65,7 @@ class DBPerformanceStats:
             LOG.info(self._prep_log_message("Connecting to {dbname} at {host}:{port} as {user}".format(**conn_args)))
             self.conn = psycopg2.connect(cursor_factory=RealDictCursor, **conn_args)
 
-    def _execute(self, sql, params):
+    def _execute(self, sql, params=None):
         cur = self.conn.cursor(cursor_factory=RealDictCursor)
         try:
             _sql = cur.mogrify(sql, params or None).decode("utf-8")

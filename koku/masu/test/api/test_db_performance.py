@@ -2,7 +2,11 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+from unittest.mock import patch
+
 from django.db import connection
+from psycopg2 import OperationalError
+from psycopg2.errors import UndefinedTable
 
 from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
@@ -25,6 +29,27 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertNotEqual(dbp.conn, connection.connection)
             _conn = dbp.conn
         self.assertTrue(_conn.closed)
+
+    @patch("koku.configurator.CONFIGURATOR.get_database_ca", return_value=True)
+    def test_ssl(self, ca):
+        """Test that a certificate file can be used to make a connection."""
+        expected = OperationalError
+        dbp = None
+        exc = None
+        try:
+            dbp = DBPerformanceStats("KOKU", CONFIGURATOR)
+        except Exception as e:
+            exc = e
+        if exc is not None:
+            self.assertEqual(expected, type(exc))
+        else:
+            self.assertFalse(dbp.conn.closed)
+
+    def test_bad_sql(self):
+        """Test that bad sql will throw an exception."""
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            with self.assertRaises(UndefinedTable):
+                dbp._execute("""select * from no_table_here;""")
 
     def test_del_closes_connection(self):
         """Test that instance delete closes the connection"""
@@ -100,6 +125,12 @@ class TestDBPerformanceClass(IamTestCase):
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            stats = dbp.get_statement_stats()
-            self.assertTrue(0 < len(stats) <= 100)
-            self.assertTrue("calls", stats[0] or "Result" in stats[0])
+            has_pss = dbp._validate_pg_stat_statements()
+            if has_pss:
+                stats = dbp.get_statement_stats()
+                self.assertTrue(0 < len(stats) <= 100)
+                self.assertIn("calls", stats[0])
+            else:
+                stats = dbp.get_statement_stats()
+                self.assertEqual(len(stats), 1)
+                self.assertIn("Result", stats[0])

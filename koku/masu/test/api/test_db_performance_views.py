@@ -6,6 +6,7 @@
 import base64
 import json
 import logging
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -46,6 +47,25 @@ class TestDBPerformance(IamTestCase):
         self.assertIn('id="term_action_table"', html)
         self.assertIn("Lock Information", html)
 
+        mock_ret_val = [
+            {
+                "blocking_pid": 10,
+                "blocking_user": "eek",
+                "blckng_proc_curr_stmt": "select 1",
+                "blocked_pid": 11,
+                "blocked_user": "eek",
+                "blocked_statement": "select 1",
+            }
+        ]
+        with patch(
+            "masu.api.db_performance.db_performance.DBPerformanceStats.get_lock_info", return_value=mock_ret_val
+        ):
+            response = self.client.get(reverse("lock_info"), **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn("Lock Information", html)
+            self.assertIn("<button", html)
+            self.assertIn("blocked_pid", html)
+
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_conn_activity(self, mok_middl):
         """Test the stat activity view."""
@@ -63,6 +83,26 @@ class TestDBPerformance(IamTestCase):
         self.assertIn('id="stmt_stats_table"', html)
         self.assertIn("Statement Statistics", html)
         self.assertTrue("calls" in html or "Result" in html)
+
+        mock_ret_val = [
+            {
+                "min_exec_time": Decimal("100.003"),
+                "max_exec_time": Decimal("10000.003"),
+                "mean_exec_time": Decimal("4250.8882"),
+                "query": "select 1",
+            }
+        ]
+        with patch(
+            "masu.api.db_performance.db_performance.DBPerformanceStats.get_statement_stats", return_value=mock_ret_val
+        ):
+            response = self.client.get(reverse("stmt_stats"), **self._get_headers())
+            html = response.content.decode("utf-8")
+            self.assertIn('id="stmt_stats_table"', html)
+            self.assertIn("Statement Statistics", html)
+            self.assertTrue("#d16969;" in html)
+            self.assertTrue("#c7d169;" in html)
+            self.assertTrue("#69d172;" in html)
+            self.assertTrue("SELECT" in html)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_pg_ver(self, mok_middl):
