@@ -62,7 +62,7 @@ class TestDBPerformance(IamTestCase):
         html = response.content.decode("utf-8")
         self.assertIn('id="stmt_stats_table"', html)
         self.assertIn("Statement Statistics", html)
-        self.assertIn("calls", html)
+        self.assertTrue("calls" in html or "Result" in html)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_pg_ver(self, mok_middl):
