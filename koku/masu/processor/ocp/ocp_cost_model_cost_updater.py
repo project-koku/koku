@@ -340,11 +340,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         # Delete existing records
         with OCPReportDBAccessor(self._schema) as report_accessor:
             report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                source_uuid,
-                start_date,
-                end_date,
-                table=OCPUsageLineItemDailySummary,
-                filters={"monthly_cost_type": "Tag"},
+                source_uuid, start_date, end_date, table=OCPUsageLineItemDailySummary, filters={"cost_type": "Tag"}
             )
 
     def update_summary_cost_model_costs(self, start_date, end_date):

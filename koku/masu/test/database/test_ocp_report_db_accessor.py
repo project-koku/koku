@@ -1306,9 +1306,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Node",
+                        cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="Node"
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -1356,9 +1354,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Node",
+                        cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="Node"
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -1409,9 +1405,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Node",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Node"
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -1468,7 +1462,7 @@ select * from eek where val1 in {{report_period_id}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="PVC"
             )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1529,9 +1523,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Node",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Node"
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -1588,7 +1580,7 @@ select * from eek where val1 in {{report_period_id}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="PVC"
             )
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1633,7 +1625,7 @@ select * from eek where val1 in {{report_period_id}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="PVC"
             )
 
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
@@ -1682,7 +1674,7 @@ select * from eek where val1 in {{report_period_id}} ;
             c_a = k_v.get("cluster_alias")
 
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="PVC"
             )
 
             # assert that there are no supplementary monthly PVC costs currently on our cluster id
@@ -1737,9 +1729,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Node",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Node"
                     )
                     # assert that there are no infrastructure monthly node costs currently on our cluster id
                     self.assertEqual(qset.count(), 0)
@@ -1783,7 +1773,7 @@ select * from eek where val1 in {{report_period_id}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="PVC"
             )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1833,7 +1823,7 @@ select * from eek where val1 in {{report_period_id}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Node"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Node"
             )
             # assert that there are no infrastructure monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
@@ -1886,9 +1876,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -1946,9 +1934,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -2006,9 +1992,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
@@ -2053,9 +2037,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -2105,9 +2087,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        infrastructure_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -2155,9 +2135,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     c_a = k_v.get("cluster_alias")
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
@@ -2210,9 +2188,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     # create a query set based on the criteria we are looking for
                     # so it can be evaluated before and after the function call
                     qset = OCPUsageLineItemDailySummary.objects.filter(
-                        cluster_id=self.cluster_id,
-                        supplementary_monthly_cost_json__isnull=False,
-                        monthly_cost_type="Cluster",
+                        cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Cluster"
                     )
                     # assert that there are no infrastructure monthly node costs currently on our cluster id
                     self.assertEqual(qset.count(), 0)
@@ -2262,7 +2238,7 @@ select * from eek where val1 in {{report_period_id}} ;
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="Cluster"
+                cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, cost_type="Cluster"
             )
             # assert that there are no supplementary monthly node costs currently on our cluster id
             self.assertEqual(qset.count(), 0)

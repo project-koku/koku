@@ -221,7 +221,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
+    COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
         "Cluster": "cluster_cost_per_month",
@@ -340,7 +340,7 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     supplementary_project_monthly_cost = JSONField(null=True)
 
-    monthly_cost_type = models.TextField(null=True, choices=MONTHLY_COST_TYPES)
+    cost_type = models.TextField(null=True, choices=COST_TYPES)
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
