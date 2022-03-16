@@ -221,7 +221,7 @@ class OCPUsageLineItemDailySummary(models.Model):
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
         "Cluster": "cluster_cost_per_month",
