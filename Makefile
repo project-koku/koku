@@ -10,7 +10,7 @@ PGSQL_VERSION   = 9.6
 PYTHON	= $(shell which python)
 TOPDIR  = $(shell pwd)
 PYDIR	= koku
-SCRIPTDIR = $(TOPDIR)/scripts
+SCRIPTDIR = $(TOPDIR)/dev/scripts
 KOKU_SERVER = $(shell echo "${KOKU_API_HOST:-localhost}")
 KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
@@ -72,10 +72,11 @@ help:
 	@echo "  large-ocp-source-testing              create a test OCP source "large_ocp_1" with a larger volume of data"
 	@echo "                                          @param nise_config_dir - directory of nise config files to use"
 	@echo "  load-test-customer-data               load test data for the default sources created in create-test-customer"
+	@echo "                                          @param  test_source - load a specific source's data (aws, azure, gcp, onprem, all(default))"
 	@echo "                                          @param start - (optional) start date ex. 2019-08-02"
 	@echo "                                          @param end - (optional) end date ex. 2019-12-5"
 	@echo "  load-aws-org-unit-tree                inserts aws org tree into model and runs nise command to populate cost"
-	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'scripts/aws_org_tree.yml'."
+	@echo "                                          @param tree_yml - (optional) Tree yaml file. Default: 'dev/scripts/aws_org_tree.yml'."
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
@@ -168,32 +169,33 @@ lint:
 	pre-commit run --all-files
 
 clear-testing:
-	$(PREFIX) $(PYTHON) $(TOPDIR)/scripts/clear_testing.py -p $(TOPDIR)/testing
+	$(PREFIX) $(PYTHON) $(SCRIPTDIR)/clear_testing.py -p $(TOPDIR)/testing
 
 clear-trino:
 	$(PREFIX) rm -fr ./.trino/
 
 create-test-customer: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
 create-test-customer-no-sources: run-migrations docker-up-koku
-	$(PYTHON) $(TOPDIR)/scripts/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
+	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py --no-sources --bypass-api || echo "WARNING: create_test_customer failed unexpectedly!"
 
 delete-test-sources:
-	$(PYTHON) $(TOPDIR)/scripts/delete_test_sources.py
+	$(PYTHON) $(SCRIPTDIR)/delete_test_sources.py
 
 delete-cost-models:
-	$(PYTHON) $(TOPDIR)/scripts/delete_cost_models.py
+	$(PYTHON) $(SCRIPTDIR)/delete_cost_models.py
 
 delete-test-customer-data: delete-test-sources delete-cost-models
 
+test_source=all
 load-test-customer-data:
-	$(TOPDIR)/scripts/load_test_customer_data.sh $(start) $(end)
+	$(SCRIPTDIR)/load_test_customer_data.sh $(test_source) $(start) $(end)
 	make load-aws-org-unit-tree
 
 load-aws-org-unit-tree:
 	@if [ $(shell $(PYTHON) -c 'import sys; print(sys.version_info[0])') = '3' ] ; then \
-		$(PYTHON) $(TOPDIR)/scripts/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
+		$(PYTHON) $(SCRIPTDIR)/insert_org_tree.py tree_yml=$(tree_yml) schema=$(schema) nise_yml=$(nise_yml) start_date=$(start_date) ; \
 	else \
 		echo "This make target requires python3." ; \
 	fi
@@ -226,16 +228,16 @@ reset-db-statistics:
 requirements:
 	pipenv lock
 	pipenv lock -r > docs/rtd_requirements.txt
-	python scripts/create_manifest.py
+	python dev/scripts/create_manifest.py
 
 manifest:
-	python scripts/create_manifest.py
+	python dev/scripts/create_manifest.py
 
 check-manifest:
 	.github/scripts/check_manifest.sh
 
 run-migrations:
-	$(SCRIPTDIR)/run_migrations.sh $(applabel) $(migration)
+	scripts/run_migrations.sh $(applabel) $(migration)
 
 serve:
 	$(DJANGO_MANAGE) runserver
@@ -364,7 +366,7 @@ docker-up-koku:
 
 _koku-wait:
 	@echo "Waiting on koku status: "
-	@until ./scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
+	@until ./dev/scripts/check_for_koku_server.sh $${KOKU_API_HOST:-localhost} $${API_PATH_PREFIX:-/api/cost-management} $${KOKU_API_PORT:-8000} >/dev/null 2>&1 ; do \
          printf "." ; \
          sleep 1 ; \
      done

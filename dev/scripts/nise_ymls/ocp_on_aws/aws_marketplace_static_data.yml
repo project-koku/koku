@@ -1,0 +1,25 @@
+---
+generators:
+  - MarketplaceGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      processor_arch: 32-bit
+      resource_id: 55555555
+      product_sku: VEAJHRNKTJZQ
+      region: us-east-1a
+      tags:
+        resourceTags/aws:createdBy: AssumedRole:AROAYSLL3JVQ6DYUNKWQJ:1637692740557658269
+      instance_type:
+        inst_type: m5.large
+        vcpu: 2
+        memory: '8 GiB'
+        storage: 'EBS Only'
+        family: 'General Purpose'
+        cost: 1.000
+        rate: 0.500
+
+
+accounts:
+  payer: 9999999999999
+  user:
+    - 9999999999999
