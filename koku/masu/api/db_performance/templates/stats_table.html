@@ -1,0 +1,65 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+        <style>
+            .pre {white-space: pre;}
+            .monospace {font-family: 'Courier New', Courier, monospace;}
+            .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
+            .clear-stats {margin-top: 1em; margin-bottom: 1em;}
+            tbody > tr:not(:first-child) > td {border-top: 1px solid black;}
+            tbody > tr:nth-child(even) {background-color: #e7e7e7;}
+            hr {width: 100%}
+            th, td {vertical-align: top; padding-left: 0.5em; padding-right: 0.5em;}
+            th {border-bottom: 1px solid black; background-color: #cecece;}
+            th:not(:first-child) {border-left: 1px solid black;}
+            td:not(:first-child) {border-left: 1px solid black;}
+        </style>
+        <!-- <script>
+function clear_stmt_stats() {
+    if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
+        xhttp = new XMLHttpRequest();
+        xhttp.open("GET", "{{action_urls[0]}}", false);
+        xhttp.send();
+        if (xhttp.status != 200) {
+            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+        }
+        location.reload();
+    }
+}
+        </script> -->
+    </head>
+    <body>
+        <h1>Database Performance</h1>
+        <hr />
+        <h2 id="data_header">{{page_header}}</h2>
+        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button> -->
+        <table id="stmt_stats_table" cellspacing="0">
+{% for rec in data %}
+    {% if loop.first %}
+            <thead>
+                <tr>
+                    <th></th>
+        {% for field in fields %}
+                        <th id="{{field}}">{{field}}</th>
+        {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+    {% endif %}
+                <tr>
+                    <td></td>
+    {% for field in fields %}
+                    <td id="{{field}}" {% if field in rec.get("_attrs", {}) %} {{rec["_attrs"][field]}} {% endif %}>{{rec[field]}}</td>
+    {% endfor %}
+                </tr>
+    {% if loop.last %}
+            </tbody>
+    {% endif %}
+{% endfor %}
+        </table>
+    </body>
+</html>

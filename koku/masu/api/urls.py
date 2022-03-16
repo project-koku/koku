@@ -11,14 +11,19 @@ from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
+from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
 from masu.api.views import expired_data
 from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
+from masu.api.views import lockinfo
+from masu.api.views import pg_engine_version
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
+from masu.api.views import stat_activity
+from masu.api.views import stat_statements
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 
@@ -60,6 +65,11 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
+    path("db-performance/db-settings/", dbsettings, name="db_settings"),
+    path("db-performance/lock-info/", lockinfo, name="lock_info"),
+    path("db-performance/stat-activity/", stat_activity, name="conn_activity"),
+    path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
+    path("db-performance/db-version/", pg_engine_version, name="db_version"),
 ]
 
 urlpatterns += ROUTER.urls
