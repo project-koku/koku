@@ -557,27 +557,27 @@ class OCPReportViewTest(IamTestCase):
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
