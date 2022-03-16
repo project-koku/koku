@@ -325,6 +325,14 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_infrastructure(self, mock_cost_accessor):
         """Test OCP charge for monthly costs is updated."""
+        with schema_context(self.schema):
+            init_monthly_cost = OCPUsageLineItemDailySummary.objects.filter(
+                infrastructure_monthly_cost_json__isnull=False
+            ).first()
+            expected_cpu = init_monthly_cost.infrastructure_monthly_cost_json.get("cpu")
+            expected_mem = init_monthly_cost.infrastructure_monthly_cost_json.get("memory")
+            expected_pvc = init_monthly_cost.infrastructure_monthly_cost_json.get("pvc")
+
         node_cost = random.randrange(1, 200)
         infrastructure_rates = {"node_cost_per_month": node_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
@@ -339,9 +347,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
                 infrastructure_monthly_cost_json__isnull=False
             ).first()
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), 0)
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
-            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), 0)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), expected_cpu)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), expected_mem)
+            self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), expected_pvc)
 
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_infrastructure_cluster_distribution(self, mock_cost_accessor):

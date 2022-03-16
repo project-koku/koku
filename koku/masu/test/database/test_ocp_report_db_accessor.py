@@ -321,79 +321,80 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    def test_populate_line_item_daily_summary_table(self):
-        """Test that the line item daily summary table populates."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+    # This uses the daily table which won't exist when we switch to trino
+    # def test_populate_line_item_daily_summary_table(self):
+    #     """Test that the line item daily summary table populates."""
+    #     report_table_name = OCP_REPORT_TABLE_MAP["report"]
+    #     summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
+    #     report_table = getattr(self.accessor.report_schema, report_table_name)
+    #     summary_table = getattr(self.accessor.report_schema, summary_table_name)
 
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
+    #     with schema_context(self.schema):
+    #         report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
+    #         start_date = report_entry["interval_start__min"]
+    #         end_date = report_entry["interval_start__max"]
 
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    #         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    #         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
-            query = self.accessor._get_db_obj_query(summary_table_name)
+    #         query = self.accessor._get_db_obj_query(summary_table_name)
 
-            self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-            self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-            self.accessor.populate_line_item_daily_summary_table(
-                start_date, end_date, self.cluster_id, self.ocp_provider_uuid
-            )
+    #         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
+    #         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
+    #         self.accessor.populate_line_item_daily_summary_table(
+    #             start_date, end_date, self.cluster_id, self.ocp_provider_uuid
+    #         )
 
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_start__max"]
+    #         summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
+    #         result_start_date = summary_entry["usage_start__min"]
+    #         result_end_date = summary_entry["usage_start__max"]
 
-            self.assertEqual(result_start_date, start_date.date())
-            self.assertEqual(result_end_date, end_date.date())
-            pod_entry = query.filter(data_source="Pod").first()
-            storage_entry = query.filter(data_source="Storage").first()
+    #         self.assertEqual(result_start_date, start_date.date())
+    #         self.assertEqual(result_end_date, end_date.date())
+    #         pod_entry = query.filter(data_source="Pod").first()
+    #         storage_entry = query.filter(data_source="Storage").first()
 
-        pod_summary_columns = [
-            "cluster_id",
-            "namespace",
-            "node",
-            "node_capacity_cpu_core_hours",
-            "node_capacity_cpu_cores",
-            "node_capacity_memory_gigabyte_hours",
-            "node_capacity_memory_gigabytes",
-            "pod_labels",
-            "pod_limit_cpu_core_hours",
-            "pod_limit_memory_gigabyte_hours",
-            "pod_request_cpu_core_hours",
-            "pod_request_memory_gigabyte_hours",
-            "pod_usage_cpu_core_hours",
-            "pod_usage_memory_gigabyte_hours",
-            "usage_end",
-            "usage_start",
-        ]
+    #     pod_summary_columns = [
+    #         "cluster_id",
+    #         "namespace",
+    #         "node",
+    #         "node_capacity_cpu_core_hours",
+    #         "node_capacity_cpu_cores",
+    #         "node_capacity_memory_gigabyte_hours",
+    #         "node_capacity_memory_gigabytes",
+    #         "pod_labels",
+    #         "pod_limit_cpu_core_hours",
+    #         "pod_limit_memory_gigabyte_hours",
+    #         "pod_request_cpu_core_hours",
+    #         "pod_request_memory_gigabyte_hours",
+    #         "pod_usage_cpu_core_hours",
+    #         "pod_usage_memory_gigabyte_hours",
+    #         "usage_end",
+    #         "usage_start",
+    #     ]
 
-        storage_summary_columns = [
-            "cluster_id",
-            "namespace",
-            "node",
-            "persistentvolume",
-            "persistentvolumeclaim",
-            "persistentvolumeclaim_capacity_gigabyte",
-            "persistentvolumeclaim_capacity_gigabyte_months",
-            "persistentvolumeclaim_usage_gigabyte_months",
-            "storageclass",
-            "volume_labels",
-            "volume_request_storage_gigabyte_months",
-            "usage_end",
-            "usage_start",
-        ]
+    #     storage_summary_columns = [
+    #         "cluster_id",
+    #         "namespace",
+    #         "node",
+    #         "persistentvolume",
+    #         "persistentvolumeclaim",
+    #         "persistentvolumeclaim_capacity_gigabyte",
+    #         "persistentvolumeclaim_capacity_gigabyte_months",
+    #         "persistentvolumeclaim_usage_gigabyte_months",
+    #         "storageclass",
+    #         "volume_labels",
+    #         "volume_request_storage_gigabyte_months",
+    #         "usage_end",
+    #         "usage_start",
+    #     ]
 
-        for column in pod_summary_columns:
-            print((column, getattr(pod_entry, column)))
-            self.assertIsNotNone(getattr(pod_entry, column))
-        for column in storage_summary_columns:
-            self.assertIsNotNone(getattr(storage_entry, column))
+    #     for column in pod_summary_columns:
+    #         print((column, getattr(pod_entry, column)))
+    #         self.assertIsNotNone(getattr(pod_entry, column))
+    #     for column in storage_summary_columns:
+    #         self.assertIsNotNone(getattr(storage_entry, column))
 
     def test_populate_pod_label_summary_table(self):
         """Test that the pod label summary table is populated."""
@@ -557,7 +558,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date, end_date = self._populate_pod_summary()
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Pod").all()
+        reports = (
+            self.accessor._get_db_obj_query(table_name)
+            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Pod")
+            .all()
+        )
 
         expected_usage_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
         expected_request_reports = {entry.uuid: entry.pod_usage_cpu_core_hours for entry in reports}
@@ -599,7 +604,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Pod").all()
+        reports = (
+            self.accessor._get_db_obj_query(table_name)
+            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Pod")
+            .all()
+        )
 
         expected_usage_reports = {entry.uuid: entry.pod_usage_memory_gigabyte_hours for entry in reports}
         expected_request_reports = {entry.uuid: entry.pod_request_memory_gigabyte_hours for entry in reports}
@@ -646,7 +655,11 @@ class OCPReportDBAccessorTest(MasuTestCase):
         table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
 
         # Verify that the line items for the test cluster_id are returned
-        reports = self.accessor._get_db_obj_query(table_name).filter(data_source="Storage").all()
+        reports = (
+            self.accessor._get_db_obj_query(table_name)
+            .filter(usage_start__gte=start_date, usage_end__lte=end_date, data_source="Storage")
+            .all()
+        )
 
         expected_usage_reports = {entry.uuid: entry.persistentvolumeclaim_usage_gigabyte_months for entry in reports}
         expected_request_reports = {entry.uuid: entry.volume_request_storage_gigabyte_months for entry in reports}
@@ -717,11 +730,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
         start_date = dh.this_month_start
         end_date = dh.this_month_end
         first_month, _ = month_date_range_tuple(start_date)
-        cluster_alias = "test_cluster_alias"
 
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                self.cluster_id = self.ocpaws_ocp_cluster_id
                 node_rate = random.randrange(1, 100)
                 self.accessor.populate_monthly_cost(
                     "Node",
@@ -730,25 +742,33 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     start_date,
                     end_date,
                     self.cluster_id,
-                    cluster_alias,
+                    self.cluster_id,
                     distribution,
-                    self.provider_uuid,
+                    self.ocpaws_provider_uuid,
                 )
                 monthly_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
+                    .filter(
+                        usage_start=first_month,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        cluster_id=self.cluster_id,
+                    )
                     .all()
                 )
                 monthly_project_cost_rows = (
                     self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-                    .filter(usage_start=first_month, infrastructure_project_monthly_cost__isnull=False)
+                    .filter(
+                        usage_start=first_month,
+                        infrastructure_project_monthly_cost__isnull=False,
+                        cluster_id=self.cluster_id,
+                    )
                     .all()
                 )
                 with schema_context(self.schema):
                     # Test infrastructure monthly node distrbution
                     expected_count = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            report_period__provider_id=self.ocp_provider.uuid,
+                            report_period__provider_id=self.ocpaws_provider_uuid,
                             usage_start__gte=start_date,
                             infrastructure_monthly_cost_json__isnull=False,
                         )
@@ -766,7 +786,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     expected_project_value = expected_count * node_rate
                     expected_project_count = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            report_period__provider_id=self.ocp_provider.uuid,
+                            report_period__provider_id=self.ocpaws_provider_uuid,
                             usage_start__gte=start_date,
                             infrastructure_project_monthly_cost__isnull=False,
                         )
@@ -774,13 +794,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         .distinct()
                         .count()
                     )
-                    self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
+                    self.assertAlmostEqual(monthly_project_cost_rows.count(), expected_project_count, 6)
                     monthly_project_cost = []
                     for monthly_project_cost_row in monthly_project_cost_rows:
                         monthly_project_cost.append(
                             monthly_project_cost_row.infrastructure_project_monthly_cost.get(distribution)
                         )
-                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
+                    self.assertAlmostEqual(sum(monthly_project_cost), expected_project_value, 6)
 
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
@@ -852,7 +872,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         monthly_project_cost.append(
                             monthly_project_cost_row.supplementary_project_monthly_cost.get(distribution)
                         )
-                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
+                    self.assertAlmostEqual(sum(monthly_project_cost), expected_project_value, 6)
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -960,7 +980,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
-        self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.cluster_id = self.ocpaws_ocp_cluster_id
 
         pvc_rate = random.randrange(1, 100)
 
@@ -970,7 +990,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
         first_month, _ = month_date_range_tuple(start_date)
 
-        cluster_alias = "test_cluster_alias"
         self.accessor.populate_monthly_cost(
             "PVC",
             "Infrastructure",
@@ -978,32 +997,36 @@ class OCPReportDBAccessorTest(MasuTestCase):
             start_date,
             end_date,
             self.cluster_id,
-            cluster_alias,
+            self.cluster_id,
             metric_constants.CPU_DISTRIBUTION,
-            self.provider_uuid,
+            self.ocpaws_provider_uuid,
         )
 
         monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_monthly_cost_json__isnull=False)
+            .filter(
+                cluster_id=self.cluster_id, usage_start=first_month, infrastructure_monthly_cost_json__isnull=False
+            )
             .all()
         )
 
         project_monthly_cost_rows = (
             self.accessor._get_db_obj_query(OCPUsageLineItemDailySummary)
-            .filter(usage_start=first_month, infrastructure_project_monthly_cost__isnull=False)
+            .filter(
+                cluster_id=self.cluster_id, usage_start=first_month, infrastructure_project_monthly_cost__isnull=False
+            )
             .all()
         )
 
         with schema_context(self.schema):
-            # Test pvc to node distribution
+            # Test unique (pvc, node, namespace) distribution
             expected_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
-                    report_period__provider_id=self.ocp_provider.uuid,
+                    report_period__provider_id=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     persistentvolumeclaim__isnull=False,
                 )
-                .values("persistentvolumeclaim")
+                .values("persistentvolumeclaim", "node", "namespace")
                 .distinct()
                 .count()
             )
@@ -1016,12 +1039,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
             expected_project_total = expected_count * pvc_rate
             expected_project_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
-                    report_period__provider_id=self.ocp_provider.uuid,
+                    report_period__provider_id=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     persistentvolumeclaim__isnull=False,
                     namespace__isnull=False,
                 )
-                .values("persistentvolumeclaim")
+                .values("persistentvolumeclaim", "node", "namespace")
                 .distinct()
                 .count()
             )

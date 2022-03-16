@@ -7,6 +7,7 @@ import datetime
 import logging
 import random
 from decimal import Decimal
+from unittest import skip
 from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
@@ -1237,6 +1238,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
+    @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         url = "?filter[type]=pod&filter[enabled]=true"
@@ -1283,13 +1285,14 @@ class OCPReportViewTest(IamTestCase):
 
         data = response.data
         data_totals = data.get("meta", {}).get("total", {})
-        for key in totals:
-            expected = totals[key]
-            if key == "cost":
-                result = data_totals.get(key, {}).get("total", {}).get("value")
-            else:
-                result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, expected)
+        for data_key in totals:
+            with self.subTest(data_key=data_key):
+                expected = totals[data_key]
+                if data_key == "cost":
+                    result = data_totals.get(data_key, {}).get("total", {}).get("value")
+                else:
+                    result = data_totals.get(data_key, {}).get("value")
+                self.assertEqual(result, expected)
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
