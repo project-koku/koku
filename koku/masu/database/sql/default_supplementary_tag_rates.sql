@@ -1,4 +1,5 @@
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
     report_period_id,
     cluster_id,
     cluster_alias,
@@ -16,7 +17,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     {{labels_field | sqlsafe}},
     monthly_cost_type
 )
-SELECT report_period_id,
+SELECT uuid_generate_v4(),
+    report_period_id,
     cluster_id,
     cluster_alias,
     data_source,
