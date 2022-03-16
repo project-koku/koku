@@ -820,7 +820,9 @@
           "responses": {
             "200": {
               "description": "Returns a HTML document showing the database version.",
-              "content": "text/html"
+              "content": {
+                  "text/html": {}
+              }
             }
           },
           "tags": [
@@ -837,8 +839,10 @@
           "responses": {
             "200": {
               "description": "Returns a HTML document showing the database software settings.",
-              "content": "text/html"
+              "content": {
+                "text/html": {}
             }
+          }
           },
           "tags": [
             "db-performance",
@@ -854,8 +858,10 @@
           "responses": {
             "200": {
               "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
-              "content": "text/html"
+              "content": {
+                "text/html": {}
             }
+          }
           },
           "tags": [
             "db-performance",
@@ -871,8 +877,10 @@
           "responses": {
             "200": {
               "description": "Returns a HTML document showing current connection activity.",
-              "content": "text/html"
+              "content": {
+                "text/html": {}
             }
+          }
           },
           "tags": [
             "db-performance",
@@ -888,8 +896,10 @@
           "responses": {
             "200": {
               "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
-              "content": "text/html"
+              "content": {
+                "text/html": {}
             }
+          }
           },
           "tags": [
             "db-performance",
