@@ -275,6 +275,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_query = {
             "date": None,
             "source_uuid": [],
+            "clusters": [],
             "infrastructure": {
                 "raw": {"value": 0, "units": self.currency},
                 "markup": {"value": 0, "units": self.currency},
@@ -303,9 +304,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 source_uuid_id = currency_entry.get("source_uuid_id")
                 base_currency = self._get_base_currency(source_uuid_id)
                 exchange_rate = self._get_exchange_rate(base_currency)
-                source_uuids = total_query.get("source_uuid")
                 total_query["date"] = data.get("date")
-                total_query["source_uuid"] = source_uuids + data.get("source_uuid")
+                for aggregate in ["source_uuid", "clusters"]:
+                    total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
                 for delta in ["delta_value", "delta_percent"]:
                     if data.get(delta):
                         total_query[delta] = total_query.get(delta, 0) + data.get(delta)
@@ -335,8 +336,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             group_by_value = self._get_group_by()
+            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query_group_by = ["date"] + group_by_value
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not is_csv_output:
                 query_group_by.append("source_uuid_id")
 
             query = self.query_table.objects.filter(self.query_filter)
@@ -367,7 +369,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -429,7 +430,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not is_csv_output:
             groupby = self._get_group_by()
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         self.query_sum = ordered_total
