@@ -1,5 +1,5 @@
 INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
-    uuid_generate_v4(),
+    uuid,
     report_period_id,
     cluster_id,
     cluster_alias,
