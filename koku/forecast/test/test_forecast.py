@@ -34,7 +34,7 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
-from reporting.provider.aws.models import AWSCostEntryLineItemDailySummary
+from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
 from reporting.provider.gcp.models import GCPCostSummaryP
@@ -432,7 +432,7 @@ class AWSForecastTest(IamTestCase):
         mock_access = {"aws.organizational_unit": {"read": ["1234", "5678"]}}
         params = self.mocked_query_params("?", AWSCostForecastView, access=mock_access)
         instance = AWSForecast(params)
-        self.assertEqual(instance.cost_summary_table, AWSCostEntryLineItemDailySummary)
+        self.assertEqual(instance.cost_summary_table, AWSCostSummaryByAccountP)
 
     @patch("forecast.forecast.Forecast.format_result", return_value="FAKE RESULTS")
     @patch("forecast.forecast.Forecast._run_forecast")

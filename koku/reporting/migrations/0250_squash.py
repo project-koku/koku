@@ -113,40 +113,7 @@ def apply_partitioned_tables_trigger(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [
-        ("reporting", "0001_initial-from-template"),
-        ("reporting", "0190_ocp_on_all_partitioned_models"),
-        ("reporting", "0191_currencysettings"),
-        ("reporting", "0192_gcp_bigquery_partition"),
-        ("reporting", "0193_gcptopology"),
-        ("reporting", "0194_awscostentrylineitemdailysummary_savingsplan_effective_cost"),
-        ("reporting", "0195_ocpall_add_source_fk"),
-        ("reporting", "0196_ocpall_cvt_matview_to_part"),
-        ("reporting", "0197_usersettings"),
-        ("reporting", "0198_aws_matviews_to_partables"),
-        ("reporting", "0199_aws_perspective_colname_idx"),
-        ("reporting", "0200_ocpgcp_partables"),
-        ("reporting", "0201_ocp_partables"),
-        ("reporting", "0202_azure_partables"),
-        ("reporting", "0203_auto_20211108_1626"),
-        ("reporting", "0204_auto_20211110_2118"),
-        ("reporting", "0205_ocpall_perspective_db_defaults"),
-        ("reporting", "0206_auto_20211115_1322"),
-        ("reporting", "0207_auto_20211115_2234"),
-        ("reporting", "0208_savingsplan_markup_fields"),
-        ("reporting", "0209_gcp_partables"),
-        ("reporting", "0210_ocpaws_partables"),
-        ("reporting", "0211_ocpaz_partables"),
-        ("reporting", "0212_auto_20211203_1640"),
-        ("reporting", "0213_delete_mat_views"),
-        ("reporting", "0214_ocpgcp_unitusage"),
-        ("reporting", "0215_ocpaws_ocpazure_summary_partables"),
-        ("reporting", "0216_drop_old_aws_partables"),
-        ("reporting", "0217_auto_20220124_1634"),
-        ("reporting", "0218_rm_unused_gcp_partables"),
-        ("reporting", "0219_increase_decimal_precision"),
-        ("reporting", "0220_drop_ocp_on_aws_azure_base_tables"),
-    ]
+    replaces = []
 
     initial = True
 

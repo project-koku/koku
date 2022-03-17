@@ -11,84 +11,37 @@ WITH cte_unnested_azure_tags AS (
         AND coalesce(usagedatetime, date) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(usagedatetime, date) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
 ),
-cte_unnested_ocp_node_tags AS (
-    SELECT DISTINCT key,
-        value
-    FROM hive.{{schema | sqlsafe}}.openshift_node_labels_line_items_daily AS ocp
-    CROSS JOIN UNNEST(cast(json_parse(node_labels) as map(varchar, varchar))) AS tags(key, value)
+cte_unnested_ocp_tags AS (
+    SELECT DISTINCT pod_key,
+        pod_value,
+        volume_key,
+        volume_value
+    FROM hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS ocp
+    CROSS JOIN UNNEST(
+        cast(json_parse(pod_labels) as map(varchar, varchar)),
+        cast(json_parse(volume_labels) as map(varchar, varchar))
+    ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
     WHERE source = '{{ocp_source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-),
-cte_unnested_ocp_namespace_tags AS (
-    SELECT DISTINCT key,
-        value
-    FROM hive.{{schema | sqlsafe}}.openshift_namespace_labels_line_items_daily AS ocp
-    CROSS JOIN UNNEST(cast(json_parse(namespace_labels) as map(varchar, varchar))) AS tags(key, value)
-    WHERE source = '{{ocp_source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-),
-cte_unnested_ocp_pod_tags AS (
-    SELECT DISTINCT key,
-        value
-    FROM hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
-    CROSS JOIN UNNEST(cast(json_parse(pod_labels) as map(varchar, varchar))) AS tags(key, value)
-    WHERE source = '{{ocp_source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-),
-cte_unnested_ocp_volume_tags AS (
-    SELECT DISTINCT key,
-        value
-    FROM hive.{{schema | sqlsafe}}.openshift_storage_usage_line_items_daily AS ocp
-    CROSS JOIN UNNEST(cast(json_parse(persistentvolumeclaim_labels) as map(varchar, varchar))) AS tags(key, value)
-    WHERE source = '{{ocp_source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-        AND interval_start >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND interval_start < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
+        AND day IN ('{{days | sqlsafe}}')
 )
 SELECT '{"' || key || '": "' || value || '"}' as tag
 FROM (
-    SELECT azure.key,
+    SELECT DISTINCT azure.key,
         azure.value
     FROM cte_unnested_azure_tags AS azure
-    JOIN cte_unnested_ocp_pod_tags AS ocp
-        ON lower(azure.key) = lower(ocp.key)
-            AND lower(azure.value) = lower(ocp.value)
-
-    UNION
-
-    SELECT azure.key,
-        azure.value
-    FROM cte_unnested_azure_tags AS azure
-    JOIN cte_unnested_ocp_node_tags AS ocp
-        ON lower(azure.key) = lower(ocp.key)
-            AND lower(azure.value) = lower(ocp.value)
-
-    UNION
-
-    SELECT azure.key,
-        azure.value
-    FROM cte_unnested_azure_tags AS azure
-    JOIN cte_unnested_ocp_namespace_tags AS ocp
-        ON lower(azure.key) = lower(ocp.key)
-            AND lower(azure.value) = lower(ocp.value)
-
-
-    UNION
-
-    SELECT azure.key,
-        azure.value
-    FROM cte_unnested_azure_tags AS azure
-    JOIN cte_unnested_ocp_volume_tags AS ocp
-        ON lower(azure.key) = lower(ocp.key)
-            AND lower(azure.value) = lower(ocp.value)
+    JOIN cte_unnested_ocp_tags AS ocp
+        ON (
+            lower(azure.key) = lower(ocp.pod_key)
+                AND lower(azure.value) = lower(ocp.pod_value)
+        )
+        OR (
+            lower(azure.key) = lower(ocp.volume_key)
+                AND lower(azure.value) = lower(ocp.volume_value)
+        )
+    JOIN postgres.{{schema | sqlsafe}}.reporting_azureenabledtagkeys AS atk
+        ON azure.key = atk.key
+    JOIN postgres.{{schema | sqlsafe}}.reporting_ocpenabledtagkeys AS otk
+        ON ocp.pod_key = otk.key or ocp.volume_key = otk.key
 ) AS matches
