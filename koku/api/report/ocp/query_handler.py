@@ -71,7 +71,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
-        # super() needs to be called before _get_group_by is called
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
@@ -238,6 +237,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             exchange_rate = self._get_exchange_rate(currency)
             for data in values:
                 if currency not in currencys.keys():
+                    for structure in ["infrastructure", "supplementary", "cost"]:
+                        for each in ["raw", "markup", "usage", "total", "distributed"]:
+                            new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                            data[structure][each]["value"] = new_value
+                            data[structure][each]["units"] = self.currency
                     currencys[currency] = data
                 else:
                     base_values = currencys.get(currency)
@@ -260,6 +264,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                             orig_value = base_values.get(structure).get(each).get("value")
                             new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
                             base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                            base_values[structure][each]["units"] = self.currency
         return currencys
 
 
