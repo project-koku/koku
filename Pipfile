@@ -51,8 +51,10 @@ app-common-python = ">=0.1.6"
 ibm-cloud-sdk-core = ">=3.5.2"
 ibm-platform-services = ">=0.17.8"
 jinja2 = "<3"
+markupsafe = "<2.1"
 unleashclient = "<5"
 trino = "*"
+oci = "*"
 
 [dev-packages]
 astroid = ">=2.3"
