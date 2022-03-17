@@ -162,16 +162,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for key, value in data.items():
                     for key, value in data.items():
                         if key in ["infrastructure", "supplementary", "cost"]:
+                            print(key)
                             for in_key, in_value in value.items():
+                                print(in_key)
                                 for this_key, this_value in in_value.items():
+                                    print(this_key)
                                     if this_key in ["units"]:
                                         # change to currency code
                                         print("updating currency code!")
                                         in_value[this_key] = self.currency
                                     elif this_key in ["value"]:
-                                        # print("\n\n\n\nvalue before: ")
-                                        # print(this_value)
-                                        in_value[this_key] = round(Decimal(this_value) * Decimal(exchange_rate), 9)
+                                        print("\n\n\n\nvalue before: ")
+                                        print(this_value)
+                                        print("\n\n\nvalue after: ")
+                                        value_after = round(Decimal(this_value) * Decimal(exchange_rate), 9)
+                                        print(value_after)
+                                        in_value[this_key] = value_after
                                         # multiply and override
                                     value[in_key] = in_value
                     # if (
@@ -333,6 +339,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
         out_data["values"] = [total_query]
         currency_list = []
+        print("\n\n\nnew_codes: ")
+        print(new_codes)
         for key, value in new_codes.items():
             cur_dictionary = {"currency": key, "values": [value]}
             currency_list.append(cur_dictionary)
@@ -346,8 +354,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
+            source_uuid_id = currency_entry.get("source_uuid_id")
+            currency = self._get_base_currency(source_uuid_id)
+            exchange_rate = self._get_exchange_rate(currency)
             for data in values:
-                currency = data.get("currency")
+                # currency = data.get("currency")
                 if currency not in currencys.keys():
                     print("adding currency to dictionary")
                     currencys[currency] = data
@@ -375,9 +386,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
                             orig_value = base_values.get(structure).get(each).get("value")
-                            base_values[structure][each]["value"] = Decimal(
-                                data.get(structure).get(each).get("value")
-                            ) + Decimal(orig_value)
+                            # new
+                            new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                            base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                            # orig_value = base_values.get(structure).get(each).get("value")
+                            # base_values[structure][each]["value"] = Decimal(
+                            #     data.get(structure).get(each).get("value")
+                            # ) + Decimal(orig_value)
         print("\n\n\n\nNEW STRUCTURE:")
         print(currencys)
         return currencys
@@ -385,9 +400,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
         """Aggregate and format the data after currency."""
-        # new_copy = copy.deepcopy(currency_codes)
-        # new_codes = self.get_currency_codes_ocp(new_copy, all_group_by)
-        new_codes = {}
+        new_copy = copy.deepcopy(currency_codes)
+        new_codes = self.get_currency_codes_ocp(new_copy, all_group_by)
         total_query = {
             "date": None,
             "source_uuid": [],
@@ -416,6 +430,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
+                # new
+                source_uuid_id = currency_entry.get("source_uuid_id")
+                base_currency = self._get_base_currency(source_uuid_id)
+                exchange_rate = self._get_exchange_rate(base_currency)
+                # new
                 source_uuids = total_query.get("source_uuid")
                 total_query["date"] = data.get("date")
                 total_query["source_uuid"] = source_uuids + data.get("source_uuid")
@@ -432,9 +451,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total", "distributed"]:
                         orig_value = total_query.get(structure).get(each).get("value")
-                        total_query[structure][each]["value"] = Decimal(
-                            data.get(structure).get(each).get("value")
-                        ) + Decimal(orig_value)
+                        # new
+                        new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                        total_query[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                        # total_query[structure][each]["value"] = Decimal(
+                        #     data.get(structure).get(each).get("value")
+                        # ) + Decimal(orig_value)
+        # new test
         return total_query, new_codes
 
     def execute_query(self):  # noqa: C901
@@ -539,7 +562,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 print("\n\n\ndata before: ")
                 print(data)
                 data = self._transform_data(query_group_by, 0, data)
-                data = self._apply_exchange_rate(data)
+                # data = self._apply_exchange_rate(data)
                 print("data after:")
                 print(data)
 
@@ -552,9 +575,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        # if self._report_type == "costs":
-        #     groupby = self._get_group_by()
-            # self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+        if self._report_type == "costs":
+            groupby = self._get_group_by()
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         self.query_sum = ordered_total
 
         return self._format_query_response()
