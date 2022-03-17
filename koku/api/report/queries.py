@@ -696,8 +696,6 @@ class ReportQueryHandler(QueryHandler):
         """Format the data for the UI."""
         level += 1
         overall = []
-        print("\n\n\nout data: ")
-        print(out_data)
         if out_data:
             if org_unit_applied:
                 groupby = ["org_entitie"] + groupby
@@ -737,10 +735,21 @@ class ReportQueryHandler(QueryHandler):
             Provider.OCP_GCP: "currencys",
             Provider.OCP_AWS: "currency_codes",
             Provider.OCP_ALL: "currency_codes",
+            Provider.PROVIDER_OCP: "source_uuid_ids",
         }
         currency_codes = out_data.get(codes.get(self.provider))
-        total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
-        out_data["values"] = [total_query]
+        if self.provider != Provider.PROVIDER_OCP:
+            total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
+            out_data["values"] = [total_query]
+        else:
+            total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
+            out_data["values"] = [total_query]
+            currency_list = []
+            for key, value in new_codes.items():
+                cur_dictionary = {"currency": key, "values": [value]}
+                currency_list.append(cur_dictionary)
+            out_data.pop("source_uuid_ids")
+            out_data["currencys"] = currency_list
         return out_data
 
     def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901

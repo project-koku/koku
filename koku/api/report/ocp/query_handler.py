@@ -15,9 +15,11 @@ from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
+from api.provider.provider_manager import ProviderManager
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from koku.settings import KOKU_DEFAULT_CURRENCY
 
 LOG = logging.getLogger(__name__)
 
@@ -67,7 +69,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
-        # super() needs to be called before _get_group_by is called
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
@@ -111,22 +112,164 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _apply_total_exchange(self, data):
-        """Overwrite this function because the structure is different for ocp."""
-        if self._report_type == "costs":
-            exchange_rate = self._get_exchange_rate()
-            for key, value in data.items():
-                if (
-                    key.endswith("raw")
-                    or key.endswith("usage")
-                    or key.endswith("distributed")
-                    or key.endswith("markup")
-                    or key.endswith("total")
-                ):
-                    data[key] = (Decimal(value) / Decimal(exchange_rate)) * Decimal(exchange_rate)
-                elif key.endswith("units"):
-                    data[key] = self.currency
-        return data
+    def _get_base_currency(self, source_uuid):
+        """Look up the report base currency."""
+        pm = ProviderManager(source_uuid)
+        cost_models = pm.get_cost_models(self.tenant)
+        if cost_models:
+            cm = cost_models[0]
+            return cm.currency
+        return KOKU_DEFAULT_CURRENCY
+
+    def return_total_query(self, total_queryset):
+        """Return total query data for calculate_total."""
+        total_query = {
+            "date": None,
+            "infra_total": 0,
+            "infra_raw": 0,
+            "infra_usage": 0,
+            "infra_markup": 0,
+            "infra_distributed": 0,
+            "sup_raw": 0,
+            "sup_usage": 0,
+            "sup_markup": 0,
+            "sup_distributed": 0,
+            "sup_total": 0,
+            "cost_total": 0,
+            "cost_raw": 0,
+            "cost_usage": 0,
+            "cost_markup": 0,
+            "cost_distributed": 0,
+        }
+        for query_set in total_queryset:
+            base = self._get_base_currency(query_set["source_uuid_id"])
+            total_query["date"] = query_set.get("date")
+            exchange_rate = self._get_exchange_rate(base)
+            total_query["date"] = query_set.get("date")
+            for value in [
+                "infra_total",
+                "infra_raw",
+                "infra_usage",
+                "infra_markup",
+                "infra_distributed",
+                "sup_raw",
+                "sup_total",
+                "sup_usage",
+                "sup_markup",
+                "sup_distributed",
+                "cost_total",
+                "cost_raw",
+                "cost_usage",
+                "cost_markup",
+                "cost_distributed",
+            ]:
+                orig_value = total_query[value]
+                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+
+        return total_query
+
+    def get_currency_codes_ocp(self, currency_codes, all_group_by):  # noqa: C901
+        """Format the same as the other endpoints."""
+        currencys = {}
+
+        for currency_entry in currency_codes:
+            values = currency_entry.get("values")
+            source_uuid_id = currency_entry.get("source_uuid_id")
+            currency = self._get_base_currency(source_uuid_id)
+            exchange_rate = self._get_exchange_rate(currency)
+            for data in values:
+                if currency not in currencys.keys():
+                    for structure in ["infrastructure", "supplementary", "cost"]:
+                        for each in ["raw", "markup", "usage", "total", "distributed"]:
+                            new_value = round(
+                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                            )
+                            data[structure][each]["value"] = new_value
+                            data[structure][each]["units"] = self.currency
+                    currencys[currency] = data
+                else:
+                    base_values = currencys.get(currency)
+                    for value in ["source_uuid", "clusters"]:
+                        base_val = base_values.get(value)
+                        new_val = data.get(value)
+                        base_values[value] = base_val + new_val
+                    for delta in ["delta_value", "delta_percent"]:
+                        if data.get(delta):
+                            base_values[delta] = base_values.get(delta, 0) + data.get(delta)
+                    for item in ["account", "account_alias", "tags_exist"]:
+                        if data.get(item):
+                            base_values[item] = data.get(item)
+                    for group in all_group_by:
+                        if group.startswith("tags"):
+                            group = group[6:]
+                        base_values[group] = data.get(group)
+                    for structure in ["infrastructure", "supplementary", "cost"]:
+                        for each in ["raw", "markup", "usage", "total", "distributed"]:
+                            orig_value = base_values.get(structure).get(each).get("value")
+                            new_value = round(
+                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                            )
+                            base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                            base_values[structure][each]["units"] = self.currency
+        return currencys
+
+    def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
+        """Aggregate and format the data after currency."""
+        new_copy = copy.deepcopy(currency_codes)
+        new_codes = self.get_currency_codes_ocp(new_copy, all_group_by)
+        total_query = {
+            "date": None,
+            "source_uuid": [],
+            "clusters": [],
+            "infrastructure": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "distributed": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency},
+            },
+            "supplementary": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "distributed": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency},
+            },
+            "cost": {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "distributed": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency},
+            },
+        }
+        for currency_entry in currency_codes:
+            values = currency_entry.get("values")
+            for data in values:
+                source_uuid_id = currency_entry.get("source_uuid_id")
+                base_currency = self._get_base_currency(source_uuid_id)
+                exchange_rate = self._get_exchange_rate(base_currency)
+                total_query["date"] = data.get("date")
+                for aggregate in ["source_uuid", "clusters"]:
+                    total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
+                for delta in ["delta_value", "delta_percent"]:
+                    if data.get(delta):
+                        total_query[delta] = total_query.get(delta, 0) + data.get(delta)
+                for item in ["account", "account_alias", "tags_exist"]:
+                    if data.get(item):
+                        total_query[item] = data.get(item)
+                for group in all_group_by:
+                    if group.startswith("tags"):
+                        group = group[6:]
+                    total_query[group] = data.get(group)
+                for structure in ["infrastructure", "supplementary", "cost"]:
+                    for each in ["raw", "markup", "usage", "total", "distributed"]:
+                        orig_value = total_query.get(structure).get(each).get("value")
+                        new_value = round(
+                            Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                        )
+                        total_query[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+        return total_query, new_codes
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -139,14 +282,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+            group_by_value = self._get_group_by()
+            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
+            query_group_by = ["date"] + group_by_value
+            if self._report_type == "costs" and not is_csv_output:
+                query_group_by.append("source_uuid_id")
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-            group_by_value = self._get_group_by()
-
-            query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
-
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
@@ -158,7 +302,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                if self._report_type == "costs" and not is_csv_output:
+                    metrics = query_data.annotate(**aggregates)
+                    metric_sum = self.return_total_query(metrics)
+                else:
+                    metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
@@ -167,7 +315,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             def check_if_valid_date_str(date_str):
                 """Check to see if a valid date has been passed in."""
@@ -220,7 +367,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self._mapper.cost_units_key}
+        sum_init = {"cost_units": self.currency}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
@@ -231,8 +378,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
+        if self._report_type == "costs" and not is_csv_output:
+            groupby = self._get_group_by()
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         self.query_sum = ordered_total
-        # self.query_sum = self._apply_total_exchange(ordered_total)
 
         return self._format_query_response()
 
