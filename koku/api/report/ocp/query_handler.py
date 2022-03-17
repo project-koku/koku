@@ -340,7 +340,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             if self._report_type == "costs" and not is_csv_output:
                 query_group_by.append("source_uuid_id")
-
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_order_by = ["-date"]
@@ -356,7 +355,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type == "costs":
+                if self._report_type == "costs" and not is_csv_output:
                     metrics = query_data.annotate(**aggregates)
                     metric_sum = self.return_total_query(metrics)
                 else:
@@ -422,6 +421,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         sum_init = {"cost_units": self.currency}
+        if self._mapper.usage_units_key:
+            sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
 
         ordered_total = {
