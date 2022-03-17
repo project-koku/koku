@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.db.models import Max
@@ -47,7 +48,7 @@ def _calculate_subtotals(data, cost, infra, sup):
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
 
-
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPReportQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
@@ -81,7 +82,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
 
-    def test_execute_sum_query(self):
+    def test_execute_sum_query(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -92,13 +93,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-
         self.assertEqual(total.get("usage", {}).get("value"), current_totals.get("usage"))
         self.assertEqual(total.get("request", {}).get("value"), current_totals.get("request"))
         self.assertEqual(total.get("cost", {}).get("value"), current_totals.get("cost"))
         self.assertEqual(total.get("limit", {}).get("value"), current_totals.get("limit"))
 
-    def test_execute_sum_query_costs(self):
+    @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
+    def test_execute_sum_query_costs(self, mocked_exchange_rates, mocked_base_currency):
         """Test that the sum query runs properly for the costs endpoint."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCostView)
@@ -113,9 +114,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        self.assertEqual(result_cost_total, round(Decimal(expected_cost_total),9))
 
-    def test_get_cluster_capacity_monthly_resolution(self):
+    def test_get_cluster_capacity_monthly_resolution(self, mocked_exchange_rates):
         """Test that cluster capacity returns a full month's capacity."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -127,9 +128,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue("capacity" in query_data[0])
         self.assertIsNotNone(query_data[0].get("capacity"))
         self.assertIsNotNone(total_capacity.get("capacity"))
-        self.assertEqual(query_data[0].get("capacity"), total_capacity.get("capacity"))
+        self.assertEqual(query_data[0].get("capacity"), round(total_capacity.get("capacity"), 9))
 
-    def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self):
+    def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self, mocked_exchange_rates):
         """Test that cluster capacity returns capacity by cluster."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -161,7 +162,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
-    def test_get_cluster_capacity_monthly_resolution_start_end_date(self):
+    def test_get_cluster_capacity_monthly_resolution_start_end_date(self, mocked_exchange_rates):
         """Test that cluster capacity returns capacity by month."""
         url = f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
         month_count = 2
@@ -186,7 +187,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
-    def test_get_cluster_capacity_monthly_resolution_start_end_date_group_by_cluster(self):
+    def test_get_cluster_capacity_monthly_resolution_start_end_date_group_by_cluster(self, mocked_exchange_rates):
         """Test that cluster capacity returns capacity by cluster."""
         url = (
             f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"
@@ -222,7 +223,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
-    def test_get_cluster_capacity_daily_resolution(self):
+    def test_get_cluster_capacity_daily_resolution(self, mocked_exchange_rates):
         """Test that total capacity is returned daily resolution."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -256,7 +257,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 capacity = values[0].get("capacity", {}).get("value")
                 self.assertEqual(capacity, daily_capacity[date])
 
-    def test_get_cluster_capacity_daily_resolution_group_by_clusters(self):
+    def test_get_cluster_capacity_daily_resolution_group_by_clusters(self, mocked_exchange_rates):
         """Test that cluster capacity returns daily capacity by cluster."""
         url = (
             "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[cluster]=*"
@@ -297,7 +298,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     @patch("api.report.ocp.query_handler.ReportQueryHandler.add_deltas")
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler.add_current_month_deltas")
-    def test_add_deltas_current_month(self, mock_current_deltas, mock_deltas):
+    def test_add_deltas_current_month(self, mock_current_deltas, mock_deltas, mocked_exchange_rates):
         """Test that the current month method is called for deltas."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -309,7 +310,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     @patch("api.report.ocp.query_handler.ReportQueryHandler.add_deltas")
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler.add_current_month_deltas")
-    def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas):
+    def test_add_deltas_super_delta(self, mock_current_deltas, mock_deltas, mocked_exchange_rates):
         """Test that the super delta method is called for deltas."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -321,7 +322,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         mock_current_deltas.assert_not_called()
         mock_deltas.assert_called()
 
-    def test_add_current_month_deltas(self):
+    def test_add_current_month_deltas(self, mocked_exchange_rates):
         """Test that current month deltas are calculated."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -364,7 +365,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
             self.assertEqual(handler.query_delta.get("percent"), expected_total)
 
-    def test_add_current_month_deltas_no_previous_data_w_query_data(self):
+    def test_add_current_month_deltas_no_previous_data_w_query_data(self, mocked_exchange_rates):
         """Test that current month deltas are calculated with no previous data for field two."""
         url = "?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1"
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -393,7 +394,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             self.assertIsNotNone(handler.query_delta["value"])
             self.assertIsNone(handler.query_delta["percent"])
 
-    def test_get_tag_filter_keys(self):
+    def test_get_tag_filter_keys(self, mocked_exchange_rates):
         """Test that filter params with tag keys are returned."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -406,7 +407,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_filter_keys()
         self.assertEqual(results, ["tag:" + tag_keys[0]])
 
-    def test_get_tag_group_by_keys(self):
+    def test_get_tag_group_by_keys(self, mocked_exchange_rates):
         """Test that group_by params with tag keys are returned."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -420,7 +421,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         results = handler.get_tag_group_by_keys()
         self.assertEqual(results, ["tag:" + group_by_key])
 
-    def test_set_tag_filters(self):
+    def test_set_tag_filters(self, mocked_exchange_rates):
         """Test that tag filters are created properly."""
         filters = QueryFilterCollection()
 
@@ -445,7 +446,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         self.assertEqual(repr(filters), expected)
 
-    def test_get_tag_group_by(self):
+    def test_get_tag_group_by(self, mocked_exchange_rates):
         """Test that tag based group bys work."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -463,7 +464,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(len(group_by), 1)
         self.assertEqual(group[0], expected)
 
-    def test_get_tag_order_by(self):
+    def test_get_tag_order_by(self, mocked_exchange_rates):
         """Verify that a propery order by is returned."""
         tag = "pod_labels__key"
         expected_param = (tag.split("__")[1],)
@@ -478,7 +479,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertEqual(expression.sql, "pod_labels -> %s")
         self.assertEqual(expression.params, expected_param)
 
-    def test_filter_by_infrastructure_ocp_on_aws(self):
+    def test_filter_by_infrastructure_ocp_on_aws(self, mocked_exchange_rates):
         """Test that filter by infrastructure for ocp on aws."""
         url = "?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=aws"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -492,7 +493,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(value.get("usage").get("value"))
                 self.assertIsNotNone(value.get("request").get("value"))
 
-    def test_filter_by_infrastructure_ocp_on_azure(self):
+    def test_filter_by_infrastructure_ocp_on_azure(self, mocked_exchange_rates):
         """Test that filter by infrastructure for ocp on azure."""
         url = "?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[infrastructures]=azure"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -506,7 +507,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(value.get("usage").get("value"))
                 self.assertIsNotNone(value.get("request").get("value"))
 
-    def test_filter_by_infrastructure_ocp(self):
+    def test_filter_by_infrastructure_ocp(self, mocked_exchange_rates):
         """Test that filter by infrastructure for ocp not on aws."""
 
         url = "?filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month&filter[cluster]=OCP-On-Azure&filter[infrastructures]=aws"  # noqa: E501
@@ -520,7 +521,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertEqual(value.get("usage").get("value"), 0)
                 self.assertEqual(value.get("request").get("value"), 0)
 
-    def test_order_by_null_values(self):
+    def test_order_by_null_values(self, mocked_exchange_rates):
         """Test that order_by returns properly sorted data with null data."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -543,7 +544,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
-    def test_ocp_cpu_query_group_by_cluster(self):
+    def test_ocp_cpu_query_group_by_cluster(self, mocked_exchange_rates):
         """Test that group by cluster includes cluster and cluster_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -562,7 +563,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsNotNone(cluster_value["cluster"])
                     self.assertIsNotNone(cluster_value["clusters"])
 
-    def test_other_clusters(self):
+    def test_other_clusters(self, mocked_exchange_rates):
         """Test that group by cluster includes cluster and cluster_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
@@ -581,7 +582,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
                         self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
 
-    def test_subtotals_add_up_to_total(self):
+    def test_subtotals_add_up_to_total(self, mocked_exchange_rates):
         """Test the apply_group_by handles different grouping scenerios."""
         group_by_list = [
             ("project", "cluster", "node"),
@@ -625,7 +626,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 self.assertIsNotNone(result)
                 self.assertLessEqual(abs(expected - result), tolerance)
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
+    def test_source_uuid_mapping(self, mocked_exchange_rates, mocked_base_currency):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPCostView, OCPCpuView, OCPVolumeView, OCPMemoryView]
         with tenant_context(self.tenant):
@@ -652,7 +654,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_group_by_project_w_limit(self):
+    def test_group_by_project_w_limit(self, mocked_exchange_rates):
         """COST-1252: Test that grouping by project with limit works as expected."""
         url = "?group_by[project]=*&order_by[project]=asc&filter[limit]=2"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCostView)
@@ -669,7 +671,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    def test_ocp_date_order_by_cost_desc(self):
+    def test_ocp_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
@@ -694,19 +696,19 @@ class OCPReportQueryHandlerTest(IamTestCase):
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
 
-    def test_ocp_date_incorrect_date(self):
+    def test_ocp_date_incorrect_date(self, mocked_exchange_rates):
         wrong_date = "200BC"
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_ocp_out_of_range_under_date(self):
+    def test_ocp_out_of_range_under_date(self, mocked_exchange_rates):
         wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
 
-    def test_ocp_out_of_range_over_date(self):
+    def test_ocp_out_of_range_over_date(self, mocked_exchange_rates):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):

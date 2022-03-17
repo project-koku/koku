@@ -696,8 +696,6 @@ class ReportQueryHandler(QueryHandler):
         """Format the data for the UI."""
         level += 1
         overall = []
-        print("\n\n\nout data: ")
-        print(out_data)
         if out_data:
             if org_unit_applied:
                 groupby = ["org_entitie"] + groupby
@@ -822,8 +820,6 @@ class ReportQueryHandler(QueryHandler):
             out_data.append(cur)
         if self.provider != Provider.PROVIDER_OCP:
             out_data = self._apply_exchange_rate(out_data)
-        else:
-            print("We are an OCP provider")
         return out_data
 
     def order_by(self, data, order_fields):
