@@ -60,6 +60,10 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - CURRENCY_URL=${CURRENCY_URL}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
     ports:
       - 8000:8000
       - 8001:9000
@@ -69,7 +73,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -118,6 +122,10 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
     ports:
       - 5042:8000
       - 5001:9000
@@ -127,7 +135,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -188,6 +196,10 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
     ports:
       - 6001-6020:9000
     volumes:
@@ -212,6 +224,7 @@ services:
       - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
       - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
       - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
         - koku-base
 
