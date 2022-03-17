@@ -5,7 +5,6 @@
 """OCP Query Handling for Reports."""
 import copy
 import datetime
-from locale import currency
 import logging
 from collections import defaultdict
 from decimal import Decimal
@@ -16,12 +15,11 @@ from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
-from cost_models.models import CostModel
 from api.provider.provider_manager import ProviderManager
-from koku.settings import KOKU_DEFAULT_CURRENCY
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from koku.settings import KOKU_DEFAULT_CURRENCY
 
 LOG = logging.getLogger(__name__)
 
@@ -170,7 +168,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return total_query
 
-    def get_currency_codes_ocp(self, currency_codes, all_group_by):
+    def get_currency_codes_ocp(self, currency_codes, all_group_by):  # noqa: C901
         """Format the same as the other endpoints."""
         currencys = {}
 
@@ -183,7 +181,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if currency not in currencys.keys():
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
-                            new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                            new_value = round(
+                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                            )
                             data[structure][each]["value"] = new_value
                             data[structure][each]["units"] = self.currency
                     currencys[currency] = data
@@ -206,11 +206,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
                             orig_value = base_values.get(structure).get(each).get("value")
-                            new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                            new_value = round(
+                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                            )
                             base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
                             base_values[structure][each]["units"] = self.currency
         return currencys
-
 
     def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
         """Aggregate and format the data after currency."""
@@ -264,7 +265,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total", "distributed"]:
                         orig_value = total_query.get(structure).get(each).get("value")
-                        new_value = round(Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9)
+                        new_value = round(
+                            Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
+                        )
                         total_query[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
         return total_query, new_codes
 

@@ -48,6 +48,7 @@ def _calculate_subtotals(data, cost, infra, sup):
                         cost, infra, sup = _calculate_subtotals(item, cost, infra, sup)
             return (cost, infra, sup)
 
+
 @patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPReportQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
@@ -114,7 +115,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, round(Decimal(expected_cost_total),9))
+        self.assertEqual(result_cost_total, round(Decimal(expected_cost_total), 9))
 
     def test_get_cluster_capacity_monthly_resolution(self, mocked_exchange_rates):
         """Test that cluster capacity returns a full month's capacity."""
