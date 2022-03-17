@@ -7,7 +7,6 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.db.models import Max
