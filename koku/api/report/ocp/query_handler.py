@@ -170,62 +170,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return total_query
 
-    def format_for_ui_recursive(self, groupby, out_data, org_unit_applied=False, level=-1, org_id=None, org_type=None):
-        """Format the data for the UI."""
-        level += 1
-        overall = []
-        if out_data:
-            if org_unit_applied:
-                groupby = ["org_entitie"] + groupby
-                if "account" in groupby:
-                    groupby.remove("account")
-            if level == len(groupby):
-                new_value = []
-                for value in out_data:
-                    # org_applied = False
-                    # if "org_entitie" in groupby:
-                    #     org_applied = True
-                    new_values = self.aggregate_currency_codes_ui(value)
-                    new_value.append(new_values)
-                return new_value
-            else:
-                group = groupby[level]
-                if group.startswith("tags"):
-                    group = group[6:]
-                for value in out_data:
-                    new_out_data = value.get(group + "s")
-                    org_id = value.get("id")
-                    org_type = value.get("type")
-                    value[group + "s"] = self.format_for_ui_recursive(
-                        groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
-                    )
-                    overall.append(value)
-        return overall
-
-    def aggregate_currency_codes_ui(self, out_data):
-        """Aggregate currency code info for UI."""
-        all_group_by = self._get_group_by()
-        codes = {
-            Provider.PROVIDER_AWS: "currency_codes",
-            Provider.PROVIDER_AZURE: "currencys",
-            Provider.PROVIDER_GCP: "currencys",
-            Provider.OCP_AZURE: "currencys",
-            Provider.OCP_GCP: "currencys",
-            Provider.OCP_AWS: "currency_codes",
-            Provider.OCP_ALL: "currency_codes",
-            Provider.PROVIDER_OCP: "source_uuid_ids"
-        }
-        currency_codes = out_data.get(codes.get(self.provider))
-        total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
-        out_data["values"] = [total_query]
-        currency_list = []
-        for key, value in new_codes.items():
-            cur_dictionary = {"currency": key, "values": [value]}
-            currency_list.append(cur_dictionary)
-        out_data.pop("source_uuid_ids")
-        out_data["currencys"] = currency_list
-        return out_data
-
     def get_currency_codes_ocp(self, currency_codes, all_group_by):
         """Format the same as the other endpoints."""
         currencys = {}
