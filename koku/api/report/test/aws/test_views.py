@@ -393,7 +393,8 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
-        self.assertEqual(accounts_and_subous, ["9999999999991", "OU_005"])
+        for item in accounts_and_subous:
+            self.assertIn(item, ["9999999999991", "OU_005"])
 
     @RbacPermissions({"aws.account": {"read": ["fakeaccount"]}, "aws.organizational_unit": {"read": ["fake_org"]}})
     def test_execute_query_w_group_by_rbac_no_accounts_or_orgs(self, mocked_exchange_rates):
