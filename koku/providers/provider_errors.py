@@ -33,6 +33,9 @@ class ProviderErrors:
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
 
+    OCI_NO_REPORT_FOUND = "authentication.tenant.noreportfound"
+    OCI_MISSING_TENANCY = "authentication.tenant.missing"
+
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
 
@@ -100,3 +103,4 @@ class ProviderErrors:
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
+    OCI_MISSING_TENANCY_MESSAGE = "Tenant is a required parameter for OCI and must not be blank."
