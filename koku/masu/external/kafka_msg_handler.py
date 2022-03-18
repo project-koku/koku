@@ -511,11 +511,14 @@ def summarize_manifest(report_meta, manifest_uuid):
                     data_collection_message = cr_status.get("reports", {}).get("data_collection_message", "")
                     if data_collection_message:
                         # remove potentially sensitive info from the error message
-                        msg = re.sub("{[^}]+}", "{***}", data_collection_message)
+                        msg = (
+                            f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
+                        )
                         cr_status["reports"]["data_collection_message"] = msg
                         # The full CR status is logged below, but we should limit our alert to just the query.
                         # We can check the full manifest to get the full error.
-                        LOG.error(log_json(manifest_uuid, f"data collection error [operator]: {msg}", context))
+                        LOG.error(msg)
+                        LOG.info(log_json(manifest_uuid, msg, context))
                     LOG.info(
                         log_json(manifest_uuid, f"CR Status for invalid manifest: {json.dumps(cr_status)}", context)
                     )
