@@ -22,7 +22,6 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString
-from api.report.test.util.constants import AWS_CONSTANTS
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummaryP
 
@@ -147,15 +146,12 @@ class OCPAWSReportViewTest(IamTestCase):
             "filter[time_scope_units]": "month",
         }
         url = url + "?" + urlencode(params, quote_via=quote_plus)
-        LOG.info(f"url: {url}")
         response = client.get(url, **self.headers)
 
         expected_date = self.dh.last_month_start.strftime("%Y-%m")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        LOG.info("\n\n\n\n\n")
-        LOG.info(f"data: {data}")
 
         dates = sorted([item.get("date") for item in data.get("data")])
         self.assertEqual(dates[0], expected_date)
@@ -211,15 +207,14 @@ class OCPAWSReportViewTest(IamTestCase):
                 .values(*["usage_start"])
                 .annotate(usage=Sum("usage_amount"))
             )
-            # TODO: See if there are any downsides to using the constant length here
-            # instead of querying thee db.
-            expected_others = (AWS_CONSTANTS.length - 1) - limit
-            # expected_others = (
-            #     OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
-            #     .filter(product_family__contains="Storage")
-            #     .values(*["usage_start"])
-            #     .distinct('node')
-            # ).count() - limit
+            expected_others = (
+                OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=self.ten_days_ago)
+                .filter(product_family__contains="Storage")
+                .values_list("node", flat=True)
+                .distinct()
+                .count()
+            )
+            expected_others = expected_others - limit
 
         totals = {total.get("usage_start").strftime("%Y-%m-%d"): total.get("usage") for total in totals}
 
@@ -1029,7 +1024,6 @@ class OCPAWSReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    # TODO: CODY needs fixing
     def test_group_bys_with_second_group_by_tag(self):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
