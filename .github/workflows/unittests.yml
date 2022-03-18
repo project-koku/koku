@@ -29,15 +29,9 @@ jobs:
             .github/scripts/check_migrations.sh
             Pipfile.lock
 
-      - id: check-files
+      - id: check-files-or-fork
         run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
-            echo "::set-output name=run-tests::true"
-          fi
-
-      - id: check-fork
-        run: |
-          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
             echo "::set-output name=run-tests::true"
           fi
 
