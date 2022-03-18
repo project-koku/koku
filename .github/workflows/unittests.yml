@@ -35,6 +35,8 @@ jobs:
             echo "::set-output name=run-tests::true"
           fi
 
+      - run: echo ${{ github.event.pull_request.head.repo.full_name }}
+
       - id: check-fork
         run: |
           if [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
@@ -54,8 +56,6 @@ jobs:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
-      - run: echo ${{ needs.setup.outputs.run-tests }}
-      - run: echo ${{ github.event.pull_request.head.repo.full_name }}
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
