@@ -40,7 +40,7 @@ SELECT uuid_generate_v4(),
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
     END as supplementary_usage_cost,
     {{k_v_pair}}::jsonb as {{labels_field | sqlsafe}},
-    'Tag' as monthly_cost_type
+    'Tag' as monthly_cost_type -- We are borrowing the monthly field here, although this is a daily usage cost
 FROM (
     SELECT lids.report_period_id,
         lids.cluster_id,
