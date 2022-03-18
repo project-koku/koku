@@ -11,7 +11,7 @@ jobs:
   setup:
     runs-on: ubuntu-20.04
     outputs:
-      run-tests: ${{ steps.check-files.outputs.run-tests }}
+      run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
