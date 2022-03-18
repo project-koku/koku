@@ -15,7 +15,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     source_uuid,
     infrastructure_usage_cost,
     {{labels_field | sqlsafe}},
-    cost_type
+    monthly_cost_type
 )
 SELECT uuid_generate_v4(),
     report_period_id,
@@ -40,7 +40,7 @@ SELECT uuid_generate_v4(),
             THEN jsonb_build_object('cpu', 0.0, 'memory', 0.0, 'storage', coalesce(({{rate}}::numeric * usage), 0.0))
     END as infrastructure_usage_cost,
     {{k_v_pair}}::jsonb as {{labels_field | sqlsafe}},
-    'Tag' as cost_type
+    'Tag' as monthly_cost_type
 FROM (
     SELECT lids.report_period_id,
         lids.cluster_id,
