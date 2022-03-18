@@ -2391,7 +2391,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     # get the three querysets to be evaluated based on the pod_labels after the update
                     banking_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}, cost_type="Tag"
+                            cluster_id=self.cluster_id,
+                            pod_labels__contains={"app": "banking"},
+                            monthly_cost_type="Tag",
                         )
                         .values("usage_start")
                         .annotate(
@@ -2403,7 +2405,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
                     mobile_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, cost_type="Tag"
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, monthly_cost_type="Tag"
                         )
                         .values("usage_start")
                         .annotate(
@@ -2415,7 +2417,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
                     weather_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}, cost_type="Tag"
+                            cluster_id=self.cluster_id,
+                            pod_labels__contains={"app": "weather"},
+                            monthly_cost_type="Tag",
                         )
                         .values("usage_start")
                         .annotate(
@@ -2555,7 +2559,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     # get the three querysets to be evaluated based on the pod_labels after the update
                     banking_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "banking"}, cost_type="Tag"
+                            cluster_id=self.cluster_id,
+                            pod_labels__contains={"app": "banking"},
+                            monthly_cost_type="Tag",
                         )
                         .values("usage_start")
                         .annotate(
@@ -2567,7 +2573,7 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
                     mobile_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, cost_type="Tag"
+                            cluster_id=self.cluster_id, pod_labels__contains={"app": "mobile"}, monthly_cost_type="Tag"
                         )
                         .values("usage_start")
                         .annotate(
@@ -2579,7 +2585,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
                     weather_qset = (
                         OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id, pod_labels__contains={"app": "weather"}, cost_type="Tag"
+                            cluster_id=self.cluster_id,
+                            pod_labels__contains={"app": "weather"},
+                            monthly_cost_type="Tag",
                         )
                         .values("usage_start")
                         .annotate(
