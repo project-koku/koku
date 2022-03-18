@@ -31,10 +31,8 @@ class MasuTestCase(IamTestCase):
         self.ocp_on_azure_ocp_provider = Provider.objects.filter(
             infrastructure__infrastructure_type=Provider.PROVIDER_AZURE_LOCAL
         ).first()
-        # self.ocp_on_gcp_ocp_provider = Provider.objects.filter(
-        #     infrastructure__infrastructure_type=Provider.PROVIDER_GCP_LOCAL
-        # ).first()
 
+        # TODO: Replaces instances of tmp_ocp_on_prem_provider with self.ocp_provider
         self.tmp_ocp_on_prem_provider = Provider.objects.get(
             type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"
         )

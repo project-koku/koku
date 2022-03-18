@@ -1477,9 +1477,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
-        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
-        # from there instead of pulling from the AWSTagView, it may drop the test
-        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1503,9 +1500,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
-        # from there instead of pulling from the AWSTagView, it may drop the test
-        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1534,9 +1528,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_return_others_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
-        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
-        # from there instead of pulling from the AWSTagView, it may drop the test
-        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -1573,9 +1564,6 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
-        # TODO: (Cody) Since the tag keys are not constants, we can just grab a tag key
-        # from there instead of pulling from the AWSTagView, it may drop the test
-        # coverage though.
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)

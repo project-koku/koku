@@ -1388,9 +1388,6 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_with_group_by_order_by_and_limit(self):
         """Test that data is grouped by and limited on order by."""
-        # COST-444: Edits
-        # Improved readability
-        # Which to group by cluster cause node only had one entry
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
         order_mapping = ["cost", "infrastructure", "supplementary"]
 
@@ -1447,15 +1444,8 @@ class OCPReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    # TODO: Figure out if test is just really poorly written, or we have a bug.
-    # It fails with a limit applied.
     def test_execute_query_with_order_by_delta(self):
         """Test that data is grouped and limited by order by delta."""
-        # COST-444: Edits
-        # Change group by because no-node in return,
-        # flip condition to match desc order
-        # now compares each entry instead of the first row.
-        # remove limit because "other" return had no capacity (x/0 error)
         client = APIClient()
         params = {
             "filter[resolution]": "monthly",
