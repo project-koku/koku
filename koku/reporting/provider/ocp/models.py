@@ -221,6 +221,8 @@ class OCPUsageLineItemDailySummary(models.Model):
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
+    # Tag cost is actually a usage-based daily cost. We are overloading this field for
+    # tag usage rates.
     MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
