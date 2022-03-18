@@ -5,12 +5,12 @@ repos:
   rev: v1.6.0
   hooks:
   - id: reorder-python-imports
-    args: [--py38-plus, --application-directories=koku]
+    args: [--py3-plus, --application-directories=koku]
 - repo: https://github.com/asottile/pyupgrade
   rev: v1.19.0
   hooks:
   - id: pyupgrade
-    args: [--py38-plus]
+    args: [--py3-plus]
 - repo: https://github.com/ambv/black
   rev: 19.3b0
   hooks:
