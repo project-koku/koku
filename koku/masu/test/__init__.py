@@ -20,9 +20,7 @@ class MasuTestCase(IamTestCase):
         self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
 
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
-        self.ocp_provider = Provider.objects.get(
-            type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"
-        )
+        self.ocp_provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)
         self.gcp_provider = Provider.objects.get(type=Provider.PROVIDER_GCP_LOCAL)
         self.unkown_test_provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
