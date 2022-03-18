@@ -323,81 +323,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    # This uses the daily table which won't exist when we switch to trino
-    # def test_populate_line_item_daily_summary_table(self):
-    #     """Test that the line item daily summary table populates."""
-    #     report_table_name = OCP_REPORT_TABLE_MAP["report"]
-    #     summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-
-    #     report_table = getattr(self.accessor.report_schema, report_table_name)
-    #     summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
-    #     with schema_context(self.schema):
-    #         report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-    #         start_date = report_entry["interval_start__min"]
-    #         end_date = report_entry["interval_start__max"]
-
-    #         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    #         end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    #         query = self.accessor._get_db_obj_query(summary_table_name)
-
-    #         self.accessor.populate_node_label_line_item_daily_table(start_date, end_date, self.cluster_id)
-    #         self.accessor.populate_line_item_daily_table(start_date, end_date, self.cluster_id)
-    #         self.accessor.populate_line_item_daily_summary_table(
-    #             start_date, end_date, self.cluster_id, self.ocp_provider_uuid
-    #         )
-
-    #         summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-    #         result_start_date = summary_entry["usage_start__min"]
-    #         result_end_date = summary_entry["usage_start__max"]
-
-    #         self.assertEqual(result_start_date, start_date.date())
-    #         self.assertEqual(result_end_date, end_date.date())
-    #         pod_entry = query.filter(data_source="Pod").first()
-    #         storage_entry = query.filter(data_source="Storage").first()
-
-    #     pod_summary_columns = [
-    #         "cluster_id",
-    #         "namespace",
-    #         "node",
-    #         "node_capacity_cpu_core_hours",
-    #         "node_capacity_cpu_cores",
-    #         "node_capacity_memory_gigabyte_hours",
-    #         "node_capacity_memory_gigabytes",
-    #         "pod_labels",
-    #         "pod_limit_cpu_core_hours",
-    #         "pod_limit_memory_gigabyte_hours",
-    #         "pod_request_cpu_core_hours",
-    #         "pod_request_memory_gigabyte_hours",
-    #         "pod_usage_cpu_core_hours",
-    #         "pod_usage_memory_gigabyte_hours",
-    #         "usage_end",
-    #         "usage_start",
-    #     ]
-
-    #     storage_summary_columns = [
-    #         "cluster_id",
-    #         "namespace",
-    #         "node",
-    #         "persistentvolume",
-    #         "persistentvolumeclaim",
-    #         "persistentvolumeclaim_capacity_gigabyte",
-    #         "persistentvolumeclaim_capacity_gigabyte_months",
-    #         "persistentvolumeclaim_usage_gigabyte_months",
-    #         "storageclass",
-    #         "volume_labels",
-    #         "volume_request_storage_gigabyte_months",
-    #         "usage_end",
-    #         "usage_start",
-    #     ]
-
-    #     for column in pod_summary_columns:
-    #         print((column, getattr(pod_entry, column)))
-    #         self.assertIsNotNone(getattr(pod_entry, column))
-    #     for column in storage_summary_columns:
-    #         self.assertIsNotNone(getattr(storage_entry, column))
-
     def test_populate_pod_label_summary_table(self):
         """Test that the pod label summary table is populated."""
         report_table_name = OCP_REPORT_TABLE_MAP["report"]
@@ -1282,7 +1207,6 @@ select * from eek where val1 in {{report_period_id}} ;
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    # TODO: Cody, update
     def test_upsert_monthly_cluster_cost_line_item_no_report_period(self):
         """Test that the cluster monthly costs are not updated when no report period  is found."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
@@ -1318,17 +1242,28 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
         self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
             k_v_pairs = (
                 OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
                 .distinct()
-                .values_list("pod_labels", flat=True)
-                .filter(cluster_id=self.cluster_id)
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                    node__in=nodes,
+                )
             )
-            key_value_pairs = {tag_rate_key: [dikt[tag_rate_key] for dikt in k_v_pairs]}
+            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
         node_tag_rates = {}
         node_rate = random.randrange(1, 100)
         for key, values in key_value_pairs.items():
@@ -1336,10 +1271,7 @@ select * from eek where val1 in {{report_period_id}} ;
             for value in values:
                 values_dict[value] = node_rate
             node_tag_rates[key] = values_dict
-        LOG.info(node_tag_rates)
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
@@ -1348,7 +1280,6 @@ select * from eek where val1 in {{report_period_id}} ;
                         infrastructure_monthly_cost_json__isnull=False,
                         monthly_cost_type="Node",
                     )
-                    distinct_nodes = len(self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id))
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
                         "Node",
@@ -1364,12 +1295,11 @@ select * from eek where val1 in {{report_period_id}} ;
 
                     # assert that after the update, there are now the monthly values
                     # for the three different nodes that have a value
-                    self.assertEqual(qset.count(), distinct_nodes)
+                    self.assertEqual(qset.count(), len(nodes))
                     qset_total = 0
                     for value in qset:
                         qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
-                    expected_total = ((len(k_v_pairs) / 2) * (distinct_nodes - 1)) + (distinct_nodes - 1)
-                    expected_total = expected_total * node_rate
+                    expected_total = len(k_v_pairs) * node_rate
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
 
@@ -1378,6 +1308,10 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+        self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         default_val = random.randrange(10, 100)
         with schema_context(self.schema):
@@ -1387,24 +1321,28 @@ select * from eek where val1 in {{report_period_id}} ;
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
+            nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
+            k_v_pairs_num = (
+                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
+                .distinct()
+                .filter(**{"pod_labels__has_key": tag_rate_key})
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                    node__in=nodes,
+                )
+                .count()
+            )
 
         node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": tag_rate_vals}}
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
 
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = self.ocpaws_ocp_cluster_id
                 with schema_context(self.schema):
-                    k_v_pairs_num = (
-                        OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                        .distinct()
-                        .filter(**{"pod_labels__has_key": tag_rate_key})
-                        .values_list("pod_labels")
-                        .filter(cluster_id=self.cluster_id)
-                        .count()
-                    )
                     _ = (
                         OCPUsageLineItemDailySummary.objects.filter(
                             cluster_id=self.cluster_id,
@@ -1420,7 +1358,6 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
 
                     # call populate monthly default tag_cost with the rates defined above
-                    distinct_nodes = len(self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id))
                     self.accessor.populate_monthly_tag_default_cost(
                         "Node",
                         "Infrastructure",
@@ -1435,13 +1372,12 @@ select * from eek where val1 in {{report_period_id}} ;
 
                     # assert that after the update, there are now the monthly values
                     # for the two different nodes that did not have a value defined
-                    self.assertEqual(qset.count(), distinct_nodes)
+                    self.assertEqual(qset.count(), len(nodes))
                     qset_total = 0
                     for value in qset:
                         qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     # replicates the node matches
-                    expected_total = ((k_v_pairs_num / 2) * (distinct_nodes - 1)) + (distinct_nodes - 1)
-                    expected_total = expected_total * default_val
+                    expected_total = k_v_pairs_num * default_val
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
 
@@ -1464,16 +1400,22 @@ select * from eek where val1 in {{report_period_id}} ;
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
-            distinct_nodes = len(self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id))
-
+            nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
             k_v_pairs_num = (
                 OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
                 .distinct()
                 .filter(**{"pod_labels__has_key": tag_rate_key})
-                .values_list("pod_labels")
-                .filter(cluster_id=self.cluster_id)
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                    node__in=nodes,
+                )
+                .count()
             )
-            k_v_pairs_num = len(k_v_pairs_num)
 
         node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": tag_rate_vals}}
 
@@ -1507,10 +1449,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
 
                     # for the two different nodes that did not have a value defined
-                    self.assertEqual(qset.count(), distinct_nodes)
+                    self.assertEqual(qset.count(), len(nodes))
                     # replicates the node matches
-                    expected_total = ((k_v_pairs_num / 2) * (distinct_nodes - 1)) + (distinct_nodes - 1)
-                    expected_total = expected_total * default_val
+                    expected_total = k_v_pairs_num * default_val
                     qset_total = 0
                     for value in qset:
                         qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
@@ -1522,31 +1463,36 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        key_value_pairs = {"app": ["banking", "mobile", "weather"]}
-        pvc_tag_rates = {}
-        rate_total = 0
-        for key, values in key_value_pairs.items():
-            values_dict = {}
-            for value in values:
-                pvc_rate = random.randrange(1, 100)
-                values_dict[value] = pvc_rate
-                if value == "mobile":
-                    rate_total += pvc_rate
-                rate_total += pvc_rate
-            pvc_tag_rates[key] = values_dict
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpaws_ocp_cluster_id
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
+            tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
 
+            k_v_pairs = (
+                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                .distinct()
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                )
+            )
+            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
+
+        pvc_tag_rates = {}
+        pvc_rate = random.randrange(1, 100)
+        for key, values in key_value_pairs.items():
+            values_dict = {}
+            for value in values:
+                values_dict[value] = pvc_rate
+            pvc_tag_rates[key] = values_dict
+
+        with schema_context(self.schema):
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
@@ -1560,36 +1506,48 @@ select * from eek where val1 in {{report_period_id}} ;
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
-                self.provider_uuid,
+                self.ocpaws_provider_uuid,
             )
 
             # assert that after the update, there are now the monthly values
             # for the three different PVCs that have a value
-            self.assertEqual(qset.count(), 4)
+            self.assertEqual(qset.count(), len(pvcs))
             qset_total = 0
             for value in qset:
                 qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
+            expected_total = len(k_v_pairs) * pvc_rate
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+            self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_tag_cost_node_supplementary_cost(self):
         """
         Test that the monthly supplementary cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
         self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
             k_v_pairs = (
                 OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
                 .distinct()
-                .values_list("pod_labels", flat=True)
-                .filter(cluster_id=self.cluster_id)
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                    node__in=nodes,
+                )
             )
-            key_value_pairs = {tag_rate_key: [dikt[tag_rate_key] for dikt in k_v_pairs]}
+            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
         node_tag_rates = {}
         rate_total = 0
         node_rate = random.randrange(1, 100)
@@ -1600,9 +1558,6 @@ select * from eek where val1 in {{report_period_id}} ;
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
 
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
@@ -1613,7 +1568,6 @@ select * from eek where val1 in {{report_period_id}} ;
                         supplementary_monthly_cost_json__isnull=False,
                         monthly_cost_type="Node",
                     )
-                    distinct_nodes = len(self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id))
                     # call populate monthly tag_cost with the rates defined above
                     self.accessor.populate_monthly_tag_cost(
                         "Node",
@@ -1628,12 +1582,11 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
                     # assert that after the update, there are now the monthly values for
                     # the three different nodes that have a value
-                    self.assertEqual(qset.count(), distinct_nodes)
+                    self.assertEqual(qset.count(), len(nodes))
                     qset_total = 0
                     for value in qset:
                         qset_total += value.supplementary_monthly_cost_json.get(distribution, 0)
-                    expected_total = ((len(k_v_pairs) / 2) * (distinct_nodes - 1)) + (distinct_nodes - 1)
-                    expected_total = expected_total * node_rate
+                    expected_total = node_rate * len(k_v_pairs)
                     # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
 
@@ -1642,32 +1595,35 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly supplementary cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        key_value_pairs = {"app": ["banking", "mobile", "weather"]}
-        pvc_tag_rates = {}
-        rate_total = 0
-        for key, values in key_value_pairs.items():
-            values_dict = {}
-            for value in values:
-                pvc_rate = random.randrange(1, 100)
-                values_dict[value] = pvc_rate
-                if value == "mobile":
-                    rate_total += pvc_rate
-                rate_total += pvc_rate
-            pvc_tag_rates[key] = values_dict
-
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpaws_ocp_cluster_id
         with schema_context(self.schema):
-            # grab one item with the pod_labels we are looking for so the cluster_alias can be gotten
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
-            )
-            c_a = k_v.get("cluster_alias")
+            tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
 
+            k_v_pairs = (
+                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                .distinct()
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                )
+            )
+            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
+
+        pvc_tag_rates = {}
+        pvc_rate = random.randrange(1, 100)
+        for key, values in key_value_pairs.items():
+            values_dict = {}
+            for value in values:
+                values_dict[value] = pvc_rate
+            pvc_tag_rates[key] = values_dict
+        with schema_context(self.schema):
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1683,42 +1639,59 @@ select * from eek where val1 in {{report_period_id}} ;
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
-                self.provider_uuid,
+                self.ocpaws_provider_uuid,
             )
             # assert that after the update, there are now the monthly values for
             # the three different PVCs that have a value
-            self.assertEqual(qset.count(), 4)
+            self.assertEqual(qset.count(), len(pvcs))
             qset_total = 0
             for value in qset:
                 qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
+            expected_total = len(k_v_pairs) * pvc_rate
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
-            self.assertEqual(rate_total, qset_total)
+            self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_pvc_infrastructure_cost(self):
         """
         Test that the monthly infrastructure cost row for PVCs in the summary table
         is populated when given tag based rates.
         """
-        default_val = random.randrange(1, 100)
-        node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile", "banking"]}}
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpaws_ocp_cluster_id
+        default_val = random.randrange(1, 100)
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
+            tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            tag_rate_vals = (
+                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                .distinct()
+                .values_list("pod_labels", flat=True)
+            )[1]
+            pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
+            k_v_pairs_num = (
+                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
+                .distinct()
+                .filter(**{"pod_labels__has_key": tag_rate_key})
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                )
+                .count()
             )
-            c_a = k_v.get("cluster_alias")
 
+        node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": tag_rate_vals}}
+
+        with schema_context(self.schema):
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
-
             # assert that there are no infrastructure monthly PVC costs currently on our cluster id
             self.assertEqual(qset.count(), 0)
 
@@ -1730,18 +1703,18 @@ select * from eek where val1 in {{report_period_id}} ;
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
-                self.provider_uuid,
+                self.ocpaws_provider_uuid,
             )
 
             # assert that after the update, there is now the cluster cost for the PVC
-            self.assertEqual(qset.count(), 1)
+            self.assertEqual(qset.count(), len(pvcs))
             qset_total = 0
             for value in qset:
                 qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
             # there are three PVC tags and we said two already have defined rates
-            expected_total = default_val
+            expected_total = default_val * k_v_pairs_num
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
 
@@ -1750,20 +1723,36 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for PVC's in the summary table
         is populated when given tag based rates.
         """
-        default_val = random.randrange(1, 100)
-        node_tag_rates = {"app": {"default_value": default_val, "defined_keys": ["mobile"]}}
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = self.ocpaws_ocp_cluster_id
+        default_val = random.randrange(1, 100)
         with schema_context(self.schema):
-            k_v = (
-                OCPUsageLineItemDailySummary.objects.filter(volume_labels__contains={"app": "banking"})
-                .values()
-                .first()
+            tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
+            tag_rate_vals = (
+                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                .distinct()
+                .values_list("pod_labels", flat=True)
+            )[1]
+            pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
+            # The number of unique pod_labels key value pairs per node
+            k_v_pairs_num = (
+                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
+                .distinct()
+                .filter(**{"pod_labels__has_key": tag_rate_key})
+                .values_list("pod_labels", "node")
+                .filter(
+                    cluster_id=self.cluster_id,
+                    source_uuid=self.ocpaws_provider_uuid,
+                    usage_start__gte=start_date,
+                    usage_end__lte=end_date,
+                )
+                .count()
             )
-            c_a = k_v.get("cluster_alias")
 
+        node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": tag_rate_vals}}
+        with schema_context(self.schema):
             qset = OCPUsageLineItemDailySummary.objects.filter(
                 cluster_id=self.cluster_id, supplementary_monthly_cost_json__isnull=False, monthly_cost_type="PVC"
             )
@@ -1779,18 +1768,18 @@ select * from eek where val1 in {{report_period_id}} ;
                 start_date,
                 end_date,
                 self.cluster_id,
-                c_a,
+                self.cluster_id,
                 metric_constants.CPU_DISTRIBUTION,
-                self.provider_uuid,
+                self.ocpaws_provider_uuid,
             )
 
             # assert that after the update, there are now the monthly values
             # for the PVC's
-            self.assertEqual(qset.count(), 2)
+            self.assertEqual(qset.count(), len(pvcs))
             qset_total = 0
             for value in qset:
                 qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION)
-            expected_total = default_val * 2
+            expected_total = default_val * k_v_pairs_num
             # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
 
@@ -2139,7 +2128,7 @@ select * from eek where val1 in {{report_period_id}} ;
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution, default_val=default_val):
                 node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": [tag_rate_vals]}}
-                self.cluster_id = self.ocp_cluster_id
+                self.cluster_id = self.ocpaws_ocp_cluster_id
                 with schema_context(self.schema):
                     k_v_pairs_num = (
                         OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
@@ -2166,14 +2155,14 @@ select * from eek where val1 in {{report_period_id}} ;
                         self.cluster_id,
                         self.cluster_id,
                         distribution,
-                        str(self.ocp_provider_uuid),
+                        self.ocpaws_provider_uuid,
                     )
 
                     qset = OCPUsageLineItemDailySummary.objects.filter(
                         cluster_id=self.cluster_id,
                         infrastructure_monthly_cost_json__isnull=False,
                         monthly_cost_type="Cluster",
-                        source_uuid=self.ocp_provider_uuid,
+                        source_uuid=self.ocpaws_provider_uuid,
                         data_source="Pod",
                     )
 
