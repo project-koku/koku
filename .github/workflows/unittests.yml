@@ -36,9 +36,15 @@ jobs:
             echo "::set-output name=run-tests::true"
           fi
 
+      - id: check-fork
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
+            echo "::set-output name=run-tests::true"
+          fi
+
   unit-tests:
     needs: setup
-    if: ${{ needs.setup.outputs.run-tests == 'true' }} || ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ needs.setup.outputs.run-tests == 'true' }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
@@ -49,6 +55,8 @@ jobs:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
     steps:
+      - run: echo ${{ needs.setup.outputs.run-tests }}
+      - run: echo ${{ github.event.pull_request.head.repo.full_name }}
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
