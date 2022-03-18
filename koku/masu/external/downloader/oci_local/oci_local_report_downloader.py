@@ -1,36 +1,42 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""GCP Local Report Downloader."""
+"""OCI Local Report Downloader."""
+import datetime
+import hashlib
 import logging
 import os
+import shutil
 
 from api.common import log_json
 from api.utils import DateHelper
 from masu.config import Config
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
-from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-class GCPReportDownloaderError(Exception):
-    """GCP Report Downloader error."""
+class OCIReportDownloaderError(Exception):
+    """OCI Report Downloader error."""
 
     pass
 
 
-class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
-    """
-    GCP Cost and Usage Report Downloader.
+class OCIReportDownloaderNoFileError(Exception):
+    """OCI Report Downloader error for missing file."""
 
-    For configuration of GCP, see
-    https://cloud.google.com/billing/docs/how-to/export-data-bigquery
+
+class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
+    """
+    OCI Cost and Usage Report Downloader.
+
+    For configuration of OCI, see
+    https://docs.oracle.com/en-us/iaas/Content/Billing/Tasks/accessingusagereports.htm
     """
 
     def __init__(self, customer_name, data_source, **kwargs):
@@ -39,7 +45,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         Args:
             customer_name  (str): Name of the customer
-            data_source    (dict): dict containing name of GCP storage bucket
+            data_source    (dict): dict containing name of OCI storage bucket
 
         """
         super().__init__(**kwargs)
@@ -48,37 +54,25 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.file_mapping = self._extract_names()
+        self.files_list = self._extract_names()
 
     def _extract_names(self):
         """
-        Find the report name and prefix given the bucket path.
-
-        Args:
-            bucket (String): Path to the local file
+        Get list of file names.
 
         Returns:
-            (String, String) report_prefix, report_name
+            () bucket location
 
         """
         if not self.storage_location:
             err_msg = "The required local_dir parameter was not provided in the data_source json."
-            raise GCPReportDownloaderError(err_msg)
-        file_mapping = {}
+            raise OCIReportDownloaderError(err_msg)
+        files_list = []
         for root, dirs, files in os.walk(self.storage_location, followlinks=True):
             for file in files:
                 if file.endswith(".csv"):
-                    report_name = os.path.splitext(file)[0]
-                    invoice_month, etag, date_range = report_name.split("_")
-                    if ":" not in date_range:
-                        # if date range does not contain the `:`, it is not a file to process
-                        continue
-                    scan_start, scan_end = date_range.split(":")
-                    file_info = {"start": scan_start, "end": scan_end, "filename": file}
-                    if not file_mapping.get(invoice_month):
-                        file_mapping[invoice_month] = {}
-                    file_mapping[invoice_month][etag] = file_info
-        return file_mapping
+                    files_list.append(file)
+        return files_list
 
     def get_manifest_context_for_date(self, date):
         """
@@ -123,7 +117,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Generate a dict representing an analog to other providers' "manifest" files.
 
-        GCP does not produce a manifest file for monthly periods. So, we check for
+        OCI does not produce a manifest file for monthly periods. So, we check for
         files in the bucket that match dates within the monthly period starting on
         the requested start_date.
 
@@ -134,28 +128,16 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        etag = None
         invoice_month = start_date.strftime("%Y%m")
-        etags = self.file_mapping.get(str(invoice_month), {})
-        for etag_key in etags.keys():
-            with ReportManifestDBAccessor() as manifest_accessor:
-                assembly_id = ":".join([str(self._provider_uuid), etag_key, str(invoice_month)])
-                manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-            if manifest:
-                continue
-            etag = etag_key
-            break
-        if not etag:
-            return {}
+        assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
+
         dh = DateHelper()
         start_date = dh.invoice_month_start(str(invoice_month))
-        end_date = self.file_mapping[invoice_month][etag]["end"]
-        file_names = [self.file_mapping[invoice_month][etag]["filename"]]
+        file_names = self.files_list
         manifest_data = {
             "assembly_id": assembly_id,
             "compression": UNCOMPRESSED,
             "start_date": start_date,
-            "end_date": end_date,  # inclusive end date
             "file_names": file_names,
         }
         return manifest_data
@@ -174,60 +156,46 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
-        Download a file from GCP storage bucket.
+        Download a file from OCI storage bucket.
 
-        If we have a stored etag and it matches the current GCP blob, we can
+        If we have a stored etag and it matches the current OCI blob, we can
         safely skip download since the blob/file content must not have changed.
 
         Args:
-            key (str): name of the blob in the GCP storage bucket
+            key (str): name of the blob in the OCI storage bucket
             stored_etag (str): optional etag stored in our DB for comparison
 
         Returns:
-            tuple(str, str) with the local filesystem path to file and GCP's etag.
+            tuple(str, str) with the local filesystem path to file and OCI's etag.
 
         """
-        report_name = os.path.splitext(key)[0]
-        etag = report_name.split("_")[1]
-        full_local_path = self._get_local_file_path(key, etag)
-        msg = f"Returning full_file_path: {full_local_path}"
+        tenancy = self.credentials.get("tenant")
+
+        directory_path = f"{DATA_DIR}/{self.customer_name}/oci-local/{tenancy}"
+        full_file_path = f"{directory_path}/{key}"
+
+        base_path = f"/tmp/oci_local/{key}"
+
+        if not os.path.isfile(base_path):
+            log_msg = f"Unable to locate {base_path} in {tenancy}"
+            raise OCIReportDownloaderNoFileError(log_msg)
+
+        # Make sure the data directory exists
+        os.makedirs(directory_path, exist_ok=True)
+        etag_hasher = hashlib.new("ripemd160")
+        etag_hasher.update(bytes(key, "utf-8"))
+        etag = etag_hasher.hexdigest()
+
+        file_creation_date = None
+        msg = f"Returning full_file_path: {full_file_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        dh = DateHelper()
+        if etag != stored_etag or not os.path.isfile(full_file_path):
+            msg = f"Downloading {base_path} to {full_file_path}"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+            shutil.copy2(base_path, full_file_path)
+            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names = create_daily_archives(
-            self.request_id,
-            self.account,
-            self._provider_uuid,
-            key,
-            full_local_path,
-            manifest_id,
-            start_date,
-            self.context,
-        )
-
-        return full_local_path, etag, dh.today, file_names
-
-    def _get_local_file_path(self, key, etag):
-        """
-        Get the local file path destination for a downloaded file.
-
-        Args:
-            directory_path (str): base local directory path
-            key (str): name of the blob in the GCP storage bucket
-
-        Returns:
-            str of the destination local file path.
-
-        """
-        if etag not in self.storage_location:
-            final_path = f"{self.storage_location}/{etag}"
-        else:
-            final_path = f"{self.storage_location}"
-        local_file_name = key.replace("/", "_")
-        msg = f"Local filename: {local_file_name}"
-        LOG.info(log_json(self.request_id, msg, self.context))
-        full_local_path = os.path.join(final_path, local_file_name)
-        return full_local_path
+        return full_file_path, etag, file_creation_date, []
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""

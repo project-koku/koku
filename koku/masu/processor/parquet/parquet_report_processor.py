@@ -22,6 +22,7 @@ from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
+from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
@@ -37,6 +38,7 @@ from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.oci.common import get_column_converters as oci_column_converters
 from masu.util.ocp.common import detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
@@ -59,6 +61,7 @@ COLUMN_CONVERTERS = {
     Provider.PROVIDER_AZURE: azure_column_converters,
     Provider.PROVIDER_GCP: gcp_column_converters,
     Provider.PROVIDER_OCP: ocp_column_converters,
+    Provider.PROVIDER_OCI: oci_column_converters,
 }
 
 
@@ -296,6 +299,10 @@ class ParquetReportProcessor:
             processor = GCPReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
             )
+        elif self.provider_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+            processor = OCIReportParquetProcessor(
+                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+            )
         if processor is None:
             msg = f"There is no ReportParquetProcessor for provider type {self.provider_type}"
             raise ParquetReportProcessorError(msg)
@@ -332,6 +339,8 @@ class ParquetReportProcessor:
             Provider.PROVIDER_OCP,
             Provider.PROVIDER_GCP,
             Provider.PROVIDER_GCP_LOCAL,
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_OCI_LOCAL,
         ):
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
@@ -454,7 +463,7 @@ class ParquetReportProcessor:
         """Determine the s3 path based off of the invoice month."""
         invoice_month = gcp_file_name.split("_")[0]
         dh = DateHelper()
-        start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+        start_of_invoice = dh.invoice_month_start(invoice_month)
         if file_type == DAILY_FILE_TYPE:
             report_type = self.report_type
             if report_type is None:

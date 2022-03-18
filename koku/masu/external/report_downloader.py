@@ -20,6 +20,7 @@ from masu.external.downloader.azure_local.azure_local_report_downloader import A
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
+from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -153,6 +154,17 @@ class ReportDownloader:
             )
         if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
             return GCPLocalReportDownloader(
+                customer_name=self.customer_name,
+                credentials=self.credentials,
+                data_source=self.data_source,
+                report_name=self.report_name,
+                provider_uuid=self.provider_uuid,
+                request_id=self.request_id,
+                account=self.account,
+                provider_type=self.provider_type,
+            )
+        if self.provider_type == Provider.PROVIDER_OCI_LOCAL:
+            return OCILocalReportDownloader(
                 customer_name=self.customer_name,
                 credentials=self.credentials,
                 data_source=self.data_source,

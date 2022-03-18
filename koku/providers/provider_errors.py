@@ -35,6 +35,7 @@ class ProviderErrors:
 
     OCI_NO_REPORT_FOUND = "authentication.tenant.noreportfound"
     OCI_MISSING_TENANCY = "authentication.tenant.missing"
+    OCI_MISSING_LOCAL_DIR = "billing_source.data_source.local_dir.missing"
 
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
@@ -104,3 +105,4 @@ class ProviderErrors:
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
     OCI_MISSING_TENANCY_MESSAGE = "Tenant is a required parameter for OCI and must not be blank."
+    OCI_MISSING_LOCAL_DIR_MESSAGE = "Local dir is a required param for local OCI testing."
