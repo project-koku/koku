@@ -307,8 +307,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
-        LOG.info(f"Summary SQL: {str(summary_sql)}")
-        self._execute_presto_raw_sql_query(self.schema, summary_sql)
+        self._execute_presto_raw_sql_query(
+            self.schema, summary_sql, log_ref="reporting_awscostentrylineitem_daily_summary.sql"
+        )
 
     def mark_bill_as_finalized(self, bill_id):
         """Mark a bill in the database as finalized."""
@@ -373,7 +374,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
-                "Deleting partitions for the following: \n\tSchema: %s "
+                "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tAWS Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
                 self.schema,
                 ocp_source,
@@ -393,7 +394,11 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        self._execute_presto_raw_sql_query(
+                            self.schema,
+                            sql,
+                            log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
+                        )
                         break
                     except TrinoExternalError as err:
                         if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
@@ -603,6 +608,8 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+        results = self._execute_presto_raw_sql_query(
+            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpaws_matched_tags.sql"
+        )
 
         return [json.loads(result[0]) for result in results]
