@@ -312,7 +312,12 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def populate_ocp_on_azure_ui_summary_tables(self, sql_params, tables=OCPAZURE_UI_SUMMARY_TABLES):
