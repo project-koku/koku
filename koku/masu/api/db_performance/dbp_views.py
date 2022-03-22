@@ -127,7 +127,7 @@ def stat_statements(request):
     query_bad_threshold = Decimal("5000")
     query_warn_threshold = Decimal("4000")
 
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=["koku"]) as dbp:
         data = dbp.get_statement_stats()
 
     action_urls = []
@@ -146,7 +146,7 @@ def stat_statements(request):
                     attrs.append('style="background-color: #69d172;"')
                 rec["_attrs"][col] = " ".join(attrs)
 
-        # action_urls.append(reverse("clear_statement_statistics"))
+        action_urls.append(reverse("clear_statement_statistics"))
 
     page_header = "Statement Statistics"
     return HttpResponse(
@@ -184,7 +184,7 @@ def stat_activity(request):
     include_self = request.query_params.get("include_self", "false").lower() in ("1", "y", "yes", "t", "true", "on")
 
     data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=["koku"]) as dbp:
         data = dbp.get_activity(pid=pids, state=states, include_self=include_self)
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
@@ -251,6 +251,21 @@ def pg_engine_version(request):
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
         data = [{"postgresql_version": ".".join(str(v) for v in dbp.get_pg_engine_version())}]
+
+    page_header = "PostgreSQL Engine Version"
+    return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def stat_statements_reset(request):
+    """Reset (clear) the pg_stat_statements data."""
+
+    data = None
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        data = dbp.pg_stat_statements_reset()
+        HttpResponse(data)
 
     page_header = "PostgreSQL Engine Version"
     return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
