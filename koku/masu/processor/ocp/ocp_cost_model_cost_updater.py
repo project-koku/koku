@@ -335,6 +335,18 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
                 self._cluster_id,
             )
 
+    def _delete_tag_usage_costs(self, start_date, end_date, source_uuid):
+        """Delete existing tag based rated entries"""
+        # Delete existing records
+        with OCPReportDBAccessor(self._schema) as report_accessor:
+            report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                source_uuid,
+                start_date,
+                end_date,
+                table=OCPUsageLineItemDailySummary,
+                filters={"monthly_cost_type": "Tag"},
+            )
+
     def update_summary_cost_model_costs(self, start_date, end_date):
         """Update the OCP summary table with the charge information.
 
@@ -364,6 +376,7 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         # only update based on tag rates if there are tag rates
         # this also lets costs get removed if there is no tiered rate and then add to them if there is a tag_rate
         if self._tag_infra_rates != {} or self._tag_supplementary_rates != {}:
+            self._delete_tag_usage_costs(start_date, end_date, self._provider.uuid)
             self._update_tag_usage_costs(start_date, end_date)
             self._update_tag_usage_default_costs(start_date, end_date)
             self._update_monthly_tag_based_cost(start_date, end_date)
