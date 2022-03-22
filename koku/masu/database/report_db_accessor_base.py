@@ -454,9 +454,6 @@ class ReportDBAccessorBase(KokuDBAccess):
     def delete_line_item_daily_summary_entries_for_date_range_raw(
         self, source_uuid, start_date, end_date, filters, table=None
     ):
-        if filters is None:
-            msg = "The filters param must be a valid dictionary of filters."
-            raise ReportDBAccessorException(msg)
 
         if table is None:
             table = self.line_item_daily_summary_table
