@@ -8,6 +8,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunSQL(
-            sql="create extension if not exists pg_stat_statements schema public;", reverse_sql=migrations.RunSQL.noop
+            sql="create extension if not exists pg_stat_statements schema public;",
+            reverse_sql="drop extension if exists pg_stat_statements",
         )
     ]
