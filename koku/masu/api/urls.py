@@ -24,6 +24,7 @@ from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
+from masu.api.views import stat_statements_reset
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 
@@ -70,6 +71,7 @@ urlpatterns = [
     path("db-performance/stat-activity/", stat_activity, name="conn_activity"),
     path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
+    path("db-performance/stat-statements-reset/", stat_statements_reset, name="stat_statements_reset"),
 ]
 
 urlpatterns += ROUTER.urls

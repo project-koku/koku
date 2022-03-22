@@ -13,6 +13,7 @@ from jinja2 import Template as JinjaTemplate
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 from sqlparse import format as format_sql
 
 from .db_performance import DBPerformanceStats
@@ -146,7 +147,7 @@ def stat_statements(request):
                     attrs.append('style="background-color: #69d172;"')
                 rec["_attrs"][col] = " ".join(attrs)
 
-        action_urls.append(reverse("clear_statement_statistics"))
+        action_urls.append(reverse("stat_statements_reset"))
 
     page_header = "Statement Statistics"
     return HttpResponse(
@@ -260,12 +261,10 @@ def pg_engine_version(request):
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 def stat_statements_reset(request):
-    """Reset (clear) the pg_stat_statements data."""
+    """Get any blocked and blocking process data"""
 
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
         data = dbp.pg_stat_statements_reset()
-        HttpResponse(data)
 
-    page_header = "PostgreSQL Engine Version"
-    return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
+    return Response(data)

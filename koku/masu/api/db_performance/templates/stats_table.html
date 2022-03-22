@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
     <head>
         <title>Cost Management DB Performance Statistics</title>
         <style>
+            .hidden {display: none;}
+            .show {display: block;}
             .pre {white-space: pre;}
             .monospace {font-family: 'Courier New', Courier, monospace;}
             .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
@@ -20,7 +22,7 @@ SPDX-License-Identifier: Apache-2.0
         </style>
         <script>
 function clear_stmt_stats() {
-    document.getElementById("clear-stats-btn").attrs['disabled'] = true;
+    document.getElementById("clear-stats-btn").disabled = true;
     if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
         xhttp = new XMLHttpRequest();
         xhttp.open("GET", "{{action_urls[0]}}", false);
@@ -31,13 +33,53 @@ function clear_stmt_stats() {
         location.reload();
     }
 }
+
+
+function activate_button() {
+    btn_div = document.getElementById("clear-btn-div");
+    btn = document.getElementById("clear-stats-btn");
+    if (btn !== undefined && btn_div !== undefined) {
+        if (btn_div.className == 'hidden') {
+            btn_div.className = 'show';
+            btn.disabled = false;
+        }
+    }
+}
+
+
+function deactivate_button() {
+    btn_div = document.getElementById("clear-btn-div");
+    btn = document.getElementById("clear-stats-btn");
+    if (btn !== undefined && btn_div !== undefined) {
+        if (btn_div.className != 'hidden') {
+            btn.disabled = true;
+            btn_div.className = 'hidden';
+        }
+    }
+}
+
+
+function check_keys(e) {
+    var btn_div = undefined;
+    var btn = undefined;
+    if (e.isTrusted && e.ctrlKey && e.shiftKey && e.metaKey && e.key == 'Enter' && e.location == 3) {
+        activate_button();
+    }
+    else {
+        deactivate_button();
+    }
+}
+
+document.onkeypress = check_keys;
         </script>
     </head>
     <body>
         <h1>Database Performance</h1>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
-        <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button>
+        <div id="clear-btn-div" class="hidden">
+            <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();" disabled="true">Clear Statement Statistics</button>
+        </div>
         <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
