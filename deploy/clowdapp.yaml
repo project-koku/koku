@@ -1034,7 +1034,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1205,7 +1205,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1374,7 +1374,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1545,7 +1545,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1714,7 +1714,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -1885,7 +1885,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
@@ -2056,7 +2056,7 @@ objects:
         - /bin/bash
         - -c
         - |
-          PYTHONPATH=${APP_HOME} celery -A koku worker -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
+          PYTHONPATH=${APP_HOME} celery -A koku worker --without-gossip -E -l $CELERY_LOG_LEVEL -Q $WORKER_QUEUES
         env:
         - name: CLOWDER_ENABLED
           value: ${CLOWDER_ENABLED}
