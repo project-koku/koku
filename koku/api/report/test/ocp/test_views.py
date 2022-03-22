@@ -38,6 +38,7 @@ from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -170,7 +171,7 @@ class OCPReportViewTest(IamTestCase):
         }
 
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler")
-    def test_ocpcpuview_success(self, mock_handler):
+    def test_ocpcpuview_success(self, mock_handler, mocked_exchange_rates):
         """Test OCP cpu view report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_cpu
         params = {
@@ -196,7 +197,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler")
-    def test_ocpmemview_success(self, mock_handler):
+    def test_ocpmemview_success(self, mock_handler, mocked_exchange_rates):
         """Test OCP memory view report."""
         mock_handler.return_value.execute_query.return_value = self.report_ocp_mem
         params = {
@@ -221,7 +222,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertIsInstance(response, Response)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_cpu(self):
+    def test_execute_query_ocp_cpu(self, mocked_exchange_rates):
         """Test that OCP CPU endpoint works."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -242,7 +243,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("request" in values)
 
-    def test_costs_api_has_units(self):
+    def test_costs_api_has_units(self, mocked_exchange_rates):
         """Test that the costs API returns units."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -260,7 +261,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("cost" in values)
                 self.assertEqual(values.get("cost", {}).get("total").get("units"), "USD")
 
-    def test_cpu_api_has_units(self):
+    def test_cpu_api_has_units(self, mocked_exchange_rates):
         """Test that the CPU API returns units."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -278,7 +279,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertEqual(values.get("usage", {}).get("units"), "Core-Hours")
 
-    def test_memory_api_has_units(self):
+    def test_memory_api_has_units(self, mocked_exchange_rates):
         """Test that the memory API returns units."""
         url = reverse("reports-openshift-memory")
         client = APIClient()
@@ -296,7 +297,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertEqual(values.get("usage", {}).get("units"), "GB-Hours")
 
-    def test_execute_query_ocp_cpu_last_thirty_days(self):
+    def test_execute_query_ocp_cpu_last_thirty_days(self, mocked_exchange_rates):
         """Test that OCP CPU endpoint works."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -321,7 +322,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("request" in values)
 
-    def test_execute_query_ocp_cpu_this_month(self):
+    def test_execute_query_ocp_cpu_this_month(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -345,7 +346,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("request" in values)
 
-    def test_execute_query_ocp_cpu_this_month_daily(self):
+    def test_execute_query_ocp_cpu_this_month_daily(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -369,7 +370,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("request" in values)
 
-    def test_execute_query_ocp_cpu_last_month(self):
+    def test_execute_query_ocp_cpu_last_month(self, mocked_exchange_rates):
         """Test that data is returned for the last month."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -393,7 +394,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("usage" in values)
         self.assertTrue("request" in values)
 
-    def test_execute_query_ocp_cpu_last_month_daily(self):
+    def test_execute_query_ocp_cpu_last_month_daily(self, mocked_exchange_rates):
         """Test that data is returned for the full month."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -417,7 +418,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue("usage" in values)
                 self.assertTrue("request" in values)
 
-    def test_execute_query_ocp_memory_group_by_limit(self):
+    def test_execute_query_ocp_memory_group_by_limit(self, mocked_exchange_rates):
         """Test that OCP Mem endpoint works with limits."""
         url = reverse("reports-openshift-memory")
         client = APIClient()
@@ -465,7 +466,7 @@ class OCPReportViewTest(IamTestCase):
                 ).get("value")
                 self.assertEqual(usage_total, totals.get(date))
 
-    def test_execute_query_ocp_memory_group_by_limit_large(self):
+    def test_execute_query_ocp_memory_group_by_limit_large(self, mocked_exchange_rates):
         """Test that OCP Mem endpoint works with limits."""
         url = reverse("reports-openshift-memory")
         client = APIClient()
@@ -484,7 +485,7 @@ class OCPReportViewTest(IamTestCase):
         meta = data.get("meta")
         self.assertEqual(meta.get("others"), 0)
 
-    def test_execute_query_ocp_costs_group_by_cluster(self):
+    def test_execute_query_ocp_costs_group_by_cluster(self, mocked_exchange_rates):
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -493,7 +494,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_costs_group_by_node(self):
+    def test_execute_query_ocp_costs_group_by_node(self, mocked_exchange_rates):
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -502,7 +503,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_costs_group_by_project(self):
+    def test_execute_query_ocp_costs_group_by_project(self, mocked_exchange_rates):
         """Test that the costs endpoint is reachable."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -584,7 +585,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertNotEqual(total, Decimal(0))
         self.assertEqual(total, expected_total)
 
-    def test_execute_query_ocp_costs_with_delta(self):
+    def test_execute_query_ocp_costs_with_delta(self, mocked_exchange_rates):
         """Test that deltas work for costs."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -814,7 +815,7 @@ class OCPReportViewTest(IamTestCase):
                 delta_value = values[0].get("delta_value", 0)
             self.assertEqual(delta_value, expected_delta)
 
-    def test_execute_query_ocp_costs_with_invalid_delta(self):
+    def test_execute_query_ocp_costs_with_invalid_delta(self, mocked_exchange_rates):
         """Test that bad deltas don't work for costs."""
         url = reverse("reports-openshift-costs")
         client = APIClient()
@@ -828,7 +829,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_execute_query_ocp_cpu_with_delta_cost(self):
+    def test_execute_query_ocp_cpu_with_delta_cost(self, mocked_exchange_rates):
         """Test that cost deltas work for CPU."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -837,7 +838,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_cpu_with_delta_usage(self):
+    def test_execute_query_ocp_cpu_with_delta_usage(self, mocked_exchange_rates):
         """Test that usage deltas work for CPU."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -846,7 +847,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_cpu_with_delta_request(self):
+    def test_execute_query_ocp_cpu_with_delta_request(self, mocked_exchange_rates):
         """Test that request deltas work for CPU."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -855,7 +856,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_memory_with_delta(self):
+    def test_execute_query_ocp_memory_with_delta(self, mocked_exchange_rates):
         """Test that deltas work for CPU."""
         url = reverse("reports-openshift-memory")
         client = APIClient()
@@ -864,7 +865,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_ocp_cpu_with_delta_usage__capacity(self):
+    def test_execute_query_ocp_cpu_with_delta_usage__capacity(self, mocked_exchange_rates):
         """Test that usage v capacity deltas work."""
         delta = "usage__capacity"
         url = reverse("reports-openshift-cpu")
@@ -887,7 +888,7 @@ class OCPReportViewTest(IamTestCase):
             )
             self.assertEqual(values.get("delta_percent"), delta_percent)
 
-    def test_execute_query_ocp_cpu_with_delta_usage__request(self):
+    def test_execute_query_ocp_cpu_with_delta_usage__request(self, mocked_exchange_rates):
         """Test that usage v request deltas work."""
         delta = "usage__request"
         url = reverse("reports-openshift-cpu")
@@ -910,7 +911,7 @@ class OCPReportViewTest(IamTestCase):
             )
             self.assertEqual(values.get("delta_percent"), delta_percent)
 
-    def test_execute_query_ocp_cpu_with_delta_request__capacity(self):
+    def test_execute_query_ocp_cpu_with_delta_request__capacity(self, mocked_exchange_rates):
         """Test that request v capacity deltas work."""
         delta = "request__capacity"
         url = reverse("reports-openshift-cpu")
@@ -933,7 +934,7 @@ class OCPReportViewTest(IamTestCase):
             )
             self.assertAlmostEqual(values.get("delta_percent"), delta_percent)
 
-    def test_execute_query_group_by_project(self):
+    def test_execute_query_group_by_project(self, mocked_exchange_rates):
         """Test that grouping by project filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -958,7 +959,7 @@ class OCPReportViewTest(IamTestCase):
             for project in entry.get("projects", []):
                 self.assertEqual(project.get("project"), project_of_interest)
 
-    def test_execute_query_group_by_project_duplicate_projects(self):
+    def test_execute_query_group_by_project_duplicate_projects(self, mocked_exchange_rates):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {"namespaces": ["project_one", "project_two"]}
         project_of_interest = data_config["namespaces"][0]
@@ -978,7 +979,7 @@ class OCPReportViewTest(IamTestCase):
                 values = project.get("values", [])
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_filter_by_project_duplicate_projects(self):
+    def test_execute_query_filter_by_project_duplicate_projects(self, mocked_exchange_rates):
         """Test that same-named projects across clusters are accounted for."""
         data_config = {"namespaces": ["project_one", "project_two"]}
         project_of_interest = data_config["namespaces"][0]
@@ -998,7 +999,7 @@ class OCPReportViewTest(IamTestCase):
             if values:
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_group_by_cluster(self):
+    def test_execute_query_group_by_cluster(self, mocked_exchange_rates):
         """Test that grouping by cluster filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -1023,7 +1024,7 @@ class OCPReportViewTest(IamTestCase):
             for cluster in entry.get("clusters", []):
                 self.assertEqual(cluster.get("cluster"), cluster_of_interest)
 
-    def test_execute_query_group_by_pod_fails(self):
+    def test_execute_query_group_by_pod_fails(self, mocked_exchange_rates):
         """Test that grouping by pod filters data."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1033,7 +1034,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_execute_query_group_by_node(self):
+    def test_execute_query_group_by_node(self, mocked_exchange_rates):
         """Test that grouping by node filters data."""
         with tenant_context(self.tenant):
             # Force Django to do GROUP BY to get nodes
@@ -1059,7 +1060,7 @@ class OCPReportViewTest(IamTestCase):
             for node in entry.get("nodes", []):
                 self.assertIn(node.get("node"), node_of_interest)
 
-    def test_execute_query_group_by_node_duplicate_projects(self):
+    def test_execute_query_group_by_node_duplicate_projects(self, mocked_exchange_rates):
         """Test that same-named nodes across clusters are accounted for."""
         data_config = {"nodes": ["node_one", "node_two"]}
         node_of_interest = data_config["nodes"][0]
@@ -1079,7 +1080,7 @@ class OCPReportViewTest(IamTestCase):
                 values = node.get("values", [])
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_filter_by_node_duplicate_projects(self):
+    def test_execute_query_filter_by_node_duplicate_projects(self, mocked_exchange_rates):
         """Test that same-named nodes across clusters are accounted for."""
         with tenant_context(self.tenant):
             nodes = OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date()).values_list(
@@ -1102,7 +1103,7 @@ class OCPReportViewTest(IamTestCase):
             if values:
                 self.assertEqual(len(values), 1)
 
-    def test_execute_query_with_tag_filter(self):
+    def test_execute_query_with_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered by tag key."""
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1163,7 +1164,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_costs_query_with_tag_filter(self):
+    def test_execute_costs_query_with_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered by tag key."""
         url = "?filter[type]=pod&filter[time_scope_value]=-10&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1232,7 +1233,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
-    def test_execute_query_with_wildcard_tag_filter(self):
+    def test_execute_query_with_wildcard_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered to include entries with tag key."""
         url = "?filter[type]=pod&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1286,7 +1287,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("value")
             self.assertEqual(result, expected)
 
-    def test_execute_query_with_tag_group_by(self):
+    def test_execute_query_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         url = "?filter[type]=pod&filter[enabled]=false"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1308,7 +1309,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
 
-    def test_execute_costs_query_with_tag_group_by(self):
+    def test_execute_costs_query_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         url = "?filter[type]=pod&filter[enabled]=false"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1330,7 +1331,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             self.assertEqual(list(entry.keys()), expected_keys)
 
-    def test_execute_query_with_group_by_tag_and_limit(self):
+    def test_execute_query_with_group_by_tag_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by tag key and limited."""
         client = APIClient()
         tag_url = reverse("openshift-tags")
@@ -1361,7 +1362,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue(current_tag_usage <= previous_tag_usage)
                 previous_tag_usage = current_tag_usage
 
-    def test_execute_query_with_group_by_and_limit(self):
+    def test_execute_query_with_group_by_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by and limited."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1378,7 +1379,7 @@ class OCPReportViewTest(IamTestCase):
             if other:
                 self.assertIn("Other", other[0].get("node"))
 
-    def test_execute_query_with_group_by_order_by_and_limit(self):
+    def test_execute_query_with_group_by_order_by_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped by and limited on order by."""
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
         order_mapping = ["cost", "infrastructure", "supplementary"]
@@ -1420,7 +1421,7 @@ class OCPReportViewTest(IamTestCase):
                 self.assertTrue(current_value <= previous_value)
                 previous_value = current_value
 
-    def test_execute_query_with_order_by(self):
+    def test_execute_query_with_order_by(self, mocked_exchange_rates):
         """Test that the possible order by options work."""
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
         for option in order_by_options:
@@ -1438,7 +1439,7 @@ class OCPReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_with_order_by_delta_and_limit(self):
+    def test_execute_query_with_order_by_delta_and_limit(self, mocked_exchange_rates):
         """Test that data is grouped and limited by order by delta."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1495,7 +1496,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertTrue(current_usage >= previous_usage)
             previous_usage = current_usage
 
-    def test_execute_query_volume(self):
+    def test_execute_query_volume(self, mocked_exchange_rates):
         """Test that the volume endpoint functions."""
         url = reverse("reports-openshift-volume")
         client = APIClient()
@@ -1515,7 +1516,7 @@ class OCPReportViewTest(IamTestCase):
         self.assertTrue("cost" in values)
         self.assertEqual(values.get("usage", {}).get("units"), "GB-Mo")
 
-    def test_execute_query_default_pagination(self):
+    def test_execute_query_default_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works."""
         url = reverse("reports-openshift-volume")
         client = APIClient()
@@ -1539,7 +1540,7 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertEqual(len(data), count)
 
-    def test_execute_query_limit_pagination(self):
+    def test_execute_query_limit_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works with a limit."""
         limit = 2
         start_date = self.ten_days_ago.date().strftime("%Y-%m-%d")
@@ -1570,7 +1571,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertEqual(len(data), limit)
         self.assertEqual(data[0].get("date"), start_date)
 
-    def test_execute_query_limit_offset_pagination(self):
+    def test_execute_query_limit_offset_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works with an offset."""
         limit = 1
         offset = 1
@@ -1602,7 +1603,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertEqual(len(data), limit)
         self.assertEqual(data[0].get("date"), start_date)
 
-    def test_execute_query_filter_limit_offset_pagination(self):
+    def test_execute_query_filter_limit_offset_pagination(self, mocked_exchange_rates):
         """Test that the ranked group pagination works."""
         limit = 1
         offset = 0
@@ -1637,7 +1638,7 @@ class OCPReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(projects), limit)
 
-    def test_execute_query_filter_limit_high_offset_pagination(self):
+    def test_execute_query_filter_limit_high_offset_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works."""
         limit = 1
         offset = 10
@@ -1672,7 +1673,7 @@ class OCPReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(projects), limit)
 
-    def test_execute_query_with_and_filter(self):
+    def test_execute_query_with_and_filter(self, mocked_exchange_rates):
         """Test the filter[and:] param in the view."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1700,7 +1701,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             self.assertEqual(entry.get("values"), [])
 
-    def test_execute_query_with_and_group_by(self):
+    def test_execute_query_with_and_group_by(self, mocked_exchange_rates):
         """Test the group_by[and:] param in the view."""
         url = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1727,7 +1728,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data:
             self.assertEqual(entry.get("clusters"), [])
 
-    def test_execute_query_with_and_tag_filter(self):
+    def test_execute_query_with_and_tag_filter(self, mocked_exchange_rates):
         """Test the filter[and:tag:] param in the view."""
         url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1760,7 +1761,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_with_and_tag_group_by(self):
+    def test_execute_query_with_and_tag_group_by(self, mocked_exchange_rates):
         """Test the group_by[and:tag:] param in the view."""
         url = "?filter[type]=pod&filter[time_scope_value]=-1&filter[enabled]=true"
         query_params = self.mocked_query_params(url, OCPTagView)
@@ -1768,7 +1769,7 @@ class OCPReportViewTest(IamTestCase):
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
-        with tenant_context(self.tenant):
+        with tenant_context(self.tenant, mocked_exchange_rates):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     report_period__report_period_start__gte=self.dh.this_month_start.date()
@@ -1792,7 +1793,7 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_tag_wo_group(self):
+    def test_order_by_tag_wo_group(self, mocked_exchange_rates):
         """Test that order by tags without a group-by fails."""
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1815,7 +1816,7 @@ class OCPReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_order_by_tag_w_wrong_group(self):
+    def test_order_by_tag_w_wrong_group(self, mocked_exchange_rates):
         """Test that order by tags with a non-matching group-by fails."""
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
@@ -1839,7 +1840,7 @@ class OCPReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_order_by_tag_w_tag_group(self):
+    def test_order_by_tag_w_tag_group(self, mocked_exchange_rates):
         """Test that order by tags with a matching group-by tag works."""
         baseurl = reverse("reports-openshift-cpu")
         client = APIClient()
