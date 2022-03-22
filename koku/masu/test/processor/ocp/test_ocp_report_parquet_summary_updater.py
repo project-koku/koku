@@ -6,6 +6,8 @@
 import datetime
 from unittest.mock import patch
 
+from tenant_schemas.utils import schema_context
+
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -90,8 +92,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         mock_date_check.return_value = (start_date, end_date)
 
+        with OCPReportDBAccessor(self.schema) as accessor:
+            with schema_context(self.schema):
+                report_period = accessor.report_periods_for_provider_uuid(self.provider.uuid, start_date)
+                report_period_id = report_period.id
+
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_delete.assert_called_with(self.ocp_provider.uuid, start_date.date(), end_date.date())
+        mock_delete.assert_called_with(
+            self.ocp_provider.uuid, start_date.date(), end_date.date(), {"report_period_id": report_period_id}
+        )
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()

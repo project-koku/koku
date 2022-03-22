@@ -2,86 +2,153 @@
     "name": "Cost Management OpenShift Cost Model",
     "description": "A cost model of on-premises OpenShift clusters.",
     "source_type": "OCP",
-    "source_uuids": ["PROVIDER_UUID"],
-    "rates": [{
-        "metric": {"name": "cpu_core_usage_per_hour"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.0070000000,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "cpu_core_request_per_hour"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.2000000000,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "memory_gb_usage_per_hour"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.0090000000,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "memory_gb_request_per_hour"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.0500000000,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "storage_gb_usage_per_month"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.01,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "storage_gb_request_per_month"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 0.01,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Supplementary"
-    },
-    {
-        "metric": {"name": "node_cost_per_month"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 1000.0,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Infrastructure"
-    },
-    {
-        "metric": {"name": "cluster_cost_per_month"},
-        "tiered_rates": [{
-            "unit": "USD",
-            "value": 10000.0,
-            "usage_start": null,
-            "usage_end": null
-        }],
-        "cost_type": "Infrastructure"
-    }
+    "source_uuids": [
+        "PROVIDER_UUID"
+    ],
+    "rates": [
+        {
+            "metric": {
+                "name": "cpu_core_usage_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.007,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "cpu_core_request_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.2,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "memory_gb_usage_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.009,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "memory_gb_request_per_hour"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.05,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "storage_gb_usage_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.01,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "storage_gb_request_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 0.01,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Supplementary"
+        },
+        {
+            "metric": {
+                "name": "node_cost_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 1000,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "cluster_cost_per_month"
+            },
+            "tiered_rates": [
+                {
+                    "unit": "USD",
+                    "value": 10000,
+                    "usage_start": null,
+                    "usage_end": null
+                }
+            ],
+            "cost_type": "Infrastructure"
+        },
+        {
+            "metric": {
+                "name": "cpu_core_effective_usage_per_hour"
+            },
+            "tag_rates": {
+                "tag_key": "application",
+                "tag_values": [
+                    {
+                        "unit": "USD",
+                        "value": 0.05,
+                        "default": false,
+                        "tag_value": "OpenCart",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 0.1,
+                        "default": false,
+                        "tag_value": "Phoenix",
+                        "description": ""
+                    },
+                    {
+                        "unit": "USD",
+                        "value": 0.25,
+                        "default": true,
+                        "tag_value": "Atomic",
+                        "description": ""
+                    }
+                ]
+            },
+            "cost_type": "Infrastructure"
+        }
     ]
 }
