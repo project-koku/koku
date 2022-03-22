@@ -1180,7 +1180,10 @@ class ReportQueryHandler(QueryHandler):
             date = date + date_delta
             row["date"] = self.date_to_string(date)
             key = tuple(row[key] for key in query_group_by)
-            previous_dict[json_dumps(key)] = row[self._delta]
+            try:
+                previous_dict[json_dumps(key)] = row[self._delta]
+            except TypeError:
+                previous_dict[json_dumps(str(key))] = row[self._delta]
 
         return previous_dict
 
@@ -1212,7 +1215,7 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
-    def add_deltas(self, query_data, query_sum):
+    def add_deltas(self, query_data, query_sum):  # noqa: C901
         """Calculate and add cost deltas to a result set.
 
         Args:
@@ -1224,12 +1227,20 @@ class ReportQueryHandler(QueryHandler):
 
         """
         delta_group_by = ["date"] + self._get_group_by()
+        if self._report_type == "costs":
+            if self.query_table != OCPUsageLineItemDailySummary:
+                delta_group_by.append("source_uuid_id")
+            else:
+                delta_group_by.append("source_uuid")
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
-            previous_total = previous_dict.get(json_dumps(key)) or 0
+            try:
+                previous_total = previous_dict.get(json_dumps(key)) or 0
+            except TypeError:
+                previous_total = previous_dict.get(json_dumps(str(key))) or 0
             current_total = row.get(self._delta) or 0
             row["delta_value"] = current_total - previous_total
             row["delta_percent"] = self._percent_delta(current_total, previous_total)
@@ -1256,9 +1267,6 @@ class ReportQueryHandler(QueryHandler):
 
         total_delta = current_total_sum - prev_total_sum
         total_delta_percent = self._percent_delta(current_total_sum, prev_total_sum)
-        print("\n\n\n\ninside add deltas: ")
-        print(total_delta)
-        print(total_delta_percent)
 
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 

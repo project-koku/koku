@@ -200,12 +200,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         base_values[value] = base_val + new_val
                     for delta in ["delta_value", "delta_percent"]:
                         if data.get(delta):
-                            print("\n\n\n\nDELTA VALUES: ")
-                            print(delta)
-                            print(data.get(delta))
-                            print(base_values.get(delta, 0))
-                            print("sum: ")
-                            print(base_values.get(delta, 0) - data.get(delta))
                             base_values[delta] = base_values.get(delta, 0) + data.get(delta)
                     for item in ["account", "account_alias", "tags_exist"]:
                         if data.get(item):
@@ -262,8 +256,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
                 base_currency = self._get_base_currency(source_uuid_id)
                 exchange_rate = self._get_exchange_rate(base_currency)
-                print("\n\n\ngrabbing the date: ")
-                print(data.get("date"))
                 total_query["date"] = data.get("date")
                 for aggregate in ["source_uuid", "clusters"]:
                     base_val = total_query.get(aggregate)

@@ -586,7 +586,6 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
-        print("\n\nAshley")
         url = reverse("reports-openshift-costs")
         client = APIClient()
         params = {
@@ -599,8 +598,6 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.data
-        print("\n\n\nTest data response: ")
-        print(data)
         this_month_start = self.dh.this_month_start
         last_month_start = self.dh.last_month_start
 
@@ -807,16 +804,10 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
-        # self.assertEqual(delta, expected_delta)
+        self.assertEqual(round(delta, 9), round(expected_delta, 9))
         for item in data.get("data"):
-            print("\n\n\nitem: ")
-            print(item)
             date = item.get("date")
-            print("date")
-            print(date)
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
-            print(current_totals.get(date, 0))
-            print(prev_totals.get(date, 0))
             values = item.get("values", [])
             delta_value = 0
             if values:
@@ -1393,7 +1384,6 @@ class OCPReportViewTest(IamTestCase):
         order_mapping = ["cost", "infrastructure", "supplementary"]
 
         for option in order_by_options:
-            print(option)
             url = reverse("reports-openshift-cpu")
             client = APIClient()
             order_by_dict_key = f"order_by[{option}]"
