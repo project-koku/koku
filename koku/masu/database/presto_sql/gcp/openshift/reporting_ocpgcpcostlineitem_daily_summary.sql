@@ -419,11 +419,13 @@ SELECT pds.gcp_uuid,
     credit_amount / r.gcp_uuid_count as credit_amount,
     unblended_cost / r.gcp_uuid_count as unblended_cost,
     markup_cost / r.gcp_uuid_count as markup_cost,
-    CASE WHEN data_source = 'Pod'
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
-    CASE WHEN data_source = 'Pod'
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / r.gcp_uuid_count
     END as pod_cost,

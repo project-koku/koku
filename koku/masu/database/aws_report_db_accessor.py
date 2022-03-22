@@ -276,7 +276,12 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
@@ -589,6 +594,9 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpaws_matched_tags.sql")
         sql = sql.decode("utf-8")
 
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -597,6 +605,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": ocp_source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)

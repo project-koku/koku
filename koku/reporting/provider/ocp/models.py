@@ -221,7 +221,9 @@ class OCPUsageLineItemDailySummary(models.Model):
         partition_type = "RANGE"
         partition_cols = ["usage_start"]
 
-    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"))
+    # Tag cost is actually a usage-based daily cost. We are overloading this field for
+    # tag usage rates.
+    MONTHLY_COST_TYPES = (("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag"))
     MONTHLY_COST_RATE_MAP = {
         "Node": "node_cost_per_month",
         "Cluster": "cluster_cost_per_month",
@@ -239,6 +241,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["namespace"], name="summary_namespace_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["node"], name="summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
+            models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
 

@@ -589,6 +589,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
 
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -597,6 +600,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": ocp_source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
