@@ -748,6 +748,8 @@ class ReportQueryHandler(QueryHandler):
         if self.provider != Provider.PROVIDER_OCP:
             total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
             out_data["values"] = [total_query]
+            currencys = out_data.pop(codes.get(self.provider))
+            out_data["currencys"] = currencys
         else:
             total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
             out_data["values"] = [total_query]
