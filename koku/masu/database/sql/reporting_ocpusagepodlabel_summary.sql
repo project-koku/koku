@@ -29,6 +29,7 @@ end;
 $$ language plpgsql;
 
 
+-- Create a "temp" table to hold unpacked label key, value data
 create table {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} as
 SELECT distinct
        key,
@@ -54,6 +55,9 @@ SELECT distinct
 create index ix_expanded_tag_values__{{uuid | sqlsafe}} on {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} (key, report_period_id, namespace, node);
 
 
+-- Create a "temp" table to hold key and aggregated values from a distinct union
+-- of the latest key, value data with the existing data in reporting_ocpusagepodlabel_summary
+-- based on a join using key, report_period_id, namespace, node
 create table {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} as
 select key,
        array_agg(distinct value) as "values",
@@ -91,6 +95,7 @@ select key,
 create index ix_report_period_tag_values_{{uuid | sqlsafe}} on {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} (key, report_period_id, namespace, node);
 
 
+-- Create a "temp" table to hold key, value and aggregated cluster_id, cluster_ailas, namespace, node
 create table {{schema | sqlsafe}}._process_ocptagvalues_{{uuid | sqlsafe}} as
 select uuid_generate_v4() as "uuid",
        tv.key,
