@@ -241,6 +241,7 @@ class OCPUsageLineItemDailySummary(models.Model):
             models.Index(fields=["namespace"], name="summary_namespace_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["node"], name="summary_node_idx", opclasses=["varchar_pattern_ops"]),
             models.Index(fields=["data_source"], name="summary_data_source_idx"),
+            models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
             GinIndex(fields=["pod_labels"], name="pod_labels_idx"),
         ]
 

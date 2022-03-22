@@ -14,5 +14,9 @@ class Migration(migrations.Migration):
             field=models.TextField(
                 choices=[("Node", "Node"), ("Cluster", "Cluster"), ("PVC", "PVC"), ("Tag", "Tag")], null=True
             ),
-        )
+        ),
+        migrations.AddIndex(
+            model_name="ocpusagelineitemdailysummary",
+            index=models.Index(fields=["monthly_cost_type"], name="monthly_cost_type_idx"),
+        ),
     ]
