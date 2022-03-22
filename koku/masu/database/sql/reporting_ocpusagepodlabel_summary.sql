@@ -10,8 +10,8 @@
 -- PostgreSQL has no TRUNCATE TABLE IF EXISTS form, so we have to do this.
 do $$
 declare
-    processing_tables text[] := ARRAY['{{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}}',
-                                      '{{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}}',
+    processing_tables text[] := ARRAY['{{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}}',
+                                      '{{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}}',
                                       '{{schema | sqlsafe}}._process_ocptagvalues_{{uuid | sqlsafe}}']::text[];
     table_name text;
 begin
@@ -30,7 +30,7 @@ $$ language plpgsql;
 
 
 -- Create a "temp" table to hold unpacked label key, value data
-create table {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} as
+create table {{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}} as
 SELECT distinct
        key,
        value,
@@ -52,39 +52,41 @@ SELECT distinct
    AND value IS NOT NULL
 ;
 
-create index ix_expanded_tag_values__{{uuid | sqlsafe}} on {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} (key, report_period_id, namespace, node);
 
-
--- Create a "temp" table to hold key and aggregated values from a distinct union
--- of the latest key, value data with the existing data in reporting_ocpusagepodlabel_summary
--- based on a join using key, report_period_id, namespace, node
-create table {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} as
+-- Create a "temp" table to hold key and aggregated values
+create table {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}} as
+with cte_distinct_agg as (
 select key,
-       array_agg(distinct value) as "values",
+       array_agg("value") as "values",
        report_period_id,
        namespace,
        node
+  from {{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}}
+ group
+    by key,
+       report_period_id,
+       namespace,
+       node
+)
+select v.key,
+       array_agg(distinct v."values") as "values",
+       v.report_period_id,
+       v.namespace,
+       v.node
   from (
-            -- get the unnested tag values
-           select r.key,
-                  r.value,
-                  r.report_period_id,
-                  r.namespace,
-                  r.node
-             from {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} as r
-            union
-           select e.key,
-                  unnest(e."values") as "value",
-                  e.report_period_id,
-                  e.namespace,
-                  e.node
-             from {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as e
-             join {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} r1
-               on r1.key = e.key
-              and r1.report_period_id = e.report_period_id
-              and r1.namespace = e.namespace
-              and r1.node = e.node
-       ) as x
+         select va.key,
+                unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
+                va.report_period_id,
+                va.namespace,
+                va.node
+           from cte_distinct_agg as va
+           left
+           join {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as ls
+             on va.key = ls.key
+            and va.report_period_id = ls.report_period_id
+            and va.namespace = ls.namespace
+            and va.node = ls.node
+       ) as v
  group
     by key,
        report_period_id,
@@ -92,7 +94,7 @@ select key,
        node
 ;
 
-create index ix_report_period_tag_values_{{uuid | sqlsafe}} on {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} (key, report_period_id, namespace, node);
+create index ix_cte_distinct_values_agg_{{uuid | sqlsafe}} on {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}} (key, report_period_id, namespace, node);
 
 
 -- Create a "temp" table to hold key, value and aggregated cluster_id, cluster_ailas, namespace, node
@@ -104,7 +106,7 @@ select uuid_generate_v4() as "uuid",
        array_agg(distinct rp.cluster_alias) as cluster_aliases,
        array_agg(distinct tv.namespace) as namespaces,
        array_agg(distinct tv.node) as nodes
-  from {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}} tv
+  from {{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}} tv
   join {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
     on tv.report_period_id = rp.id
  group
@@ -118,9 +120,10 @@ create index ix__process_ocptagvalues_{{uuid | sqlsafe}} on {{schema | sqlsafe}}
 -- ===================================================
 -- Handle reporting_ocpusagepodlabel_summary
 -- ===================================================
+-- simple join here because we want matching here
 update {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as pl_summ
    set "values" = pls."values"
-  from {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} pls
+  from {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}} pls
  where pls.key = pl_summ.key
    and pls.report_period_id = pl_summ.report_period_id
    and pls.namespace = pl_summ.namespace
@@ -128,6 +131,8 @@ update {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary as pl_summ
 ;
 
 
+-- I have seen instances of better performance and accuracy using this pattern vs left join where col is null.
+-- we'll see if this continues to bear out.
 insert
   into {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary (
            "uuid",
@@ -143,7 +148,7 @@ select uuid_generate_v4(),
        report_period_id,
        namespace,
        node
-  from {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}} atvi
+  from {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}} atvi
  where not exists (
                       select 1
                         from {{schema | sqlsafe}}.reporting_ocpusagepodlabel_summary ins
@@ -158,6 +163,7 @@ select uuid_generate_v4(),
 -- ===================================================
 -- Handle reporting_ocptags_values
 -- ===================================================
+-- simple join here because we want matching here
 update {{schema | sqlsafe}}.reporting_ocptags_values as otv
    set cluster_ids = rp.cluster_ids,
        cluster_aliases = rp.cluster_aliases,
@@ -169,6 +175,8 @@ update {{schema | sqlsafe}}.reporting_ocptags_values as otv
 ;
 
 
+-- I have seen instances of better performance and accuracy using this pattern vs left join where col is null.
+-- we'll see if this continues to bear out.
 insert
   into {{schema | sqlsafe}}.reporting_ocptags_values
 select uuid_generate_v4(),
@@ -190,8 +198,8 @@ select uuid_generate_v4(),
 
 -- Cleanup
 truncate table {{schema | sqlsafe}}._process_ocptagvalues_{{uuid | sqlsafe}};
-truncate table {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}};
-truncate table {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}};
+truncate table {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}};
+truncate table {{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}};
 drop table {{schema | sqlsafe}}._process_ocptagvalues_{{uuid | sqlsafe}};
-drop table {{schema | sqlsafe}}._report_period_tag_values_{{uuid | sqlsafe}};
-drop table {{schema | sqlsafe}}._expanded_tag_values_{{uuid | sqlsafe}};
+drop table {{schema | sqlsafe}}._cte_distinct_values_agg_{{uuid | sqlsafe}};
+drop table {{schema | sqlsafe}}._cte_tag_value_{{uuid | sqlsafe}};
