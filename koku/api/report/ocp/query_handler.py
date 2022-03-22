@@ -21,6 +21,8 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
 
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+
 LOG = logging.getLogger(__name__)
 
 
@@ -116,6 +118,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Look up the report base currency."""
         pm = ProviderManager(source_uuid)
         cost_models = pm.get_cost_models(self.tenant)
+        print("\n\n\nsource uuid: ")
+        print(source_uuid)
+        print(cost_models)
         if cost_models:
             cm = cost_models[0]
             return cm.currency
@@ -142,7 +147,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_distributed": 0,
         }
         for query_set in total_queryset:
-            base = self._get_base_currency(query_set["source_uuid_id"])
+            base = self._get_base_currency(query_set.get("source_uuid_id", query_set.get("source_uuid")))
             total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             total_query["date"] = query_set.get("date")
@@ -174,10 +179,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
-            source_uuid_id = currency_entry.get("source_uuid_id")
+            source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
             currency = self._get_base_currency(source_uuid_id)
             exchange_rate = self._get_exchange_rate(currency)
             for data in values:
+                print("\n\n\ndata: ")
+                print(data)
                 if currency not in currencys.keys():
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
@@ -195,6 +202,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         base_values[value] = base_val + new_val
                     for delta in ["delta_value", "delta_percent"]:
                         if data.get(delta):
+                            print("\n\n\n\nDELTA VALUES: ")
+                            print(delta)
+                            print(data.get(delta))
+                            print(base_values.get(delta, 0))
+                            print("sum: ")
+                            print(base_values.get(delta, 0) - data.get(delta))
                             base_values[delta] = base_values.get(delta, 0) + data.get(delta)
                     for item in ["account", "account_alias", "tags_exist"]:
                         if data.get(item):
@@ -246,9 +259,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
-                source_uuid_id = currency_entry.get("source_uuid_id")
+                source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
                 base_currency = self._get_base_currency(source_uuid_id)
                 exchange_rate = self._get_exchange_rate(base_currency)
+                print("\n\n\ngrabbing the date: ")
+                print(data.get("date"))
                 total_query["date"] = data.get("date")
                 for aggregate in ["source_uuid", "clusters"]:
                     total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
@@ -286,11 +301,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query_group_by = ["date"] + group_by_value
             if self._report_type == "costs" and not is_csv_output:
-                query_group_by.append("source_uuid_id")
+                if self.query_table == OCPUsageLineItemDailySummary:
+                    query_group_by.append("source_uuid")
+                    print("\n\n\n\nannotations:")
+                    print(self.annotations)
+                    print(self.report_annotations)
+                    self.report_annotations.pop("source_uuid")
+                else:
+                    query_group_by.append("source_uuid_id")
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
+            print("\n\n\nTABLE: ")
+            print(self.query_table)
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:

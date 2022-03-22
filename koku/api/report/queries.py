@@ -34,6 +34,7 @@ from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
+from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -714,6 +715,8 @@ class ReportQueryHandler(QueryHandler):
                 group = groupby[level]
                 if group.startswith("tags"):
                     group = group[6:]
+                    print("\n\n\nGROUP TAGS: ")
+                    print(group)
                 for value in out_data:
                     new_out_data = value.get(group + "s")
                     org_id = value.get("id")
@@ -737,6 +740,9 @@ class ReportQueryHandler(QueryHandler):
             Provider.OCP_ALL: "currency_codes",
             Provider.PROVIDER_OCP: "source_uuid_ids",
         }
+        if self.provider == Provider.PROVIDER_OCP:
+            if self.query_table == OCPUsageLineItemDailySummary:
+                codes[Provider.PROVIDER_OCP] = "source_uuids"
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
             total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
@@ -748,7 +754,7 @@ class ReportQueryHandler(QueryHandler):
             for key, value in new_codes.items():
                 cur_dictionary = {"currency": key, "values": [value]}
                 currency_list.append(cur_dictionary)
-            out_data.pop("source_uuid_ids")
+            out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currency_list
         return out_data
 
@@ -829,7 +835,7 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-        if self.provider != Provider.PROVIDER_OCP:
+        if self.provider != Provider.PROVIDER_OCP and self._report_type == "costs":
             out_data = self._apply_exchange_rate(out_data)
         return out_data
 
@@ -1249,6 +1255,9 @@ class ReportQueryHandler(QueryHandler):
 
         total_delta = current_total_sum - prev_total_sum
         total_delta_percent = self._percent_delta(current_total_sum, prev_total_sum)
+        print("\n\n\n\ninside add deltas: ")
+        print(total_delta)
+        print(total_delta_percent)
 
         self.query_delta = {"value": total_delta, "percent": total_delta_percent}
 
