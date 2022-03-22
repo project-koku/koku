@@ -1769,7 +1769,7 @@ class OCPReportViewTest(IamTestCase):
         tag_keys = handler.get_tag_keys()
         group_by_key = tag_keys[0]
 
-        with tenant_context(self.tenant, mocked_exchange_rates):
+        with tenant_context(self.tenant):
             labels = (
                 OCPUsageLineItemDailySummary.objects.filter(
                     report_period__report_period_start__gte=self.dh.this_month_start.date()
