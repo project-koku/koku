@@ -805,7 +805,7 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
-        # self.assertEqual(delta, expected_delta)
+        self.assertEqual(round(delta, 9), round(expected_delta, 9))
         for item in data.get("data"):
             date = item.get("date")
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)

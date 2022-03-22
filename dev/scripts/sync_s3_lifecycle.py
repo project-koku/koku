@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# noqa
 """ sync s3 lifecycle policy """
 import os
 from distutils.util import strtobool
