@@ -342,23 +342,25 @@ class ReportDBAccessorBase(KokuDBAccess):
                 value = None
         return value
 
-    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
+    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
         if start and end:
-            LOG.info("Updating %s from %s to %s.", table, start, end)
+            LOG.info("Triggering %s on %s from %s to %s.", operation, table, start, end)
         else:
-            LOG.info("Updating %s", table)
+            LOG.info("Triggering %s %s", operation, table)
 
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             try:
+                t1 = time.time()
                 cursor.execute(sql, params=bind_params)
+                t2 = time.time()
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
                 LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
                 raise db_exc
 
-        LOG.info("Finished updating %s.", table)
+        LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None):
         """Execute a single presto query"""
@@ -463,17 +465,17 @@ class ReportDBAccessorBase(KokuDBAccess):
         LOG.info(msg)
 
     def delete_line_item_daily_summary_entries_for_date_range_raw(
-        self, source_uuid, start_date, end_date, table=None, filters=None
+        self, source_uuid, start_date, end_date, filters, table=None
     ):
+
         if table is None:
             table = self.line_item_daily_summary_table
-        msg = f"Deleting records from {table._meta.db_table} from {start_date} to {end_date}"
+        msg = f"Deleting records from {table._meta.db_table} for source {source_uuid} from {start_date} to {end_date}"
         LOG.info(msg)
 
         sql = f"""
             DELETE FROM {self.schema}.{table._meta.db_table}
-            WHERE source_uuid = %(source_uuid)s::uuid
-                AND usage_start >= %(start_date)s::date
+            WHERE usage_start >= %(start_date)s::date
                 AND usage_start <= %(end_date)s::date
         """
         if filters:
@@ -481,11 +483,10 @@ class ReportDBAccessorBase(KokuDBAccess):
             sql += "\n".join(filter_list)
         else:
             filters = {}
-        filters["source_uuid"] = source_uuid
         filters["start_date"] = start_date
         filters["end_date"] = end_date
 
-        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters)
+        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
 
     def table_exists_trino(self, table_name):
         """Check if table exists."""
