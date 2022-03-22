@@ -103,7 +103,9 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
 
-        mock_delete.assert_called_with(self.aws_provider.uuid, expected_start, expected_end)
+        mock_delete.assert_called_with(
+            self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
         mock_presto.assert_called_with(
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )
