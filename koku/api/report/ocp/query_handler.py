@@ -20,7 +20,6 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
-
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -118,9 +117,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """Look up the report base currency."""
         pm = ProviderManager(source_uuid)
         cost_models = pm.get_cost_models(self.tenant)
-        print("\n\n\nsource uuid: ")
-        print(source_uuid)
-        print(cost_models)
         if cost_models:
             cm = cost_models[0]
             return cm.currency
@@ -183,8 +179,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             currency = self._get_base_currency(source_uuid_id)
             exchange_rate = self._get_exchange_rate(currency)
             for data in values:
-                print("\n\n\ndata: ")
-                print(data)
                 if currency not in currencys.keys():
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
@@ -318,9 +312,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self._report_type == "costs" and not is_csv_output:
                 if self.query_table == OCPUsageLineItemDailySummary:
                     query_group_by.append("source_uuid")
-                    print("\n\n\n\nannotations:")
-                    print(self.annotations)
-                    print(self.report_annotations)
                     self.report_annotations.pop("source_uuid")
                 else:
                     query_group_by.append("source_uuid_id")
@@ -328,8 +319,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query.annotate(**self.annotations)
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
-            print("\n\n\nTABLE: ")
-            print(self.query_table)
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
