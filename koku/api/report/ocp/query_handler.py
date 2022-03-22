@@ -198,7 +198,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     base_values = currencys.get(currency)
                     for value in ["source_uuid", "clusters"]:
                         base_val = base_values.get(value)
+                        if type(base_val) != list:
+                            base_val = [base_val]
                         new_val = data.get(value)
+                        if type(new_val) != list:
+                            new_val = [new_val]
                         base_values[value] = base_val + new_val
                     for delta in ["delta_value", "delta_percent"]:
                         if data.get(delta):
@@ -215,6 +219,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for group in all_group_by:
                         if group.startswith("tags"):
                             group = group[6:]
+                        elif group.startswith("pod_labels__"):
+                            group = group[12:]
                         base_values[group] = data.get(group)
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
@@ -266,7 +272,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 print(data.get("date"))
                 total_query["date"] = data.get("date")
                 for aggregate in ["source_uuid", "clusters"]:
-                    total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
+                    base_val = total_query.get(aggregate)
+                    if type(base_val) != list:
+                        base_val = [base_val]
+                    new_val = data.get(aggregate)
+                    if type(new_val) != list:
+                        new_val = [new_val]
+                    total_query[aggregate] = base_val + new_val
+                    # total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
                 for delta in ["delta_value", "delta_percent"]:
                     if data.get(delta):
                         total_query[delta] = total_query.get(delta, 0) + data.get(delta)
@@ -276,6 +289,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for group in all_group_by:
                     if group.startswith("tags"):
                         group = group[6:]
+                    elif group.startswith("pod_labels__"):
+                        group = group[12:]
                     total_query[group] = data.get(group)
                 for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total", "distributed"]:

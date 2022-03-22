@@ -697,6 +697,9 @@ class ReportQueryHandler(QueryHandler):
         """Format the data for the UI."""
         level += 1
         overall = []
+        print("\n\n\ngroupby: ")
+        print(groupby)
+        print(out_data)
         if out_data:
             if org_unit_applied:
                 groupby = ["org_entitie"] + groupby
@@ -716,6 +719,12 @@ class ReportQueryHandler(QueryHandler):
                 if group.startswith("tags"):
                     group = group[6:]
                     print("\n\n\nGROUP TAGS: ")
+                    print(group)
+                elif group.startswith("pod_labels__"):
+                    print("\n\ngroup before: ")
+                    print(group)
+                    group = group[12:]
+                    print("group: ")
                     print(group)
                 for value in out_data:
                     new_out_data = value.get(group + "s")
