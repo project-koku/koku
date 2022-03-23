@@ -6,7 +6,10 @@ import logging
 import os
 
 import psycopg2
+from psycopg2.errors import ProgrammingError
 from psycopg2.extras import RealDictCursor
+from sqlparse import format as sql_format
+from sqlparse import parse as sql_parse
 
 
 RELEASE = 0
@@ -22,19 +25,12 @@ LOG = logging.getLogger(__name__)
 
 
 class DBPerformanceStats:
-    def __init__(
-        self,
-        username,
-        configurator,
-        application_name="database_performance_stats",
-        database_ranking=[],
-        read_only=True,
-    ):
+    def __init__(self, username, configurator, application_name="database_performance_stats", database_ranking=[]):
         self.conn = None
         self.username = username
         self.config = configurator
         self.application_name = application_name
-        self.read_only = bool(read_only)
+        self.read_only = True
         self.database_ranking = database_ranking
         self._connect()
 
@@ -211,8 +207,8 @@ select oid
         params["records_per_db"] = records_per_db
         sql = f"""
 -- STATEMENT STATISTICS
-select "database",
-       "role",
+select "dbname",
+       "user",
        calls,
        rows,
        min_exec_time,
@@ -228,8 +224,8 @@ select "database",
   from (
          select row_number() over (partition by s.dbid
                                    {rank_sep} {rank_case}) as "rec_by_db",
-                d.datname as "database",
-                r.rolname as "role",
+                d.datname as "dbname",
+                r.rolname as "user",
                 s.calls,
                 s.rows,
                 s.min{col_name_sep}time as min_exec_time,
@@ -324,8 +320,8 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
         params["records_per_db"] = records_per_db
         sql = f"""
 -- CONNECTION ACTIVITY QUERY
-select "database",
-       "role",
+select "dbname",
+       "user",
        "backend_pid",
        "app_name",
        "client_ip",
@@ -342,8 +338,8 @@ select "database",
                                    order by state,
                                             coalesce(extract(epoch from now() - query_start), 0) desc{rank_sep}
                                             {rank_case}) as "rec_by_db",
-             datname as "database",
-             usename as "role",
+             datname as "dbname",
+             usename as "user",
              pid as "backend_pid",
              application_name as "app_name",
              client_addr as "client_ip",
@@ -366,6 +362,16 @@ select "database",
 
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
+
+    def explain_sql(self, sql):
+        parsed = sql_parse(sql)
+        if parsed[0].get_type() == "UNKNOWN":
+            raise ProgrammingError("Cannot process statement.")
+
+        sql = sql_format(sql, strip_comments=True, keyword_case="lower", identifier_case="lower").strip()
+        sql = f"EXPLAIN VERBOSE {sql}"
+
+        return {"query_plan": os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(sql))}
 
     #     def terminate_cancel_backends(self, backends=[], action_type=None):
     #         if not backends:
@@ -391,12 +397,13 @@ select "database",
     #         LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
     #         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
 
-    def pg_stat_statements_reset(self):
-        sql = """
--- RESET STATISTICS
-select public.pg_stat_statements_reset();
-"""
-        LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
-        self._execute(sql, None)
 
-        return [{"pg_stat_statements_reset": True}]
+#     def pg_stat_statements_reset(self):
+#         sql = """
+# -- RESET STATISTICS
+# select public.pg_stat_statements_reset();
+# """
+#         LOG.info(self._prep_log_message("Clearing pg_stat_statements"))
+#         self._execute(sql, None)
+
+#         return [{"pg_stat_statements_reset": True}]

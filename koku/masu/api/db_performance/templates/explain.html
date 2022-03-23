@@ -1,0 +1,54 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+        <style>
+            .pre {white-space: pre;}
+            .monospace {font-family: 'Courier New', Courier, monospace;}
+            .sans {font-family:'Courier New', Courier, monospace}
+            .inset {padding: 0.5em 0.5em 0.5em 0.5em}
+            .result {margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em; overflow: auto;}
+            .lt-grey-bg {background-color: #bdbdbd;}
+            .black-fg {color: black}
+            span.placeholder {color: #5c5c5c; font-style: italic;}
+            textarea.sqlinput {width: 95%; height: 30%; margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em; }
+            hr {width: 100%}
+        </style>
+        <script>
+function explain_it() {
+    var sql_elem = document.getElementById("t-sql-statement");
+    var res_elem = document.getElementById("div-results");
+    var sql = sql_elem.value;
+    var response_data = '';
+    if (sql.length > 0) {
+        xhttp = new XMLHttpRequest();
+        xhttp.open("POST", "{{action_urls[0]}}", false);
+        xhttp.setRequestHeader('Content-type', 'application/json');
+        xhttp.send(JSON.stringify({'sql_statement': sql}));
+        if (xhttp.status != 200) {
+            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+        }
+        response_data = JSON.parse(xhttp.responseText)
+        res_elem.innerHTML = "";
+        res_elem.innerText = response_data["query_plan"];
+    }
+}
+        </script>
+    </head>
+    <body>
+        <h1>Database Performance</h1>
+        <hr />
+        <h2 id="data_header">Explain SQL Query</h2>
+        <div id="div-sql-statement">
+            <textarea id="t-sql-statement" class="sqlinput" placeholder="Enter or paste a SQL query."></textarea>
+        </div>
+        <div id="div-btn" >
+            <button id="explain-btn" onclick="explain_it()">Explain</button>
+        </div>
+        <hr />
+        <div id="div-results" class="pre monospace sans inset result lt-grey-bg black-fg"><span class="lt-grey-bg placeholder">Results of explain will appear here.</span></div>
+    </body>
+</html>

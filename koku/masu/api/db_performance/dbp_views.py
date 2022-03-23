@@ -2,6 +2,7 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import json
 import logging
 import os
 from decimal import Decimal
@@ -10,6 +11,7 @@ from django.http import HttpResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from jinja2 import Template as JinjaTemplate
+from psycopg2 import ProgrammingError
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import AllowAny
@@ -25,6 +27,8 @@ LOG = logging.getLogger(__name__)
 
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(MY_PATH, "templates")
+
+DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
 
 # CANCEL_URL = 0
 # TERMINATE_URL = 1
@@ -128,7 +132,7 @@ def stat_statements(request):
     query_bad_threshold = Decimal("5000")
     query_warn_threshold = Decimal("4000")
 
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=["koku"]) as dbp:
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
         data = dbp.get_statement_stats()
 
     action_urls = []
@@ -147,7 +151,7 @@ def stat_statements(request):
                     attrs.append('style="background-color: #69d172;"')
                 rec["_attrs"][col] = " ".join(attrs)
 
-        action_urls.append(reverse("stat_statements_reset"))
+        # action_urls.append(reverse("stat_statements_reset"))
 
     page_header = "Statement Statistics"
     return HttpResponse(
@@ -185,7 +189,7 @@ def stat_activity(request):
     include_self = request.query_params.get("include_self", "false").lower() in ("1", "y", "yes", "t", "true", "on")
 
     data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=["koku"]) as dbp:
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
         data = dbp.get_activity(pid=pids, state=states, include_self=include_self)
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
@@ -258,13 +262,23 @@ def pg_engine_version(request):
 
 
 @never_cache
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=["POST", "GET"])
 @permission_classes((AllowAny,))
-def stat_statements_reset(request):
+def explain_query(request):
     """Get any blocked and blocking process data"""
+    if request.method == "GET":
+        page_header = "Explain SQL Statement"
+        return HttpResponse(
+            render_template(page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")])
+        )
+    else:
+        query_params = json.loads(request.body.decode("utf-8"))
 
-    data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.pg_stat_statements_reset()
+        data = None
+        with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+            try:
+                data = dbp.explain_sql(query_params["sql_statement"])
+            except ProgrammingError as e:
+                data = {"query_plan": f"{type(e).__name__}: {str(e)}"}
 
-    return Response(data)
+        return Response(data)
