@@ -40,7 +40,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None):
         """
         Orchestrator for processing.
 
@@ -51,6 +51,7 @@ class Orchestrator:
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
         self.bill_date = bill_date
+        self.queue_name = queue_name
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -133,13 +134,13 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
-        with ProviderDBAccessor(provider_uuid) as accessor:
-            if accessor.get_setup_complete():
-                SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
-                REPORT_QUEUE = GET_REPORT_FILES_QUEUE
-            else:
-                SUMMARY_QUEUE = PRIORITY_QUEUE
-                REPORT_QUEUE = PRIORITY_QUEUE
+        if self.queue_name is not None:
+            SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
+            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+        else:
+            SUMMARY_QUEUE = PRIORITY_QUEUE
+            REPORT_QUEUE = PRIORITY_QUEUE
+
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
