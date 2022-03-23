@@ -728,9 +728,7 @@ class ReportQueryHandler(QueryHandler):
                     overall.append(value)
         return overall
 
-    def aggregate_currency_codes_ui(self, out_data):
-        """Aggregate currency code info for UI."""
-        all_group_by = self._get_group_by()
+    def get_codes(self):
         codes = {
             Provider.PROVIDER_AWS: "currency_codes",
             Provider.PROVIDER_AZURE: "currencys",
@@ -744,6 +742,12 @@ class ReportQueryHandler(QueryHandler):
         if self.provider == Provider.PROVIDER_OCP:
             if self.query_table == OCPUsageLineItemDailySummary:
                 codes[Provider.PROVIDER_OCP] = "source_uuids"
+        return codes
+
+    def aggregate_currency_codes_ui(self, out_data):
+        """Aggregate currency code info for UI."""
+        all_group_by = self._get_group_by()
+        codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
             total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
@@ -1229,11 +1233,9 @@ class ReportQueryHandler(QueryHandler):
 
         """
         delta_group_by = ["date"] + self._get_group_by()
+        codes = self.get_codes()
         if self._report_type == "costs":
-            if self.query_table != OCPUsageLineItemDailySummary:
-                delta_group_by.append("source_uuid_id")
-            else:
-                delta_group_by.append("source_uuid")
+            delta_group_by.append(codes.get(self.provider)[:-1])
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
