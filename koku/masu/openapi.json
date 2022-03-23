@@ -1917,6 +1917,13 @@
             "items": {
               "$ref": "#/components/schemas/Provider"
             }
+          },
+          "additional_context": {
+            "type": "object",
+            "description": "Dictionary containing context information.",
+            "example": {
+              "crawl_hierarchy": "False"
+            }
           }
         }
       },
