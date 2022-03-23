@@ -13,7 +13,10 @@ from koku.database import unset_pg_extended_mode
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0054_adding_oci_provider"), ("reporting", "0251_update_storageclass_charfields")]
+    dependencies = [
+        ("api", "0055_install_pg_stat_statements"),
+        ("reporting", "0252_alter_ocpusagelineitemdailysummary_monthly_cost_type"),
+    ]
 
     operations = [
         migrations.RunPython(code=set_pg_extended_mode, reverse_code=unset_pg_extended_mode),
@@ -128,7 +131,7 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocicostentrylineitem_daily_summary"},
         ),
         migrations.RunSQL(
-            sql="ALTER TABLE reporting_ocicostentrylineitem_daily_summary ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            sql="ALTER TABLE reporting_ocicostentrylineitem_daily_summary ALTER COLUMN uuid SET DEFAULT uuid_generate_v4()",
             reverse_sql="select 1",
         ),
         migrations.CreateModel(
@@ -296,7 +299,7 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocitags_summary"},
         ),
         migrations.RunSQL(
-            sql="ALTER TABLE reporting_ocitags_summary ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            sql="ALTER TABLE reporting_ocitags_summary ALTER COLUMN uuid SET DEFAULT uuid_generate_v4()",
             reverse_sql="select 1",
         ),
         migrations.CreateModel(
@@ -313,7 +316,7 @@ class Migration(migrations.Migration):
             options={"db_table": "reporting_ocitags_values"},
         ),
         migrations.RunSQL(
-            sql="ALTER TABLE reporting_ocitags_values ALTER COLUMN id SET DEFAULT uuid_generate_v4()",
+            sql="ALTER TABLE reporting_ocitags_values ALTER COLUMN uuid SET DEFAULT uuid_generate_v4()",
             reverse_sql="select 1",
         ),
         migrations.AddIndex(
