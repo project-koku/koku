@@ -101,7 +101,8 @@ class DBPerformanceStats:
             params[dbval_key] = dbname
             params[dbrank_key] = ix_str
             case.append(f"     when %({dbval_key})s then %({dbrank_key})s")
-        case.append(f"     else {len(self.database_ranking)}")
+        case.append("     else %(def_case_val)s")
+        params["def_case_val"] = str(len(self.database_ranking))
         case.append(f"end::text || {database_name_col}")
 
         return (os.linesep.join(case), params)

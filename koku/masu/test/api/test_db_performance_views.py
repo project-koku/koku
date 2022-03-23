@@ -112,3 +112,17 @@ class TestDBPerformance(IamTestCase):
         self.assertIn('id="generic_table"', html)
         self.assertIn("PostgreSQL Engine Version", html)
         self.assertIn("postgresql_version", html)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_explain(self, mok_middl):
+        """Test the db version view."""
+        headers = self._get_headers()
+        response = self.client.get(reverse("explain_query"), **headers)
+        html = response.content.decode("utf-8")
+        self.assertIn('id="t-sql-statement"', html)
+        self.assertIn("Explain SQL Query", html)
+
+        headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
+        payload = json.dumps({"sql_statement": "select 1"})
+        response = self.client.post(reverse("explain_query"), payload, "json", **headers)
+        self.assertEqual(response.status_code, 200)

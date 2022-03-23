@@ -31,9 +31,11 @@ function explain_it() {
         if (xhttp.status != 200) {
             window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
         }
-        response_data = JSON.parse(xhttp.responseText)
-        res_elem.innerHTML = "";
-        res_elem.innerText = response_data["query_plan"];
+        else {
+            response_data = JSON.parse(xhttp.responseText)
+            res_elem.innerHTML = "";
+            res_elem.innerText = response_data["query_plan"];
+        }
     }
 }
         </script>
