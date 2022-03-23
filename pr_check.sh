@@ -11,7 +11,7 @@ DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
-ENABLE_PARQUET_PROCESSING="false"
+ENABLE_PARQUET_PROCESSING="true"
 
 LABELS_DIR="$WORKSPACE/github_labels"
 
@@ -74,10 +74,10 @@ function run_smoke_tests() {
 }
 
 function run_trino_smoke_tests() {
-    if check_for_labels "trino-smoke-tests|gcp-smoke-tests"
+    if check_for_labels "disable-trino-smoke-tests"
     then
-        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
-        ENABLE_PARQUET_PROCESSING="true"
+        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to FALSE"
+        ENABLE_PARQUET_PROCESSING="false"
     fi
 }
 
