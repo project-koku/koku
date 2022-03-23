@@ -19,6 +19,7 @@ from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
+from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
@@ -132,6 +133,13 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        with ProviderDBAccessor(provider_uuid) as accessor:
+            if accessor.get_setup_complete():
+                SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
+                REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            else:
+                SUMMARY_QUEUE = PRIORITY_QUEUE
+                REPORT_QUEUE = PRIORITY_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -197,13 +205,13 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                ).set(queue=GET_REPORT_FILES_QUEUE)
+                ).set(queue=REPORT_QUEUE)
             )
             LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         if report_tasks:
             reports_tasks_queued = True
-            async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
+            async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
             LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
         return manifest, reports_tasks_queued
 
