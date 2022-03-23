@@ -2311,4 +2311,4 @@ class AWSReportQueryTestCurrency(IamTestCase):
         for each in data:
             # assert that the data has both a currency codes and values entry
             self.assertIsNotNone(each.get("values"))
-            self.assertIsNotNone(each.get("currency_codes"))
+            self.assertIsNotNone(each.get("currencys"))
