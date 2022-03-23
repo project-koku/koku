@@ -183,7 +183,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                 "type": "organizational_unit",
                                 "date": day.get("date"),
                                 "values": values,
-                                "currency_codes": day.get("currency_codes"),
+                                "currencys": day.get("currencys"),
                             }
                         )
                         # now we need to do an order by cost
