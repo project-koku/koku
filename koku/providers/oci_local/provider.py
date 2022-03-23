@@ -26,7 +26,6 @@ class OCILocalProvider(OCIProvider):
         """Verify that the cost usage source exists and is reachable."""
         tenancy = credentials.get("tenant")
         local_dir = data_source.get("local_dir")
-        LOG.info(f"\n LOCAL DIR: {local_dir} \n")
         if not tenancy or tenancy.isspace():
             key = ProviderErrors.OCI_MISSING_TENANCY
             message = ProviderErrors.OCI_MISSING_TENANCY_MESSAGE
