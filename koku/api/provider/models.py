@@ -181,7 +181,11 @@ class Provider(models.Model):
 
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
-            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid, queue_name="priority"))
+            transaction.on_commit(
+                lambda: check_report_updates.s(provider_uuid=self.uuid, queue_name="priority")
+                .set(queue="priority")
+                .apply_async()
+            )
 
     def delete(self, *args, **kwargs):
         if self.customer:
