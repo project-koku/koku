@@ -113,8 +113,8 @@ objects:
           value: ${RETAIN_NUM_MONTHS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
-        - name: MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA
-          value: ${MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -254,6 +254,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -399,6 +401,8 @@ objects:
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -564,6 +568,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -676,6 +682,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -810,6 +818,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -975,6 +985,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1146,6 +1158,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1315,6 +1329,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1486,6 +1502,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1655,6 +1673,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1826,6 +1846,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1997,6 +2019,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2168,6 +2192,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5

@@ -4,7 +4,6 @@
 #
 """Models for provider management."""
 import logging
-import os
 from uuid import uuid4
 
 from django.conf import settings
@@ -18,6 +17,7 @@ from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
 from koku.database import cascade_delete
+from koku.settings import QE_SCHEMA
 
 LOG = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class Provider(models.Model):
             from masu.celery.tasks import check_report_updates
 
             QUEUE = None
-            if self.customer.schema_name == os.environ["MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA"]:
+            if self.customer.schema_name == QE_SCHEMA:
                 QUEUE = "priority"
                 LOG.info("Setting queue to priority for QE testing")
 
