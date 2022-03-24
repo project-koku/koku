@@ -8,9 +8,9 @@ import logging
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from hcs.aws.daily_report import AWSReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
-
 
 LOG = logging.getLogger(__name__)
 
@@ -20,12 +20,12 @@ HCS_QUEUE = "hcs"
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_HCS_processing(source_uuid, source_type, account):  # pragma: no cover #noqa
+def enable_HCS_processing(schema_name):  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
-    if account and not account.startswith("acct"):
-        account = f"acct{account}"
+    if schema_name and not schema_name.startswith("acct"):
+        schema_name = f"acct{schema_name}"
 
-    context = {"schema": account}
+    context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
 
@@ -43,12 +43,17 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :returns None
     """
 
-    if enable_HCS_processing(provider_uuid, provider, schema_name) and provider in (
+    if schema_name and not schema_name.startswith("acct"):
+        schema_name = f"acct{schema_name}"
+
+    if enable_HCS_processing(schema_name) and provider in (
         Provider.PROVIDER_AWS,
         Provider.PROVIDER_AWS_LOCAL,
         Provider.PROVIDER_AZURE,
         Provider.PROVIDER_AZURE_LOCAL,
     ):
+        reporter = AWSReportHCS(schema_name, provider, provider_uuid)
+
         stmt = (
             f"Running HCS data collection for schema_name: {schema_name}, provider_uuid: {provider_uuid}, "
             f"provider: {provider}"
@@ -64,6 +69,8 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
         else:
             stmt = f"OUTPUT FROM HCS TASK, Start-date: {start_date}"
             LOG.info(log_json(tracing_id, stmt))
+
+        reporter.generate_report(start_date, end_date, tracing_id)
 
     else:
         stmt = (

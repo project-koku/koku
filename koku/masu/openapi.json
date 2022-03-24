@@ -224,7 +224,7 @@
             "name": "provider_uuid",
             "in": "query",
             "description": "The provider UUID",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",

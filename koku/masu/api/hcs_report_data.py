@@ -46,11 +46,11 @@ def hcs_report_data(request):
     error_msg_key = "Error"
 
     if request.method == "GET":
-        if provider_uuid is None and provider_type is None:
-            errmsg = "provider_uuid or provider_type must be supplied as a parameter"
+        if provider_uuid is None:
+            errmsg = "provider_uuid must be supplied as a parameter"
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        if provider_uuid and provider_type is None:
+        if provider_type is None:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 LOG.debug(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
                 provider = provider_accessor.get_type()
@@ -73,8 +73,8 @@ def hcs_report_data(request):
         # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
         for i, month in enumerate(months):
             start, end = month
-            start_date = start.date().strftime("%Y-%m-%d")
-            end_date = end.date().strftime("%Y-%m-%d")
+            start_date = start.date().strftime("%Y%m%d")
+            end_date = end.date().strftime("%Y%m%d")
             months[i] = (start_date, end_date)
 
         if schema_name is None:
