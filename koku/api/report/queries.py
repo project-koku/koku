@@ -18,6 +18,7 @@ from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
+import ciso8601
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Window
@@ -109,6 +110,15 @@ class ReportQueryHandler(QueryHandler):
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
+
+    def check_if_valid_date_str(self, date_str):
+        """Check to see if a valid date has been passed in."""
+
+        try:
+            ciso8601.parse_datetime(date_str)
+            return True
+        except (ValueError, TypeError):
+            return False
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""

@@ -622,19 +622,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 )
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
-
-            def check_if_valid_date_str(date_str):
-                """Check to see if a valid date has been passed in."""
-                import ciso8601
-
-                try:
-                    ciso8601.parse_datetime(date_str)
-                except ValueError:
-                    return False
-                except TypeError:
-                    return False
-                return True
-
             query_sum = self._build_sum(query, annotations, org_unit_applied)
             if self._limit and query_data and not org_unit_applied:
                 query_data = self._group_by_ranks(query, query_data)
@@ -647,7 +634,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if check_if_valid_date_str(param):
+                if self.check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering
