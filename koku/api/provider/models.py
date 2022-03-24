@@ -10,13 +10,13 @@ from django.conf import settings
 from django.core.validators import MaxLengthValidator
 from django.db import models
 from django.db import router
+from django.db import transaction
 from django.db.models import JSONField
 from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
 from koku.database import cascade_delete
-from masu.processor.tasks import PRIORITY_QUEUE
 
 LOG = logging.getLogger(__name__)
 
@@ -181,7 +181,7 @@ class Provider(models.Model):
 
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
-            check_report_updates.s(provider_uuid=self.uuid, queue_name=PRIORITY_QUEUE).set(queue=PRIORITY_QUEUE)
+            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid, queue_name="priority"))
 
     def delete(self, *args, **kwargs):
         if self.customer:

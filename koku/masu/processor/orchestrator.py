@@ -134,13 +134,15 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        # Switching initial ingest to use priority queue
+        # This should help QE tests and new onboarding sources when queues are long
         if self.queue_name is not None:
-            SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
-            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
-        else:
             SUMMARY_QUEUE = PRIORITY_QUEUE
             REPORT_QUEUE = PRIORITY_QUEUE
-
+        else:
+            SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
+            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+        LOG.info(f"\n QUEUES: SELF {self.queue_name}, SUM {SUMMARY_QUEUE}, ROP {REPORT_QUEUE} \n")
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
