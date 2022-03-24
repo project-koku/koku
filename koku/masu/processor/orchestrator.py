@@ -142,7 +142,6 @@ class Orchestrator:
         else:
             SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
-        LOG.info(f"\n QUEUES: SELF {self.queue_name}, SUM {SUMMARY_QUEUE}, ROP {REPORT_QUEUE} \n")
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
