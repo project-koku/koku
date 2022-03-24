@@ -10,6 +10,7 @@ from psycopg2.errors import ProgrammingError
 from psycopg2.extras import RealDictCursor
 from sqlparse import format as sql_format
 from sqlparse import parse as sql_parse
+from sqlparse import split as sql_split
 
 
 RELEASE = 0
@@ -364,15 +365,26 @@ select "dbname",
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
 
-    def explain_sql(self, sql):
-        parsed = sql_parse(sql)
-        if parsed[0].get_type() == "UNKNOWN":
-            raise ProgrammingError("Cannot process statement.")
+    def explain_sql(self, raw_sql):
+        res = []
+        for target_sql in sql_split(raw_sql):
+            parsed = sql_parse(target_sql)
+            sql_type = parsed[0].get_type()
+            if sql_type == "UNKNOWN":
+                LOG.warning(self._prep_log_message(f"SQL parser returns {sql_type} for statement {target_sql}"))
+                raise ProgrammingError("Cannot process statement.")
+            elif sql_type in ("CREATE", "DROP", "ALTER", "EXECUTE"):
+                LOG.warning(self._prep_log_message(f"DDL statement detected"))
+                raise ProgrammingError("Refusing to process DDL")
 
-        sql = sql_format(sql, strip_comments=True, keyword_case="lower", identifier_case="lower").strip()
-        sql = f"EXPLAIN VERBOSE {sql}"
+            target_sql = sql_format(
+                target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
+            ).strip()
+            target_sql = f"EXPLAIN VERBOSE {target_sql}"
+            plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(target_sql))
+            res.append({"query_plan": plan, "query_text": target_sql})
 
-        return {"query_plan": os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(sql))}
+        return res
 
     #     def terminate_cancel_backends(self, backends=[], action_type=None):
     #         if not backends:

@@ -10,20 +10,49 @@ SPDX-License-Identifier: Apache-2.0
             .monospace {font-family: 'Courier New', Courier, monospace;}
             .sans {font-family:'Courier New', Courier, monospace}
             .inset {padding: 0.5em 0.5em 0.5em 0.5em}
-            .result {margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em; overflow: auto;}
+            .text-class {margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em; overflow: auto;}
             .lt-grey-bg {background-color: #bdbdbd;}
             .black-fg {color: black}
-            span.placeholder {color: #5c5c5c; font-style: italic;}
-            textarea.sqlinput {width: 95%; height: 30%; margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em; }
+            .placeholder {color: #5c5c5c; font-style: italic;}
+            .sqlinput {
+                -moz-appearance: textfield-multiline;
+                -webkit-appearance: textarea;
+                border: 1px solid #000000;
+                height: 30%;
+                overflow: auto;
+                resize: none;
+            }
+            ::selection {background-color: #4c60cf; color: white}
             hr {width: 100%}
+            button {margin-top: 0.5em;}
         </style>
         <script>
+function explain_it_key(e) {
+    var explain_btn = document.getElementById("explain-btn");
+    if (e.ctrlKey && e.key == 'Enter') {
+        explain_btn.focus();
+        explain_btn.click();
+    }
+}
+
 function explain_it() {
-    var sql_elem = document.getElementById("t-sql-statement");
+    var sql_elem = document.getElementById("div-sql-statement");
     var res_elem = document.getElementById("div-results");
-    var sql = sql_elem.value;
+    var selection = document.getSelection();
     var response_data = '';
+    var sql = "";
+
+    if (selection.isCollapsed) {
+        sql = sql_elem.innerText;
+    }
+    else {
+        sql = selection.toString();
+    }
+
     if (sql.length > 0) {
+        if (sql_elem.selectionStart != sql_elem.selectionEnd) {
+            sql = sql.substring(sql_elem.selectionStart, sql_elem.selectionEnd);
+        }
         xhttp = new XMLHttpRequest();
         xhttp.open("POST", "{{action_urls[0]}}", false);
         xhttp.setRequestHeader('Content-type', 'application/json');
@@ -37,6 +66,11 @@ function explain_it() {
             res_elem.innerText = response_data["query_plan"];
         }
     }
+    else {
+        res_elem.innerHTML = '<span class="lt-grey-bg placeholder">Nothing to process.</span>';
+    }
+
+    sql_elem.focus();
 }
         </script>
     </head>
@@ -44,13 +78,15 @@ function explain_it() {
         <h1>Database Performance</h1>
         <hr />
         <h2 id="data_header">Explain SQL Query</h2>
-        <div id="div-sql-statement">
-            <textarea id="t-sql-statement" class="sqlinput" placeholder="Enter or paste a SQL query."></textarea>
-        </div>
+        <!-- <textarea id="t-sql-statement" class="sqlinput" placeholder="Enter or paste a SQL query."></textarea> -->
+        <div id="div-sql-statement" contenteditable="true" class="pre monospace sans inset black-fg sqlinput"></div>
         <div id="div-btn" >
             <button id="explain-btn" onclick="explain_it()">Explain</button>
         </div>
         <hr />
-        <div id="div-results" class="pre monospace sans inset result lt-grey-bg black-fg"><span class="lt-grey-bg placeholder">Results of explain will appear here.</span></div>
+        <div id="div-results" class="pre monospace sans inset result lt-grey-bg black-fg"><span class="lt-grey-bg placeholder">Enter a query above and click "Explain". Results will appear here.</span></div>
+        <script>
+document.getElementById("div-sql-statement").addEventListener("keypress", explain_it_key);
+        </script>
     </body>
 </html>

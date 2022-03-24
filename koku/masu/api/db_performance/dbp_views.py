@@ -280,5 +280,16 @@ def explain_query(request):
                 data = dbp.explain_sql(query_params["sql_statement"])
             except ProgrammingError as e:
                 data = {"query_plan": f"{type(e).__name__}: {str(e)}"}
+            else:
+                all_plans = []
+                enumeration = len(data) > 1
+                if enumeration:
+                    all_plans.append(f"Detected {len(data)} queries:")
+
+                for p_num, plan in enumerate(data):
+                    header = f"QUERY PLAN {p_num + 1}{os.linesep}" if enumeration else f"QUERY PLAN{os.linesep}"
+                    all_plans.append(f'{header}{plan["query_plan"]}')
+
+                data = {"query_plan": (os.linesep * 3).join(all_plans)}
 
         return Response(data)
