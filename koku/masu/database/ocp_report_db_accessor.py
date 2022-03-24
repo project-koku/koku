@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database accessor for OCP report data."""
-import copy
 import datetime
 import json
 import logging
 import os
 import pkgutil
 import uuid
+from collections import defaultdict
 from decimal import Decimal
 
 import pytz
@@ -793,33 +793,38 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 ),
             )
 
-    def get_distinct_nodes(self, start_date, end_date, cluster_id):
+    def get_distinct_nodes(self, start_date, end_date, source_uuid):
         """Return a list of nodes for a cluster between given dates."""
-        with schema_context(self.schema):
-            unique_nodes = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id, node__isnull=False
-                )
-                .values_list("node")
-                .distinct()
-            )
-            return [node[0] for node in unique_nodes]
+        sql = f"""
+            SELECT DISTINCT node
+            FROM hive.{self.schema}.reporting_ocpusagelineitem_daily_summary as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND lpad(ocp.month, 2, '0') = '{start_date.strftime("%m")}'
+                AND ocp.usage_start >= TIMESTAMP '{start_date}'
+                AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
 
-    def get_distinct_pvcs(self, start_date, end_date, cluster_id):
+        nodes = self._execute_presto_raw_sql_query(self.schema, sql)
+
+        return [node[0] for node in nodes]
+
+    def get_distinct_pvcs(self, start_date, end_date, source_uuid):
         """Return a list of tuples of (PVC, node) for a cluster between given dates."""
-        with schema_context(self.schema):
-            unique_pvcs = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date,
-                    usage_start__lt=end_date,
-                    cluster_id=cluster_id,
-                    persistentvolumeclaim__isnull=False,
-                    namespace__isnull=False,
-                )
-                .values_list("persistentvolumeclaim", "node", "namespace")
-                .distinct()
-            )
-            return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
+        sql = f"""
+            SELECT DISTINCT persistentvolumeclaim,
+                node,
+                namespace
+            FROM hive.{self.schema}.reporting_ocpusagelineitem_daily_summary as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND lpad(ocp.month, 2, '0') = '{start_date.strftime("%m")}'
+                AND ocp.interval_start >= TIMESTAMP '{start_date}'
+                AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+        """
+
+        unique_pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
+        return [(pvc[0], pvc[1], pvc[2]) for pvc in unique_pvcs]
 
     def generate_monthly_cost_json_object(self, distribution, distributed_cost):
         """Generates the default monthly cost dict."""
@@ -1023,7 +1028,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     first_curr_month, first_next_month, cluster_id, cluster_alias, rate_type, rate_dict, provider_uuid
                 )
 
-    def get_node_to_project_distribution(self, start_date, end_date, cluster_id, node_cost):
+    def get_node_to_project_distribution(self, start_date, end_date, source_uuid, node_cost):
         """Returns a list of dictionaries containing the distributed cost.
 
         args:
@@ -1040,39 +1045,41 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         - ex {'master_3': {'namespaces': ['openshift', 'kube-system'], 'distributed_cost': Decimal('500.0000000000')}
 
         """
-        with schema_context(self.schema):
-            distributed_project_list = (
-                OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gte=start_date, usage_start__lt=end_date, cluster_id=cluster_id
-                )
-                .filter(namespace__isnull=False)
-                .filter(node__isnull=False)
-                .values("namespace", "node")
-                .distinct()
-            )
-            node_mappings = {}
-            for project in distributed_project_list:
-                node_value = project.get("node")
-                namespace_value = project.get("namespace")
-                node_map = node_mappings.get(node_value)
-                if node_map:
-                    namespaces = copy.deepcopy(node_map.get("namespaces", []))
-                    namespaces.append(namespace_value)
-                    node_map["namespaces"] = namespaces
-                    node_map["distributed_cost"] = Decimal(node_cost) / Decimal(len(namespaces))
-                    node_mappings[node_value] = node_map
-                else:
-                    initial_map = {"namespaces": [namespace_value], "distributed_cost": Decimal(node_cost)}
-                    node_mappings[node_value] = initial_map
-        return node_mappings
+        sql = f"""
+            SELECT DISTINCT namespace,
+                node
+            FROM hive.{self.schema}.reporting_ocpusagelineitem_daily_summary as ocp
+            WHERE ocp.source = '{source_uuid}'
+                AND ocp.year = '{start_date.strftime("%Y")}'
+                AND lpad(ocp.month, 2, '0') = '{start_date.strftime("%m")}'
+                AND ocp.usage_start >= TIMESTAMP '{start_date}'
+                AND ocp.usage_start < date_add('day', 1, TIMESTAMP '{end_date}')
+                AND namespace IS NOT NULL
+                AND node IS NOT NULL
+        """
+
+        project_node_combos = self._execute_presto_raw_sql_query(self.schema, sql)
+        node_map = defaultdict(list)
+        node_map_with_cost = {}
+        for project_node_combo in project_node_combos:
+            namespace_value = project_node_combo[0]
+            node_value = project_node_combo[1]
+            node_map[node_value].append(namespace_value)
+        for node, namespaces in node_map.items():
+            node_map_with_cost[node] = {
+                "namespaces": namespaces,
+                "distributed_cost": Decimal(node_cost) / Decimal(len(namespaces)),
+            }
+
+        return node_map_with_cost
 
     def upsert_monthly_node_cost_line_item(
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, node_cost, distribution, provider_uuid
     ):
         """Update or insert daily summary line item for node cost."""
-        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
-        project_distrib_map = self.get_node_to_project_distribution(start_date, end_date, cluster_id, node_cost)
+        project_distrib_map = self.get_node_to_project_distribution(start_date, end_date, provider_uuid, node_cost)
         with schema_context(self.schema):
             for node in unique_nodes:
                 line_item = OCPUsageLineItemDailySummary.objects.filter(
@@ -1159,7 +1166,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         that contains the tag key:value pair,
         if it does then the price is added to the monthly cost.
         """
-        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for node in unique_nodes:
@@ -1230,7 +1237,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         that contains the tag key:value pair,
         if it does then the price is added to the monthly cost.
         """
-        unique_nodes = self.get_distinct_nodes(start_date, end_date, cluster_id)
+        unique_nodes = self.get_distinct_nodes(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for node in unique_nodes:
@@ -1312,7 +1319,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if it does then the price is added to the monthly cost.
         """
         distribution = metric_constants.PVC_DISTRIBUTION
-        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for pvc, node, namespace in unique_pvcs:
@@ -1590,7 +1597,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if it does then the price is added to the monthly cost.
         """
         distribution = metric_constants.PVC_DISTRIBUTION
-        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for pvc, node, namespace in unique_pvcs:
@@ -1660,7 +1667,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         self, start_date, end_date, cluster_id, cluster_alias, rate_type, pvc_cost, provider_uuid
     ):
         """Update or insert daily summary line item for pvc cost."""
-        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, cluster_id)
+        unique_pvcs = self.get_distinct_pvcs(start_date, end_date, provider_uuid)
         report_period = self.get_usage_period_by_dates_and_cluster(start_date, end_date, cluster_id)
         with schema_context(self.schema):
             for pvc, node, namespace in unique_pvcs:
