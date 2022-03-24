@@ -113,6 +113,8 @@
           value: ${RETAIN_NUM_MONTHS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA
+          value: ${MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
