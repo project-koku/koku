@@ -2458,6 +2458,8 @@ parameters:
   displayName: AUTO_DATA_INGEST
   name: AUTO_DATA_INGEST
   value: "True"
+- name: QE_SCHEMA
+  value: ""
 - description: Sources to be processed with Trino
   displayName: Sources to be processed with Trino
   name: ENABLE_TRINO_SOURCES

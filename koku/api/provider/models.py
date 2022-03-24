@@ -188,7 +188,7 @@ class Provider(models.Model):
             # Start check_report_updates task after Provider has been committed.
             transaction.on_commit(
                 lambda: check_report_updates.s(provider_uuid=self.uuid, queue_name=QUEUE)
-                .set(queue=QUEUE)
+                .set(queue="priority")
                 .apply_async()
             )
 
