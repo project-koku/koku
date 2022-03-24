@@ -369,7 +369,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
