@@ -21,8 +21,6 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
 
-# from django.db.models import Max
-
 LOG = logging.getLogger(__name__)
 
 
