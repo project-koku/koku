@@ -70,4 +70,4 @@ class SourceSerializer(serializers.Serializer):
     status = serializers.JSONField()
     paused = serializers.BooleanField()
     provider = ProviderSerializer()
-    additional_context = serializers.JSONField()
+    additional_context = serializers.JSONField(required=False)
