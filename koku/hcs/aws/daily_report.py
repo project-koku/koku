@@ -5,14 +5,13 @@
 """Summary Updater for AWS Parquet files."""
 import logging
 
-import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from hcs.database.aws_report_db_accessor import HCSAWSReportDBAccessor
 from koku.pg_partition import PartitionHandlerMixin
 from masu.external.date_accessor import DateAccessor
-from masu.util.common import date_range_pair
+from masu.util.common import date_range
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_TABLE
 
 LOG = logging.getLogger(__name__)
@@ -37,14 +36,11 @@ class AWSReportHCS(PartitionHandlerMixin):
         :returns (str, str) A start date and end date.
 
         """
-
-        start_date = ciso8601.parse_datetime(start_date).date()
-        end_date = ciso8601.parse_datetime(end_date).date()
         sql_file = "trino_sql/reporting_aws_hcs_daily_summary.sql"
 
         with schema_context(self._schema_name):
             self._handle_partitions(self._schema_name, PRESTO_LINE_ITEM_TABLE, start_date, end_date)
 
         with HCSAWSReportDBAccessor(self._schema_name) as accessor:
-            for date in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
+            for date in date_range(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 accessor.get_hcs_daily_summary(date, self._provider, self._provider_uuid, sql_file, tracing_id)
