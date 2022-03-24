@@ -134,8 +134,8 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
-        # Switching initial ingest to use priority queue
-        # This should help QE tests and new onboarding sources when queues are long
+        # Switching initial ingest to use priority queue to help QE tests
+        # Based from the following flag MASU_INITIAL_QUEUE_OVERRIDE_SCHEMA
         if self.queue_name is not None:
             SUMMARY_QUEUE = PRIORITY_QUEUE
             REPORT_QUEUE = PRIORITY_QUEUE
