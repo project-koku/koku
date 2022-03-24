@@ -57,8 +57,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
                 if self._report_type == "costs" and not is_csv_output:
-                    metrics = query_data.annotate(**aggregates)
-                    metric_sum = self.return_total_query(metrics)
+                    metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
