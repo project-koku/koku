@@ -9,7 +9,7 @@ import pkgutil
 from jinjasql import JinjaSql
 
 from api.common import log_json
-from hcs.cvs_file_handler import CSVFileHandler
+from hcs.csv_file_handler import CSVFileHandler
 from koku.database import get_model
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
