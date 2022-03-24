@@ -312,7 +312,12 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def populate_ocp_on_azure_ui_summary_tables(self, sql_params, tables=OCPAZURE_UI_SUMMARY_TABLES):
@@ -473,6 +478,9 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocpazure_matched_tags.sql")
         sql = sql.decode("utf-8")
 
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -481,6 +489,7 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": ocp_source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)

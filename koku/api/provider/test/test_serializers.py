@@ -160,6 +160,28 @@ class ProviderSerializerTest(IamTestCase):
         self.assertIsNone(schema_name)
         self.assertFalse("schema_name" in serializer.data["customer"])
 
+    def test_create_oci_provider(self):
+        """Test creating a provider."""
+        tenant = "oci.tenant..my_tenant"
+        provider = {
+            "name": "test_oci_provider",
+            "type": Provider.PROVIDER_OCI.lower(),
+            "authentication": {"credentials": {"tenant": tenant}},
+            "billing_source": {},
+        }
+        instance = None
+
+        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+            serializer = ProviderSerializer(data=provider, context=self.request_context)
+            if serializer.is_valid(raise_exception=True):
+                instance = serializer.save()
+
+        schema_name = serializer.data["customer"].get("schema_name")
+        self.assertIsInstance(instance.uuid, uuid.UUID)
+        self.assertTrue(instance.active)
+        self.assertIsNone(schema_name)
+        self.assertFalse("schema_name" in serializer.data["customer"])
+
     def test_create_ocp_provider(self):
         """Test creating an OCP provider."""
         cluster_id = "my-ocp-cluster-1"

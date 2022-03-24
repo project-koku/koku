@@ -65,6 +65,16 @@ class AWSAuthenticationSerializer(ProviderAuthenticationSerializer):
         return validate_field(creds, fields, key)
 
 
+class OCIAuthenticationSerializer(ProviderAuthenticationSerializer):
+    """OCI auth serializer."""
+
+    def validate_credentials(self, creds):
+        """Validate credentials field."""
+        key = "tenant"
+        fields = ["tenant"]
+        return validate_field(creds, fields, key)
+
+
 class AzureAuthenticationSerializer(ProviderAuthenticationSerializer):
     """Azure auth serializer."""
 
@@ -135,6 +145,12 @@ class AWSBillingSourceSerializer(ProviderBillingSourceSerializer):
         return validate_field(data_source, fields, key)
 
 
+class OCIBillingSourceSerializer(ProviderBillingSourceSerializer):
+    """OCI billing source serializer."""
+
+    data_source = serializers.JSONField(required=False, default={})
+
+
 class AzureBillingSourceSerializer(ProviderBillingSourceSerializer):
     """Azure billing source serializer."""
 
@@ -183,6 +199,8 @@ class OCPBillingSourceSerializer(ProviderBillingSourceSerializer):
 AUTHENTICATION_SERIALIZERS = {
     Provider.PROVIDER_AWS: AWSAuthenticationSerializer,
     Provider.PROVIDER_AWS_LOCAL: AWSAuthenticationSerializer,
+    Provider.PROVIDER_OCI: OCIAuthenticationSerializer,
+    Provider.PROVIDER_OCI_LOCAL: OCIAuthenticationSerializer,
     Provider.PROVIDER_AZURE: AzureAuthenticationSerializer,
     Provider.PROVIDER_AZURE_LOCAL: AzureAuthenticationSerializer,
     Provider.PROVIDER_GCP: GCPAuthenticationSerializer,
@@ -199,6 +217,8 @@ AUTHENTICATION_SERIALIZERS = {
 BILLING_SOURCE_SERIALIZERS = {
     Provider.PROVIDER_AWS: AWSBillingSourceSerializer,
     Provider.PROVIDER_AWS_LOCAL: AWSBillingSourceSerializer,
+    Provider.PROVIDER_OCI: OCIBillingSourceSerializer,
+    Provider.PROVIDER_OCI_LOCAL: OCIBillingSourceSerializer,
     Provider.PROVIDER_AZURE: AzureBillingSourceSerializer,
     Provider.PROVIDER_AZURE_LOCAL: AzureBillingSourceSerializer,
     Provider.PROVIDER_GCP: GCPBillingSourceSerializer,
