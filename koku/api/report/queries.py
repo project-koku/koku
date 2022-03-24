@@ -132,6 +132,10 @@ class ReportQueryHandler(QueryHandler):
                 Provider.PROVIDER_AWS: "currency_code",
                 Provider.PROVIDER_AZURE: "currency",
                 Provider.PROVIDER_GCP: "currency",
+                Provider.OCP_ALL: "currency_code",
+                Provider.OCP_AWS: "currency_code",
+                Provider.OCP_AZURE: "currency",
+                Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
             total_query["date"] = query_set.get("date")

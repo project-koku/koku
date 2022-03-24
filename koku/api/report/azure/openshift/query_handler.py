@@ -81,7 +81,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not is_csv_output:
                 query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
@@ -94,7 +94,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                if self._report_type == "costs" and not is_csv_output:
+                    metrics = query_data.annotate(**aggregates)
+                    metric_sum = self.return_total_query(metrics)
+                else:
+                    metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
@@ -138,11 +142,9 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
-                cost_units_value = query_data[0].get("cost_units")
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
@@ -160,7 +162,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        query_sum["cost_units"] = cost_units_value
+        query_sum["cost_units"] = self.currency
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value

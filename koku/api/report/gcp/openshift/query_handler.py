@@ -5,6 +5,7 @@
 """OCP Query Handling for Reports."""
 import copy
 import logging
+from decimal import Decimal
 
 from django.db.models import F
 from django.db.models import Value
@@ -70,6 +71,60 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                     annotations[q_param] = Concat(db_field, Value(""))
         return annotations
 
+    def return_total_query(self, total_queryset):
+        """Return total query data for calculate_total."""
+        total_query = {
+            "date": None,
+            "infra_total": 0,
+            "infra_raw": 0,
+            "infra_usage": 0,
+            "infra_markup": 0,
+            "infra_credit": 0,
+            "sup_raw": 0,
+            "sup_usage": 0,
+            "sup_markup": 0,
+            "sup_credit": 0,
+            "sup_total": 0,
+            "cost_total": 0,
+            "cost_raw": 0,
+            "cost_usage": 0,
+            "cost_markup": 0,
+            "cost_credit": 0,
+        }
+        for query_set in total_queryset:
+            codes = {
+                Provider.PROVIDER_AWS: "currency_code",
+                Provider.PROVIDER_AZURE: "currency",
+                Provider.PROVIDER_GCP: "currency",
+                Provider.OCP_ALL: "currency_code",
+                Provider.OCP_AWS: "currency_code",
+                Provider.OCP_AZURE: "currency",
+                Provider.OCP_GCP: "currency",
+            }
+            base = query_set.get(codes.get(self.provider))
+            total_query["date"] = query_set.get("date")
+            exchange_rate = self._get_exchange_rate(base)
+            for value in [
+                "infra_total",
+                "infra_raw",
+                "infra_usage",
+                "infra_markup",
+                "infra_credit",
+                "sup_raw",
+                "sup_total",
+                "sup_usage",
+                "sup_markup",
+                "sup_credit",
+                "cost_total",
+                "cost_raw",
+                "cost_usage",
+                "cost_markup",
+                "cost_credit",
+            ]:
+                orig_value = total_query[value]
+                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+        return total_query
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -87,7 +142,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not is_csv_output:
                 query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
@@ -100,7 +155,11 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                if self._report_type == "costs" and not is_csv_output:
+                    metrics = query_data.annotate(**aggregates)
+                    metric_sum = self.return_total_query(metrics)
+                else:
+                    metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
@@ -144,11 +203,9 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
-                cost_units_value = query_data[0].get("cost_units")
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
@@ -166,7 +223,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        query_sum["cost_units"] = cost_units_value
+        query_sum["cost_units"] = self.currency
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
