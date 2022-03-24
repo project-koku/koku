@@ -9,7 +9,7 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
-from hcs.database.report_db_accessor import HCSAWSReportDBAccessor
+from hcs.database.aws_report_db_accessor import HCSAWSReportDBAccessor
 from koku.pg_partition import PartitionHandlerMixin
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
@@ -47,16 +47,4 @@ class AWSReportHCS(PartitionHandlerMixin):
 
         with HCSAWSReportDBAccessor(self._schema_name) as accessor:
             for date in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
-                LOG.info(
-                    "Getting AWS HCS report from parquet: "
-                    "\n\tSchema: %s"
-                    "\n\tProvider: %s "
-                    "\n\tProvider_uuid: %s "
-                    "\n\tDates: %s - %s",
-                    self._schema_name,
-                    self._provider,
-                    self._provider_uuid,
-                    date,
-                )
-
                 accessor.get_hcs_daily_summary(date, self._provider, self._provider_uuid, sql_file, tracing_id)

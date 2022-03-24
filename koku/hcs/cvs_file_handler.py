@@ -28,7 +28,7 @@ class CSVFileHandler:
         :return none
         """
 
-        LOG.info(log_json(tracing_id, "Preparing to write file to Object Storage"))
+        LOG.info(log_json(tracing_id, "preparing to write file to object storage"))
         my_df = pd.DataFrame(data)
         filename = f"hcs_test_csv_{date}.csv"
         my_df.to_csv(filename, index=False)

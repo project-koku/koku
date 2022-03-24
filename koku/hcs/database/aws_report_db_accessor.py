@@ -73,6 +73,9 @@ class HCSAWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase)
 
         :returns (None)
         """
+        LOG.info(log_json(tracing_id, "acquiring AWS market place data..."))
+        LOG.info(log_json(tracing_id, f"schema: {self.schema},  provider: {provider}, date: {date}"))
+
         sql = pkgutil.get_data("hcs.database", sql_summary_file)
         sql = sql.decode("utf-8")
 
