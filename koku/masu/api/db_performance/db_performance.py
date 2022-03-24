@@ -106,7 +106,7 @@ class DBPerformanceStats:
         params["def_case_val"] = str(len(self.database_ranking))
         case.append(f"end::text || {database_name_col}")
 
-        return (os.linesep.join(case), params)
+        return (" ".join(case), params)
 
     def get_pg_settings(self, setting_names=None):
         params = {}
@@ -204,7 +204,7 @@ select oid
         offset_clause = self._handle_offset(offset, params)
         col_name_sep = "_" if self.get_pg_engine_version()[RELEASE] < 13 else "_exec_"
         rank_case, rank_params = self._case_db_ordering_clause("d.datname")
-        rank_sep = "order by" if rank_case else ""
+        partition = f"partition by {rank_case}" if rank_case else ""
         params.update(rank_params)
         params["records_per_db"] = records_per_db
         sql = f"""
@@ -224,8 +224,7 @@ select "dbname",
        temp_blks_written,
        query
   from (
-         select row_number() over (partition by s.dbid
-                                   {rank_sep} {rank_case}) as "rec_by_db",
+         select row_number() over ({partition}) as "rec_by_db",
                 d.datname as "dbname",
                 r.rolname as "user",
                 s.calls,
@@ -299,7 +298,7 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
             res = [{"Result": "No blocking locks"}]
         return res
 
-    def get_activity(self, pid=[], state=[], include_self=False, limit=500, offset=None, records_per_db=100):
+    def get_activity(self, pid=[], state=[], include_self=True, limit=500, offset=None, records_per_db=100):
         params = {}
 
         conditions = ["datname is not null", "usename is not null"]
@@ -336,10 +335,9 @@ select "dbname",
        "active_time",
        query
   from (
-         select row_number() over (partition by datid
-                                   order by state,
-                                            coalesce(extract(epoch from now() - query_start), 0) desc{rank_sep}
-                                            {rank_case}) as "rec_by_db",
+         select row_number() over (partition by case state when 'active' then '0' when 'idle in transaction' then '1' else '2' end::text || state{rank_sep}
+                                                {rank_case}
+                                   order by coalesce(extract(epoch from now() - query_start), 0) desc) as "rec_by_db",
              datname as "dbname",
              usename as "user",
              pid as "backend_pid",
@@ -360,7 +358,7 @@ select "dbname",
 {limit_clause}
 {offset_clause}
 ;
-"""
+"""  # noqa
 
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
