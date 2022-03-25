@@ -8,7 +8,7 @@ import logging
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
-from hcs.aws.daily_report import AWSReportHCS
+from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
 
@@ -52,7 +52,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
         Provider.PROVIDER_AZURE,
         Provider.PROVIDER_AZURE_LOCAL,
     ):
-        reporter = AWSReportHCS(schema_name, provider, provider_uuid)
+        reporter = ReportHCS(schema_name, provider, provider_uuid)
 
         stmt = (
             f"start HCS data collection for schema_name: {schema_name}, provider_uuid: {provider_uuid}, "

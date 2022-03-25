@@ -1,20 +1,19 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Summary Updater for AWS Parquet files."""
 import logging
 
-from hcs.database.aws_report_db_accessor import HCSAWSReportDBAccessor
-from koku.pg_partition import PartitionHandlerMixin
+from hcs.database.hcs_report_db_accessor import HCSReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range
 
 LOG = logging.getLogger(__name__)
 
 
-class AWSReportHCS(PartitionHandlerMixin):
-    """Class to write AWS HCS daily report summary data."""
+class ReportHCS:
+    """Class to write HCS daily report summary data."""
 
     def __init__(self, schema_name, provider, provider_uuid):
         """Establish parquet summary processor."""
@@ -32,8 +31,8 @@ class AWSReportHCS(PartitionHandlerMixin):
         :returns (str, str) A start date and end date.
 
         """
-        sql_file = "sql/reporting_aws_hcs_daily_summary.sql"
+        sql_file = f"sql/reporting_{self._provider}_hcs_daily_summary.sql"
 
-        with HCSAWSReportDBAccessor(self._schema_name) as accessor:
+        with HCSReportDBAccessor(self._schema_name) as accessor:
             for date in date_range(start_date, end_date, step=1):
                 accessor.get_hcs_daily_summary(date, self._provider, self._provider_uuid, sql_file, tracing_id)
