@@ -31,7 +31,6 @@ class CostModelManager:
 
     def __init__(self, cost_model_uuid=None):
         """Initialize properties for CostModelManager."""
-        # This comment is so I can try and kick off github actions will be removed shortly
         self._model = None
         self._cost_model_uuid = None
 
