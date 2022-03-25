@@ -130,7 +130,7 @@ def stat_statements(request):
 
     data = None
     query_bad_threshold = Decimal("5000")
-    query_warn_threshold = Decimal("4000")
+    query_warn_threshold = Decimal("2500")
 
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
         data = dbp.get_statement_stats()
