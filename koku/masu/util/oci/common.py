@@ -52,7 +52,7 @@ def get_column_converters():
         "lineitem/intervalusagestart": ciso8601.parse_datetime,
         "lineitem/intervalusageend": ciso8601.parse_datetime,
         "usage/consumedquantity": safe_float,
-        "cost/myCost": safe_float,
+        "cost/mycost": safe_float,
     }
 
 
