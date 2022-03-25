@@ -1,20 +1,19 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """HCS daily report builder"""
 import logging
 
 from hcs.database.report_db_accessor import HCSReportDBAccessor
-from koku.pg_partition import PartitionHandlerMixin
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range
 
 LOG = logging.getLogger(__name__)
 
 
-class ReportHCS(PartitionHandlerMixin):
-    """Class to write AWS HCS daily report summary data."""
+class ReportHCS:
+    """Class to write HCS daily report summary data."""
 
     def __init__(self, schema_name, provider, provider_uuid, trace_id):
         """Establish parquet summary processor."""
