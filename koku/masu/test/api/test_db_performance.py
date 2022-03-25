@@ -165,10 +165,12 @@ class TestDBPerformanceClass(IamTestCase):
             "delete from eek",
         ]
         for bad_sql in bad_statements:
-            with self.assertRaises(ProgrammingError, f"Failing statement is {bad_sql}"):
+            with self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"):
                 with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
                     res = dbp.explain_sql("analyze select 1")
 
+        expected = [{"query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1", "query_text": "select 1"}]
+
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.explain_sql("select 1")
-            self.assertEqual(res, {"query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1"})
+            self.assertEqual(res, expected)

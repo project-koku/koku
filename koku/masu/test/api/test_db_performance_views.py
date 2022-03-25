@@ -120,7 +120,7 @@ class TestDBPerformance(IamTestCase):
         response = self.client.get(reverse("explain_query"), **headers)
         html = response.content.decode("utf-8")
         self.assertIn('id="div-sql-statement"', html)
-        self.assertIn("Explain SQL Query", html)
+        self.assertIn("Explain SQL Statement", html)
 
         headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
         payload = json.dumps({"sql_statement": "select 1"})

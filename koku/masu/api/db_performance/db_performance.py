@@ -298,7 +298,7 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
             res = [{"Result": "No blocking locks"}]
         return res
 
-    def get_activity(self, pid=[], state=[], include_self=True, limit=500, offset=None, records_per_db=100):
+    def get_activity(self, pid=[], state=[], include_self=False, limit=500, offset=None, records_per_db=100):
         params = {}
 
         conditions = ["datname is not null", "usename is not null"]
@@ -383,8 +383,7 @@ select "dbname",
             ).strip()
             if target_sql.startswith("commit") or target_sql.startswith("rollback"):
                 raise ProgrammingError(f"Refusing to process statement;")
-            target_sql = f"EXPLAIN VERBOSE {target_sql}"
-            plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(target_sql))
+            plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(f"EXPLAIN VERBOSE {target_sql}"))
             res.append({"query_plan": plan, "query_text": target_sql})
 
         return res
