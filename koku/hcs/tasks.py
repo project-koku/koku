@@ -55,12 +55,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     if schema_name and not schema_name.startswith("acct"):
         schema_name = f"acct{schema_name}"
 
-    if enable_hcs_processing(schema_name) and provider in (
-        Provider.PROVIDER_AWS,
-        Provider.PROVIDER_AWS_LOCAL,
-        Provider.PROVIDER_AZURE,
-        Provider.PROVIDER_AZURE_LOCAL,
-    ):
+    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
         reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
 
         stmt = (
