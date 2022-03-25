@@ -26,7 +26,7 @@ UI_SUMMARY_TABLES = (
 
 
 PRESTO_LINE_ITEM_TABLE = "oci_line_items"
-PRESTO_LINE_ITEM_DAILY_TABLE = "oci_line_items_daily"
+PRESTO_LINE_ITEM_DAILY_TABLE = "oci_line_items"
 
 PRESTO_REQUIRED_COLUMNS = (
     "lineItem/referenceNo",
@@ -43,13 +43,13 @@ PRESTO_REQUIRED_COLUMNS = (
     "usage/consumedQuantity",
     "usage/billedQuantity",
     "usage/billedQuantityOverage",
-    "usage/consumedQuantityunit_prices",
+    "usage/consumedQuantityunits",
     "usage/consumedQuantityMeasure",
     "cost/subscriptionId",
     "cost/productSku",
     "product/Description",
-    "cost/unit_pricePrice",
-    "cost/unit_pricePriceOverage",
+    "cost/unit_price",
+    "cost/unit_priceOverage",
     "cost/myCost",
     "cost/myCostOverage",
     "cost/currencyCode",
@@ -143,24 +143,12 @@ class OCICostEntryLineItemDailySummary(models.Model):
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
-    # The following fields are aggregates
     resource_ids = ArrayField(models.TextField(), null=True)
     resource_count = models.IntegerField(null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    normalization_factor = models.FloatField(null=True)
-    normalized_usage_amount = models.FloatField(null=True)
     currency_code = models.CharField(max_length=10)
-    unblended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    unblended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    blended_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost_blended = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    savingsplan_effective_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    markup_cost_savingsplan = models.DecimalField(max_digits=33, decimal_places=15, null=True)
-    public_on_demand_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    public_on_demand_rate = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    tax_type = models.TextField(null=True)
     tags = JSONField(null=True)
     source_uuid = models.UUIDField(unique=False, null=True)
 
@@ -230,7 +218,7 @@ class OCICostSummaryP(models.Model):
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -263,7 +251,7 @@ class OCICostSummaryByServiceP(models.Model):
     usage_end = models.DateField(null=False)
     usage_tenant_id = models.CharField(max_length=50, null=False)
     product_code = models.CharField(max_length=50, null=False)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -292,7 +280,7 @@ class OCICostSummaryByAccountP(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     payer_tenant_id = models.CharField(max_length=50, null=False)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -325,7 +313,7 @@ class OCICostSummaryByRegionP(models.Model):
     usage_end = models.DateField(null=False)
     payer_tenant_id = models.CharField(max_length=50, null=False)
     region = models.CharField(max_length=50, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -360,7 +348,7 @@ class OCIComputeSummaryP(models.Model):
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -396,7 +384,7 @@ class OCIComputeSummaryByAccountP(models.Model):
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -426,7 +414,7 @@ class OCIStorageSummaryP(models.Model):
     usage_end = models.DateField(null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -457,7 +445,7 @@ class OCIStorageSummaryByAccountP(models.Model):
     payer_tenant_id = models.CharField(max_length=50, null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -492,7 +480,7 @@ class OCINetworkSummaryP(models.Model):
     product_code = models.CharField(max_length=50, null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(
@@ -527,7 +515,7 @@ class OCIDatabaseSummaryP(models.Model):
     product_code = models.CharField(max_length=50, null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
-    my_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
     source_uuid = models.ForeignKey(

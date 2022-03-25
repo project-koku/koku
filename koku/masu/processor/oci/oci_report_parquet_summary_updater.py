@@ -101,6 +101,11 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill_ids = [str(bill.id) for bill in bills]
                 current_bill_id = bills.first().id if bills else None
 
+            if current_bill_id is None:
+                msg = f"No bill was found for {start_date}. Skipping summarization"
+                LOG.info(msg)
+                return start_date, end_date
+
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating OCI report summary tables from parquet: \n\tSchema: %s"
@@ -120,10 +125,8 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
-                # accessor.populate_enabled_tag_keys(start, end, bill_ids)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
 
-            # accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")

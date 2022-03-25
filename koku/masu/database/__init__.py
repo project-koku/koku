@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """Database subpackage."""
@@ -62,4 +62,12 @@ GCP_REPORT_TABLE_MAP = {
     "ocp_on_gcp_daily_summary": "reporting_ocpgcpcostlineitem_daily_summary_p",
     "ocp_on_gcp_project_daily_summary": "reporting_ocpgcpcostlineitem_project_daily_summary_p",
     "ocp_on_gcp_tags_summary": "reporting_ocpgcptags_summary",
+}
+
+OCI_CUR_TABLE_MAP = {
+    "cost_entry": "reporting_ocicostentry",
+    "bill": "reporting_ocicostentrybill",
+    "line_item_daily_summary": "reporting_ocicostentrylineitem_daily_summary",
+    "tags_summary": "reporting_ocitags_summary",
+    "enabled_tag_keys": "reporting_ocienabledtagkeys",
 }
