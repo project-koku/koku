@@ -32,9 +32,13 @@ from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.query_handler import QueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from reporting.provider.all.openshift.models import OCPAllCostSummaryPT
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
+from reporting.provider.aws.openshift.models import OCPAWSCostSummaryP
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
+from reporting.provider.azure.openshift.models import OCPAzureCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
+from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
@@ -647,12 +651,15 @@ class ReportQueryHandler(QueryHandler):
         provider_table_map = {
             Provider.PROVIDER_AWS: AWSCostSummaryByAccountP,
             Provider.PROVIDER_AZURE: AzureCostSummaryByAccountP,
-            Provider.PROVIDER_GCP: GCPCostSummaryByAccountP
-            # extend this to the other providers
+            Provider.PROVIDER_GCP: GCPCostSummaryByAccountP,
+            Provider.OCP_ALL: OCPAllCostSummaryPT,
+            Provider.OCP_AWS: OCPAWSCostSummaryP,
+            Provider.OCP_AZURE: OCPAzureCostSummaryP,
+            Provider.OCP_GCP: OCPGCPCostSummaryP,
         }
         try:
             base_currency = provider_table_map.get(self.provider).objects.filter(source_uuid=source_uuid).first()
-            if self.provider == Provider.PROVIDER_AWS:
+            if self.provider in [Provider.PROVIDER_AWS, Provider.OCP_ALL, Provider.OCP_AWS]:
                 return base_currency.currency_code
             else:
                 return base_currency.currency
