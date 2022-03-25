@@ -29,18 +29,18 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
-    def get_hcs_daily_summary(self, date, provider, provider_uuid, sql_summary_file, trace_id):
+    def get_hcs_daily_summary(self, date, provider, provider_uuid, sql_summary_file, tracing_id):
         """Build HCS daily report.
         :param date             (datetime.date) The date to process
         :param provider         (str)           The provider name
         :param provider_uuid    (uuid)          ID for cost source
         :param sql_summary_file (str)           The sql file used for processing
-        :param trace_id       (id)            Logging identifier
+        :param tracing_id       (id)            Logging identifier
 
         :returns (None)
         """
-        LOG.info(log_json(trace_id, "acquiring marketplace data..."))
-        LOG.info(log_json(trace_id, f"schema: {self.schema},  provider: {provider}, date: {date}"))
+        LOG.info(log_json(tracing_id, "acquiring marketplace data..."))
+        LOG.info(log_json(tracing_id, f"schema: {self.schema},  provider: {provider}, date: {date}"))
 
         sql = pkgutil.get_data("hcs.database", sql_summary_file)
         sql = sql.decode("utf-8")
@@ -51,8 +51,8 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         data = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
 
         if len(data) > 0:
-            LOG.info(log_json(trace_id, f"data found for date: {date}"))
+            LOG.info(log_json(tracing_id, f"data found for date: {date}"))
             csv_handler = CSVFileHandler(self.schema, provider, provider_uuid)
-            csv_handler.write_csv_to_s3(date, data, trace_id)
+            csv_handler.write_csv_to_s3(date, data, tracing_id)
         else:
-            LOG.info(log_json(trace_id, f"data not found for date: {date}"))
+            LOG.info(log_json(tracing_id, f"data not found for date: {date}"))
