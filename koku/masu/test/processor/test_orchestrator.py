@@ -318,15 +318,17 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
     def test_start_manifest_processing_priority_queue(self, mock_download_manifest, mock_task, mock_inspect):
         """Test start_manifest_processing using priority queue."""
-        test_queues = [None, "priority"]
+        test_queues = [
+            {"name": "qe-account", "queue-name": "priority", "expected": "priority"},
+            {"name": "qe-account", "queue-name": None, "expected": "summary"},
+        ]
         mock_manifest = {
-            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]},
-            "expect_chord_called": True,
+            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
         }
         for test in test_queues:
-            with self.subTest(test=test):
+            with self.subTest(test=test.get("name")):
                 mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
-                orchestrator = Orchestrator(queue_name=test)
+                orchestrator = Orchestrator(queue_name=test.get("queue-name"))
                 account = self.mock_accounts[0]
                 orchestrator.start_manifest_processing(
                     account.get("customer_name"),
@@ -337,7 +339,8 @@ class OrchestratorTest(MasuTestCase):
                     account.get("provider_uuid"),
                     DateAccessor().get_billing_months(1)[0],
                 )
-                mock_task.assert_called()
+                actual_queue = mock_task.call_args.args[1].options.get("queue")
+                self.assertEqual(actual_queue, test.get("expected"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")

@@ -21,9 +21,9 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -138,7 +138,7 @@ class Orchestrator:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
         else:
-            SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
+            SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
