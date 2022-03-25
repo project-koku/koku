@@ -267,7 +267,7 @@ def pg_engine_version(request):
 def explain_query(request):
     """Get any blocked and blocking process data"""
     if request.method == "GET":
-        page_header = "Explain SQL Statement"
+        page_header = f"""Explain SQL Statement Using Database: "{CONFIGURATOR.get_database_name()}" """
         return HttpResponse(
             render_template(page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")])
         )

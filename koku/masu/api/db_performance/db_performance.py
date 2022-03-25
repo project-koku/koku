@@ -371,13 +371,18 @@ select "dbname",
             if sql_type == "UNKNOWN":
                 LOG.warning(self._prep_log_message(f"SQL parser returns {sql_type} for statement {target_sql}"))
                 raise ProgrammingError("Cannot process statement.")
-            elif sql_type in ("CREATE", "DROP", "ALTER", "EXECUTE"):
-                LOG.warning(self._prep_log_message(f"DDL statement detected"))
-                raise ProgrammingError("Refusing to process DDL")
+            elif sql_type in ("CREATE", "DROP", "ALTER"):
+                LOG.warning(self._prep_log_message(f"DDL statement detected: {sql_type}"))
+                raise ProgrammingError(f"Refusing to process DDL {sql_type}")
+            elif sql_type in ("DELETE", "UPDATE", "INSERT"):
+                LOG.warning(self._prep_log_message(f"Refusing to process statement type: {sql_type}"))
+                raise ProgrammingError(f"Refusing to process statement {sql_type}")
 
             target_sql = sql_format(
                 target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
             ).strip()
+            if target_sql.startswith("commit") or target_sql.startswith("rollback"):
+                raise ProgrammingError(f"Refusing to process statement;")
             target_sql = f"EXPLAIN VERBOSE {target_sql}"
             plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(target_sql))
             res.append({"query_plan": plan, "query_text": target_sql})

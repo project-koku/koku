@@ -153,9 +153,21 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(case, expected)
 
     def test_explain(self):
-        with self.assertRaises(ProgrammingError):
-            with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-                res = dbp.explain_sql("analyze select 1")
+        bad_statements = [
+            "analyze select 1",
+            "create table eek (id int)",
+            "drop table eek",
+            "alter table eek",
+            "commit",
+            "rollback",
+            "insert into eek",
+            "update eek",
+            "delete from eek",
+        ]
+        for bad_sql in bad_statements:
+            with self.assertRaises(ProgrammingError, f"Failing statement is {bad_sql}"):
+                with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+                    res = dbp.explain_sql("analyze select 1")
 
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.explain_sql("select 1")
