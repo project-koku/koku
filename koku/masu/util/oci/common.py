@@ -49,18 +49,10 @@ def get_column_converters():
     return {
         "bill/billingperiodstartdate": ciso8601.parse_datetime,
         "bill/billingperiodenddate": ciso8601.parse_datetime,
-        "lineitem/usagestartdate": ciso8601.parse_datetime,
-        "lineitem/usageenddate": ciso8601.parse_datetime,
-        "lineitem/usageamount": safe_float,
-        "lineitem/normalizationfactor": safe_float,
-        "lineitem/normalizedusageamount": safe_float,
-        "lineitem/unblendedrate": safe_float,
-        "lineitem/unblendedcost": safe_float,
-        "lineitem/blendedrate": safe_float,
-        "lineitem/blendedcost": safe_float,
-        "pricing/publicondemandcost": safe_float,
-        "pricing/publicondemandrate": safe_float,
-        "savingsplan/savingsplaneffectivecost": safe_float,
+        "lineitem/intervalusagestart": ciso8601.parse_datetime,
+        "lineitem/intervalusageend": ciso8601.parse_datetime,
+        "usage/consumedquantity": safe_float,
+        "cost/myCost": safe_float,
     }
 
 
