@@ -314,6 +314,32 @@ class OrchestratorTest(MasuTestCase):
                 mock_task.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_priority_queue(self, mock_download_manifest, mock_task, mock_inspect):
+        """Test start_manifest_processing using priority queue."""
+        test_queues = [None, "priority"]
+        mock_manifest = {
+            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]},
+            "expect_chord_called": True,
+        }
+        for test in test_queues:
+            with self.subTest(test=test):
+                mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
+                orchestrator = Orchestrator(queue_name=test)
+                account = self.mock_accounts[0]
+                orchestrator.start_manifest_processing(
+                    account.get("customer_name"),
+                    account.get("credentials"),
+                    account.get("data_source"),
+                    "AWS-local",
+                    account.get("schema_name"),
+                    account.get("provider_uuid"),
+                    DateAccessor().get_billing_months(1)[0],
+                )
+                mock_task.assert_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
     def test_get_reports(self, fake_accessor, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""

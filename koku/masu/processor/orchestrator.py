@@ -19,7 +19,6 @@ from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
-from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
 from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
@@ -136,8 +135,8 @@ class Orchestrator:
         """
         # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
         if self.queue_name is not None:
-            SUMMARY_QUEUE = PRIORITY_QUEUE
-            REPORT_QUEUE = PRIORITY_QUEUE
+            SUMMARY_QUEUE = self.queue_name
+            REPORT_QUEUE = self.queue_name
         else:
             SUMMARY_QUEUE = REFRESH_MATERIALIZED_VIEWS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
