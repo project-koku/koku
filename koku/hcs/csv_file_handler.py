@@ -14,7 +14,7 @@ class CSVFileHandler:
 
     def __init__(self, schema_name, provider, provider_uuid):
         """Establish parquet summary processor."""
-        self._schema_name = schema_name
+        self._schema_name = str(schema_name).strip("acct")
         self._provider = provider
         self._provider_uuid = provider_uuid
 
@@ -27,11 +27,15 @@ class CSVFileHandler:
 
         :return none
         """
+        my_df = pd.DataFrame(data)
+        filename = f"hcs_{date}.csv"
+        month = date.strftime("%m")
+        year = date.strftime("%Y")
+        s3_csv_path = (
+            f"hcs/csv/{self._schema_name}/{self._provider}/source={self._provider_uuid}/year={year}/month={month}"
+        )
 
         LOG.info(log_json(tracing_id, "preparing to write file to object storage"))
-        my_df = pd.DataFrame(data)
-        filename = f"hcs_test_csv_{date}.csv"
         my_df.to_csv(filename, index=False)
-        s3_csv_path = f"hcs/{self._schema_name}/{self._provider}/{self._provider_uuid}"
         copy_local_report_file_to_s3_bucket(tracing_id, s3_csv_path, filename, filename, "", date)
         os.remove(filename)
