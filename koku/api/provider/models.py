@@ -179,9 +179,18 @@ class Provider(models.Model):
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
+            QUEUE = None
+            if self.customer.schema_name == settings.QE_SCHEMA:
+                QUEUE = "priority"
+                LOG.info("Setting queue to priority for QE testing")
+
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
-            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
+            transaction.on_commit(
+                lambda: check_report_updates.s(provider_uuid=self.uuid, queue_name=QUEUE)
+                .set(queue="priority")
+                .apply_async()
+            )
 
     def delete(self, *args, **kwargs):
         if self.customer:
