@@ -17,21 +17,10 @@ from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
-        numeric_columns = [
-            "lineitem_normalizationfactor",
-            "lineitem_normalizedusageamount",
-            "lineitem_usageamount",
-            "lineitem_unblendedcost",
-            "lineitem_unblendedrate",
-            "lineitem_blendedcost",
-            "lineitem_blendedrate",
-            "savingsplan_savingsplaneffectivecost",
-            "pricing_publicondemandrate",
-            "pricing_publicondemandcost",
-        ]
+        numeric_columns = ["usage_consumedquantity", "cost_mycost"]
         date_columns = [
-            "lineitem_usagestartdate",
-            "lineitem_usageenddate",
+            "lineitem_intervalusagestart",
+            "lineitem_intervalusageend",
             "bill_billingperiodstartdate",
             "bill_billingperiodenddate",
         ]
