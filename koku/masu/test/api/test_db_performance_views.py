@@ -129,6 +129,4 @@ class TestDBPerformance(IamTestCase):
 
         payload = json.dumps({"sql_statement": "select 1;\nselect 2;"})
         response = self.client.post(reverse("explain_query"), payload, "json", **headers)
-        html = response.content.decode("utf-8")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Detected 2", html)
