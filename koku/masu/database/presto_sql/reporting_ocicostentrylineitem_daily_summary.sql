@@ -62,8 +62,8 @@ FROM (
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
-        AND lineitem_intervalusagestart >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND lineitem_intervalusagestart < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND date(lineitem_intervalusagestart) >= TIMESTAMP '{{start_date | sqlsafe}}'
+        AND date(lineitem_intervalusagestart) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY date(lineitem_intervalusagestart),
         lineitem_productcode,
         lineitem_tenantid,
