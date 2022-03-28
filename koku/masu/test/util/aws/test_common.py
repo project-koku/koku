@@ -394,6 +394,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 7, 11, 24, 0),
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",
@@ -417,6 +418,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",
@@ -440,6 +442,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 8, 12, 24, 0),  # different day
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",
