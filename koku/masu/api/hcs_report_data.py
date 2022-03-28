@@ -52,7 +52,7 @@ def hcs_report_data(request):
 
         if provider_type is None:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                LOG.debug(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
+                LOG.debug(f"PROVIDER: {provider_accessor.provider}")
                 provider = provider_accessor.get_type()
         else:
             provider = provider_type
