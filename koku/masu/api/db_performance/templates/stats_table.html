@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
     <head>
         <title>Cost Management DB Performance Statistics</title>
         <style>
+            .hidden {display: none;}
+            .show {display: block;}
             .pre {white-space: pre;}
             .monospace {font-family: 'Courier New', Courier, monospace;}
             .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
@@ -20,6 +22,7 @@ SPDX-License-Identifier: Apache-2.0
         </style>
         <!-- <script>
 function clear_stmt_stats() {
+    document.getElementById("clear-stats-btn").disabled = true;
     if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
         xhttp = new XMLHttpRequest();
         xhttp.open("GET", "{{action_urls[0]}}", false);
@@ -30,14 +33,14 @@ function clear_stmt_stats() {
         location.reload();
     }
 }
-        </script> -->
-    </head>
+        </script>
+    </head> -->
     <body>
         <h1>Database Performance</h1>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
-        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button> -->
-        <table id="stmt_stats_table" cellspacing="0">
+        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();" disabled="true">Clear Statement Statistics</button> -->
+    <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
             <thead>
