@@ -6,7 +6,11 @@ import logging
 import os
 
 import psycopg2
+from psycopg2.errors import ProgrammingError
 from psycopg2.extras import RealDictCursor
+from sqlparse import format as sql_format
+from sqlparse import parse as sql_parse
+from sqlparse import split as sql_split
 
 
 RELEASE = 0
@@ -22,11 +26,13 @@ LOG = logging.getLogger(__name__)
 
 
 class DBPerformanceStats:
-    def __init__(self, username, configurator, application_name="database_performance_stats"):
+    def __init__(self, username, configurator, application_name="database_performance_stats", database_ranking=[]):
         self.conn = None
         self.username = username
         self.config = configurator
         self.application_name = application_name
+        self.read_only = True
+        self.database_ranking = database_ranking
         self._connect()
 
     def __enter__(self):
@@ -64,6 +70,7 @@ class DBPerformanceStats:
 
             LOG.info(self._prep_log_message("Connecting to {dbname} at {host}:{port} as {user}".format(**conn_args)))
             self.conn = psycopg2.connect(cursor_factory=RealDictCursor, **conn_args)
+            self.conn.set_session(readonly=True)
 
     def _execute(self, sql, params=None):
         cur = self.conn.cursor(cursor_factory=RealDictCursor)
@@ -81,6 +88,25 @@ class DBPerformanceStats:
 
     def _prep_log_message(self, message):
         return f"USER:{self.username} {message}"
+
+    def _case_db_ordering_clause(self, database_name_col):
+        if not self.database_ranking:
+            return ("", {})
+
+        params = {}
+        case = [f"case {database_name_col}"]
+        for ix, dbname in enumerate(self.database_ranking):
+            ix_str = str(ix)
+            dbval_key = f"db_val_{ix_str}"
+            dbrank_key = f"db_rank_{ix_str}"
+            params[dbval_key] = dbname
+            params[dbrank_key] = ix_str
+            case.append(f"     when %({dbval_key})s then %({dbrank_key})s")
+        case.append("     else %(def_case_val)s")
+        params["def_case_val"] = str(len(self.database_ranking))
+        case.append(f"end::text || {database_name_col}")
+
+        return (" ".join(case), params)
 
     def get_pg_settings(self, setting_names=None):
         params = {}
@@ -171,38 +197,57 @@ select oid
         view = self._execute(sql, None).fetchone()
         return bool(extn) and bool(extn.get("oid")) and bool(view) and bool(view.get("oid"))
 
-    def get_statement_stats(self, limit=100, offset=None):
+    def get_statement_stats(self, limit=500, offset=None, records_per_db=100):
         params = {}
 
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
         col_name_sep = "_" if self.get_pg_engine_version()[RELEASE] < 13 else "_exec_"
+        rank_case, rank_params = self._case_db_ordering_clause("d.datname")
+        partition = f"partition by {rank_case}" if rank_case else ""
+        params.update(rank_params)
+        params["records_per_db"] = records_per_db
         sql = f"""
 -- STATEMENT STATISTICS
-select d.datname as "database",
-       r.rolname as "role",
-       s.calls,
-       s.rows,
-       s.min{col_name_sep}time as min_exec_time,
-       s.mean{col_name_sep}time as mean_exec_time,
-       s.max{col_name_sep}time as max_exec_time,
-       s.shared_blks_hit,
-       s.shared_blks_read,
-       s.local_blks_hit,
-       s.local_blks_read,
-       s.temp_blks_read,
-       s.temp_blks_written,
-       s.query
-  from public.pg_stat_statements s
-  left
-  join pg_database d
-    on d.oid = s.dbid
-  left
-  join pg_roles r
-    on r.oid = s.userid
- order
-    by d.datname,
-       s.mean{col_name_sep}time desc
+select "dbname",
+       "user",
+       calls,
+       rows,
+       min_exec_time,
+       mean_exec_time,
+       max_exec_time,
+       shared_blks_hit,
+       shared_blks_read,
+       local_blks_hit,
+       local_blks_read,
+       temp_blks_read,
+       temp_blks_written,
+       query
+  from (
+         select row_number() over ({partition}) as "rec_by_db",
+                d.datname as "dbname",
+                r.rolname as "user",
+                s.calls,
+                s.rows,
+                s.min{col_name_sep}time as min_exec_time,
+                s.mean{col_name_sep}time as mean_exec_time,
+                s.max{col_name_sep}time as max_exec_time,
+                s.shared_blks_hit,
+                s.shared_blks_read,
+                s.local_blks_hit,
+                s.local_blks_read,
+                s.temp_blks_read,
+                s.temp_blks_written,
+                s.query
+            from public.pg_stat_statements s
+            join pg_database d
+              on d.oid = s.dbid
+            join pg_roles r
+              on r.oid = s.userid
+          where s.dbid is not null
+            and s.userid is not null
+       ) enumerated_query_stats
+where "rec_by_db" <= %(records_per_db)s
  {limit_clause}
  {offset_clause}
 ;
@@ -253,10 +298,10 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
             res = [{"Result": "No blocking locks"}]
         return res
 
-    def get_activity(self, pid=[], state=[], include_self=False, limit=250, offset=None):
+    def get_activity(self, pid=[], state=[], include_self=False, limit=500, offset=None, records_per_db=100):
         params = {}
 
-        conditions = ["datname is not null"]
+        conditions = ["datname is not null", "usename is not null"]
         if pid:
             include_self = True
             conditions.append("pid = any(%(pid)s::oid[]) ")
@@ -267,63 +312,106 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
         if not include_self:
             conditions.append("pid != %(mypid)s ")
             params["mypid"] = self.conn.get_backend_pid()
-        where_clause = f" where {f'{os.linesep}   and '.join(conditions)}"
+        where_clause = f"          where {f'{os.linesep}            and '.join(conditions)}"
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
-
+        rank_case, rank_params = self._case_db_ordering_clause("datname")
+        rank_sep = "," if rank_case else ""
+        params.update(rank_params)
+        params["records_per_db"] = records_per_db
         sql = f"""
 -- CONNECTION ACTIVITY QUERY
-select datname as "database",
-       usename as "role",
-       pid as "backend_pid",
-       application_name as "app_name",
-       client_addr as "client_ip",
+select "dbname",
+       "user",
+       "backend_pid",
+       "app_name",
+       "client_ip",
        backend_start,
        xact_start,
        query_start,
        state_change,
-       '('::text || wait_event_type || ') '::text || wait_event as "wait_type_event",
+       "wait_type_event",
        state,
-       case when state = 'active' then now() - query_start else null end::text as "active_time",
+       "active_time",
        query
-  from pg_stat_activity
-{where_clause}
- order
-    by datname,
-       state,
-       extract(epoch from now() - query_start) desc
+  from (
+         select row_number() over (partition by case state when 'active' then '0' when 'idle in transaction' then '1' else '2' end::text || state{rank_sep}
+                                                {rank_case}
+                                   order by coalesce(extract(epoch from now() - query_start), 0) desc) as "rec_by_db",
+             datname as "dbname",
+             usename as "user",
+             pid as "backend_pid",
+             application_name as "app_name",
+             client_addr as "client_ip",
+             backend_start,
+             xact_start,
+             query_start,
+             state_change,
+             '('::text || wait_event_type || ') '::text || wait_event as "wait_type_event",
+             state,
+             case when state = 'active' then now() - query_start else null end::text as "active_time",
+             query
+         from pg_stat_activity
+         {where_clause}
+       ) enumerated_stats
+ where rec_by_db <= %(records_per_db)s
 {limit_clause}
 {offset_clause}
 ;
-"""
+"""  # noqa
 
         LOG.info(self._prep_log_message("requsting connection activity"))
         return self._execute(sql, params).fetchall()
 
+    def explain_sql(self, raw_sql):
+        res = []
+        for target_sql in sql_split(raw_sql):
+            parsed = sql_parse(target_sql)
+            sql_type = parsed[0].get_type()
+            if sql_type == "UNKNOWN":
+                LOG.warning(self._prep_log_message(f"SQL parser returns {sql_type} for statement {target_sql}"))
+                raise ProgrammingError("Cannot process statement.")
+            elif sql_type in ("CREATE", "DROP", "ALTER"):
+                LOG.warning(self._prep_log_message(f"DDL statement detected: {sql_type}"))
+                raise ProgrammingError(f"Refusing to process DDL {sql_type}")
+            elif sql_type in ("DELETE", "UPDATE", "INSERT"):
+                LOG.warning(self._prep_log_message(f"Refusing to process statement type: {sql_type}"))
+                raise ProgrammingError(f"Refusing to process statement {sql_type}")
 
-#     def terminate_cancel_backends(self, backends=[], action_type=None):
-#         if not backends:
-#             return None
+            target_sql = sql_format(
+                target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
+            ).strip()
+            if target_sql.startswith("commit") or target_sql.startswith("rollback"):
+                raise ProgrammingError("Refusing to process statement;")
+            plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(f"EXPLAIN VERBOSE {target_sql}"))
+            res.append({"query_plan": plan, "query_text": target_sql})
 
-#         if action_type not in (TERMINATE_ACTION, CANCEL_ACTION):
-#             raise ValueError(f"Illegal action_type value '{action_type}'")
+        return res
 
-#         sql = f"""
-# -- {action_type.upper()} QUERY
-# select pid,
-#        pg_{action_type}_backend(pid) as "{action_type}"
-#   from unnest(%(backends)s::int[]) pid;
-# """
-#         params = {"backends": backends}
-#         return self._execute(sql, params).fetchall()
+    #     def terminate_cancel_backends(self, backends=[], action_type=None):
+    #         if not backends:
+    #             return None
 
-#     def terminate_backends(self, backends=[]):
-#         LOG.info(self._prep_log_message(f"Terminating backend pids {backends}"))
-#         return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
+    #         if action_type not in (TERMINATE_ACTION, CANCEL_ACTION):
+    #             raise ValueError(f"Illegal action_type value '{action_type}'")
 
-#     def cancel_backends(self, backends=[]):
-#         LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
-#         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
+    #         sql = f"""
+    # -- {action_type.upper()} QUERY
+    # select pid,
+    #        pg_{action_type}_backend(pid) as "{action_type}"
+    #   from unnest(%(backends)s::int[]) pid;
+    # """
+    #         params = {"backends": backends}
+    #         return self._execute(sql, params).fetchall()
+
+    #     def terminate_backends(self, backends=[]):
+    #         LOG.info(self._prep_log_message(f"Terminating backend pids {backends}"))
+    #         return self.terminate_cancel_backends(backends=backends, action_type=TERMINATE_ACTION)
+
+    #     def cancel_backends(self, backends=[]):
+    #         LOG.info(self._prep_log_message(f"Cancellikng backend pids {backends}"))
+    #         return self.terminate_cancel_backends(backends=backends, action_type=CANCEL_ACTION)
+
 
 #     def pg_stat_statements_reset(self):
 #         sql = """
