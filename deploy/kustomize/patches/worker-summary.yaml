@@ -127,6 +127,8 @@
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
       livenessProbe:
         httpGet:
           path: /livez
