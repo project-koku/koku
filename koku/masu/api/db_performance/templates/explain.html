@@ -1,0 +1,108 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+        <style>
+            .pre {white-space: pre;}
+            .monospace {font-family: 'Courier New', Courier, monospace;}
+            .sans {font-family:'Courier New', Courier, monospace}
+            .inset {padding: 0.5em 0.5em 0.5em 0.5em}
+            .box-margin {margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em;}
+            .xy-scroll {overflow-x: scroll; overflow-y: scroll;}
+            .x-scroll-y-auto {overflow-x: scroll; overflow-y: auto;}
+            .lt-grey-bg {background-color: #bdbdbd;}
+            .black-fg {color: black}
+            .placeholder {color: #5c5c5c; font-style: italic;}
+            .sqlinput {
+                -moz-appearance: textfield-multiline;
+                -webkit-appearance: textarea;
+                border: 1px solid #000000;
+                height: 30%;
+                resize: none;
+            }
+            .unselectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+
+                /*
+                    Introduced in IE 10.
+                    See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+                */
+                -ms-user-select: none;
+                user-select: none;
+            }
+            ::selection {background-color: #4c60cf; color: white}
+            hr {width: 100%}
+            button {margin-left: 1em; margin-bottom: 0.5em;}
+        </style>
+        <script>
+function explain_it_key(e) {
+    var explain_btn = document.getElementById("explain-btn");
+    if (e.ctrlKey && e.key == 'Enter') {
+        explain_btn.focus();
+        explain_btn.click();
+    }
+}
+
+function explain_it() {
+    var sql_elem = document.getElementById("div-sql-statement");
+    var res_elem = document.getElementById("div-results");
+    var selection = document.getSelection();
+    var sel_node_parent = null;
+    var response_data = '';
+    var sql = "";
+
+    if (selection.isCollapsed) {
+        sql = sql_elem.innerText;
+    }
+    else {
+        sql = selection.toString();
+    }
+
+    sql = sql.trim();
+
+    if (sql.length > 0) {
+        if (sql_elem.selectionStart != sql_elem.selectionEnd) {
+            sql = sql.substring(sql_elem.selectionStart, sql_elem.selectionEnd);
+        }
+        xhttp = new XMLHttpRequest();
+        xhttp.open("POST", "{{action_urls[0]}}", false);
+        xhttp.setRequestHeader('Content-type', 'application/json');
+        xhttp.send(JSON.stringify({'sql_statement': sql}));
+        if (xhttp.status != 200) {
+            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+        }
+        else {
+            response_data = JSON.parse(xhttp.responseText)
+            res_elem.innerHTML = "";
+            res_elem.innerText = response_data["query_plan"];
+        }
+    }
+    else {
+        res_elem.innerHTML = '<span class="unselectable lt-grey-bg placeholder">Nothing to process.</span>';
+    }
+
+    sql_elem.focus();
+}
+        </script>
+    </head>
+    <body>
+        <h1 class="unselectable">Database Performance</h1>
+        <hr class="unselectable" />
+        <h2 id="data_header" class="unselectable">{{page_header}}</h2>
+        <!-- <textarea id="t-sql-statement" class="sqlinput" placeholder="Enter or paste a SQL query."></textarea> -->
+        <div id="div-sql-statement" contenteditable="true" class="pre monospace sans inset black-fg sqlinput xy-scroll box-margin"></div>
+        <div id="div-btn"  class="unselectable">
+            <button id="explain-btn" onclick="explain_it()" class="unselectable">Explain</button>
+        </div>
+        <hr />
+        <div id="div-results" class="unselectable pre monospace sans inset result lt-grey-bg black-fg box-margin x-scroll-y-auto"><span class="lt-grey-bg unselectable placeholder">Enter a query above and click "Explain". Results will appear here.</span></div>
+        <script>
+document.getElementById("div-sql-statement").addEventListener("keypress", explain_it_key);
+        </script>
+    </body>
+</html>
