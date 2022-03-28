@@ -21,9 +21,9 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None):
         """
         Orchestrator for processing.
 
@@ -50,6 +50,7 @@ class Orchestrator:
         self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
         self.bill_date = bill_date
+        self.queue_name = queue_name
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -132,6 +133,13 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
+        if self.queue_name is not None:
+            SUMMARY_QUEUE = self.queue_name
+            REPORT_QUEUE = self.queue_name
+        else:
+            SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
+            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -197,13 +205,13 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                ).set(queue=GET_REPORT_FILES_QUEUE)
+                ).set(queue=REPORT_QUEUE)
             )
             LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         if report_tasks:
             reports_tasks_queued = True
-            async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
+            async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
             LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
         return manifest, reports_tasks_queued
 
