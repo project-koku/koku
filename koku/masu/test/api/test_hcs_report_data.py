@@ -69,7 +69,7 @@ class HCSDataTests(TestCase):
         params = {"start_date": start_date, "schema": "acct10001"}
 
         expected_key = "Error"
-        expected_message = "provider_uuid or provider_type must be supplied as a parameter"
+        expected_message = "provider_uuid must be supplied as a parameter"
 
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
