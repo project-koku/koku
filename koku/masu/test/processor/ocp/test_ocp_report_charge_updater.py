@@ -38,8 +38,8 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider = self.ocp_provider
-        self.cluster_id = self.ocp_cluster_id
+        self.provider = self.ocp_on_aws_ocp_provider
+        self.cluster_id = self.ocpaws_ocp_cluster_id
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
 
     def test_normalize_tier(self):
@@ -354,7 +354,6 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_monthly_cost_infrastructure_cluster_distribution(self, mock_cost_accessor):
         """Test OCP charge for monthly costs is updated."""
-        self.provider = self.ocp_on_aws_ocp_provider
         cluster_cost = 1000
         infrastructure_rates = {"cluster_cost_per_month": cluster_cost}
         mock_cost_accessor.return_value.__enter__.return_value.infrastructure_rates = infrastructure_rates
@@ -369,7 +368,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             report_period = accessor.get_usage_period_by_dates_and_cluster(start_date, end_date, self.cluster_id)
         with schema_context(self.schema):
             nodes = (
-                OCPUsageLineItemDailySummary.objects.filter(source_uuid=self.ocpaws_provider_uuid)
+                OCPUsageLineItemDailySummary.objects.filter(source_uuid=self.provider.uuid)
                 .values("node")
                 .annotate(
                     **{
