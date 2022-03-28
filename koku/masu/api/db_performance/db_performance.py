@@ -382,7 +382,7 @@ select "dbname",
                 target_sql, strip_comments=True, keyword_case="lower", identifier_case="lower"
             ).strip()
             if target_sql.startswith("commit") or target_sql.startswith("rollback"):
-                raise ProgrammingError(f"Refusing to process statement;")
+                raise ProgrammingError("Refusing to process statement;")
             plan = os.linesep.join(rec["QUERY PLAN"] for rec in self._execute(f"EXPLAIN VERBOSE {target_sql}"))
             res.append({"query_plan": plan, "query_text": target_sql})
 
