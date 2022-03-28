@@ -37,6 +37,7 @@ PRESTO_REQUIRED_COLUMNS = (
     "lineItem/ProductCode",
     "product/productFamily",
     "lineItem/UsageAccountId",
+    "lineItem/LegalEntity",
     "lineItem/AvailabilityZone",
     "product/region",
     "product/instanceType",
