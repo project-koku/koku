@@ -112,7 +112,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
+        manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
 
         try:
             manifest_file, _, manifest_modified_timestamp, __ = self.download_file(manifest)
@@ -122,7 +122,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             return "", self.empty_manifest, None
 
         manifest_json = None
-        with open(manifest_file, "r") as manifest_file_handle:
+        with open(manifest_file) as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
         return manifest_file, manifest_json, manifest_modified_timestamp

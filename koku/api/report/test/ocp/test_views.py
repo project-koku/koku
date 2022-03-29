@@ -231,7 +231,7 @@ class OCPReportViewTest(IamTestCase):
         expected_start_date = self.ten_days_ago.strftime("%Y-%m-%d")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 
@@ -310,7 +310,7 @@ class OCPReportViewTest(IamTestCase):
         expected_start_date = str(expected_start_date.date())
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 
@@ -337,7 +337,7 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_date)
 
         values = data.get("data")[0].get("values")[0]
@@ -358,7 +358,7 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 
@@ -385,7 +385,7 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_date)
 
         values = data.get("data")[0].get("values")[0]
@@ -406,7 +406,7 @@ class OCPReportViewTest(IamTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
-        dates = sorted([item.get("date") for item in data.get("data")])
+        dates = sorted(item.get("date") for item in data.get("data"))
         self.assertEqual(dates[0], expected_start_date)
         self.assertEqual(dates[-1], expected_end_date)
 

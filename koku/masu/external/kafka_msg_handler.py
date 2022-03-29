@@ -160,7 +160,7 @@ def download_payload(request_id, url, context={}):
         temp_file_hdl = open(temp_file, "wb")
         temp_file_hdl.write(download_response.content)
         temp_file_hdl.close()
-    except (OSError, IOError) as error:
+    except OSError as error:
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
         LOG.warning(log_json(request_id, msg, context))

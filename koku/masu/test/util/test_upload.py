@@ -19,7 +19,7 @@ class TestUploadUtils(TestCase):
         table_name = "test_table"
         with self.settings(S3_BUCKET_PATH="bucket"):
             path = get_upload_path(schema_name, provider_type, provider_uuid, report_date, table_name)
-            self.assertEquals(
+            self.assertEqual(
                 "bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/00/test_table.csv.gz", path
             )
 
@@ -32,6 +32,6 @@ class TestUploadUtils(TestCase):
         table_name = "test_table"
         with self.settings(S3_BUCKET_PATH="bucket"):
             path = get_upload_path(schema_name, provider_type, provider_uuid, report_date, table_name, daily=True)
-            self.assertEquals(
+            self.assertEqual(
                 "bucket/test_acct/test_type/de4db3ef-a185-4bad-b33f-d15ea5edc0de/2018/04/01/test_table.csv.gz", path
             )

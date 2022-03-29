@@ -60,7 +60,7 @@ def get_menu(curr_url_name):
 
 def render_template(url_name, page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
     menu = get_menu(url_name)
-    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template), "rt").read())
+    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template)).read())
     return tmpl.render(
         db_performance_menu=menu,
         page_header=page_header,
