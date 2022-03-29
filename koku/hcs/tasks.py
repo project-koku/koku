@@ -5,6 +5,7 @@
 """Tasks for Hybrid Committed Spend (HCS)"""
 import logging
 import uuid
+from datetime import timedelta
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -36,8 +37,8 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     """Update Hybrid Committed Spend report.
     :param provider:        (str) The provider type
     :param provider_uuid:   (str) The provider type
-    :param start_date:      The date to start populating the table
-    :param end_date:        The date to end on
+    :param start_date:      The date to start populating the table (default: (Today - 2 days))
+    :param end_date:        The date to end on (default: Today)
     :param schema_name:     (Str) db schema name
     :param tracing_id:      (uuid) for log tracing
 
@@ -49,7 +50,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
             schema_name = f"acct{schema_name}"
 
         if start_date is None:
-            start_date = DateHelper().today
+            start_date = DateHelper().today - timedelta(days=2)
 
         if end_date is None:
             end_date = DateHelper().today

@@ -5,6 +5,7 @@
 """View for running_celery_tasks endpoint."""
 import logging
 import uuid
+from datetime import timedelta
 
 import ciso8601
 import pytz
@@ -57,10 +58,11 @@ def hcs_report_data(request):
         else:
             provider = provider_type
 
-        if start_date is None:
-            return Response({error_msg_key: "start_date is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
-
-        start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+        start_date = (
+            ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+            if start_date
+            else DateHelper().today - timedelta(days=2)
+        )
         end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
         months = DateHelper().list_month_tuples(start_date, end_date)
         num_months = len(months)

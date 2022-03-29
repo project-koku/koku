@@ -255,7 +255,7 @@
             "name": "start_date",
             "in": "query",
             "description": "The date to begin summarizing",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date",
