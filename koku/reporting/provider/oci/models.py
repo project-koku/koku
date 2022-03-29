@@ -63,60 +63,6 @@ PRESTO_REQUIRED_COLUMNS = (
     "tags/orcl-cloud.free-tier-retained",
 )
 
-COST_COLUMNS = (
-    "lineItem/referenceNo",
-    "lineItem/tenantId",
-    "lineItem/intervalUsageStart",
-    "lineItem/intervalUsageEnd",
-    "product/service",
-    "product/compartmentId",
-    "product/compartmentName",
-    "product/region",
-    "product/availabilityDomain",
-    "product/resourceId",
-    "usage/billedQuantity",
-    "usage/billedQuantityOverage",
-    "cost/subscriptionId",
-    "cost/productSku",
-    "product/Description",
-    "cost/unitprice",
-    "cost/unitpriceOverage",
-    "cost/myCost",
-    "cost/myCostOverage",
-    "cost/currencyCode",
-    "cost/billingunitReadable",
-    "cost/skuunitDescription",
-    "cost/overageFlag",
-    "lineItem/isCorrection",
-    "lineItem/backreferenceNo",
-    "tags/Oracle-Tags.CreatedBy",
-    "tags/Oracle-Tags.CreatedOn",
-    "tags/orcl-cloud.free-tier-retained",
-)
-
-USAGE_COLUMNS = (
-    "lineItem/referenceNo",
-    "lineItem/tenantId",
-    "lineItem/intervalUsageStart",
-    "lineItem/intervalUsageEnd",
-    "product/service",
-    "product/resource",
-    "product/compartmentId",
-    "product/compartmentName",
-    "product/region",
-    "product/availabilityDomain",
-    "product/resourceId",
-    "usage/consumedQuantity",
-    "usage/billedQuantity",
-    "usage/consumedQuantityunits",
-    "usage/consumedQuantityMeasure",
-    "lineItem/isCorrection",
-    "lineItem/backreferenceNo",
-    "tags/Oracle-Tags.CreatedBy",
-    "tags/Oracle-Tags.CreatedOn",
-    "tags/orcl-cloud.free-tier-retained",
-)
-
 
 class OCICostEntryBill(models.Model):
     """The billing information for a Cost Usage Report.

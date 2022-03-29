@@ -115,14 +115,14 @@ def oci_generate_daily_data(data_frame):
         daily_data_frame = data_frame.groupby(
             [
                 "product_resourceid",
-                pd.Grouper(key="lineitem_usageintervalstart", freq="D"),
+                pd.Grouper(key="lineitem_intervalusagestart", freq="D"),
                 "lineitem_tenantid",
                 "product_service",
                 "product_region",
                 "tags_oracle_tags_createdby",
             ],
             dropna=False,
-        ).agg({"lineitem_usageamount": ["sum"], "lineitem_currencycode": ["max"]})
+        ).agg({"usage_consumedquantity": ["sum"]})
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
     daily_data_frame.reset_index(inplace=True)
