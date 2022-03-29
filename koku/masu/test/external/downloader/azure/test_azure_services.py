@@ -64,25 +64,25 @@ class AzureServiceTest(MasuTestCase):
     def get_mock_client(self, blob_list=[], cost_exports=[]):
         """Generate an AzureService instance with mocked AzureClientFactory.
 
-            Args:
-                blob_list (list<Mock>) A list of Mock objects.
+        Args:
+            blob_list (list<Mock>) A list of Mock objects.
 
-                        The blob_list Mock objects must have these attributes:
+                    The blob_list Mock objects must have these attributes:
 
-                            - name
+                        - name
 
-                cost_exports (list<Mock>) A list of Mock objects.
+            cost_exports (list<Mock>) A list of Mock objects.
 
-                        The cost_exports Mock objects must have these
-                        attributes:
+                    The cost_exports Mock objects must have these
+                    attributes:
 
-                            - name
-                            - delivery_info.destination.container
-                            - delivery_info.destination.root_folder_path
-                            - delivery_info.destination.resource_id
+                        - name
+                        - delivery_info.destination.container
+                        - delivery_info.destination.root_folder_path
+                        - delivery_info.destination.resource_id
 
-            Returns:
-                (AzureService) An instance of AzureService with mocked AzureClientFactory
+        Returns:
+            (AzureService) An instance of AzureService with mocked AzureClientFactory
         """
         fake_data = FAKE.binary(length=1024 * 64)
 

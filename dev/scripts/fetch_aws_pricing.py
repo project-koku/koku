@@ -18,7 +18,7 @@ LOG.setLevel(logging.DEBUG)
 
 
 def load_json(filename):
-    """ load a json file """
+    """load a json file"""
     json_file = None
     try:
         with open(filename) as json_fh:
@@ -33,7 +33,7 @@ def load_json(filename):
 
 
 def save_json(filename, data):
-    """ save a json file """
+    """save a json file"""
     try:
         json.dump(data, open(filename, "w+"))
     except TypeError:
@@ -43,7 +43,7 @@ def save_json(filename, data):
 
 
 def collect_data():
-    """ fetch pricing data from aws api endpoint """
+    """fetch pricing data from aws api endpoint"""
 
     url = urlopen(AWS_PRICING_INDEX)
     if not check_etags(PRICE_INDEX, url.headers["ETag"]):
@@ -63,10 +63,10 @@ def collect_data():
 
 
 def check_etags(filename, etag):
-    """ compare etags retrieved from api endpoint with cached etags
-        param: filename of json etag cache
-        param: etag to be compared
-        return: boolean
+    """compare etags retrieved from api endpoint with cached etags
+    param: filename of json etag cache
+    param: etag to be compared
+    return: boolean
     """
     etag_file = load_json(CACHE_DIR + "/etags.json")
 
@@ -82,7 +82,7 @@ def check_etags(filename, etag):
 
 
 def main():
-    """ main entry point """
+    """main entry point"""
 
     if os.path.isdir(CACHE_DIR):
         try:

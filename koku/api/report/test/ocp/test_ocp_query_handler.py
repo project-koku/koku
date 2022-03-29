@@ -591,9 +591,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             ("node", "cluster", "project"),
             ("node", "project", "cluster"),
         ]
-        base_url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"
-        )  # noqa: E501
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
         tolerance = 1
         for group_by in group_by_list:
             sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by

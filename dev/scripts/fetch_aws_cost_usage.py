@@ -24,7 +24,7 @@ LOG.setLevel(logging.INFO)
 
 
 def load_json(filename):
-    """ load a json file """
+    """load a json file"""
     json_file = None
     try:
         with open(filename) as json_fh:
@@ -39,7 +39,7 @@ def load_json(filename):
 
 
 def save_json(filename, data):
-    """ save a json file """
+    """save a json file"""
     try:
         json.dump(data, open(filename, "w+"))
     except TypeError:
@@ -49,7 +49,7 @@ def save_json(filename, data):
 
 
 def retrieve_files():
-    """ fetch files from s3 bucket """
+    """fetch files from s3 bucket"""
     etags = load_json(ETAG_FILE)
 
     LOG.info("Connecting to S3...")
@@ -80,7 +80,7 @@ def retrieve_files():
 
 
 def main():
-    """ main """
+    """main"""
     if not os.path.isdir(CACHE_DIR):
         os.mkdir(CACHE_DIR)
     retrieve_files()

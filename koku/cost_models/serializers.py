@@ -562,7 +562,7 @@ class CostModelSerializer(serializers.Serializer):
         return rep
 
     def to_internal_value(self, data):
-        """ Alter source_uuids to provider_uuids."""
+        """Alter source_uuids to provider_uuids."""
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal

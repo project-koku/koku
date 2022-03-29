@@ -175,7 +175,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _generate_default_scan_range(self, range_length=3):
         """
-            Generates the first date of the date range.
+        Generates the first date of the date range.
         """
         today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
