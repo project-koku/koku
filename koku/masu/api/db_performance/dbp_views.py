@@ -34,9 +34,38 @@ DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
 # TERMINATE_URL = 1
 
 
-def render_template(page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
+def get_menu(curr_url_name):
+    menu_values = (
+        ("db_version", "DB Engine Version"),
+        ("db_settings", "DB Engine Settings"),
+        ("conn_activity", "Connection Activity"),
+        ("stmt_stats", "Statement Statistics"),
+        ("lock_info", "Lock Information"),
+        ("explain_query", "Explain Query"),
+    )
+    menu_elements = ['<ul id="menu-list" class="menu unselectable">']
+    for url_name, content_name in menu_values:
+        if url_name == curr_url_name:
+            element = f"<li><a>{content_name}</a></li>"
+        else:
+            element = f'<li><a href="{reverse(url_name)}">{content_name}</a></li>'
+        menu_elements.append(element)
+    menu_elements.append("</ul>")
+
+    return os.linesep.join(menu_elements)
+
+
+def render_template(url_name, page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
+    menu = get_menu(url_name)
     tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template), "rt").read())
-    return tmpl.render(page_header=page_header, fields=fields, data=data, targets=targets, action_urls=action_urls)
+    return tmpl.render(
+        db_performance_menu=menu,
+        page_header=page_header,
+        fields=fields,
+        data=data,
+        targets=targets,
+        action_urls=action_urls,
+    )
 
 
 def set_null_display(rec, null_display_val=""):
@@ -112,6 +141,7 @@ def lockinfo(request):
     page_header = "Lock Information"
     return HttpResponse(
         render_template(
+            "lock_info",
             page_header,
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
@@ -156,6 +186,7 @@ def stat_statements(request):
     page_header = "Statement Statistics"
     return HttpResponse(
         render_template(
+            "stmt_stats",
             page_header,
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
@@ -212,9 +243,15 @@ def stat_activity(request):
 
     page_header = "Connection Activity"
     return HttpResponse(
-        render_template(page_header, fields, data, targets=("backend_pid",), template=template)
+        render_template("conn_activity", page_header, fields, data, targets=("backend_pid",), template=template)
         # render_template(
-        #     page_header, fields, data, targets=("backend_pid",), template=template, action_urls=action_urls
+        #     "conn_activity",
+        #     page_header,
+        #     fields,
+        #     data,
+        #     targets=("backend_pid",),
+        #     template=template,
+        #     action_urls=action_urls
         # )
     )
 
@@ -243,7 +280,9 @@ def dbsettings(request):
 
     page_header = "Database Settings"
     return HttpResponse(
-        render_template(page_header, tuple(f for f in data[0] if not f.startswith("_")) if data else (), data)
+        render_template(
+            "db_settings", page_header, tuple(f for f in data[0] if not f.startswith("_")) if data else (), data
+        )
     )
 
 
@@ -258,7 +297,7 @@ def pg_engine_version(request):
         data = [{"postgresql_version": ".".join(str(v) for v in dbp.get_pg_engine_version())}]
 
     page_header = "PostgreSQL Engine Version"
-    return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
+    return HttpResponse(render_template("db_version", page_header, tuple(data[0]) if data else (), data))
 
 
 @never_cache
@@ -267,9 +306,11 @@ def pg_engine_version(request):
 def explain_query(request):
     """Get any blocked and blocking process data"""
     if request.method == "GET":
-        page_header = f"""Explain SQL Statement Using Database: "{CONFIGURATOR.get_database_name()}" """
+        page_header = f"""Explain Query Using Database: "{CONFIGURATOR.get_database_name()}" """
         return HttpResponse(
-            render_template(page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")])
+            render_template(
+                "explain_wuery", page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")]
+            )
         )
     else:
         query_params = json.loads(request.body.decode("utf-8"))
