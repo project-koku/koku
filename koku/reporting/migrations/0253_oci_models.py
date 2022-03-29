@@ -34,6 +34,7 @@ class Migration(migrations.Migration):
                         base_field=models.CharField(max_length=256), null=True, size=None
                     ),
                 ),
+                ("resource_count", models.IntegerField(null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit_price", models.CharField(max_length=63, null=True)),
                 ("cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -59,6 +60,7 @@ class Migration(migrations.Migration):
                         base_field=models.CharField(max_length=256), null=True, size=None
                     ),
                 ),
+                ("resource_count", models.IntegerField(null=True)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit_price", models.CharField(max_length=63, null=True)),
                 ("cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -101,7 +103,7 @@ class Migration(migrations.Migration):
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField(null=True)),
                 ("payer_tenant_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
+                ("product_service", models.CharField(max_length=50)),
                 ("region", models.CharField(max_length=50, null=True)),
                 ("instance_type", models.CharField(max_length=50, null=True)),
                 ("unit", models.CharField(max_length=63, null=True)),
@@ -165,7 +167,7 @@ class Migration(migrations.Migration):
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("usage_tenant_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
+                ("product_service", models.CharField(max_length=50)),
                 ("cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("markup_cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("currency_code", models.CharField(max_length=10)),
@@ -199,7 +201,7 @@ class Migration(migrations.Migration):
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("payer_tenant_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
+                ("product_service", models.CharField(max_length=50)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit_price", models.CharField(max_length=63, null=True)),
                 ("cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -227,7 +229,7 @@ class Migration(migrations.Migration):
                 ("usage_start", models.DateField()),
                 ("usage_end", models.DateField()),
                 ("payer_tenant_id", models.CharField(max_length=50)),
-                ("product_code", models.CharField(max_length=50)),
+                ("product_service", models.CharField(max_length=50)),
                 ("usage_amount", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
                 ("unit_price", models.CharField(max_length=63, null=True)),
                 ("cost", models.DecimalField(decimal_places=9, max_digits=24, null=True)),
@@ -421,13 +423,15 @@ class Migration(migrations.Migration):
             model_name="ocinetworksummaryp", index=models.Index(fields=["usage_start"], name="ocinetsumm_usage_start")
         ),
         migrations.AddIndex(
-            model_name="ocinetworksummaryp", index=models.Index(fields=["product_code"], name="ocinetsumm_product_cd")
+            model_name="ocinetworksummaryp",
+            index=models.Index(fields=["product_service"], name="ocinetsumm_product_cd"),
         ),
         migrations.AddIndex(
             model_name="ocidatabasesummaryp", index=models.Index(fields=["usage_start"], name="ocidbsumm_usage_start")
         ),
         migrations.AddIndex(
-            model_name="ocidatabasesummaryp", index=models.Index(fields=["product_code"], name="ocidbsumm_product_cd")
+            model_name="ocidatabasesummaryp",
+            index=models.Index(fields=["product_service"], name="ocidbsumm_product_cd"),
         ),
         migrations.AddIndex(
             model_name="ocicostsummaryp", index=models.Index(fields=["usage_start"], name="ocicostsumm_usage_start")
@@ -438,7 +442,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="ocicostsummarybyservicep",
-            index=models.Index(fields=["product_code"], name="ocicostsumm_svc_prod_cd"),
+            index=models.Index(fields=["product_service"], name="ocicostsumm_svc_prod_cd"),
         ),
         migrations.AddIndex(
             model_name="ocicostsummarybyregionp",
@@ -457,7 +461,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="ocicostentrylineitemdailysummary",
-            index=models.Index(fields=["product_code"], name="summary_oci_product_code_idx"),
+            index=models.Index(fields=["product_service"], name="summary_oci_product_code_idx"),
         ),
         migrations.AddIndex(
             model_name="ocicostentrylineitemdailysummary",

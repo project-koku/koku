@@ -7,12 +7,15 @@ import datetime
 import logging
 
 import ciso8601
+import pandas as pd
 from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
+from masu.util.common import strip_characters_from_column_name
+
 
 LOG = logging.getLogger(__name__)
 
@@ -100,3 +103,60 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
             bills = bills.all()
 
     return bills
+
+
+def oci_post_processor(data_frame):
+    """Guarantee column order for OCI parquet files"""
+    # TODO This needs figuring out
+    columns = list(data_frame)
+    column_name_map = {}
+    drop_columns = []
+    for column in columns:
+        new_col_name = strip_characters_from_column_name(column)
+        column_name_map[column] = new_col_name
+        if "resourceTags/" in column:
+            drop_columns.append(column)
+    data_frame = data_frame.drop(columns=drop_columns)
+    data_frame = data_frame.rename(columns=column_name_map)
+    return data_frame
+
+
+def oci_generate_daily_data(data_frame):
+    """Given a dataframe, group the data to create daily data."""
+    # usage_start = data_frame["lineitem_usagestartdate"]
+    # usage_start_dates = usage_start.apply(lambda row: row.date())
+    # data_frame["usage_start"] = usage_start_dates
+    # if "cost_mycost" in data_frame:
+    daily_data_frame = data_frame.groupby(
+        [
+            "product_resourceid",
+            pd.Grouper(key="lineitem_intervalusagestart", freq="D"),
+            "lineitem_tenantid",
+            "product_service",
+            "product_region",
+            "tags_oracle_tags_createdby",
+        ],
+        dropna=False,
+    ).agg({"cost_currencycode": ["max"], "cost_mycost": ["sum"]})
+    # else:
+    #     daily_data_frame = data_frame.groupby(
+    #         [
+    #             "product_resourceid",
+    #             pd.Grouper(key="lineitem_usageintervalstart", freq="D"),
+    #             "lineitem_tenantid",
+    #             "product_service",
+    #             "product_region",
+    #             "tags_oracle_tags_createdby",
+    #         ],
+    #         dropna=False,
+    #     ).agg(
+    #         {
+    #             "lineitem_usageamount": ["sum"],
+    #             "lineitem_currencycode": ["max"],
+    #         }
+    #     )
+    columns = daily_data_frame.columns.droplevel(1)
+    daily_data_frame.columns = columns
+    daily_data_frame.reset_index(inplace=True)
+
+    return daily_data_frame

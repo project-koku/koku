@@ -4,13 +4,10 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
     usage_start,
     usage_end,
     payer_tenant_id,
-    product_code,
+    product_service,
     region,
-    instance_type,
-    unit,
     resource_ids,
     resource_count,
-    usage_amount,
     currency_code,
     cost,
     tags,
@@ -27,37 +24,26 @@ SELECT uuid() as uuid,
     usage_start,
     usage_end,
     cast(payer_tenant_id AS varchar(50)),
-    cast(product_code AS varchar(50)),
-    region,
-    instance_type,
-    unit,
+    cast(product_service AS varchar(50)),
+    cast(region AS varchar(50)),
     resource_ids,
-    resource_count,
-    cast(usage_amount AS decimal(24,9)),
+    cast(resource_count AS integer),
     cast(currency_code AS varchar(10)),
     cast(cost AS decimal(24,9)),
-    cast(
-        map_filter(
-            cast(json_parse(tags) as map(varchar, varchar)),
-            (k,v) -> contains(pek.keys, k)
-        ) as json
-     ) as tags,
+    tags,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
-    cast(unblended_cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
+    cast(cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
 FROM (
     SELECT date(lineitem_intervalusagestart) as usage_start,
-        date(lineitem_intervalusageend) as usage_end,
-        nullif(product_service, '') as product_code,
+        date(lineitem_intervalusagestart) as usage_end,
         lineitem_tenantid as payer_tenant_id,
+        nullif(product_service, '') as product_service,
         nullif(product_region, '') as region,
-        tags,
-        nullif(product_resource, '') as instance_type,
-        nullif(usage_consumedquantityunits, '') as unit,
-        sum(usage_consumedquantity) as usage_amount,
+        array_agg(DISTINCT product_resourceid) as resource_ids,
+        count(DISTINCT product_resourceid) as resource_count,
         max(cost_currencycode) as currency_code,
         sum(cost_mycost) as cost,
-        array_agg(DISTINCT product_resourceid) as resource_ids,
-        count(DISTINCT product_resourceid) as resource_count
+        json_parse('{}') as tags
     FROM hive.{{schema | sqlsafe}}.{{table | sqlsafe}}
     WHERE source = '{{source_uuid | sqlsafe}}'
         AND year = '{{year | sqlsafe}}'
@@ -65,10 +51,10 @@ FROM (
         AND date(lineitem_intervalusagestart) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND date(lineitem_intervalusagestart) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY date(lineitem_intervalusagestart),
-        lineitem_productcode,
+        date(lineitem_intervalusagestart),
+        product_service,
         lineitem_tenantid,
         product_region,
-        resourcetags,
-        product_instancetype,
-        pricing_unit
+        tags_oracle_tags_createdby,
+        cost_mycost
 )

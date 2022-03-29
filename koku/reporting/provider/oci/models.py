@@ -26,7 +26,7 @@ UI_SUMMARY_TABLES = (
 
 
 PRESTO_LINE_ITEM_TABLE = "oci_line_items"
-PRESTO_LINE_ITEM_DAILY_TABLE = "oci_line_items"
+PRESTO_LINE_ITEM_DAILY_TABLE = "oci_line_items_daily"
 
 PRESTO_REQUIRED_COLUMNS = (
     "lineItem/referenceNo",
@@ -48,14 +48,68 @@ PRESTO_REQUIRED_COLUMNS = (
     "cost/subscriptionId",
     "cost/productSku",
     "product/Description",
-    "cost/unit_price",
-    "cost/unit_priceOverage",
+    "cost/unitPrice",
+    "cost/unitPriceOverage",
     "cost/myCost",
     "cost/myCostOverage",
     "cost/currencyCode",
-    "cost/billingunit_priceReadable",
-    "cost/skuunit_priceDescription",
+    "cost/billingunitReadable",
+    "cost/skuunitDescription",
     "cost/overageFlag",
+    "lineItem/isCorrection",
+    "lineItem/backreferenceNo",
+    "tags/Oracle-Tags.CreatedBy",
+    "tags/Oracle-Tags.CreatedOn",
+    "tags/orcl-cloud.free-tier-retained",
+)
+
+COST_COLUMNS = (
+    "lineItem/referenceNo",
+    "lineItem/tenantId",
+    "lineItem/intervalUsageStart",
+    "lineItem/intervalUsageEnd",
+    "product/service",
+    "product/compartmentId",
+    "product/compartmentName",
+    "product/region",
+    "product/availabilityDomain",
+    "product/resourceId",
+    "usage/billedQuantity",
+    "usage/billedQuantityOverage",
+    "cost/subscriptionId",
+    "cost/productSku",
+    "product/Description",
+    "cost/unitprice",
+    "cost/unitpriceOverage",
+    "cost/myCost",
+    "cost/myCostOverage",
+    "cost/currencyCode",
+    "cost/billingunitReadable",
+    "cost/skuunitDescription",
+    "cost/overageFlag",
+    "lineItem/isCorrection",
+    "lineItem/backreferenceNo",
+    "tags/Oracle-Tags.CreatedBy",
+    "tags/Oracle-Tags.CreatedOn",
+    "tags/orcl-cloud.free-tier-retained",
+)
+
+USAGE_COLUMNS = (
+    "lineItem/referenceNo",
+    "lineItem/tenantId",
+    "lineItem/intervalUsageStart",
+    "lineItem/intervalUsageEnd",
+    "product/service",
+    "product/resource",
+    "product/compartmentId",
+    "product/compartmentName",
+    "product/region",
+    "product/availabilityDomain",
+    "product/resourceId",
+    "usage/consumedQuantity",
+    "usage/billedQuantity",
+    "usage/consumedQuantityunits",
+    "usage/consumedQuantityMeasure",
     "lineItem/isCorrection",
     "lineItem/backreferenceNo",
     "tags/Oracle-Tags.CreatedBy",
@@ -128,7 +182,7 @@ class OCICostEntryLineItemDailySummary(models.Model):
 
         indexes = [
             models.Index(fields=["usage_start"], name="summary_oci_usage_start_idx"),
-            models.Index(fields=["product_code"], name="summary_oci_product_code_idx"),
+            models.Index(fields=["product_service"], name="summary_oci_product_code_idx"),
             models.Index(fields=["payer_tenant_id"], name="summary_oci_payer_tenant_idx"),
             GinIndex(fields=["tags"], name="tags_tags_idx"),
             models.Index(fields=["instance_type"], name="summary_oci_instance_type_idx"),
@@ -139,7 +193,7 @@ class OCICostEntryLineItemDailySummary(models.Model):
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
     payer_tenant_id = models.CharField(max_length=50, null=False)
-    product_code = models.CharField(max_length=50, null=False)
+    product_service = models.CharField(max_length=50, null=False)
     region = models.CharField(max_length=50, null=True)
     instance_type = models.CharField(max_length=50, null=True)
     unit = models.CharField(max_length=63, null=True)
@@ -243,14 +297,14 @@ class OCICostSummaryByServiceP(models.Model):
         db_table = "reporting_oci_cost_summary_by_service_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocicostsumm_svc_usage_start"),
-            models.Index(fields=["product_code"], name="ocicostsumm_svc_prod_cd"),
+            models.Index(fields=["product_service"], name="ocicostsumm_svc_prod_cd"),
         ]
 
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     usage_tenant_id = models.CharField(max_length=50, null=False)
-    product_code = models.CharField(max_length=50, null=False)
+    product_service = models.CharField(max_length=50, null=False)
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     currency_code = models.CharField(max_length=10)
@@ -347,6 +401,7 @@ class OCIComputeSummaryP(models.Model):
     instance_type = models.CharField(max_length=50, null=True)
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
+    resource_count = models.IntegerField(null=True)
     unit_price = models.CharField(max_length=63, null=True)
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     markup_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -382,6 +437,7 @@ class OCIComputeSummaryByAccountP(models.Model):
     payer_tenant_id = models.CharField(max_length=50, null=False)
     instance_type = models.CharField(max_length=50, null=True)
     resource_ids = ArrayField(models.CharField(max_length=256), null=True)
+    resource_count = models.IntegerField(null=True)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -470,14 +526,14 @@ class OCINetworkSummaryP(models.Model):
         db_table = "reporting_oci_network_summary_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocinetsumm_usage_start"),
-            models.Index(fields=["product_code"], name="ocinetsumm_product_cd"),
+            models.Index(fields=["product_service"], name="ocinetsumm_product_cd"),
         ]
 
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     payer_tenant_id = models.CharField(max_length=50, null=False)
-    product_code = models.CharField(max_length=50, null=False)
+    product_service = models.CharField(max_length=50, null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
@@ -505,14 +561,14 @@ class OCIDatabaseSummaryP(models.Model):
         db_table = "reporting_oci_database_summary_p"
         indexes = [
             models.Index(fields=["usage_start"], name="ocidbsumm_usage_start"),
-            models.Index(fields=["product_code"], name="ocidbsumm_product_cd"),
+            models.Index(fields=["product_service"], name="ocidbsumm_product_cd"),
         ]
 
     id = models.UUIDField(primary_key=True)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=False)
     payer_tenant_id = models.CharField(max_length=50, null=False)
-    product_code = models.CharField(max_length=50, null=False)
+    product_service = models.CharField(max_length=50, null=False)
     usage_amount = models.DecimalField(max_digits=24, decimal_places=9, null=True)
     unit_price = models.CharField(max_length=63, null=True)
     cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
