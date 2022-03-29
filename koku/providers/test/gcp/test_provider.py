@@ -100,7 +100,7 @@ class GCPProviderTestCase(TestCase):
         mock_auth.return_value = (MagicMock(), MagicMock())
         billing_source_param = {"dataset": FAKE.word(), "table_id": FAKE.word()}
         credentials_param = {"project_id": FAKE.word()}
-        with self.assertRaisesRegexp(ValidationError, err_msg):
+        with self.assertRaisesRegex(ValidationError, err_msg):
             provider = GCPProvider()
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
 
@@ -206,7 +206,7 @@ class GCPProviderTestCase(TestCase):
 
         db_obj = Sources.objects.get(source_id=source_id)
 
-        self.assertEquals(db_obj.billing_source, {"data_source": updated_data_source})
+        self.assertEqual(db_obj.billing_source, {"data_source": updated_data_source})
 
         gcp2_source_id = 14
         gcp2_dataset_table_id = "test_table_id_2"
@@ -232,10 +232,8 @@ class GCPProviderTestCase(TestCase):
         GCPProvider().update_source_data_source(credentials, updated_data_source_2)
 
         db_obj_2 = Sources.objects.get(source_id=gcp2_source_id)
-        self.assertEquals(
-            Sources.objects.get(source_id=source_id).billing_source, {"data_source": updated_data_source}
-        )
-        self.assertEquals(db_obj_2.billing_source, {"data_source": updated_data_source_2})
+        self.assertEqual(Sources.objects.get(source_id=source_id).billing_source, {"data_source": updated_data_source})
+        self.assertEqual(db_obj_2.billing_source, {"data_source": updated_data_source_2})
 
     def test_format_dataset_id(self):
         """Test helper method _format_dataset_id."""

@@ -154,7 +154,7 @@ class StatusAPITest(TestCase):
     @patch("masu.api.status.celery_app")
     def test_get_debug(self, mock_celery):
         """Test the startup method for debug state."""
-        expected = "INFO:masu.api.status:DEBUG enabled: {}".format(str(False))
+        expected = f"INFO:masu.api.status:DEBUG enabled: {str(False)}"
         with self.assertLogs("masu.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
