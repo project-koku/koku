@@ -38,10 +38,11 @@ from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
+from masu.util.oci.common import detect_type as oci_detect_type
 from masu.util.oci.common import get_column_converters as oci_column_converters
 from masu.util.oci.common import oci_generate_daily_data
 from masu.util.oci.common import oci_post_processor
-from masu.util.ocp.common import detect_type
+from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
@@ -173,10 +174,15 @@ class ParquetReportProcessor:
 
     @property
     def report_type(self):
-        """Report type for OpenShift, else None."""
+        """Report type for OpenShift and OCI else None."""
         if self.provider_type == Provider.PROVIDER_OCP:
             for file_name in self.file_list:
-                report_type, _ = detect_type(file_name)
+                report_type, _ = ocp_detect_type(file_name)
+                if report_type:
+                    return report_type
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            for file_name in self.file_list:
+                report_type = oci_detect_type(file_name)
                 if report_type:
                     return report_type
         return None
@@ -307,7 +313,7 @@ class ParquetReportProcessor:
             )
         elif self.provider_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
             processor = OCIReportParquetProcessor(
-                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
             )
         if processor is None:
             msg = f"There is no ReportParquetProcessor for provider type {self.provider_type}"
@@ -408,42 +414,42 @@ class ParquetReportProcessor:
         msg = f"Running convert_csv_to_parquet on file {csv_filename}."
         LOG.info(log_json(self.tracing_id, msg, self.error_context))
 
-        # try:
-        col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
-        csv_converters = {
-            col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
-        }
-        csv_converters.update({col: str for col in col_names if col not in csv_converters})
-        with pd.read_csv(
-            csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
-        ) as reader:
-            for i, data_frame in enumerate(reader):
-                if data_frame.empty:
-                    continue
-                parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
-                parquet_file = f"{self.local_path}/{parquet_filename}"
-                if self.post_processor:
-                    data_frame = self.post_processor(data_frame)
-                    if isinstance(data_frame, tuple):
-                        data_frame, data_frame_tag_keys = data_frame
-                        LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
-                        unique_keys.update(data_frame_tag_keys)
-                        LOG.info(f"Total unique keys for file {len(unique_keys)}")
-                if self.daily_data_processor is not None:
-                    daily_data_frames.append(self.daily_data_processor(data_frame))
+        try:
+            col_names = pd.read_csv(csv_filename, nrows=0, **kwargs).columns
+            csv_converters = {
+                col_name: converters[col_name.lower()] for col_name in col_names if col_name.lower() in converters
+            }
+            csv_converters.update({col: str for col in col_names if col not in csv_converters})
+            with pd.read_csv(
+                csv_filename, converters=csv_converters, chunksize=settings.PARQUET_PROCESSING_BATCH_SIZE, **kwargs
+            ) as reader:
+                for i, data_frame in enumerate(reader):
+                    if data_frame.empty:
+                        continue
+                    parquet_filename = f"{parquet_base_filename}_{i}{PARQUET_EXT}"
+                    parquet_file = f"{self.local_path}/{parquet_filename}"
+                    if self.post_processor:
+                        data_frame = self.post_processor(data_frame)
+                        if isinstance(data_frame, tuple):
+                            data_frame, data_frame_tag_keys = data_frame
+                            LOG.info(f"Updating unique keys with {len(data_frame_tag_keys)} keys")
+                            unique_keys.update(data_frame_tag_keys)
+                            LOG.info(f"Total unique keys for file {len(unique_keys)}")
+                    if self.daily_data_processor is not None:
+                        daily_data_frames.append(self.daily_data_processor(data_frame))
 
-                success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
-                if not success:
-                    return parquet_base_filename, daily_data_frames, False
-        if self.create_table and not self.presto_table_exists.get(self.report_type):
-            self.create_parquet_table(parquet_file)
-        create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
-        # except Exception as err:
-        #     msg = (
-        #         f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
-        #     )
-        #     LOG.warn(log_json(self.tracing_id, msg, self.error_context))
-        # return parquet_base_filename, daily_data_frames, False
+                    success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
+                    if not success:
+                        return parquet_base_filename, daily_data_frames, False
+            if self.create_table and not self.presto_table_exists.get(self.report_type):
+                self.create_parquet_table(parquet_file)
+            create_enabled_keys(self._schema_name, self.enabled_tags_model, unique_keys)
+        except Exception as err:
+            msg = (
+                f"File {csv_filename} could not be written as parquet to temp file {parquet_file}. Reason: {str(err)}"
+            )
+            LOG.warn(log_json(self.tracing_id, msg, self.error_context))
+            return parquet_base_filename, daily_data_frames, False
 
         return parquet_base_filename, daily_data_frames, True
 

@@ -20,7 +20,6 @@ from masu.external.date_accessor import DateAccessor
 from reporting.provider.oci.models import OCICostEntry
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -211,7 +210,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
-            "table": PRESTO_LINE_ITEM_DAILY_TABLE,
             "source_uuid": source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),

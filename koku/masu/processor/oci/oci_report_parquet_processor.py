@@ -11,12 +11,12 @@ from masu.processor.report_parquet_processor_base import ReportParquetProcessorB
 from masu.util import common as utils
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE
-from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE
+from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE_MAP
+from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE_MAP
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
-    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path):
+    def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, report_type):
         numeric_columns = ["usage_consumedquantity", "cost_mycost"]
         date_columns = [
             "lineitem_intervalusagestart",
@@ -33,9 +33,9 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         }
 
         if "daily" in s3_path:
-            table_name = PRESTO_LINE_ITEM_DAILY_TABLE
+            table_name = PRESTO_LINE_ITEM_DAILY_TABLE_MAP[report_type]
         else:
-            table_name = PRESTO_LINE_ITEM_TABLE
+            table_name = PRESTO_LINE_ITEM_TABLE_MAP[report_type]
         super().__init__(
             manifest_id=manifest_id,
             account=account,

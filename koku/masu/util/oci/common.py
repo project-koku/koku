@@ -19,33 +19,6 @@ from masu.util.common import strip_characters_from_column_name
 
 LOG = logging.getLogger(__name__)
 
-"""OCI utility functions and vars."""
-
-# TODO NEeds updating to match OCI data types
-OCI_SERVICE_LINE_ITEM_TYPE_MAP = {
-    "Compute Engine": "usage",
-    "Kubernetes Engine": "usage",
-    "Cloud Functions": "usage",
-    "Clould Run": "usage",
-    "VMware Engine": "usage",
-    "Filestore": "storage",
-    "Storage": "storage",
-    "Data Transfer": "storage",
-    "VPC network": "network",
-    "Network services": "network",
-    "Hybrid Connectivity": "network",
-    "Network Service Tiers": "network",
-    "Network Security": "network",
-    "Network Intelligence": "network",
-    "Bigtable": "database",
-    "Datastore": "database",
-    "Database Migrations": "database",
-    "Firestore": "database",
-    "MemoryStore": "database",
-    "Spanner": "database",
-    "SQL": "database",
-}
-
 
 def get_column_converters():
     """Return source specific parquet column converters."""
@@ -107,7 +80,7 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
 def oci_post_processor(data_frame):
     """Guarantee column order for OCI parquet files"""
-    # TODO This needs figuring out
+    # TODO This needs figuring out for tags
     columns = list(data_frame)
     column_name_map = {}
     drop_columns = []
@@ -126,37 +99,44 @@ def oci_generate_daily_data(data_frame):
     # usage_start = data_frame["lineitem_usagestartdate"]
     # usage_start_dates = usage_start.apply(lambda row: row.date())
     # data_frame["usage_start"] = usage_start_dates
-    # if "cost_mycost" in data_frame:
-    daily_data_frame = data_frame.groupby(
-        [
-            "product_resourceid",
-            pd.Grouper(key="lineitem_intervalusagestart", freq="D"),
-            "lineitem_tenantid",
-            "product_service",
-            "product_region",
-            "tags_oracle_tags_createdby",
-        ],
-        dropna=False,
-    ).agg({"cost_currencycode": ["max"], "cost_mycost": ["sum"]})
-    # else:
-    #     daily_data_frame = data_frame.groupby(
-    #         [
-    #             "product_resourceid",
-    #             pd.Grouper(key="lineitem_usageintervalstart", freq="D"),
-    #             "lineitem_tenantid",
-    #             "product_service",
-    #             "product_region",
-    #             "tags_oracle_tags_createdby",
-    #         ],
-    #         dropna=False,
-    #     ).agg(
-    #         {
-    #             "lineitem_usageamount": ["sum"],
-    #             "lineitem_currencycode": ["max"],
-    #         }
-    #     )
+    if "cost_mycost" in data_frame:
+        daily_data_frame = data_frame.groupby(
+            [
+                "product_resourceid",
+                pd.Grouper(key="lineitem_intervalusagestart", freq="D"),
+                "lineitem_tenantid",
+                "product_service",
+                "product_region",
+                "tags_oracle_tags_createdby",
+            ],
+            dropna=False,
+        ).agg({"cost_currencycode": ["max"], "cost_mycost": ["sum"]})
+    else:
+        daily_data_frame = data_frame.groupby(
+            [
+                "product_resourceid",
+                pd.Grouper(key="lineitem_usageintervalstart", freq="D"),
+                "lineitem_tenantid",
+                "product_service",
+                "product_region",
+                "tags_oracle_tags_createdby",
+            ],
+            dropna=False,
+        ).agg({"lineitem_usageamount": ["sum"], "lineitem_currencycode": ["max"]})
     columns = daily_data_frame.columns.droplevel(1)
     daily_data_frame.columns = columns
     daily_data_frame.reset_index(inplace=True)
 
     return daily_data_frame
+
+
+def detect_type(report_path):
+    """
+    Detects the OCI report type.
+    """
+    sorted_columns = sorted(pd.read_csv(report_path, nrows=0).columns)
+    if "cost/myCost" in sorted_columns:
+        report_type = "cost"
+    else:
+        report_type = "usage"
+    return report_type
