@@ -77,17 +77,3 @@ class HCSDataTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_get_hcs_report_data_start_date_missing(self, _):
-        """Test GET hcs_report_data endpoint returns a 400 for missing start date."""
-        params = {"schema": "acct10001", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
-        expected_key = "Error"
-        expected_message = "start_date is a required parameter"
-
-        response = self.client.get(reverse(self.ENDPOINT), params)
-        body = response.json()
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(expected_key, body)
-        self.assertEqual(body[expected_key], expected_message)
