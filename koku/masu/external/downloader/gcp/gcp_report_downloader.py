@@ -442,7 +442,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 writer.writerow(column_list)
                 for row in query_job:
                     writer.writerow(row)
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
                 f"\n  Provider: {self._provider_uuid}"

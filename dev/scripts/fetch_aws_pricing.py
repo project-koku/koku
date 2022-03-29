@@ -25,7 +25,7 @@ def load_json(filename):
             json_file = json.load(json_fh)
     except TypeError:
         json_file = json.load(filename)
-    except IOError:
+    except OSError:
         json_file = json.loads("{}")
     except ValueError:
         LOG.error("Unable to read %s", filename)
@@ -38,7 +38,7 @@ def save_json(filename, data):
         json.dump(data, open(filename, "w+"))
     except TypeError:
         json.dump(data, filename)
-    except IOError:
+    except OSError:
         raise
 
 

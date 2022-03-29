@@ -7,7 +7,7 @@ repos:
   - id: reorder-python-imports
     args: [--py3-plus, --application-directories, "koku"]
 - repo: https://github.com/asottile/pyupgrade
-  rev: v1.19.0
+  rev: v2.31.1
   hooks:
   - id: pyupgrade
     args: [--py36-plus]

@@ -115,7 +115,7 @@ def month_date_range(for_date_time):
     start_month = start_month.replace(day=1)
     end_month = start_month + relativedelta(months=+1)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def get_assembly_id_from_cur_key(key):

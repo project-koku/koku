@@ -12,7 +12,7 @@ import botocore
 try:
     S3_BUCKET = sys.argv[1]
 except IndexError:
-    print("usage: {} [s3_bucket_name]".format(sys.argv[0]))
+    print(f"usage: {sys.argv[0]} [s3_bucket_name]")
     sys.exit()
 
 CACHE_DIR = "./aws_cost_usage/"
@@ -31,7 +31,7 @@ def load_json(filename):
             json_file = json.load(json_fh)
     except TypeError:
         json_file = json.load(filename)
-    except IOError:
+    except OSError:
         json_file = json.loads("{}")
     except ValueError:
         LOG.error("Unable to read %s", filename)
@@ -44,7 +44,7 @@ def save_json(filename, data):
         json.dump(data, open(filename, "w+"))
     except TypeError:
         json.dump(data, filename)
-    except IOError:
+    except OSError:
         raise
 
 

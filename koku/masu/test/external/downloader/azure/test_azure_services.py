@@ -165,8 +165,8 @@ class AzureServiceTest(MasuTestCase):
             svc = self.get_mock_client(blob_list=[mock_blob])
             cost_export = svc.get_cost_export_for_key(key, self.container_name)
             self.assertIsNotNone(cost_export)
-            self.assertEquals(cost_export.name, key)
-            self.assertEquals(cost_export.last_modified.date(), expected_modified_date)
+            self.assertEqual(cost_export.name, key)
+            self.assertEqual(cost_export.last_modified.date(), expected_modified_date)
 
     def test_get_cost_export_for_missing_key(self):
         """Test that a cost export is not retrieved by an incorrect key."""
@@ -190,7 +190,7 @@ class AzureServiceTest(MasuTestCase):
 
         svc = self.get_mock_client(blob_list=[mock_blob])
         cost_export = svc.get_latest_cost_export_for_path(report_path, self.container_name)
-        self.assertEquals(cost_export.last_modified.date(), self.current_date_time.date())
+        self.assertEqual(cost_export.last_modified.date(), self.current_date_time.date())
 
     def test_get_latest_cost_export_for_path_missing(self):
         """Test that the no cost export is returned for a missing path."""
@@ -221,10 +221,10 @@ class AzureServiceTest(MasuTestCase):
         svc = self.get_mock_client(cost_exports=[mock_export])
         exports = svc.describe_cost_management_exports()
 
-        self.assertEquals(len(exports), 1)
+        self.assertEqual(len(exports), 1)
         for export in exports:
-            self.assertEquals(export.get("container"), self.container_name)
-            self.assertEquals(export.get("directory"), self.export_directory)
+            self.assertEqual(export.get("container"), self.container_name)
+            self.assertEqual(export.get("directory"), self.export_directory)
             self.assertIn("{}_{}".format(self.container_name, "blob"), export.get("name"))
 
     def test_get_latest_cost_export_http_error(self):
@@ -287,7 +287,7 @@ class AzureServiceTest(MasuTestCase):
 
         svc = self.get_mock_client(cost_exports=[mock_export])
         exports = svc.describe_cost_management_exports()
-        self.assertEquals(exports, [])
+        self.assertEqual(exports, [])
 
     def test_describe_cost_management_exports_no_auth(self):
         """Test that cost management exports are not returned from incorrect account."""

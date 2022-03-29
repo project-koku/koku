@@ -2034,12 +2034,12 @@ class AWSQueryHandlerTest(IamTestCase):
         for region_dict in data2["data"]:
             # For each date, assert that the region is eu-west-3
             for list_item in region_dict["regions"]:
-                self.assertEquals("eu-west-3", list_item["region"])
+                self.assertEqual("eu-west-3", list_item["region"])
         # Assert the first request contains only eu-west-3
         for region_dict in data["data"]:
             # For each date, assert that the region is eu-west-3
             for list_item in region_dict["regions"]:
-                self.assertEquals("eu-west-3", list_item["region"])
+                self.assertEqual("eu-west-3", list_item["region"])
 
     def test_filter_to_group_by(self):
         """Test the filter_to_group_by method."""

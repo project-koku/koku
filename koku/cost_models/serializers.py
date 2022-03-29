@@ -21,7 +21,7 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
-CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
+CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
 

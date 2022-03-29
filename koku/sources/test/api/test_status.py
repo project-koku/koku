@@ -184,7 +184,7 @@ class StatusAPITest(TestCase):
 
     def test_get_debug(self):
         """Test the startup method for debug state."""
-        expected = "INFO:sources.api.status:DEBUG enabled: {}".format(str(False))
+        expected = f"INFO:sources.api.status:DEBUG enabled: {str(False)}"
         with self.assertLogs("sources.api.status", level="INFO") as logger:
             ApplicationStatus().startup()
             self.assertIn(str(expected), logger.output)
