@@ -543,8 +543,13 @@ def update_cost_model_costs(
 )
 # fmt: on
 def refresh_materialized_views(  # noqa: C901
-    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None,
-    tracing_id=None
+    schema_name,
+    provider_type,
+    manifest_id=None,
+    provider_uuid=None,
+    synchronous=False,
+    queue_name=None,
+    tracing_id=None,
 ):
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
@@ -561,7 +566,7 @@ def refresh_materialized_views(  # noqa: C901
                 provider_uuid=provider_uuid,
                 synchronous=synchronous,
                 queue_name=queue_name,
-                tracing_id=tracing_id
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -733,7 +738,7 @@ SELECT s.relname as "table_name",
 
 @celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue=DEFAULT)
 def remove_stale_tenants():
-    """ Remove stale tenants from the tenant api """
+    """Remove stale tenants from the tenant api"""
     table_sql = """
         SELECT c.schema_name
         FROM api_customer c

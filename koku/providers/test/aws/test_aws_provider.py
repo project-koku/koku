@@ -70,9 +70,9 @@ class AWSProviderTestCase(TestCase):
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = _get_sts_access(iam_arn)
         sts_client.assume_role.assert_called()
-        self.assertEquals(credentials.get("aws_access_key_id"), expected_access_key)
-        self.assertEquals(credentials.get("aws_secret_access_key"), expected_secret_access_key)
-        self.assertEquals(credentials.get("aws_session_token"), expected_session_token)
+        self.assertEqual(credentials.get("aws_access_key_id"), expected_access_key)
+        self.assertEqual(credentials.get("aws_secret_access_key"), expected_secret_access_key)
+        self.assertEqual(credentials.get("aws_session_token"), expected_session_token)
 
     @patch("providers.aws.provider.boto3.client")
     def test_get_sts_access_fail(self, mock_boto3_client):

@@ -86,11 +86,11 @@ class OCPReportProcessorTest(MasuTestCase):
         cls.report_tables = list(_report_tables.values())
 
         # Grab a single row of test data to work with
-        with open(cls.test_report_path, "r") as f:
+        with open(cls.test_report_path) as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
-        with open(cls.storage_report_path, "r") as f:
+        with open(cls.storage_report_path) as f:
             reader = csv.DictReader(f)
             cls.storage_row = next(reader)
 
@@ -291,7 +291,7 @@ class OCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             initial_count = table.objects.count()
 
-        with open(self.test_report, "r") as f:
+        with open(self.test_report) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)
