@@ -667,6 +667,31 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
+    # TODO: Double check to see if each day should have the same projects:
+    # Example:
+    # ======================================================================
+    # FAIL: test_ocp_date_order_by_cost_desc (api.report.test.ocp.test_ocp_query_handler.OCPReportQueryHandlerTest)
+    # Test that order of every other date matches the order of the `order_by` date.
+    # ----------------------------------------------------------------------
+    # Traceback (most recent call last):
+
+    # First differing element 0:
+    # 'koku'
+    # 'banking'
+
+    # First list contains 2 additional elements.
+    # First extra element 6:
+    # 'openshift'
+
+    # + ['banking', 'weather', 'news-site', 'mobile', 'openshift', 'kube-system']
+    # - ['koku',
+    # -  'default',
+    # -  'banking',
+    # -  'weather',
+    # -  'news-site',
+    # -  'mobile',
+    # -  'openshift',
+    # -  'kube-system']
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
@@ -689,11 +714,12 @@ class OCPReportQueryHandlerTest(IamTestCase):
             )
         correctlst = [project.get("project") for project in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                lst = [project.get("project") for project in element.get("projects")]
-                if lst and correctlst:
-                    self.assertEqual(correctlst, lst)
-                    tested = True
+            lst = [project.get("project") for project in element.get("projects")]
+            LOG.info(lst)
+            LOG.info(correctlst)
+            if lst and correctlst:
+                self.assertEqual(correctlst, lst)
+                tested = True
         self.assertTrue(tested)
 
     def test_ocp_date_incorrect_date(self):

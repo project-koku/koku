@@ -33,7 +33,6 @@ URLS = [
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
 
-
 class OCPAWSReportViewTest(IamTestCase):
     """Tests the report view."""
 

@@ -566,6 +566,7 @@ class AWSReportQueryTest(IamTestCase):
         instances = AWS_CONSTANTS.get("instance_types")
         self.assertIsNotNone(instances)
         import random
+
         instance_type = random.choice(instances)
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
