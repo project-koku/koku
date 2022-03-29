@@ -4,7 +4,6 @@
 #
 """Test the OCP on AWS Report views."""
 import datetime
-import logging
 import random
 from unittest import skip
 from urllib.parse import quote_plus
@@ -33,7 +32,6 @@ URLS = [
 
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
-LOG = logging.getLogger(__name__)
 
 
 class OCPAWSReportViewTest(IamTestCase):

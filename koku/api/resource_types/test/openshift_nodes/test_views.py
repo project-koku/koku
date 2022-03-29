@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
-import logging
-
 from django.db.models import F
 from django.urls import reverse
 from rest_framework import status
@@ -16,7 +14,6 @@ from api.iam.test.iam_test_case import RbacPermissions
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 
 RBAC_NODE = "node_0"
-LOG = logging.getLogger(__name__)
 
 
 class ResourceTypesViewTestOpenshiftNodes(IamTestCase):

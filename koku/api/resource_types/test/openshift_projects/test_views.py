@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Resource Types views."""
-import logging
-
 from django.db.models import F
 from django.urls import reverse
 from rest_framework import status
@@ -17,7 +15,6 @@ from api.report.test.util.constants import OCP_NAMESPACES
 from reporting.provider.ocp.models import OCPCostSummaryByProjectP
 
 RBAC_PROJECT = OCP_NAMESPACES[1]
-LOG = logging.getLogger(__name__)
 
 
 class ResourceTypesViewTestOpenshiftProjects(IamTestCase):

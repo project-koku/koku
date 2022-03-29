@@ -565,7 +565,8 @@ class AWSReportQueryTest(IamTestCase):
         """Test execute_query without counts of unique resources."""
         instances = AWS_CONSTANTS.get("instance_types")
         self.assertIsNotNone(instances)
-        instance_type = instances[0]
+        import random
+        instance_type = random.choice(instances)
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
