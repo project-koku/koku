@@ -47,9 +47,11 @@ def get_menu(curr_url_name):
     menu_elements = ['<ul id="menu-list" class="menu unselectable">']
     for url_name, content_name in menu_values:
         if url_name == curr_url_name:
-            element = f"<li><a>{content_name}</a></li>"
+            element = f'<li class="current unselectable"><a class="unselectable">{content_name}</a></li>'
         else:
-            element = f'<li><a href="{reverse(url_name)}">{content_name}</a></li>'
+            element = (
+                f'<li class="unselectable"><a class=unselectable href="{reverse(url_name)}">{content_name}</a></li>'
+            )
         menu_elements.append(element)
     menu_elements.append("</ul>")
 
@@ -317,7 +319,7 @@ def explain_query(request):
         page_header = f"""Explain Query Using Database: "{CONFIGURATOR.get_database_name()}" """
         return HttpResponse(
             render_template(
-                "explain_wuery", page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")]
+                "explain_query", page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")]
             )
         )
     else:
