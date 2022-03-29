@@ -820,7 +820,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    @skip("Skipping until unittests are on Trino.")
+    @skip("Skipping until unittests are on Trino.")  # noqa: C901
     def test_source_uuid_mapping(self):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPGCPCostView, OCPGCPInstanceTypeView, OCPGCPStorageView]
