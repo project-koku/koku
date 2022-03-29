@@ -8,6 +8,7 @@ import os
 from decimal import Decimal
 
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from jinja2 import Template as JinjaTemplate
@@ -78,6 +79,13 @@ def set_null_display(rec, null_display_val=""):
 def get_identity_username(request):
     # This is a placeholder for now. This should resolve a username once actions are enabled.
     return "koku-user"
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def db_performance_redirect(request):
+    return redirect("db_version")
 
 
 @never_cache
