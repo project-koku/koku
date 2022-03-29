@@ -113,6 +113,8 @@ objects:
           value: ${RETAIN_NUM_MONTHS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -252,6 +254,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -397,6 +401,8 @@ objects:
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -562,6 +568,8 @@ objects:
           value: ${RABBITMQ_PORT}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -674,6 +682,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -808,6 +818,8 @@ objects:
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -973,6 +985,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1144,6 +1158,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1313,6 +1329,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1484,6 +1502,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1653,6 +1673,8 @@ objects:
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1824,6 +1846,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1995,6 +2019,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2166,6 +2192,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: WORKER_CACHE_TIMEOUT
           value: ${WORKER_CACHE_TIMEOUT}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2430,6 +2458,8 @@ parameters:
   displayName: AUTO_DATA_INGEST
   name: AUTO_DATA_INGEST
   value: "True"
+- name: QE_SCHEMA
+  value: ""
 - description: Sources to be processed with Trino
   displayName: Sources to be processed with Trino
   name: ENABLE_TRINO_SOURCES
@@ -2627,11 +2657,11 @@ parameters:
 - displayName: Memory Request
   name: SCHEDULER_MEMORY_REQUEST
   required: true
-  value: 128Mi
+  value: 200Mi
 - displayName: Memory Limit
   name: SCHEDULER_MEMORY_LIMIT
   required: true
-  value: 256Mi
+  value: 400Mi
 - displayName: CPU Request
   name: SCHEDULER_CPU_REQUEST
   required: true
@@ -2657,11 +2687,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_CLIENT_MEMORY_REQUEST
   required: true
-  value: 150Mi
+  value: 200Mi
 - displayName: Memory Limit
   name: SOURCES_CLIENT_MEMORY_LIMIT
   required: true
-  value: 300Mi
+  value: 400Mi
 - displayName: CPU Request
   name: SOURCES_CLIENT_CPU_REQUEST
   required: true
@@ -2681,11 +2711,11 @@ parameters:
 - displayName: Memory Request
   name: SOURCES_LISTENER_MEMORY_REQUEST
   required: true
-  value: 150Mi
+  value: 250Mi
 - displayName: Memory Limit
   name: SOURCES_LISTENER_MEMORY_LIMIT
   required: true
-  value: 300Mi
+  value: 500Mi
 - displayName: CPU Request
   name: SOURCES_LISTENER_CPU_REQUEST
   required: true
@@ -2801,11 +2831,11 @@ parameters:
 - displayName: Memory Request
   name: WORKER_PRIORITY_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 500Mi
 - displayName: Memory Limit
   name: WORKER_PRIORITY_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1000Mi
 - displayName: CPU Request
   name: WORKER_PRIORITY_CPU_REQUEST
   required: true

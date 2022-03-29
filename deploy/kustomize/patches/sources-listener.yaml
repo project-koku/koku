@@ -93,6 +93,8 @@
           value: ${DEMO_ACCOUNTS}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
       livenessProbe:
         httpGet:
           path: /livez
@@ -149,14 +151,14 @@
     displayName: Memory Request
     name: SOURCES_LISTENER_MEMORY_REQUEST
     required: true
-    value: 150Mi
+    value: 250Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: SOURCES_LISTENER_MEMORY_LIMIT
     required: true
-    value: 300Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:

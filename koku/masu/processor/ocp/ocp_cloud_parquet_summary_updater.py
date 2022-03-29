@@ -112,12 +112,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_aws_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPAWSCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPAWSCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary_presto(
                     start,
@@ -222,12 +221,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_azure_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPAzureCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPAzureCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_azure_cost_daily_summary_presto(
                     start,
@@ -307,8 +305,6 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             "source_uuid": gcp_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
         }
         with GCPReportDBAccessor(self._schema) as accessor:
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -323,12 +319,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_gcp_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPGCPCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPGCPCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
                     start,

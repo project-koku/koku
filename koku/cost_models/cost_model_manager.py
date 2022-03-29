@@ -118,6 +118,7 @@ class CostModelManager:
         self._model.rates = data.get("rates", self._model.rates)
         self._model.markup = data.get("markup", self._model.markup)
         self._model.distribution = data.get("distribution", self._model.distribution)
+        self._model.currency = data.get("currency", self._model.currency)
         self._model.save()
 
     def get_provider_names_uuids(self):

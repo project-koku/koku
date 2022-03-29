@@ -812,7 +812,166 @@
         ]
       }
     },
-    "/gcp_invoice_monthly_cost/": {
+    "/db-performance/db-version/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbVersion",
+          "description": "Returns a HTML document showing the database version.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database version.",
+              "content": {
+                  "text/html": {}
+              }
+            }
+          },
+          "tags": [
+            "db-performance",
+            "db-version"
+          ]
+        }
+      },
+      "/db-performance/db-settings/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbSettings",
+          "description": "Returns a HTML document showing the database software settings.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database software settings.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "db-settings"
+          ]
+        }
+      },
+      "/db-performance/stat-statements/": {
+        "get": {
+          "summary": "Returns a table showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "operationId": "dbPerformanceStatStatements",
+          "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-statements"
+          ]
+        }
+      },
+      "/db-performance/stat-activity/": {
+        "get": {
+          "summary": "Returns a table showing current connection activity.",
+          "operationId": "dbPerformanceStatActivity",
+          "description": "Returns a HTML document showing current connection activity.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing current connection activity.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-activity"
+          ]
+        }
+      },
+      "/db-performance/lock-info/": {
+        "get": {
+          "summary": "Returns a table showing any detected blocking locks.",
+          "operationId": "dbPerformanceLockInfo",
+          "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "lock-info"
+          ]
+        }
+      },
+      "/db-performance/explain-query/": {
+        "get": {
+          "summary": "Returns a HTML document interface to submit a query for the database to explain.",
+          "operationId": "dbPerformanceExplainQuery",
+          "description": "Returns a HTML document interface to submit a query for the database to explain.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document interface to submit a query for the database to explain.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "explain-query",
+            "interface"
+          ]
+        },
+        "post": {
+          "summary": "Returns JSON containing each query and explanation submitted.",
+          "operationId": "dbPerformanceExplainQueryPost",
+          "description": "Returns JSON containing each query and explanation submitted.",
+          "parameters": [
+            {
+              "name": "sql_statement",
+              "in": "body",
+              "description": "The text of the SQL statement to explain.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "select col from table where filter = 'value';"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbPerformanceExplainQueryPost"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Return Plans.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/dbPerformanceExplainQueryPostResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "db-performance",
+            "explain-query",
+            "action"
+          ]
+        }
+      },
+      "/gcp_invoice_monthly_cost/": {
       "get": {
         "summary": "Returns dictionary with cost mappings for continuity checks",
         "operationId": "gcpInvoiceMonthlyCost",
@@ -1208,6 +1367,26 @@
           "action": {
             "type": "string",
             "enum": ["create", "delete"]
+          }
+        }
+      },
+      "dbPerformanceExplainQueryPost":{
+        "type": "object",
+        "properties": {
+          "sql_statement": {
+            "type": "string",
+            "example": "select col from table where filter = 'value';"
+          }
+        }
+      },
+      "dbPerformanceExplainQueryPostResponse":{
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "query_plan": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1822,6 +2001,13 @@
             "items": {
               "$ref": "#/components/schemas/Provider"
             }
+          },
+          "additional_context": {
+            "type": "object",
+            "description": "Dictionary containing context information.",
+            "example": {
+              "crawl_hierarchy": "False"
+            }
           }
         }
       },
@@ -1929,8 +2115,7 @@
             "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
           }
         }
-      },
-
+      }
     }
   }
 }

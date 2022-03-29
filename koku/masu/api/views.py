@@ -5,6 +5,12 @@
 """API views for import organization"""
 # flake8: noqa
 from masu.api.crawl_account_hierarchy import crawl_account_hierarchy
+from masu.api.db_performance.dbp_views import dbsettings
+from masu.api.db_performance.dbp_views import explain_query
+from masu.api.db_performance.dbp_views import lockinfo
+from masu.api.db_performance.dbp_views import pg_engine_version
+from masu.api.db_performance.dbp_views import stat_activity
+from masu.api.db_performance.dbp_views import stat_statements
 from masu.api.download import download_report
 from masu.api.enabled_tags import enabled_tags
 from masu.api.expired_data import expired_data

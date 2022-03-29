@@ -125,6 +125,8 @@
           value: ${SOURCES_API_PREFIX}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
       livenessProbe:
         httpGet:
           path: /livez
@@ -185,14 +187,14 @@
     displayName: Memory Request
     name: WORKER_PRIORITY_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 500Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: WORKER_PRIORITY_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 1000Mi
 - op: add
   path: /parameters/-
   value:
