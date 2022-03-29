@@ -77,7 +77,7 @@ SELECT uuid_generate_v4() as uuid,
     array_agg(DISTINCT rp.cluster_id)::text[] as cluster_ids,
     array_agg(DISTINCT rp.cluster_alias)::text[] as cluster_aliases,
     array_agg(DISTINCT tv.namespace)::text[] as namespaces,
-    array_agg(DISTINCT tv.node) as nodes
+    array_agg(DISTINCT tv.node)::text[] as nodes
 FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS tv
 JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
     ON tv.report_period_id = rp.id
