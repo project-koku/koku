@@ -9,6 +9,7 @@ import uuid
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
 
@@ -43,7 +44,10 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :returns None
     """
 
-    if enable_hcs_processing(provider_uuid) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+        if schema_name and not schema_name.startswith("acct"):
+            schema_name = f"acct{schema_name}"
+
         if start_date is None:
             start_date = DateHelper().today
 
@@ -61,6 +65,8 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
             f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))
+        reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
+        reporter.generate_report(start_date, end_date)
 
     else:
         stmt = (

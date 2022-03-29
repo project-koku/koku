@@ -40,13 +40,12 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         :returns (None)
         """
         LOG.info(log_json(tracing_id, "acquiring marketplace data..."))
-        LOG.info(log_json(tracing_id, f"schema: {self.schema},  provider: {provider}, date: {date}"))
+        LOG.info(log_json(tracing_id, f"schema: {self.schema}, provider: {provider}, date: {date}"))
 
         sql = pkgutil.get_data("hcs.database", sql_summary_file)
         sql = sql.decode("utf-8")
 
         sql_params = {"date": date, "schema": self.schema, "table": PRESTO_LINE_ITEM_TABLE}
-
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         data = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
 
