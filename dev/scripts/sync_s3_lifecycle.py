@@ -2,9 +2,10 @@
 # noqa
 """ sync s3 lifecycle policy """
 import os
-import boto3
 
+import boto3
 from distutils.util import strtobool
+
 
 def sync_s3_lifecycle():
     s3 = boto3.resource("s3")
