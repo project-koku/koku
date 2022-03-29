@@ -20,6 +20,8 @@ def enable_hcs_processing_mock(schema=True):
     return tf
 
 
+@patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
+@patch("hcs.daily_report.ReportHCS")
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
@@ -32,8 +34,7 @@ class TestHCSTasks(HCSTestCase):
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
-    @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-    def test_get_report_dates(self):
+    def test_get_report_dates(self, mock_report):
         """Test with start and end dates provided"""
         from hcs.tasks import collect_hcs_report_data
 
@@ -44,8 +45,7 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("Running HCS data collection", _logs.output[0])
 
-    @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-    def test_get_report_no_start_date(self):
+    def test_get_report_no_start_date(self, mock_report):
         """Test no start or end dates provided"""
         from hcs.tasks import collect_hcs_report_data
 
@@ -54,8 +54,7 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("Running HCS data collection", _logs.output[0])
 
-    @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-    def test_get_report_no_end_date(self):
+    def test_get_report_no_end_date(self, mock_report):
         """Test no start end provided"""
         from hcs.tasks import collect_hcs_report_data
 
@@ -65,8 +64,7 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("Running HCS data collection", _logs.output[0])
 
-    @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-    def test_get_report_invalid_provider(self):
+    def test_get_report_invalid_provider(self, mock_report):
         """Test invalid provider"""
         from hcs.tasks import collect_hcs_report_data
 
