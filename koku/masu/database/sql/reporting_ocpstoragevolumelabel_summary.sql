@@ -1,25 +1,3 @@
-do $$
-declare
-    processing_tables text[] := ARRAY['{{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}}',
-                                      '{{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}}',
-                                      '{{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}}',
-                                      '{{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}}']::text[];
-    table_name text;
-begin
-    foreach table_name in array processing_tables
-    loop
-        if (to_regclass(table_name) is not NULL)
-        then
-            raise info 'Truncating table %%', table_name;
-            execute format('truncate table %%s;', table_name);
-            raise info 'Dropping table %%', table_name;
-            execute format('drop table %%s;', table_name);
-        end if;
-    end loop;
-end;
-$$ language plpgsql;
-
-
 create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} as
     SELECT key,
         value,
@@ -50,7 +28,7 @@ create index ix_cte_tag_value_{{uuid | sqlsafe}}
 
 create table {{schema | sqlsafe}}.cte_values_agg_{{uuid | sqlsafe}} as
     SELECT key,
-        array_agg(DISTINCT value) as "values",
+        array_agg(DISTINCT value)::text[] as "values",
         report_period_id,
         namespace,
         node
@@ -66,13 +44,13 @@ create unique index ix_cte_values_agg_{{uuid | sqlsafe}}
 
 create table {{schema | sqlsafe}}.cte_distinct_values_agg_{{uuid | sqlsafe}} as
     SELECT v.key,
-        array_agg(DISTINCT v."values") as "values",
+        array_agg(DISTINCT v."values")::text[] as "values",
         v.report_period_id,
         v.namespace,
         v.node
     FROM (
         SELECT va.key,
-            unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
+            unnest(va."values" || coalesce(ls."values", '{}'::text[]))::text as "values",
             va.report_period_id,
             va.namespace,
             va.node
@@ -96,10 +74,10 @@ create table {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} as
 SELECT uuid_generate_v4() as uuid,
     tv.key,
     tv.value,
-    array_agg(DISTINCT rp.cluster_id) as cluster_ids,
-    array_agg(DISTINCT rp.cluster_alias) as cluster_aliases,
-    array_agg(DISTINCT tv.namespace) as namespaces,
-    array_agg(DISTINCT tv.node) as nodes
+    array_agg(DISTINCT rp.cluster_id)::text[] as cluster_ids,
+    array_agg(DISTINCT rp.cluster_alias)::text[] as cluster_aliases,
+    array_agg(DISTINCT tv.namespace)::text[] as namespaces,
+    array_agg(DISTINCT tv.node)::text[] as nodes
 FROM {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} AS tv
 JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
     ON tv.report_period_id = rp.id
@@ -119,6 +97,7 @@ UPDATE {{schema | sqlsafe}}.reporting_ocpstoragevolumelabel_summary x
    AND y.report_period_id = x.report_period_id
    AND y.namespace = x.namespace
    AND y.node = x.node
+   AND y.values != x.values
 ;
 
 
@@ -149,6 +128,12 @@ UPDATE {{schema | sqlsafe}}.reporting_ocptags_values ov
   FROM {{schema | sqlsafe}}.cte_kv_cluster_agg_{{uuid | sqlsafe}} ca
  WHERE ca.key = ov.key
    AND ca.value = ov.value
+   AND (
+         ca.cluster_ids != ov.cluster_ids OR
+         ca.cluster_aliases != ov.cluster_aliases OR
+         ca.namespaces != ov.namespaces OR
+         ca.nodes != ov.nodes
+       )
 ;
 
 
