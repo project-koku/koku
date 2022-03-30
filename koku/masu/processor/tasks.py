@@ -344,6 +344,7 @@ def update_summary_tables(  # noqa: C901
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     cache_args = [schema_name, provider, provider_uuid]
+    ocp_on_cloud_infra_map = {}
 
     if not synchronous:
         worker_cache = WorkerCache()
