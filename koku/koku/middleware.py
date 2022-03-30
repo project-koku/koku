@@ -158,12 +158,10 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         if not is_no_auth(request):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
-                try:
-                    if username not in USER_CACHE:
-                        USER_CACHE[username] = User.objects.get(username=username)
-                        LOG.debug(f"User added to cache: {username}")
-                except User.DoesNotExist:
-                    return HttpResponseUnauthorizedRequest()
+                account = request.user.customer.account_id
+                if (account, username) not in USER_CACHE:
+                    USER_CACHE[(account, username)] = request.user
+                    LOG.debug(f"User added to cache: {username}")
                 if not request.user.admin and request.user.access is None:
                     LOG.warning("User %s is does not have permissions for Cost Management.", username)
                     # For /user-access we do not want to raise the exception since the API will
@@ -186,9 +184,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
         if not tenant:
             if not is_no_auth(request):
-                user = User.objects.get(username=tenant_username)
-                customer = user.customer
-                schema_name = customer.schema_name
+                schema_name = request.user.customer.schema_name
 
             tenant = model.objects.filter(schema_name=schema_name).first()
             if tenant and schema_name != "public":
@@ -328,12 +324,12 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
             try:
-                if username not in USER_CACHE:
-                    user = User.objects.get(username=username)
-                    USER_CACHE[username] = user
+                if (account, username) not in USER_CACHE:
+                    user = User.objects.get(username=username, customer=customer)
+                    USER_CACHE[(account, username)] = user
                     LOG.debug(f"User added to cache: {username}")
                 else:
-                    user = USER_CACHE[username]
+                    user = USER_CACHE[(account, username)]
             except User.DoesNotExist:
                 user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
 

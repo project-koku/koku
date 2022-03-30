@@ -22,7 +22,6 @@ from django_prometheus.testutils import PrometheusTestCaseMixin
 from faker import Faker
 from requests.exceptions import ConnectionError
 from rest_framework import status
-from rest_framework.test import APIClient
 from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
@@ -68,7 +67,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
 
     def test_get_tenant_user_not_found(self):
         """Test that a 401 is returned."""
-        mock_user = Mock(username="mockuser")
+        mock_user = Mock(spec=["not-username"])
         mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user)
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
@@ -477,15 +476,11 @@ class RequestTimingMiddlewareTest(IamTestCase):
     def test_process_response(self):
         """Test that the request gets a user."""
         # mock_request = Mock(path="/api/v1/status/")
-        client = APIClient()
         url = reverse("server-status")
         with self.assertLogs(logger="koku.middleware", level="INFO") as logger:
-            client.get(url, **self.headers)
+            self.client.get(url, **self.headers)
             output = logger.output
-            logged = False
-            for msg in output:
-                if "response_time" in msg:
-                    logged = True
+            logged = any("response_time" in msg for msg in output)
             self.assertTrue(logged)
 
 
@@ -505,8 +500,7 @@ class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
     def test_label_metric(self):
         """Test that the metric comes back with the account label."""
         url = reverse("reports-openshift-costs")
-        client = APIClient()
-        client.get(url, **self.headers)
+        self.client.get(url, **self.headers)
 
         registry = self.saveRegistry()
         for metric in registry:
@@ -529,9 +523,8 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
 
         # mock_request = Mock(path="/api/v1/tags/aws/")
-        client = APIClient()
         url = reverse("aws-tags")
-        result = client.get(url, **request_context["request"].META)
+        result = self.client.get(url, **request_context["request"].META)
         expected = EmptyResultsSetPagination([], request_context.get("request")).get_paginated_response()
         self.assertEqual(result.get("data"), expected.get("data"))
         self.assertIsInstance(result, JsonResponse)
@@ -543,7 +536,6 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
 
         # mock_request = Mock(path="/api/v1/user-access/")
-        client = APIClient()
         url = reverse("user-access")
-        result = client.get(url, **request_context["request"].META)
+        result = self.client.get(url, **request_context["request"].META)
         self.assertEqual(len(result.json().get("data")), len(UserAccessView._source_types))
