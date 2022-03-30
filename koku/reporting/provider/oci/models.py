@@ -58,9 +58,7 @@ PRESTO_REQUIRED_COLUMNS = (
     "cost/overageFlag",
     "lineItem/isCorrection",
     "lineItem/backreferenceNo",
-    "tags/Oracle-Tags.CreatedBy",
-    "tags/Oracle-Tags.CreatedOn",
-    "tags/orcl-cloud.free-tier-retained",
+    "tags",
 )
 
 

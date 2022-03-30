@@ -4,6 +4,7 @@
 #
 """Common util functions."""
 import datetime
+import json
 import logging
 
 import ciso8601
@@ -15,6 +16,7 @@ from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
+from reporting.provider.oci.models import PRESTO_REQUIRED_COLUMNS
 
 
 LOG = logging.getLogger(__name__)
@@ -79,19 +81,43 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
 
 
 def oci_post_processor(data_frame):
-    """Guarantee column order for OCI parquet files"""
-    # TODO This needs figuring out for tags
+    """
+    Consume the OCI data and add a column creating a dictionary for the oci tags
+    """
+
+    def scrub_resource_col_name(res_col_name):
+        return res_col_name.split(".")[-1]
+
+    columns = set(list(data_frame))
+    columns = set(PRESTO_REQUIRED_COLUMNS).union(columns)
+    columns = sorted(list(columns))
+
+    resource_tag_columns = [column for column in columns if "tags/" in column]
+    unique_keys = {scrub_resource_col_name(column) for column in resource_tag_columns}
+    tag_df = data_frame[resource_tag_columns]
+    resource_tags_dict = tag_df.apply(
+        lambda row: {scrub_resource_col_name(column): value for column, value in row.items() if value}, axis=1
+    )
+    resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
+
+    data_frame["tags"] = resource_tags_dict.apply(json.dumps)
+    tags = data_frame["tags"]
+    LOG.info(f"\n\n {tags} \n\n")
+    # Make sure we have entries for our required columns
+    data_frame = data_frame.reindex(columns=columns)
+
     columns = list(data_frame)
     column_name_map = {}
     drop_columns = []
     for column in columns:
         new_col_name = strip_characters_from_column_name(column)
         column_name_map[column] = new_col_name
-        if "resourceTags/" in column:
+        if "tags/" in column:
             drop_columns.append(column)
+            LOG.info(f"\n\n {drop_columns} \n\n")
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    return data_frame
+    return (data_frame, unique_keys)
 
 
 def oci_generate_daily_data(data_frame):
