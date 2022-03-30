@@ -253,7 +253,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 UNIQUE_USER_COUNTER.labels(account=customer.account_id, user=username).inc()
                 LOG.info("Created new user %s for customer(account_id %s).", username, customer.account_id)
         except (IntegrityError, ValidationError):
-            new_user = User.objects.get(username=username)
+            new_user = User.objects.get(username=username, customer=customer)
         return new_user
 
     def _get_access(self, user):
