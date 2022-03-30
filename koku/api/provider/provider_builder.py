@@ -79,15 +79,16 @@ class ProviderBuilder:
         customer = None
         encoded_auth_header = self._identity_header.get("x-rh-identity")
         if encoded_auth_header:
-            identity = json.loads(b64decode(encoded_auth_header))
-            account = identity.get("identity", {}).get("account_number")
-            username = identity.get("identity", {}).get("user", {}).get("username")
-            email = identity.get("identity", {}).get("user", {}).get("email")
-            identity_type = identity.get("identity", {}).get("type", "User")
-            auth_type = identity.get("identity", {}).get("auth_type")
+            decoded_header = json.loads(b64decode(encoded_auth_header))
+            identity = decoded_header.get("identity", {})
+            account = identity.get("account_number")
+            username = identity.get("user", {}).get("username")
+            email = identity.get("user", {}).get("email")
+            identity_type = identity.get("type", "User")
+            auth_type = identity.get("auth_type")
 
             if identity_type == "System" and auth_type == "uhc-auth":
-                username = identity.get("identity", {}).get("system", {}).get("cluster_id")
+                username = identity.get("system", {}).get("cluster_id")
                 email = ""
 
             try:
@@ -95,7 +96,7 @@ class ProviderBuilder:
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
             try:
-                user = User.objects.get(username=username)
+                user = User.objects.get(username=username, customer=customer)
             except User.DoesNotExist:
                 user = IdentityHeaderMiddleware.create_user(username, email, customer, None)
 

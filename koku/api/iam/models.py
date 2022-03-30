@@ -58,7 +58,7 @@ class User(models.Model):
     """A Koku User."""
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
-    username = models.CharField(max_length=150, unique=True)
+    username = models.CharField(max_length=150, unique=False)
     email = models.EmailField(blank=True)
     date_created = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True, null=True)
@@ -74,6 +74,7 @@ class User(models.Model):
 
     class Meta:
         ordering = ["username"]
+        unique_together = ("username", "customer")
 
 
 class Tenant(TenantMixin):
