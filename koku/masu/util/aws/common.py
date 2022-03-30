@@ -432,6 +432,7 @@ def aws_generate_daily_data(data_frame):
             pd.Grouper(key="lineitem_usagestartdate", freq="D"),
             "lineitem_usageaccountid",
             "lineitem_legalentity",
+            "bill_billingentity",
             "lineitem_productcode",
             "lineitem_availabilityzone",
             "product_productfamily",
