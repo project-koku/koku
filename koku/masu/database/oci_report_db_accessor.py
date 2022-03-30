@@ -235,13 +235,13 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["tags_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocitags_summary.sql")
+        agg_sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocitags_summary.sql")
         agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {"schema": self.schema, "bill_ids": bill_ids, "start_date": start_date, "end_date": end_date}
         agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
         self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
 
-    def populate_markup_cost(self, provider_uuid, markup, start_date, end_date, bill_ids=None):
+    def populate_markup_cost(self, markup, start_date, end_date, bill_ids=None):
         """Set markup costs in the database."""
         with schema_context(self.schema):
             if bill_ids and start_date and end_date:
@@ -251,9 +251,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
             for bill_id in bill_ids:
                 OCICostEntryLineItemDailySummary.objects.filter(cost_entry_bill_id=bill_id, **date_filters).update(
-                    markup_cost=(F("unblended_cost") * markup),
-                    markup_cost_blended=(F("blended_cost") * markup),
-                    markup_cost_savingsplan=(F("savingsplan_effective_cost") * markup),
+                    markup_cost=(F("cost") * markup),
                 )
 
     def populate_enabled_tag_keys(self, start_date, end_date, bill_ids):
@@ -268,7 +266,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
         """
         table_name = self._table_map["enabled_tag_keys"]
-        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocienabledtagkeys.sql")
+        summary_sql = pkgutil.get_data("masu.database", "sql/oci/reporting_ocienabledtagkeys.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "start_date": start_date,
@@ -294,7 +292,7 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
         table_name = self._table_map["line_item_daily_summary"]
         summary_sql = pkgutil.get_data(
-            "masu.database", "sql/reporting_ocicostentryline_item_daily_summary_update_enabled_tags.sql"
+            "masu.database", "sql/oci/reporting_ocicostentryline_item_daily_summary_update_enabled_tags.sql"
         )
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
