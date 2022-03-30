@@ -101,8 +101,6 @@ def oci_post_processor(data_frame):
     resource_tags_dict.where(resource_tags_dict.notna(), lambda _: [{}], inplace=True)
 
     data_frame["tags"] = resource_tags_dict.apply(json.dumps)
-    tags = data_frame["tags"]
-    LOG.info(f"\n\n {tags} \n\n")
     # Make sure we have entries for our required columns
     data_frame = data_frame.reindex(columns=columns)
 
@@ -114,17 +112,15 @@ def oci_post_processor(data_frame):
         column_name_map[column] = new_col_name
         if "tags/" in column:
             drop_columns.append(column)
-            LOG.info(f"\n\n {drop_columns} \n\n")
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
+    LOG.info(f"\n\n Unique keys: {unique_keys} \n\n")
     return (data_frame, unique_keys)
 
 
 def oci_generate_daily_data(data_frame):
     """Given a dataframe, group the data to create daily data."""
-    # usage_start = data_frame["lineitem_usagestartdate"]
-    # usage_start_dates = usage_start.apply(lambda row: row.date())
-    # data_frame["usage_start"] = usage_start_dates
+
     if "cost_mycost" in data_frame:
         daily_data_frame = data_frame.groupby(
             [
@@ -133,7 +129,7 @@ def oci_generate_daily_data(data_frame):
                 "lineitem_tenantid",
                 "product_service",
                 "product_region",
-                "tags_oracle_tags_createdby",
+                "tags",
             ],
             dropna=False,
         ).agg({"cost_currencycode": ["max"], "cost_mycost": ["sum"]})
@@ -145,7 +141,7 @@ def oci_generate_daily_data(data_frame):
                 "lineitem_tenantid",
                 "product_service",
                 "product_region",
-                "tags_oracle_tags_createdby",
+                "tags",
             ],
             dropna=False,
         ).agg({"usage_consumedquantity": ["sum"]})

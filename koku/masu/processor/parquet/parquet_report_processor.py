@@ -394,6 +394,7 @@ class ParquetReportProcessor:
         if not processor.table_exists():
             processor.create_table()
         if not daily:
+            LOG.info("\n\n BLOWING UP HERE! \n\n")
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()
@@ -437,7 +438,6 @@ class ParquetReportProcessor:
                             LOG.info(f"Total unique keys for file {len(unique_keys)}")
                     if self.daily_data_processor is not None:
                         daily_data_frames.append(self.daily_data_processor(data_frame))
-
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False

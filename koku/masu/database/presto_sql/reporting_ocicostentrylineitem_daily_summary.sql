@@ -34,7 +34,12 @@ SELECT uuid() as uuid,
     unit,
     cast(currency_code AS varchar(10)),
     cast(cost AS decimal(24,9)),
-    tags,
+    cast(
+        map_filter(
+            cast(json_parse(tags) as map(varchar, varchar)),
+            (k,v) -> contains(pek.keys, k)
+        ) as json
+     ) as tags,
     UUID '{{source_uuid | sqlsafe}}' as source_uuid,
     cast(cost * {{markup | sqlsafe}} AS decimal(24,9)) as markup_cost
 FROM (
@@ -49,7 +54,7 @@ FROM (
         nullif(u.usage_consumedquantityunits, '') as unit,
         max(c.cost_currencycode) as currency_code,
         sum(c.cost_mycost) as cost,
-        json_parse('{}') as tags
+        c.tags as tags
     FROM hive.{{schema | sqlsafe}}.oci_cost_line_items as c
     JOIN hive.{{schema | sqlsafe}}.oci_usage_line_items as u
         ON c.lineItem_intervalUsageStart = u.lineItem_intervalUsageStart
@@ -63,7 +68,8 @@ FROM (
         c.product_service,
         c.lineitem_tenantid,
         c.product_region,
-        c.tags_oracle_tags_createdby,
+        c.tags,
         c.cost_mycost,
         u.usage_consumedquantityunits
-)
+) AS ds
+CROSS JOIN cte_pg_enabled_keys AS pek
