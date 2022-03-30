@@ -33,7 +33,7 @@ SRR = re.compile(REGEX, flags=re.MULTILINE)
 def set_srr(yaml_file_name, git_ref):
     # This is to ensure that the replacement has no issues since part of the grouping is multiline
     def repl(match):
-        return "{}{}".format(match.group(1), git_ref)
+        return f"{match.group(1)}{git_ref}"
 
     target_file = os.path.join(os.environ["E2E_REPO"], "buildfactory", yaml_file_name)
     LOG.info(f'Processing "{target_file}"')

@@ -41,7 +41,7 @@ class OCILocalProviderTestCase(TestCase):
         try:
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception as error:
-            self.fail("Unexpected Error: {}".format(str(error)))
+            self.fail(f"Unexpected Error: {str(error)}")
 
     def test_cost_usage_tenant_not_reachable(self):
         """Verify that the cost usage source is not authenticated and created when tenant is not provided."""

@@ -35,7 +35,7 @@ DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
 
 
 def render_template(page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
-    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template), "rt").read())
+    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template)).read())
     return tmpl.render(page_header=page_header, fields=fields, data=data, targets=targets, action_urls=action_urls)
 
 

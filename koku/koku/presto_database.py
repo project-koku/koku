@@ -181,20 +181,20 @@ def execute(presto_conn, sql, params=None):
 
 def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
     """
-        Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
-        will be parsed into individual statements for execution. If preprocessor is None,
-        then the resulting SQL and bind parameters are used. If a preprocessor is needed,
-        then it should be a callable taking two positional arguments and returning a 2-element tuple:
-            pre_process(sql, parameters) -> (processed_sql, processed_parameters)
-        Parameters:
-            presto_conn (trino.dbapi.Connection) : Connection to presto
-            sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
-            params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
-            preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
-                                            or None if no preprocessor is needed
-        Returns:
-            list : Results of each successful SQL statement executed.
-        """
+    Pass in a buffer of one or more semicolon-terminated trino SQL statements and it
+    will be parsed into individual statements for execution. If preprocessor is None,
+    then the resulting SQL and bind parameters are used. If a preprocessor is needed,
+    then it should be a callable taking two positional arguments and returning a 2-element tuple:
+        pre_process(sql, parameters) -> (processed_sql, processed_parameters)
+    Parameters:
+        presto_conn (trino.dbapi.Connection) : Connection to presto
+        sqlscript (str) : Buffer of one or more semicolon-terminated SQL statements.
+        params (Iterable, dict, None) : Parameters used in the SQL or None if no parameters
+        preprocessor (Callable, None) : Callable taking two args and returning a 2-element tuple
+                                        or None if no preprocessor is needed
+    Returns:
+        list : Results of each successful SQL statement executed.
+    """
     results = []
     stmt_count = 0
     # sqlparse.split() should be a safer means to split a sql script into discrete statements

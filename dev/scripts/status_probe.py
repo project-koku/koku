@@ -64,15 +64,15 @@ else:
     else:
         fname = args.filename
         try:
-            jfile = open(args.filename, "rt")
-        except (IOError, OSError) as e:
+            jfile = open(args.filename)
+        except OSError as e:
             LOG.error(f"{e.__class__.__name__}: Cannot open file {fname}: {e}")
             sys.exit(-1)
 
     LOG.debug(f"Reading status from {fname}")
     try:
         content = jfile.read()
-    except (IOError, OSError) as e:
+    except OSError as e:
         LOG.error(f"{e.__class__.__name__}: Cannot read file {fname}: {e}")
         sys.exit(-1)
 
@@ -82,7 +82,7 @@ else:
     if content:
         try:
             app_status = json.loads(content)
-        except (IOError, OSError, json.JSONDecodeError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             LOG.error(f"{e.__class__.__name__}: Cannot parse json: {e}")
             sys.exit(-1)
     else:

@@ -111,7 +111,7 @@ class ProviderModelTest(MasuTestCase):
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
             self.aws_provider.delete()
-            self.assertEquals(0, CostModelMap.objects.filter(provider_uuid=provider_uuid).count())
+            self.assertEqual(0, CostModelMap.objects.filter(provider_uuid=provider_uuid).count())
         mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
 
     @patch("masu.celery.tasks.delete_archived_data")

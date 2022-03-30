@@ -216,9 +216,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -536,9 +534,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by region."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -563,9 +559,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_region_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query on monthly filtered by region for csv."""
         mock_accept.return_value = "text/csv"
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -937,7 +931,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                                     if "values" in item.keys():
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 

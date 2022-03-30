@@ -175,9 +175,7 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_type_filter_pod(self):
         """Test that all usage tags are returned with pod type filter."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&filter[type]=pod"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=monthly&filter[type]=pod"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
 

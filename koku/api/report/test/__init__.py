@@ -153,7 +153,7 @@ class FakeAWSCostData:
         """
         regex = r"(\w+)-(\w+)-(\d+)"
         groups = re.search(regex, region).groups()
-        output = "{}{}{}".format(groups[0].upper(), groups[1][0].upper(), groups[2])
+        output = f"{groups[0].upper()}{groups[1][0].upper()}{groups[2]}"
         return output
 
     @property
