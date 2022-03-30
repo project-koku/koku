@@ -21,7 +21,7 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
-CURRENCY_CHOICES = tuple([(currency.get("code"), currency.get("code")) for currency in CURRENCIES])
+CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
 
@@ -562,7 +562,7 @@ class CostModelSerializer(serializers.Serializer):
         return rep
 
     def to_internal_value(self, data):
-        """ Alter source_uuids to provider_uuids."""
+        """Alter source_uuids to provider_uuids."""
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal

@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    with open(args.template_file, "r") as f:
+    with open(args.template_file) as f:
         nise_template = f.read()
 
     t = Template(nise_template)

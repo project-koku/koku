@@ -150,7 +150,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if ext == ".gz" and check_inflate and size_ok and size > 0:
             # isize block is the last 4 bytes of the file; see: RFC1952
             resp = self.s3_client.get_object(
-                Bucket=self.report.get("S3Bucket"), Key=s3key, Range="bytes={}-{}".format(size - 4, size)
+                Bucket=self.report.get("S3Bucket"), Key=s3key, Range=f"bytes={size - 4}-{size}"
             )
             isize = struct.unpack("<I", resp["Body"].read(4))[0]
             if isize > free_space:
@@ -171,7 +171,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             (Dict): A dict-like object serialized from JSON data.
 
         """
-        manifest = "{}/{}-Manifest.json".format(self._get_report_path(date_time), self.report_name)
+        manifest = f"{self._get_report_path(date_time)}/{self.report_name}-Manifest.json"
         msg = f"Will attempt to download manifest: {manifest}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
 
@@ -183,7 +183,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
             return "", self.empty_manifest, None
 
         manifest_json = None
-        with open(manifest_file, "r") as manifest_file_handle:
+        with open(manifest_file) as manifest_file_handle:
             manifest_json = json.load(manifest_file_handle)
 
         return manifest_file, manifest_json, manifest_modified_timestamp

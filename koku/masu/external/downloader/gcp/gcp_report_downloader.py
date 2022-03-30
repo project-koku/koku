@@ -175,7 +175,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _generate_default_scan_range(self, range_length=3):
         """
-            Generates the first date of the date range.
+        Generates the first date of the date range.
         """
         today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
@@ -442,7 +442,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 writer.writerow(column_list)
                 for row in query_job:
                     writer.writerow(row)
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
                 f"\n  Provider: {self._provider_uuid}"

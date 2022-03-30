@@ -331,7 +331,7 @@ def rewind_consumer_to_retry(consumer, topic_partition):
 
 def backoff(interval, maximum=120):
     """Exponential back-off."""
-    wait = min(maximum, (2 ** interval)) + random.random()
+    wait = min(maximum, (2**interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
 

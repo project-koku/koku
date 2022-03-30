@@ -843,7 +843,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                                     if "values" in item.keys():
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
