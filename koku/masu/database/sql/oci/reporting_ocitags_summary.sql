@@ -20,7 +20,7 @@ cte_values_agg AS (
     SELECT key,
         array_agg(DISTINCT value) as "values",
         cost_entry_bill_id,
-        payer_tenant_id,
+        payer_tenant_id
     FROM cte_tag_value
     GROUP BY key, cost_entry_bill_id, payer_tenant_id
 ),
@@ -28,12 +28,12 @@ cte_distinct_values_agg AS (
     SELECT v.key,
         array_agg(DISTINCT v."values") as "values",
         v.cost_entry_bill_id,
-        v.payer_tenant_id,
+        v.payer_tenant_id
     FROM (
         SELECT va.key,
             unnest(va."values" || coalesce(ls."values", '{}'::text[])) as "values",
             va.cost_entry_bill_id,
-            va.payer_tenant_id,
+            va.payer_tenant_id
         FROM cte_values_agg AS va
         LEFT JOIN {{schema | sqlsafe}}.reporting_ocitags_summary AS ls
             ON va.key = ls.key
