@@ -34,7 +34,7 @@ class OCPCloudUpdaterBase:
         self._manifest = manifest
         self._date_accessor = DateAccessor()
 
-    def get_infra_map(self):
+    def get_infra_map_from_providers(self):
         """Check a provider for an existing OpenShift/Cloud relationship.
 
         Returns:

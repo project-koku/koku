@@ -43,7 +43,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         super().setUp()
         self.today = self.dh.today
 
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
     )
@@ -82,7 +82,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             start_date.date(), end_date.date(), cluster_id, [str(bill.id)], decimal.Decimal(0)
         )
 
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
@@ -233,21 +233,21 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.project_markup_cost, item.pod_cost * markup_dec)
 
-    def test_get_infra_map(self):
+    def test_get_infra_map_from_providers(self):
         """Test that an infrastructure map is returned."""
         updater = OCPCloudReportSummaryUpdater(
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
         )
 
         expected_mapping = (self.aws_provider_uuid, Provider.PROVIDER_AWS_LOCAL)
-        infra_map = updater.get_infra_map()
+        infra_map = updater.get_infra_map_from_providers()
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
 
         updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
 
-        infra_map = updater.get_infra_map()
+        infra_map = updater.get_infra_map_from_providers()
 
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
