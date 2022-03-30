@@ -82,7 +82,7 @@ class ReportDownloaderBaseTest(MasuTestCase):
 
     def test_report_downloader_base(self):
         """Test download path matches expected."""
-        dl_path = "/{}/{}/{}".format(self.fake.word().lower(), self.fake.word().lower(), self.fake.word().lower())
+        dl_path = f"/{self.fake.word().lower()}/{self.fake.word().lower()}/{self.fake.word().lower()}"
         downloader = ReportDownloaderBase(download_path=dl_path)
         self.assertEqual(downloader.download_path, dl_path)
 

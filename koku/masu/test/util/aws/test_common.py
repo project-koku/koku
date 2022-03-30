@@ -87,7 +87,7 @@ class TestAWSUtils(MasuTestCase):
         start_month = today.replace(day=1, second=1, microsecond=1)
         end_month = start_month + relativedelta(months=+1)
         timeformat = "%Y%m%d"
-        expected_string = "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+        expected_string = f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
         self.assertEqual(out, expected_string)
 
@@ -228,11 +228,11 @@ class TestAWSUtils(MasuTestCase):
         """Test that bill IDs are returned for an AWS provider."""
         with schema_context(self.schema):
             expected_bill_ids = AWSCostEntryBill.objects.values_list("id")
-            expected_bill_ids = sorted([bill_id[0] for bill_id in expected_bill_ids])
+            expected_bill_ids = sorted(bill_id[0] for bill_id in expected_bill_ids)
         bills = utils.get_bills_from_provider(self.aws_provider_uuid, self.schema)
 
         with schema_context(self.schema):
-            bill_ids = sorted([bill.id for bill in bills])
+            bill_ids = sorted(bill.id for bill in bills)
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
@@ -394,6 +394,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 7, 11, 24, 0),
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",
@@ -417,6 +418,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",
@@ -440,6 +442,7 @@ class TestAWSUtils(MasuTestCase):
                 "lineitem_resourceid": "id1",
                 "lineitem_usagestartdate": datetime(2021, 6, 8, 12, 24, 0),  # different day
                 "lineitem_usageaccountid": 1,
+                "lineitem_legalentity": "Red Hat",
                 "lineitem_productcode": "ec2",
                 "lineitem_availabilityzone": "us-east-1a",
                 "product_productfamily": "compute",

@@ -77,7 +77,7 @@ class OCPUtilTests(MasuTestCase):
         try:
             UUID(provider_uuid)
         except ValueError:
-            self.fail("{} is not a valid uuid.".format(str(provider_uuid)))
+            self.fail(f"{str(provider_uuid)} is not a valid uuid.")
 
     def test_get_provider_uuid_from_invalid_cluster_id(self):
         """Test that the provider uuid is not returned for an invalid cluster ID."""

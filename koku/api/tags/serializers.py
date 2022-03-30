@@ -196,7 +196,7 @@ class TagsQueryParamSerializer(ParamSerializer):
         if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
 
-        error = "Parameter start_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = f"Parameter start_date must be from {dh.last_month_start.date()} to {dh.today.date()}"
         raise serializers.ValidationError(error)
 
     def validate_end_date(self, value):
@@ -204,7 +204,7 @@ class TagsQueryParamSerializer(ParamSerializer):
         dh = DateHelper()
         if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
-        error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = f"Parameter end_date must be from {dh.last_month_start.date()} to {dh.today.date()}"
         raise serializers.ValidationError(error)
 
 

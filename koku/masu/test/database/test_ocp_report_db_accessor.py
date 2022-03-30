@@ -652,55 +652,55 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that daily usage getter is correct."""
         self._populate_pod_summary()
         daily_usage = self.accessor.get_daily_usage_query_for_clusterid(self.cluster_id)
-        self.assertEquals(daily_usage.count(), 26)
+        self.assertEqual(daily_usage.count(), 26)
 
     def test_get_summary_usage_query_for_clusterid(self):
         """Test that daily usage summary getter is correct."""
         daily_usage_summary = self.accessor.get_summary_usage_query_for_clusterid(self.cluster_id)
         with schema_context(self.schema):
-            self.assertEquals(daily_usage_summary.count(), 0)
+            self.assertEqual(daily_usage_summary.count(), 0)
         self._populate_pod_summary()
         with schema_context(self.schema):
-            self.assertEquals(daily_usage_summary.count(), 26)
+            self.assertEqual(daily_usage_summary.count(), 26)
 
     def test_get_storage_item_query_report_period_id(self):
         """Test that get_storage_item_query_report_period_id is correct."""
         storage_line_item = self.accessor.get_storage_item_query_report_period_id(self.reporting_period.id)
         with schema_context(self.schema):
-            self.assertEquals(storage_line_item.count(), 1)
+            self.assertEqual(storage_line_item.count(), 1)
         self._populate_storage_summary()
         with schema_context(self.schema):
-            self.assertEquals(storage_line_item.count(), 26)
+            self.assertEqual(storage_line_item.count(), 26)
 
     def test_get_daily_storage_item_query_cluster_id(self):
         """Test that get_daily_storage_item_query_cluster_id is correct."""
         with schema_context(self.schema):
             storage_line_item = self.accessor.get_daily_storage_item_query_cluster_id(self.cluster_id)
-            self.assertEquals(storage_line_item.count(), 0)
+            self.assertEqual(storage_line_item.count(), 0)
         self._populate_storage_summary()
         with schema_context(self.schema):
-            self.assertEquals(storage_line_item.count(), 26)
+            self.assertEqual(storage_line_item.count(), 26)
 
     def test_get_storage_summary_query_cluster_id(self):
         """Test that get_storage_summary_query_cluster_id is correct."""
         storage_summary = self.accessor.get_storage_summary_query_cluster_id(self.cluster_id)
         with schema_context(self.schema):
-            self.assertEquals(storage_summary.count(), 0)
+            self.assertEqual(storage_summary.count(), 0)
         self._populate_storage_summary()
         with schema_context(self.schema):
-            self.assertEquals(storage_summary.count(), 26)
+            self.assertEqual(storage_summary.count(), 26)
 
     def test_get_report_periods(self):
         """Test that report_periods getter is correct."""
         with schema_context(self.schema):
             periods = self.accessor.get_report_periods()
-            self.assertEquals(len(periods), OCPUsageReportPeriod.objects.count())
+            self.assertEqual(len(periods), OCPUsageReportPeriod.objects.count())
 
     def test_get_reports(self):
         """Test that the report getter is correct."""
         with schema_context(self.schema):
             reports = self.accessor.get_reports()
-            self.assertEquals(len(reports), OCPUsageReport.objects.count())
+            self.assertEqual(len(reports), OCPUsageReport.objects.count())
 
     def test_populate_monthly_cost_node_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for nodes in the summary table is populated."""
@@ -748,9 +748,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         .distinct()
                         .count()
                     )
-                    self.assertEquals(monthly_cost_rows.count(), expected_count)
+                    self.assertEqual(monthly_cost_rows.count(), expected_count)
                     for monthly_cost_row in monthly_cost_rows:
-                        self.assertEquals(
+                        self.assertEqual(
                             monthly_cost_row.infrastructure_monthly_cost_json.get(distribution), node_rate
                         )
 
@@ -766,13 +766,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         .distinct()
                         .count()
                     )
-                    self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
+                    self.assertEqual(monthly_project_cost_rows.count(), expected_project_count)
                     monthly_project_cost = []
                     for monthly_project_cost_row in monthly_project_cost_rows:
                         monthly_project_cost.append(
                             monthly_project_cost_row.infrastructure_project_monthly_cost.get(distribution)
                         )
-                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
+                    self.assertEqual(sum(monthly_project_cost), expected_project_value)
 
     def test_populate_monthly_cost_node_supplementary_cost(self):
         """Test that the monthly supplementary cost row for nodes in the summary table is populated."""
@@ -820,11 +820,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         .distinct()
                         .count()
                     )
-                    self.assertEquals(monthly_cost_rows.count(), expected_count)
+                    self.assertEqual(monthly_cost_rows.count(), expected_count)
                     for monthly_cost_row in monthly_cost_rows:
-                        self.assertEquals(
-                            monthly_cost_row.supplementary_monthly_cost_json.get(distribution), node_rate
-                        )
+                        self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get(distribution), node_rate)
 
                     # Test supplementary node to project distribution
                     expected_project_value = expected_count * node_rate
@@ -838,13 +836,13 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         .distinct()
                         .count()
                     )
-                    self.assertEquals(monthly_project_cost_rows.count(), expected_project_count)
+                    self.assertEqual(monthly_project_cost_rows.count(), expected_project_count)
                     monthly_project_cost = []
                     for monthly_project_cost_row in monthly_project_cost_rows:
                         monthly_project_cost.append(
                             monthly_project_cost_row.supplementary_project_monthly_cost.get(distribution)
                         )
-                    self.assertEquals(sum(monthly_project_cost), expected_project_value)
+                    self.assertEqual(sum(monthly_project_cost), expected_project_value)
 
     def test_populate_monthly_cost_cluster_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
@@ -999,9 +997,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 .distinct()
                 .count()
             )
-            self.assertEquals(monthly_cost_rows.count(), expected_count)
+            self.assertEqual(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(
+                self.assertEqual(
                     monthly_cost_row.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
             # Test pvc to project distribution
@@ -1017,15 +1015,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 .distinct()
                 .count()
             )
-            self.assertEquals(project_monthly_cost_rows.count(), expected_project_count)
+            self.assertEqual(project_monthly_cost_rows.count(), expected_project_count)
             project_total = []
             for p_monthly_cost_row in project_monthly_cost_rows:
                 pvc_project_cost = p_monthly_cost_row.infrastructure_project_monthly_cost.get(
                     metric_constants.PVC_DISTRIBUTION
                 )
                 project_total.append(pvc_project_cost)
-                self.assertEquals(pvc_project_cost, pvc_rate)
-            self.assertEquals(sum(project_total), expected_project_total)
+                self.assertEqual(pvc_project_cost, pvc_rate)
+            self.assertEqual(sum(project_total), expected_project_total)
 
     def test_populate_monthly_cost_pvc_supplementary_cost(self):
         """Test that the monthly supplementary cost row for PVC in the summary table is populated."""
@@ -1076,9 +1074,9 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 .distinct()
                 .count()
             )
-            self.assertEquals(monthly_cost_rows.count(), expected_count)
+            self.assertEqual(monthly_cost_rows.count(), expected_count)
             for monthly_cost_row in monthly_cost_rows:
-                self.assertEquals(
+                self.assertEqual(
                     monthly_cost_row.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION), pvc_rate
                 )
 
@@ -1095,15 +1093,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 .distinct()
                 .count()
             )
-            self.assertEquals(project_monthly_cost_rows.count(), expected_project_count)
+            self.assertEqual(project_monthly_cost_rows.count(), expected_project_count)
             project_total = []
             for p_monthly_cost_row in project_monthly_cost_rows:
                 pvc_project_cost = p_monthly_cost_row.supplementary_project_monthly_cost.get(
                     metric_constants.PVC_DISTRIBUTION
                 )
                 project_total.append(pvc_project_cost)
-                self.assertEquals(pvc_project_cost, pvc_rate)
-            self.assertEquals(sum(project_total), expected_project_total)
+                self.assertEqual(pvc_project_cost, pvc_rate)
+            self.assertEqual(sum(project_total), expected_project_total)
 
     def test_remove_monthly_cost(self):
         """Test that the monthly cost row in the summary table is removed."""

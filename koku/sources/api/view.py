@@ -132,8 +132,7 @@ class SourcesViewSet(*MIXIN_LIST):
 
     @staticmethod
     def get_excludes(request):
-        """Get excluded source types by access.
-        """
+        """Get excluded source types by access."""
         excludes = []
         if request.user.admin:
             return excludes
