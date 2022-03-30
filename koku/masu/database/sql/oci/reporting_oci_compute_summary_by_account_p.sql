@@ -11,6 +11,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_by_account_p (
     payer_tenant_id,
     resource_ids,
     resource_count,
+    usage_amount,
+    unit,
     cost,
     markup_cost,
     currency_code,
@@ -31,7 +33,9 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_by_account_p (
     FROM (
         -- this group by gets the counts
         SELECT usage_start,
-            payeR_tenant_id,
+            payer_tenant_id,
+            SUM(usage_amount) AS usage_amount,
+            MAX(unit) AS unit,
             SUM(cost) AS cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency_code) AS currency_code,

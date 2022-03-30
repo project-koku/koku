@@ -31,7 +31,6 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
             "date_columns": date_columns,
             "boolean_columns": boolean_columns,
         }
-
         if "daily" in s3_path:
             table_name = PRESTO_LINE_ITEM_DAILY_TABLE_MAP[report_type]
         else:

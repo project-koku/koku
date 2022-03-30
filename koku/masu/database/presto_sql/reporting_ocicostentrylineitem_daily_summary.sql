@@ -8,8 +8,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
     region,
     resource_ids,
     resource_count,
-    usage_consumedquantity,
-    consumedquantityunits,
+    usage_amount,
+    unit,
     currency_code,
     cost,
     tags,
@@ -30,8 +30,8 @@ SELECT uuid() as uuid,
     cast(region AS varchar(50)),
     resource_ids,
     cast(resource_count AS integer),
-    cast(usage_consumedquantity AS decimal(24,9)),
-    consumedquantityunits,
+    cast(usage_amount AS decimal(24,9)),
+    unit,
     cast(currency_code AS varchar(10)),
     cast(cost AS decimal(24,9)),
     tags,
@@ -45,8 +45,8 @@ FROM (
         nullif(c.product_region, '') as region,
         array_agg(DISTINCT c.product_resourceid) as resource_ids,
         count(DISTINCT c.product_resourceid) as resource_count,
-        sum(u.usage_consumedquantity) as usage_consumedquantity,
-        nullif(u.consumedquantityunits, '') as consumedquantityunits,
+        sum(u.usage_consumedquantity) as usage_amount,
+        nullif(u.usage_consumedquantityunits, '') as unit,
         max(c.cost_currencycode) as currency_code,
         sum(c.cost_mycost) as cost,
         json_parse('{}') as tags
@@ -54,9 +54,9 @@ FROM (
     JOIN hive.{{schema | sqlsafe}}.oci_usage_line_items as u
         ON c.lineItem_intervalUsageStart = u.lineItem_intervalUsageStart
         AND c.product_resourceId = u.product_resourceId
-    WHERE source = '{{source_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
+    WHERE c.source = '{{source_uuid | sqlsafe}}'
+        AND c.year = '{{year | sqlsafe}}'
+        AND c.month = '{{month | sqlsafe}}'
         AND date(c.lineitem_intervalusagestart) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND date(c.lineitem_intervalusagestart) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
     GROUP BY date(c.lineitem_intervalusagestart),
@@ -64,5 +64,6 @@ FROM (
         c.lineitem_tenantid,
         c.product_region,
         c.tags_oracle_tags_createdby,
-        c.cost_mycost
+        c.cost_mycost,
+        u.usage_consumedquantityunits
 )
