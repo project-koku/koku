@@ -438,12 +438,16 @@ def update_summary_tables(  # noqa: C901
                 str(start_date),
                 str(end_date),
                 manifest_id=manifest_id,
+                queue_name=queue_name,
                 synchronous=synchronous,
                 tracing_id=tracing_id,
             ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
         )
     if signature_list:
-        group(signature_list).apply_async()
+        if synchronous:
+            group(signature_list).apply()
+        else:
+            group(signature_list).apply_async()
 
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
@@ -487,8 +491,7 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
-    cache_args = [schema_name, infrastructure_provider_type, infrastructure_provider_uuid]
-
+    cache_args = [schema_name, infrastructure_provider_uuid]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
