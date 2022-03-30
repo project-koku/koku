@@ -591,9 +591,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             ("node", "cluster", "project"),
             ("node", "project", "cluster"),
         ]
-        base_url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"
-        )  # noqa: E501
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
         tolerance = 1
         for group_by in group_by_list:
             sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
@@ -648,7 +646,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                         self.assertEqual(len(item["values"]), 1)
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 

@@ -107,7 +107,7 @@ class GCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
-            self.assertEquals(expected_bill_count, len(GCPCostEntryBill.objects.all()))
+            self.assertEqual(expected_bill_count, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
     def test_create_gcp_cost_entry_bill(self):
@@ -132,7 +132,7 @@ class GCPReportProcessorTest(MasuTestCase):
                 provider=self.gcp_provider, billing_period_start=start_date_utc, billing_period_end=end_date_utc
             )
         entry_bill_id = self.processor._get_or_create_cost_entry_bill({"invoice.month": "202011"}, self.accessor)
-        self.assertEquals(entry_bill.id, entry_bill_id)
+        self.assertEqual(entry_bill.id, entry_bill_id)
 
     def test_create_gcp_project(self):
         """Test calling _get_or_create_gcp_project on a project id that doesn't exist creates it."""
@@ -169,11 +169,11 @@ class GCPReportProcessorTest(MasuTestCase):
         fetched_project_id = self.processor._get_or_create_gcp_project(
             {"project.id": project_id, "billing_account_id": account_id, "project.name": project_name}, self.accessor
         )
-        self.assertEquals(fetched_project_id, project.id)
+        self.assertEqual(fetched_project_id, project.id)
         with schema_context(self.schema):
             gcp_project = GCPProject.objects.get(id=project.id)
-            self.assertEquals(gcp_project.account_id, account_id)
-            self.assertEquals(gcp_project.project_name, project_name)
+            self.assertEqual(gcp_project.account_id, account_id)
+            self.assertEqual(gcp_project.project_name, project_name)
 
     def test_gcp_process_can_run_twice(self):
         """Test that row duplicates are inserted into the DB when process called twice."""
@@ -206,9 +206,9 @@ class GCPReportProcessorTest(MasuTestCase):
         )
         processor.process()
         with schema_context(self.schema):
-            self.assertEquals(num_line_items, len(GCPCostEntryLineItem.objects.all()))
-            self.assertEquals(num_projects, len(GCPProject.objects.all()))
-            self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
+            self.assertEqual(num_line_items, len(GCPCostEntryLineItem.objects.all()))
+            self.assertEqual(num_projects, len(GCPProject.objects.all()))
+            self.assertEqual(num_bills, len(GCPCostEntryBill.objects.all()))
 
     def test_no_report_path(self):
         """Test error caught when report path doesn't exist."""
@@ -236,7 +236,7 @@ class GCPReportProcessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertTrue(len(GCPCostEntryLineItem.objects.all()) > 0)
             self.assertTrue(len(GCPProject.objects.all()) > 0)
-            self.assertEquals(expected_bill_count, len(GCPCostEntryBill.objects.all()))
+            self.assertEqual(expected_bill_count, len(GCPCostEntryBill.objects.all()))
         self.assertFalse(os.path.exists(self.test_report))
 
     def test_create_cost_entry_line_item_bad_time(self):
@@ -271,6 +271,6 @@ class GCPReportProcessorTest(MasuTestCase):
         result = self.processor.process()
         self.assertTrue(result)
         with schema_context(self.schema):
-            self.assertEquals(num_line_items, len(GCPCostEntryLineItem.objects.all()))
-            self.assertEquals(num_projects, len(GCPProject.objects.all()))
-            self.assertEquals(num_bills, len(GCPCostEntryBill.objects.all()))
+            self.assertEqual(num_line_items, len(GCPCostEntryLineItem.objects.all()))
+            self.assertEqual(num_projects, len(GCPProject.objects.all()))
+            self.assertEqual(num_bills, len(GCPCostEntryBill.objects.all()))

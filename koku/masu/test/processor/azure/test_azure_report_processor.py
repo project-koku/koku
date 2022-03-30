@@ -49,7 +49,7 @@ class AzureReportProcessorTest(MasuTestCase):
         _report_tables.pop("ocp_on_azure_tags_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report_path, "r", encoding="utf-8-sig") as f:
+        with open(cls.test_report_path, encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
             cls.row = {key.lower(): value for key, value in cls.row.items()}

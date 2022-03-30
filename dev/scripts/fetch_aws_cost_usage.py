@@ -12,7 +12,7 @@ import botocore
 try:
     S3_BUCKET = sys.argv[1]
 except IndexError:
-    print("usage: {} [s3_bucket_name]".format(sys.argv[0]))
+    print(f"usage: {sys.argv[0]} [s3_bucket_name]")
     sys.exit()
 
 CACHE_DIR = "./aws_cost_usage/"
@@ -24,14 +24,14 @@ LOG.setLevel(logging.INFO)
 
 
 def load_json(filename):
-    """ load a json file """
+    """load a json file"""
     json_file = None
     try:
         with open(filename) as json_fh:
             json_file = json.load(json_fh)
     except TypeError:
         json_file = json.load(filename)
-    except IOError:
+    except OSError:
         json_file = json.loads("{}")
     except ValueError:
         LOG.error("Unable to read %s", filename)
@@ -39,17 +39,17 @@ def load_json(filename):
 
 
 def save_json(filename, data):
-    """ save a json file """
+    """save a json file"""
     try:
         json.dump(data, open(filename, "w+"))
     except TypeError:
         json.dump(data, filename)
-    except IOError:
+    except OSError:
         raise
 
 
 def retrieve_files():
-    """ fetch files from s3 bucket """
+    """fetch files from s3 bucket"""
     etags = load_json(ETAG_FILE)
 
     LOG.info("Connecting to S3...")
@@ -80,7 +80,7 @@ def retrieve_files():
 
 
 def main():
-    """ main """
+    """main"""
     if not os.path.isdir(CACHE_DIR):
         os.mkdir(CACHE_DIR)
     retrieve_files()
