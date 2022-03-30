@@ -211,7 +211,10 @@ class ProviderManagerTest(IamTestCase):
             provider = Provider.objects.create(name="providername", created_by=self.user, customer=self.customer)
         provider_uuid = provider.uuid
         user_data = self._create_user_data()
-        request_context = self._create_request_context(self.create_mock_customer_data(), user_data, create_user=False)
+        customer_data = self.create_mock_customer_data()
+        request_context = self._create_request_context(customer_data, user_data, create_user=False)
+        customer = Customer.objects.filter(account_id=customer_data["account_id"]).first()
+        user_data.update({"customer": customer.id})
         new_user = None
         serializer = UserSerializer(data=user_data, context=request_context)
         if serializer.is_valid(raise_exception=True):
@@ -251,6 +254,7 @@ class ProviderManagerTest(IamTestCase):
 
         new_user_dict = self._create_user_data()
         request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
+        new_user_dict.update({"customer": self.customer.id})
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -346,6 +350,7 @@ class ProviderManagerTest(IamTestCase):
         self.assertNotEqual(provider.uuid, provider2.uuid)
         new_user_dict = self._create_user_data()
         request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
+        new_user_dict.update({"customer": self.customer.id})
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -378,6 +383,7 @@ class ProviderManagerTest(IamTestCase):
 
         new_user_dict = self._create_user_data()
         request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
+        new_user_dict.update({"customer": self.customer.id})
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):
@@ -643,6 +649,7 @@ class ProviderManagerTest(IamTestCase):
 
         new_user_dict = self._create_user_data()
         request_context = self._create_request_context(self.customer_data, new_user_dict, False, create_user=False)
+        new_user_dict.update({"customer": self.customer.id})
         user_serializer = UserSerializer(data=new_user_dict, context=request_context)
         other_user = None
         if user_serializer.is_valid(raise_exception=True):

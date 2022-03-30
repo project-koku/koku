@@ -12,6 +12,7 @@ from api.iam.serializers import AdminCustomerSerializer
 from api.iam.serializers import create_schema_name
 from api.iam.serializers import CustomerSerializer
 from api.iam.serializers import UserSerializer
+from api.models import Customer
 
 
 class CustomerSerializerTest(IamTestCase):
@@ -54,7 +55,14 @@ class UserSerializerTest(IamTestCase):
 
     def setUp(self):
         """Create test case objects."""
-        self.user_data = [self._create_user_data(), self._create_user_data()]
+        customer = Customer.objects.first()
+        user1 = self._create_user_data()
+        user1.update({"customer": customer.id})
+
+        user2 = self._create_user_data()
+        user2.update({"customer": customer.id})
+
+        self.user_data = [user1, user2]
 
     def test_create_user(self):
         """Test creating a user."""

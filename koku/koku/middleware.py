@@ -240,7 +240,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         new_user = None
         try:
             with transaction.atomic():
-                user_data = {"username": username, "email": email}
+                user_data = {"username": username, "email": email, "customer": customer.id}
                 context = {"request": request, "customer": customer}
                 serializer = UserSerializer(data=user_data, context=context)
                 if serializer.is_valid(raise_exception=True):
