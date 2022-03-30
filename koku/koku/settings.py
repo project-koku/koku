@@ -477,6 +477,7 @@ AUTO_DATA_INGEST = ENVIRONMENT.bool("AUTO_DATA_INGEST", default=True)
 
 # Flag for maximum retries for source delete before proceeding
 MAX_SOURCE_DELETE_RETRIES = 25
+MAX_UPDATE_RETRIES = 5
 
 # Demo Accounts list
 DEMO_ACCOUNTS = {}
