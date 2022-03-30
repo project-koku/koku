@@ -2,7 +2,7 @@
 # noqa
 """ sync s3 lifecycle policy """
 import os
-from distutils.util import strtobool
+from distutils.util import strtobool  # noreorder
 
 import boto3
 
