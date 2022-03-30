@@ -438,6 +438,7 @@ def update_summary_tables(  # noqa: C901
                 str(start_date),
                 str(end_date),
                 manifest_id=manifest_id,
+                synchronous=synchronous,
                 tracing_id=tracing_id,
             ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
         )
