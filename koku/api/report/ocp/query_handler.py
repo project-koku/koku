@@ -301,7 +301,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by_value = self._get_group_by()
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query_group_by = ["date"] + group_by_value
-            if self._report_type == "costs" and not is_csv_output:
+            if (self._report_type == "costs" or self._report_type == "costs_by_project") and not is_csv_output:
                 if self.query_table == OCPUsageLineItemDailySummary:
                     query_group_by.append("source_uuid")
                     self.report_annotations.pop("source_uuid")
@@ -386,7 +386,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        if self._report_type == "costs" and not is_csv_output:
+        if (self._report_type == "costs" or self._report_type == "costs_by_project") and not is_csv_output:
             groupby = self._get_group_by()
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         self.query_sum = ordered_total
