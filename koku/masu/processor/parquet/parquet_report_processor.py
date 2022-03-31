@@ -48,6 +48,7 @@ from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
@@ -283,6 +284,8 @@ class ParquetReportProcessor:
             return AzureEnabledTagKeys
         elif self.provider_type == Provider.PROVIDER_GCP:
             return GCPEnabledTagKeys
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            return OCIEnabledTagKeys
         return None
 
     def _get_column_converters(self):
@@ -394,7 +397,6 @@ class ParquetReportProcessor:
         if not processor.table_exists():
             processor.create_table()
         if not daily:
-            LOG.info("\n\n BLOWING UP HERE! \n\n")
             processor.create_bill(bill_date=bill_date)
         processor.get_or_create_postgres_partition(bill_date=bill_date)
         processor.sync_hive_partitions()

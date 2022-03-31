@@ -322,7 +322,6 @@ def create_enabled_keys(schema, enabled_keys_model, enabled_keys):
 
     if enabled_keys:
         with schema_context(schema):
-            LOG.info("\n\n Create Enabled Keys FAILING HERE \n\n")
             new_keys = list(set(enabled_keys) - {k.key for k in enabled_keys_model.objects.all()})
             if new_keys:
                 changed = True

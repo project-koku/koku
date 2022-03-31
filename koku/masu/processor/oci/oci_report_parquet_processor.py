@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Processor for OCI Parquet files."""
+import logging
+
 import ciso8601
 import pytz
 from tenant_schemas.utils import schema_context
@@ -13,6 +15,8 @@ from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE_MAP
 from reporting.provider.oci.models import PRESTO_LINE_ITEM_TABLE_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCIReportParquetProcessor(ReportParquetProcessorBase):
@@ -67,14 +71,12 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
                 AND year = '{bill_date.strftime("%Y")}'
                 AND month = '{bill_date.strftime("%m")}'
         """
-
         rows = self._execute_sql(sql, self._schema_name)
         payer_tenant_id = None
         if rows:
             payer_tenant_id = rows[0][0]
-
         provider = self._get_provider()
-
+        LOG.info(f"\n\n create bill STEP 11 {payer_tenant_id}\n")
         with schema_context(self._schema_name):
             OCICostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
