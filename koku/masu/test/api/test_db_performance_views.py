@@ -6,6 +6,7 @@
 import base64
 import json
 import logging
+import os
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ from django.urls import reverse
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.test.iam_test_case import IamTestCase
+from masu.api.db_performance.dbp_views import get_menu
 
 
 LOG = logging.getLogger(__name__)
@@ -120,7 +122,7 @@ class TestDBPerformance(IamTestCase):
         response = self.client.get(reverse("explain_query"), **headers)
         html = response.content.decode("utf-8")
         self.assertIn('id="div-sql-statement"', html)
-        self.assertIn("Explain SQL Statement", html)
+        self.assertIn("Explain Query", html)
 
         headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
         payload = json.dumps({"sql_statement": "select 1"})
@@ -130,3 +132,23 @@ class TestDBPerformance(IamTestCase):
         payload = json.dumps({"sql_statement": "select 1;\nselect 2;"})
         response = self.client.post(reverse("explain_query"), payload, "json", **headers)
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_menu(self, mok_middl):
+        """Test the db version view."""
+        res = get_menu("eek")
+        self.assertNotIn("current", res)
+        self.assertIn("DB Engine Version", res)
+        self.assertIn("DB Engine Settings", res)
+        self.assertIn("Connection Activity", res)
+        self.assertIn("Statement Statistics", res)
+        self.assertIn("Lock Information", res)
+        self.assertIn("Explain Query", res)
+
+        res = get_menu("conn_activity")
+        conn_activity = False
+        for line in res.split(os.linesep):
+            if not conn_activity and "Connection Activity" in line:
+                conn_activity = self.assertIn("current", line)
+            else:
+                self.assertNotIn("current", line)
