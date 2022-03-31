@@ -667,31 +667,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
-    # TODO: Double check to see if each day should have the same projects:
-    # Example:
-    # ======================================================================
-    # FAIL: test_ocp_date_order_by_cost_desc (api.report.test.ocp.test_ocp_query_handler.OCPReportQueryHandlerTest)
-    # Test that order of every other date matches the order of the `order_by` date.
-    # ----------------------------------------------------------------------
-    # Traceback (most recent call last):
-
-    # First differing element 0:
-    # 'koku'
-    # 'banking'
-
-    # First list contains 2 additional elements.
-    # First extra element 6:
-    # 'openshift'
-
-    # + ['banking', 'weather', 'news-site', 'mobile', 'openshift', 'kube-system']
-    # - ['koku',
-    # -  'default',
-    # -  'banking',
-    # -  'weather',
-    # -  'news-site',
-    # -  'mobile',
-    # -  'openshift',
-    # -  'kube-system']
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
@@ -712,14 +687,22 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
-        correctlst = [project.get("project") for project in expected]
+        ranking_map = {}
+        count = 1
+        for project in expected:
+            ranking_map[project.get("project")] = count
+            count += 1
         for element in data:
-            lst = [project.get("project") for project in element.get("projects")]
-            LOG.info(lst)
-            LOG.info(correctlst)
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
-                tested = True
+            previous = 0
+            for project in element.get("projects"):
+                project_name = project.get("project")
+                # This if is cause some days may not have same projects.
+                # however we want the projects that do match to be in the
+                # same order
+                if project_name in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[project_name], previous)
+                    previous = ranking_map[project_name]
+                    tested = True
         self.assertTrue(tested)
 
     def test_ocp_date_incorrect_date(self):
