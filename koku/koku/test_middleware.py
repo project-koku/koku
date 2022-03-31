@@ -530,8 +530,8 @@ class KokuTenantSchemaExistsMiddlewareTest(IamTestCase):
         self.assertIsInstance(result, JsonResponse)
 
     def test_tenant_without_schema_user_access(self):
-        test_schema = "acct00000"
-        customer = {"account_id": "00000", "schema_name": test_schema}
+        test_schema = "acct000000"
+        customer = {"account_id": "000000", "schema_name": test_schema}
         user_data = self._create_user_data()
         request_context = self._create_request_context(customer, user_data, create_customer=True, create_tenant=False)
 

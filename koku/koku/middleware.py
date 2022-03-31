@@ -311,11 +311,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             LOG.info(stmt)
             try:
                 if account not in IdentityHeaderMiddleware.customer_cache:
-                    IdentityHeaderMiddleware.customer_cache[account] = Customer.objects.filter(
-                        account_id=account
-                    ).get()
+                    customer = Customer.objects.filter(account_id=account).get()
+                    IdentityHeaderMiddleware.customer_cache[account] = customer
                     LOG.debug(f"Customer added to cache: {account}")
-                customer = IdentityHeaderMiddleware.customer_cache[account]
+                else:
+                    customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:
@@ -326,10 +326,10 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             try:
                 if (account, username) not in USER_CACHE:
                     user = User.objects.get(username=username, customer=customer)
-                    USER_CACHE[(account, username)] = user
+                    USER_CACHE[account, username] = user
                     LOG.debug(f"User added to cache: {username}")
                 else:
-                    user = USER_CACHE[(account, username)]
+                    user = USER_CACHE[account, username]
             except User.DoesNotExist:
                 user = IdentityHeaderMiddleware.create_user(username, email, customer, request)
 
