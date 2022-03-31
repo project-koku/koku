@@ -160,7 +160,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
                 username = request.user.username
                 account = request.user.customer.account_id
                 if (account, username) not in USER_CACHE:
-                    USER_CACHE[(account, username)] = request.user
+                    USER_CACHE[account, username] = request.user
                     LOG.debug(f"User added to cache: {username}")
                 if not request.user.admin and request.user.access is None:
                     LOG.warning("User %s is does not have permissions for Cost Management.", username)
