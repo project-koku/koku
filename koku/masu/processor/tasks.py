@@ -445,6 +445,13 @@ def update_summary_tables(  # noqa: C901
             ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
         )
 
+    # Apply OCP on Cloud tasks
+    if signature_list:
+        if synchronous:
+            group(signature_list).apply()
+        else:
+            group(signature_list).apply_async()
+
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -461,13 +468,6 @@ def update_summary_tables(  # noqa: C901
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
     chain(linked_tasks).apply_async()
-
-    # Apply OCP on Cloud tasks
-    if signature_list:
-        if synchronous:
-            group(signature_list).apply()
-        else:
-            group(signature_list).apply_async()
 
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
