@@ -12,6 +12,7 @@ from django.test import override_settings
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
+from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
@@ -20,6 +21,7 @@ from masu.processor.azure.azure_report_parquet_summary_updater import AzureRepor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
+from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.test import MasuTestCase
@@ -188,3 +190,49 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
 
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
+    def test_update_openshift_on_cloud_summary_tables(self, mock_update):
+        """Test that we run OCP on Cloud summary."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater.update_openshift_on_cloud_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider_uuid,
+            Provider.PROVIDER_AZURE,
+            tracing_id=1,
+        )
+        mock_update.assert_called()
+
+        mock_update.reset_mock()
+
+        # Only run for cloud sources that support OCP on Cloud
+        updater = ReportSummaryUpdater(self.schema, self.ocp_on_azure_ocp_provider.uuid)
+        updater.update_openshift_on_cloud_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider_uuid,
+            Provider.PROVIDER_AZURE,
+            tracing_id=1,
+        )
+        mock_update.assert_not_called()
+
+        mock_update.reset_mock()
+
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        mock_update.side_effect = Exception
+        with self.assertRaises(ReportSummaryUpdaterCloudError):
+            updater.update_openshift_on_cloud_summary_tables(
+                start_date,
+                end_date,
+                self.ocp_on_azure_ocp_provider.uuid,
+                self.azure_provider_uuid,
+                Provider.PROVIDER_AZURE,
+                tracing_id=1,
+            )
