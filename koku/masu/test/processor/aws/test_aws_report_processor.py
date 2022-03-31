@@ -83,7 +83,7 @@ class AWSReportProcessorTest(MasuTestCase):
         _report_tables.pop("ocp_on_aws_tags_summary", None)
         cls.report_tables = list(_report_tables.values())
         # Grab a single row of test data to work with
-        with open(cls.test_report_test_path, "r") as f:
+        with open(cls.test_report_test_path) as f:
             reader = csv.DictReader(f)
             cls.row = next(reader)
 
@@ -315,7 +315,7 @@ class AWSReportProcessorTest(MasuTestCase):
         data = []
         table_name = AWS_CUR_TABLE_MAP["line_item"]
 
-        with open(self.test_report, "r") as f:
+        with open(self.test_report) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)
@@ -385,7 +385,7 @@ class AWSReportProcessorTest(MasuTestCase):
         data = []
         table_name = AWS_CUR_TABLE_MAP["line_item"]
 
-        with open(self.test_report, "r") as f:
+        with open(self.test_report) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)
@@ -454,7 +454,7 @@ class AWSReportProcessorTest(MasuTestCase):
     def test_do_not_overwrite_finalized_bill_timestamp(self):
         """Test that a finalized bill timestamp does not get overwritten."""
         data = []
-        with open(self.test_report, "r") as f:
+        with open(self.test_report) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)
@@ -849,7 +849,7 @@ class AWSReportProcessorTest(MasuTestCase):
         """Verify that a file with invoice_id is marked as finalzed."""
         data = []
 
-        with open(self.test_report, "r") as f:
+        with open(self.test_report) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 data.append(row)

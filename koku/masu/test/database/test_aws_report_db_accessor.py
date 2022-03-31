@@ -643,8 +643,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider.uuid, start_date=bill2_date.strftime("%Y-%m-%d")
         )
         with schema_context(self.schema):
-            self.assertEquals(len(bills), 1)
-            self.assertEquals(bills[0].id, bill2.id)
+            self.assertEqual(len(bills), 1)
+            self.assertEqual(bills[0].id, bill2.id)
 
     def test_mark_bill_as_finalized(self):
         """Test that test_mark_bill_as_finalized sets finalized_datetime field."""

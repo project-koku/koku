@@ -60,9 +60,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_10_day_only_keys(self):
         """Test that execute_query() succeeds with 10 day parameters, keys-only."""
-        url = (
-            "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()

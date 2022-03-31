@@ -36,7 +36,7 @@ class FakeDownloader:
         for _ in range(1, random.randint(5, 50)):
             fake_files.append(
                 {
-                    "file": "{}/{}/aws/{}-{}.csv".format(path, self.fake.word(), self.fake.word(), self.fake.word()),
+                    "file": f"{path}/{self.fake.word()}/aws/{self.fake.word()}-{self.fake.word()}.csv",
                     "compression": random.choice(["GZIP", "PLAIN"]),
                 }
             )

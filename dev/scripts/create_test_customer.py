@@ -57,7 +57,7 @@ def wallclock(func, *args, **kwargs):
     start = time.time()
     returned = func(*args, **kwargs)
     end = time.time()
-    print("{} took {:.3f} sec.".format(func.__name__, (end - start)))
+    print(f"{func.__name__} took {(end - start):.3f} sec.")
     return returned
 
 

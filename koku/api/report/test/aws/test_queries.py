@@ -670,9 +670,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_region(self):
         """Test execute_query for current month on monthly breakdown by region."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -719,9 +717,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_execute_query_curr_month_by_avail_zone(self):
         """Test execute_query for current month on monthly breakdown by avail_zone."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1313,9 +1309,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_rank_list_big_limit(self):
         """Test rank list limit with account alias, ensuring we return results with limited data."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         data_list = [
@@ -2053,12 +2047,12 @@ class AWSQueryHandlerTest(IamTestCase):
         for region_dict in data2["data"]:
             # For each date, assert that the region is eu-west-3
             for list_item in region_dict["regions"]:
-                self.assertEquals("eu-west-3", list_item["region"])
+                self.assertEqual("eu-west-3", list_item["region"])
         # Assert the first request contains only eu-west-3
         for region_dict in data["data"]:
             # For each date, assert that the region is eu-west-3
             for list_item in region_dict["regions"]:
-                self.assertEquals("eu-west-3", list_item["region"])
+                self.assertEqual("eu-west-3", list_item["region"])
 
     def test_filter_to_group_by(self):
         """Test the filter_to_group_by method."""
@@ -2168,9 +2162,7 @@ class AWSQueryHandlerTest(IamTestCase):
 
     def test_query_cost_type_default(self):
         """Test "cost_type" is defaulted when not passed in."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         query_output = handler.execute_query()
