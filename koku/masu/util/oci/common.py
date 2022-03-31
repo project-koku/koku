@@ -114,7 +114,6 @@ def oci_post_processor(data_frame):
             drop_columns.append(column)
     data_frame = data_frame.drop(columns=drop_columns)
     data_frame = data_frame.rename(columns=column_name_map)
-    LOG.info(f"\n\n Unique keys: {unique_keys} \n\n")
     return (data_frame, unique_keys)
 
 

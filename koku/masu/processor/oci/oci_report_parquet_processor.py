@@ -76,7 +76,6 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         if rows:
             payer_tenant_id = rows[0][0]
         provider = self._get_provider()
-        LOG.info(f"\n\n create bill STEP 11 {payer_tenant_id}\n")
         with schema_context(self._schema_name):
             OCICostEntryBill.objects.get_or_create(
                 billing_period_start=start_date_utc,
