@@ -14,6 +14,7 @@ from tenant_schemas.utils import schema_context
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAWSTagsSummary
+from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -93,7 +94,10 @@ class SettingsViewTest(IamTestCase):
         """Test settings POST calls change enabled tags"""
         with schema_context(self.schema_name):
             tags = OCPAWSTagsSummary.objects.distinct("key").values_list("key", flat=True)
-            keys_list = [f"aws-{tag}" for tag in tags]
+            aws_list = [f"aws-{tag}" for tag in tags]
+            tags = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)
+            ocp_list = [f"ocp-{tag}" for tag in tags]
+            keys_list = aws_list + ocp_list
             max_idx = len(keys_list)
         for _ in ["test01", "test02", "test03", "test04"]:
             enabled_tags = list(set(random.choices(keys_list, k=random.randint(0, max_idx))))
