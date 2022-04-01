@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from decimal import Decimal
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -15,6 +16,7 @@ from django.urls import reverse
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.test.iam_test_case import IamTestCase
+from masu.api.db_performance.dbp_views import get_limit_offset
 from masu.api.db_performance.dbp_views import get_menu
 
 
@@ -152,3 +154,43 @@ class TestDBPerformance(IamTestCase):
                 conn_activity = self.assertIn("current", line)
             else:
                 self.assertNotIn("current", line)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_limit_offset(self, mok_middl):
+        _default_limit = 500
+        request = Mock()
+
+        request.query_params = {}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, _default_limit)
+        self.assertIsNone(offset)
+
+        request.query_params = {"limit": "eek"}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, _default_limit)
+        self.assertIsNone(offset)
+
+        request.query_params = {"limit": "200"}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, 200)
+        self.assertIsNone(offset)
+
+        request.query_params = {"offset": ""}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, _default_limit)
+        self.assertIsNone(offset)
+
+        request.query_params = {"offset": "eek"}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, _default_limit)
+        self.assertIsNone(offset)
+
+        request.query_params = {"offset": "100"}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, _default_limit)
+        self.assertEqual(offset, 100)
+
+        request.query_params = {"limit": "250", "offset": "150"}
+        limit, offset = get_limit_offset(request)
+        self.assertEqual(limit, 250)
+        self.assertEqual(offset, 150)

@@ -258,7 +258,7 @@ where "rec_by_db" <= %(records_per_db)s
         else:
             return [{"Result": "pg_stat_statements extension not installled"}]
 
-    def get_lock_info(self, limit=None, offset=None):
+    def get_lock_info(self, limit=500, offset=None):
         params = {}
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)

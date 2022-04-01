@@ -35,6 +35,20 @@ DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
 # TERMINATE_URL = 1
 
 
+def get_limit_offset(request):
+    try:
+        limit = int(request.query_params.get("limit", "500"))
+    except (TypeError, ValueError):
+        limit = 500
+
+    try:
+        offset = int(request.query_params.get("offset"))
+    except (TypeError, ValueError):
+        offset = None
+
+    return limit, offset
+
+
 def get_menu(curr_url_name):
     menu_values = (
         ("db_version", "DB Engine Version"),
@@ -96,9 +110,10 @@ def db_performance_redirect(request):
 def lockinfo(request):
     """Get any blocked and blocking process data"""
 
+    limit, offset = get_limit_offset(request)
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.get_lock_info()
+        data = dbp.get_lock_info(limit=limit, offset=offset)
 
     targets = []
     if "blocking_pid" in data[0]:
@@ -171,9 +186,10 @@ def stat_statements(request):
     data = None
     query_bad_threshold = Decimal("5000")
     query_warn_threshold = Decimal("2500")
+    limit, offset = get_limit_offset(request)
 
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
-        data = dbp.get_statement_stats()
+        data = dbp.get_statement_stats(limit=limit, offset=offset)
 
     action_urls = []
     if "mean_exec_time" in data[0]:
@@ -228,10 +244,19 @@ def stat_activity(request):
     pids = request.query_params.get("pids", "")
     pids = [int(pid) for pid in pids.split(",")] if pids else []
     include_self = request.query_params.get("include_self", "false").lower() in ("1", "y", "yes", "t", "true", "on")
+    records_per_db = int(request.query_params.get("records_per_db", "100"))
+    limit, offset = get_limit_offset(request)
 
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
-        data = dbp.get_activity(pid=pids, state=states, include_self=include_self)
+        data = dbp.get_activity(
+            pid=pids,
+            state=states,
+            include_self=include_self,
+            limit=limit,
+            offset=offset,
+            records_per_db=records_per_db,
+        )
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
     for rec in data:

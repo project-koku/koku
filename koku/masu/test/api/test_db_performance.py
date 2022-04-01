@@ -108,6 +108,7 @@ class TestDBPerformanceClass(IamTestCase):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             lockinfo = dbp.get_lock_info()
             self.assertNotEqual(lockinfo, [])  # This should always return a list of at least one element
+            self.assertTrue(len(lockinfo) < 500)
 
     def test_get_conn_activity(self):
         """Test that the correct connection activty is returned."""
