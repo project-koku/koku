@@ -96,7 +96,7 @@ class SettingsViewTest(IamTestCase):
             tags = OCPAWSTagsSummary.objects.distinct("key").values_list("key", flat=True)
             aws_list = [f"aws-{tag}" for tag in tags]
             tags = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)
-            ocp_list = [f"ocp-{tag}" for tag in tags]
+            ocp_list = [f"openshift-{tag}" for tag in tags]
             keys_list = aws_list + ocp_list
             max_idx = len(keys_list)
         for _ in ["test01", "test02", "test03", "test04"]:
