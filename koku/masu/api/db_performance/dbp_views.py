@@ -49,6 +49,37 @@ def get_limit_offset(request):
     return limit, offset
 
 
+def get_parameter_list(request, param_name, default=None, sep=","):
+    qp = request.query_params
+
+    if param_name not in qp:
+        return default
+
+    param_val = qp.getlist(param_name)
+    if len(param_val) == 1:
+        param_val = param_val[0].split(sep)
+
+    return param_val
+
+
+def get_parameter_bool(request, param_name, default=None):
+    if default is not None:
+        default = bool(default)
+
+    qp = request.query_params
+
+    if param_name not in qp:
+        return default
+
+    param_val = qp.get(param_name, default)
+    if isinstance(param_val, str):
+        param_val = param_val.lower() in ("1", "y", "yes", "t", "true", "on")
+    else:
+        param_val = bool(param_val)
+
+    return param_val
+
+
 def get_menu(curr_url_name):
     menu_values = (
         ("db_version", "DB Engine Version"),
@@ -114,6 +145,9 @@ def lockinfo(request):
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
         data = dbp.get_lock_info(limit=limit, offset=offset)
+
+    if not data:
+        data = [{"Result": "No blocking locks"}]
 
     targets = []
     if "blocking_pid" in data[0]:
@@ -239,11 +273,9 @@ def stat_activity(request):
     #     template = "gen_table.html"
 
     template = "t_action_table.html"
-    states = request.query_params.get("states", "")
-    states = states.split(",") if states else []
-    pids = request.query_params.get("pids", "")
-    pids = [int(pid) for pid in pids.split(",")] if pids else []
-    include_self = request.query_params.get("include_self", "false").lower() in ("1", "y", "yes", "t", "true", "on")
+    states = get_parameter_list(request, "state", default=[])
+    pids = get_parameter_list(request, "pid", default=[])
+    include_self = get_parameter_bool(request, "include_self", False)
     records_per_db = int(request.query_params.get("records_per_db", "100"))
     limit, offset = get_limit_offset(request)
 
@@ -257,28 +289,33 @@ def stat_activity(request):
             offset=offset,
             records_per_db=records_per_db,
         )
+    if not data:
+        data = [{"Response": "No data matching the criteria"}]
+        targets = ()
+    else:
+        targets = ("backend_pid",)
+        for rec in data:
+            set_null_display(rec)
+            rec["_raw_backend_pid"] = rec["backend_pid"]
+            rec["_attrs"] = {
+                "query": 'class="pre monospace"',
+                "state": 'class="monospace"',
+                "backend_pid": 'class="sans"',
+                "client_ip": 'class="sans"',
+                "backend_start": 'class="sans"',
+                "xact_start": 'class="sans"',
+                "query_start": 'class="sans"',
+                "state_change": 'class="sans"',
+                "active_time": 'class="sans"',
+                "wait_type_event": 'class="sans"',
+            }
+            rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
-    for rec in data:
-        set_null_display(rec)
-        rec["_raw_backend_pid"] = rec["backend_pid"]
-        rec["_attrs"] = {
-            "query": 'class="pre monospace"',
-            "state": 'class="monospace"',
-            "backend_pid": 'class="sans"',
-            "client_ip": 'class="sans"',
-            "backend_start": 'class="sans"',
-            "xact_start": 'class="sans"',
-            "query_start": 'class="sans"',
-            "state_change": 'class="sans"',
-            "active_time": 'class="sans"',
-            "wait_type_event": 'class="sans"',
-        }
-        rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     page_header = "Connection Activity"
     return HttpResponse(
-        render_template("conn_activity", page_header, fields, data, targets=("backend_pid",), template=template)
+        render_template("conn_activity", page_header, fields, data, targets=targets, template=template)
         # render_template(
         #     "conn_activity",
         #     page_header,

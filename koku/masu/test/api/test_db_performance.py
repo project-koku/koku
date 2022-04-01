@@ -88,6 +88,10 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(res, "")
             self.assertEqual(params, {})
 
+            res = dbp._handle_limit(-1, params)
+            self.assertEqual(res, "")
+            self.assertEqual(params, {})
+
             res = dbp._handle_limit(10, params)
             self.assertEqual(res.strip(), "limit %(limit)s")
             self.assertEqual(params, {"limit": 10})
@@ -100,6 +104,10 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(res, "")
             self.assertEqual(params, {})
 
+            res = dbp._handle_offset(-1, params)
+            self.assertEqual(res, "")
+            self.assertEqual(params, {})
+
             res = dbp._handle_offset(10, params)
             self.assertEqual(res.strip(), "offset %(offset)s")
             self.assertEqual(params, {"offset": 10})
@@ -107,8 +115,12 @@ class TestDBPerformanceClass(IamTestCase):
     def test_handle_lockinfo(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             lockinfo = dbp.get_lock_info()
-            self.assertNotEqual(lockinfo, [])  # This should always return a list of at least one element
-            self.assertTrue(len(lockinfo) < 500)
+            if lockinfo:
+                self.assertTrue(len(lockinfo) < 500)
+
+            lockinfo = dbp.get_lock_info(limit=1)
+            if lockinfo:
+                self.assertTrue(len(lockinfo) < 1)
 
     def test_get_conn_activity(self):
         """Test that the correct connection activty is returned."""

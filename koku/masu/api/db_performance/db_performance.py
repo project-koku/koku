@@ -294,8 +294,7 @@ SELECT blocking_locks.pid::int     AS blocking_pid,
 """
         LOG.info(self._prep_log_message("requsting blocked process information"))
         res = self._execute(sql, params).fetchall()
-        if not res:
-            res = [{"Result": "No blocking locks"}]
+
         return res
 
     def get_activity(self, pid=[], state=[], include_self=False, limit=500, offset=None, records_per_db=100):
