@@ -251,7 +251,7 @@ class CostModelManagerTest(IamTestCase):
     @patch("cost_models.cost_model_manager.refresh_materialized_views")
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
     @patch("cost_models.cost_model_manager.chain")
-    def test_deleting_cost_model_refreshes_materialized_views(self, mock_chain, mock_update, mock_refresh):
+    def test_deleting_cost_model_triggers_tasks(self, mock_chain, mock_update, mock_refresh):
         """Test deleting a cost model refreshes the materialized views."""
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -285,6 +285,40 @@ class CostModelManagerTest(IamTestCase):
                 mock_update.s(self.schema_name, provider_uuid, start_date, end_date).set(),
                 mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid).set(),
             )
+
+    @patch("cost_models.cost_model_manager.refresh_materialized_views")
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
+    @patch("cost_models.cost_model_manager.chain")
+    def test_deleting_cost_model_not_triggers_tasks(self, mock_chain, mock_update, mock_refresh):
+        """Test deleting a cost model refreshes the materialized views."""
+        provider_name = "sample_provider"
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
+
+        # Get Provider UUID
+        provider_uuid = provider.uuid
+        provider.active = False
+        provider.save()
+
+        data = {
+            "name": "Test Cost Model",
+            "description": "Test",
+            "provider_uuids": [provider_uuid],
+            "markup": {"value": 10, "unit": "percent"},
+        }
+
+        with tenant_context(self.tenant):
+            manager = CostModelManager()
+            with patch("cost_models.cost_model_manager.chain"):
+                cost_model_obj = manager.create(**data)
+            self.assertIsNotNone(cost_model_obj.uuid)
+
+            cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
+            self.assertIsNotNone(cost_model_map)
+
+            # simulates deleting a cost_model
+            manager.update_provider_uuids(provider_uuids=[])
+            mock_chain.assert_not_called()
 
     def test_update_distribution_choice(self):
         """Test creating a cost model."""
