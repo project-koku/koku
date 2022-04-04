@@ -362,12 +362,25 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None):
         """Execute a single presto query"""
-        presto_conn = kpdb.connect(schema=schema)
-        presto_cur = presto_conn.cursor()
-        presto_cur.execute(sql, bind_params)
-        return presto_cur.fetchall()
+        try:
+            t1 = time.time()
+            presto_conn = kpdb.connect(schema=schema)
+            presto_cur = presto_conn.cursor()
+            presto_cur.execute(sql, bind_params)
+            results = presto_cur.fetchall()
+            t2 = time.time()
+            if log_ref:
+                msg = f"{log_ref} for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
+            else:
+                msg = f"Trino query for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
+            LOG.info(msg)
+            return results
+        except Exception as ex:
+            msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
+            LOG.error(msg)
+            raise ex
 
     def _execute_presto_multipart_sql_query(
         self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
@@ -478,7 +491,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql)
+        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql, log_ref="table_exists_trino")
         if table:
             return True
         return False
