@@ -1930,12 +1930,21 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for cluster in the summary table
         is populated when given tag based rates.
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
         self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             k_v_pairs = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(
+                    **{
+                        "pod_labels__has_key": tag_rate_key,
+                        "usage_start__gte": start_date,
+                        "usage_start__lte": end_date,
+                    }
+                )
                 .distinct()
                 .values_list("pod_labels", flat=True)
                 .filter(cluster_id=self.cluster_id)
@@ -1950,9 +1959,6 @@ select * from eek where val1 in {{report_period_id}} ;
                 values_dict[value] = node_rate
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
@@ -1988,12 +1994,21 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly supplementary cost row for nodes in the summary table
         is populated when given tag based rates.
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
         self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             k_v_pairs = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(
+                    **{
+                        "pod_labels__has_key": tag_rate_key,
+                        "usage_start__gte": start_date,
+                        "usage_start__lte": end_date,
+                    }
+                )
                 .distinct()
                 .values_list("pod_labels", flat=True)
                 .filter(cluster_id=self.cluster_id)
@@ -2009,9 +2024,6 @@ select * from eek where val1 in {{report_period_id}} ;
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
 
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
@@ -2046,12 +2058,21 @@ select * from eek where val1 in {{report_period_id}} ;
         """
         Test that when strings are given as dates, it handles it correctly
         """
+        dh = DateHelper()
+        start_date = dh.this_month_start.strftime("%Y-%m-%d")
+        end_date = dh.this_month_end.strftime("%Y-%m-%d")
         self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             k_v_pairs = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(
+                    **{
+                        "pod_labels__has_key": tag_rate_key,
+                        "usage_start__gte": start_date,
+                        "usage_start__lte": end_date,
+                    }
+                )
                 .distinct()
                 .values_list("pod_labels", flat=True)
                 .filter(cluster_id=self.cluster_id)
@@ -2067,9 +2088,6 @@ select * from eek where val1 in {{report_period_id}} ;
                 rate_total += node_rate
             node_tag_rates[key] = values_dict
 
-        dh = DateHelper()
-        start_date = dh.this_month_start.strftime("%Y-%m-%d")
-        end_date = dh.this_month_end.strftime("%Y-%m-%d")
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
@@ -2113,6 +2131,7 @@ select * from eek where val1 in {{report_period_id}} ;
         Test that the monthly infrastructure cost row for a cluster in the summary table
         is populated when given tag based rates.
         """
+        self.cluster_id = self.ocpaws_ocp_cluster_id
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
         start_date = dh.this_month_start
@@ -2129,14 +2148,21 @@ select * from eek where val1 in {{report_period_id}} ;
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution, default_val=default_val):
                 node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": [tag_rate_vals]}}
-                self.cluster_id = self.ocpaws_ocp_cluster_id
                 with schema_context(self.schema):
                     k_v_pairs_num = (
                         OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
                         .distinct()
-                        .filter(**{"pod_labels__has_key": tag_rate_key})
+                        .filter(
+                            **{
+                                "pod_labels__has_key": tag_rate_key,
+                                "usage_start__gte": start_date,
+                                "usage_start__lte": end_date,
+                            }
+                        )
                         .values_list("pod_labels")
-                        .filter(cluster_id=self.cluster_id)
+                        .filter(
+                            cluster_id=self.cluster_id,
+                        )
                         .count()
                     )
 
@@ -2207,7 +2233,13 @@ select * from eek where val1 in {{report_period_id}} ;
                     k_v_pairs_num = (
                         OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
                         .distinct()
-                        .filter(**{"pod_labels__has_key": tag_rate_key})
+                        .filter(
+                            **{
+                                "pod_labels__has_key": tag_rate_key,
+                                "usage_start__gte": start_date,
+                                "usage_start__lte": end_date,
+                            }
+                        )
                         .values_list("pod_labels")
                         .filter(cluster_id=self.cluster_id)
                         .count()
@@ -2273,7 +2305,13 @@ select * from eek where val1 in {{report_period_id}} ;
                     k_v_pairs_num = (
                         OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
                         .distinct()
-                        .filter(**{"pod_labels__has_key": tag_rate_key})
+                        .filter(
+                            **{
+                                "pod_labels__has_key": tag_rate_key,
+                                "usage_start__gte": start_date,
+                                "usage_start__lte": end_date,
+                            }
+                        )
                         .values_list("pod_labels")
                         .filter(cluster_id=self.cluster_id)
                         .count()
