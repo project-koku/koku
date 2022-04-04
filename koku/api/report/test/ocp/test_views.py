@@ -1464,7 +1464,6 @@ class OCPReportViewTest(IamTestCase):
             c_usage = entry.get("values", [])[0].get("usage", {}).get("value")
             c_cap = entry.get("values", [])[0].get("capacity", {}).get("value")
             current_usage = c_usage / c_cap
-            LOG.info(f"{current_usage} <= {previous_usage}")
             self.assertTrue(current_usage <= previous_usage)
             previous_usage = current_usage
 
