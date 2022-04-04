@@ -290,7 +290,7 @@ class CostModelManagerTest(IamTestCase):
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
     @patch("cost_models.cost_model_manager.chain")
     def test_deleting_cost_model_not_triggers_tasks(self, mock_chain, mock_update, mock_refresh):
-        """Test deleting a cost model refreshes the materialized views."""
+        """Test deleting a cost model with an inactive provider does not trigger tasks."""
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
             provider = Provider.objects.create(name=provider_name, created_by=self.user, customer=self.customer)
