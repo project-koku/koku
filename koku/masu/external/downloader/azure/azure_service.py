@@ -85,7 +85,7 @@ class AzureService:
 
             with open(file_path, "wb") as blob_download:
                 blob_download.write(blob_client.download_blob().readall())
-        except (AdalError, AzureException, ClientException, IOError) as error:
+        except (AdalError, AzureException, ClientException, OSError) as error:
             raise AzureServiceError("Failed to download cost export. Error: ", str(error))
         return file_path
 

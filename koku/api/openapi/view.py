@@ -27,7 +27,7 @@ def get_json(path):
     with open(path) as json_file:
         try:
             json_data = json.load(json_file)
-        except (IOError, json.JSONDecodeError) as exc:
+        except (OSError, json.JSONDecodeError) as exc:
             LOG.exception(exc)
     return json_data
 

@@ -202,7 +202,7 @@ def get_report_details(report_directory):
                 for field in ["start", "end"]:
                     if payload_dict.get(field):
                         payload_dict[field] = parser.parse(payload_dict[field])
-        except (OSError, IOError, KeyError) as exc:
+        except (OSError, KeyError) as exc:
             LOG.error("Unable to extract manifest data: %s", exc)
     else:
         msg = f"No manifest available at {manifest_path}"
@@ -229,7 +229,7 @@ def month_date_range(for_date_time):
     start_month = for_date_time.replace(day=1)
     end_month = start_month + relativedelta(months=+1)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def get_local_file_name(file_path):
@@ -338,7 +338,7 @@ def poll_ingest_override_for_provider(provider_uuid):
 
     """
     cluster_id = get_cluster_id_from_provider(provider_uuid)
-    local_ingest_path = "{}/{}".format(Config.INSIGHTS_LOCAL_REPORT_DIR, str(cluster_id))
+    local_ingest_path = f"{Config.INSIGHTS_LOCAL_REPORT_DIR}/{str(cluster_id)}"
     return os.path.exists(local_ingest_path)
 
 

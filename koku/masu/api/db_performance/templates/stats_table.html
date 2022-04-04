@@ -6,6 +6,51 @@ SPDX-License-Identifier: Apache-2.0
     <head>
         <title>Cost Management DB Performance Statistics</title>
         <style>
+            .container > * {
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .header1 {
+                display: block;
+                font-size: 2em;
+                margin-block-start: 0.67em;
+                margin-block-end: 0.67em;
+                margin-inline-start: 0px;
+                margin-inline-end: 0px;
+                margin-right: 1em;
+                font-weight: bold;
+                margin-right: 0.5em;
+                padding-right: 1em;
+                border-right: 2px solid black;
+            }
+            ul.menu {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: white;
+            }
+            ul.menu > li {
+                float: left;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+            ul.menu > li > a {
+                display: block;
+                color: black;
+                text-align: center;
+                padding: 16px;
+                text-decoration: none;
+                font-weight: bold;
+            }
+            ul.menu > li a:hover {
+                background-color: black;
+                color: white;
+            }
+            .current {
+                border-bottom: 2px solid black;
+            }
+            .hidden {display: none;}
+            .show {display: block;}
             .pre {white-space: pre;}
             .monospace {font-family: 'Courier New', Courier, monospace;}
             .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
@@ -17,9 +62,22 @@ SPDX-License-Identifier: Apache-2.0
             th {border-bottom: 1px solid black; background-color: #cecece;}
             th:not(:first-child) {border-left: 1px solid black;}
             td:not(:first-child) {border-left: 1px solid black;}
+            .unselectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+
+                /*
+                    Introduced in IE 10.
+                    See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+                */
+                -ms-user-select: none;
+                user-select: none;
+            }
         </style>
         <!-- <script>
 function clear_stmt_stats() {
+    document.getElementById("clear-stats-btn").disabled = true;
     if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
         xhttp = new XMLHttpRequest();
         xhttp.open("GET", "{{action_urls[0]}}", false);
@@ -30,14 +88,19 @@ function clear_stmt_stats() {
         location.reload();
     }
 }
-        </script> -->
-    </head>
+        </script>
+    </head> -->
     <body>
-        <h1>Database Performance</h1>
+        <div id="header-container" class="container unselectable">
+            <div id="header-div" class="header1 unselectable" style="display: inline-block !important;">Database Performance</div>
+            <div id="menu-div unselectable">
+                {{db_performance_menu}}
+            </div>
+        </div>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
-        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();">Clear Statement Statistics</button> -->
-        <table id="stmt_stats_table" cellspacing="0">
+        <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();" disabled="true">Clear Statement Statistics</button> -->
+    <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
             <thead>

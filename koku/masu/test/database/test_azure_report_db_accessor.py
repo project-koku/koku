@@ -113,7 +113,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that bills_for_provider_uuid returns the right bills."""
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date=self.dh.this_month_start)
         with schema_context(self.schema):
-            self.assertEquals(len(bills), 1)
+            self.assertEqual(len(bills), 1)
 
     def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""

@@ -170,7 +170,7 @@ class AWSReportSummaryUpdaterTest(MasuTestCase):
             for bill in bills:
                 bill.summary_data_creation_datetime = None
                 bill.save()
-            bill_ids = sorted([str(bill.id) for bill in bills], reverse=True)
+            bill_ids = sorted((str(bill.id) for bill in bills), reverse=True)
 
         last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
 

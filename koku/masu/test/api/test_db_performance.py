@@ -2,10 +2,13 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import os
+import re
 from unittest.mock import patch
 
 from django.db import connection
 from psycopg2 import OperationalError
+from psycopg2.errors import ProgrammingError
 from psycopg2.errors import UndefinedTable
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -85,6 +88,10 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(res, "")
             self.assertEqual(params, {})
 
+            res = dbp._handle_limit(-1, params)
+            self.assertEqual(res, "")
+            self.assertEqual(params, {})
+
             res = dbp._handle_limit(10, params)
             self.assertEqual(res.strip(), "limit %(limit)s")
             self.assertEqual(params, {"limit": 10})
@@ -97,6 +104,10 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(res, "")
             self.assertEqual(params, {})
 
+            res = dbp._handle_offset(-1, params)
+            self.assertEqual(res, "")
+            self.assertEqual(params, {})
+
             res = dbp._handle_offset(10, params)
             self.assertEqual(res.strip(), "offset %(offset)s")
             self.assertEqual(params, {"offset": 10})
@@ -104,7 +115,12 @@ class TestDBPerformanceClass(IamTestCase):
     def test_handle_lockinfo(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             lockinfo = dbp.get_lock_info()
-            self.assertNotEqual(lockinfo, [])  # This should always return a list of at least one element
+            if lockinfo:
+                self.assertTrue(len(lockinfo) < 500)
+
+            lockinfo = dbp.get_lock_info(limit=1)
+            if lockinfo:
+                self.assertTrue(len(lockinfo) < 1)
 
     def test_get_conn_activity(self):
         """Test that the correct connection activty is returned."""
@@ -125,12 +141,51 @@ class TestDBPerformanceClass(IamTestCase):
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            has_pss = dbp._validate_pg_stat_statements()
+            has_pss, pss_ver = dbp._validate_pg_stat_statements()
             if has_pss:
+                self.assertIsNotNone(pss_ver)
                 stats = dbp.get_statement_stats()
-                self.assertTrue(0 < len(stats) <= 100)
+                self.assertTrue(0 < len(stats) <= 500)
                 self.assertIn("calls", stats[0])
             else:
+                self.assertIsNone(pss_ver)
                 stats = dbp.get_statement_stats()
                 self.assertEqual(len(stats), 1)
                 self.assertIn("Result", stats[0])
+
+    def test_case_ranking(self):
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp._case_db_ordering_clause("eek")
+            self.assertEqual(res, ("", {}))
+
+        with DBPerformanceStats("KOKU", CONFIGURATOR, database_ranking=["zero", "one"]) as dbp:
+            case, params = dbp._case_db_ordering_clause("eek")
+            case = re.sub(" +", " ", case.replace(os.linesep, " ").lower())
+            expected = (
+                "case eek when %(db_val_0)s then %(db_rank_0)s "
+                + "when %(db_val_1)s then %(db_rank_1)s else %(def_case_val)s end::text || eek"
+            )
+            self.assertEqual(case, expected)
+
+    def test_explain(self):
+        bad_statements = [
+            "analyze select 1",
+            "create table eek (id int)",
+            "drop table eek",
+            "alter table eek",
+            "commit",
+            "rollback",
+            "insert into eek",
+            "update eek",
+            "delete from eek",
+        ]
+        for bad_sql in bad_statements:
+            with self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"):
+                with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+                    res = dbp.explain_sql("analyze select 1")
+
+        expected = [{"query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1", "query_text": "select 1"}]
+
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp.explain_sql("select 1")
+            self.assertEqual(res, expected)
