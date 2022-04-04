@@ -855,6 +855,30 @@
           "summary": "Returns a table showing query statement statistics if the pg_stat_statements extension has been installed.",
           "operationId": "dbPerformanceStatStatements",
           "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
           "responses": {
             "200": {
               "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
@@ -874,6 +898,78 @@
           "summary": "Returns a table showing current connection activity.",
           "operationId": "dbPerformanceStatActivity",
           "description": "Returns a HTML document showing current connection activity.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set. The default is 500.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records. The default is no offset.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "pid",
+              "in": "query",
+              "description": "Narrow results to supplied pid values",
+              "required": false,
+              "schema": {
+                "type": "array",
+                "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 1
+                }
+              }
+            },
+            {
+              "name": "state",
+              "in": "query",
+              "description": "Narrow results to supplied state values. These include: active, idle, idle in transaction",
+              "required": false,
+              "schema": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "minlength": 4,
+                    "maxlength": 100
+                }
+              }
+            },
+            {
+              "name": "include_self",
+              "in": "query",
+              "description": "If true, include the pid of the connection running the DB Performance queries",
+              "required": false,
+              "schema": {
+                "type": "boolean"
+              }
+            },
+            {
+              "name": "records_per_db",
+              "in": "query",
+              "description": "If there are multiple databases hosted by the engine, then how many records per db to include up to the limit. The default is 100.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
           "responses": {
             "200": {
               "description": "Returns a HTML document showing current connection activity.",
@@ -893,6 +989,30 @@
           "summary": "Returns a table showing any detected blocking locks.",
           "operationId": "dbPerformanceLockInfo",
           "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
           "responses": {
             "200": {
               "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
