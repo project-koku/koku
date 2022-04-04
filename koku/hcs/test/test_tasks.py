@@ -80,6 +80,6 @@ class TestHCSTasks(HCSTestCase):
         """Test no start end provided"""
         from hcs.tasks import collect_hcs_report_data
 
-        collect_hcs_report_data(10001, self.provider, self.provider_uuid, self.yesterday)
+        collect_hcs_report_data("10001", self.provider, self.provider_uuid, self.yesterday)
 
         self.assertEqual("acct10001", self.schema)
