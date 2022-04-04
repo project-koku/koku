@@ -141,12 +141,14 @@ class TestDBPerformanceClass(IamTestCase):
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            has_pss = dbp._validate_pg_stat_statements()
+            has_pss, pss_ver = dbp._validate_pg_stat_statements()
             if has_pss:
+                self.assertIsNotNone(pss_ver)
                 stats = dbp.get_statement_stats()
                 self.assertTrue(0 < len(stats) <= 500)
                 self.assertIn("calls", stats[0])
             else:
+                self.assertIsNone(pss_ver)
                 stats = dbp.get_statement_stats()
                 self.assertEqual(len(stats), 1)
                 self.assertIn("Result", stats[0])

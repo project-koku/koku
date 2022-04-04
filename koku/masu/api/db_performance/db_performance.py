@@ -4,6 +4,7 @@
 #
 import logging
 import os
+from decimal import Decimal
 
 import psycopg2
 from psycopg2.errors import ProgrammingError
@@ -182,7 +183,8 @@ select (boot_val::int / 10000::int)::int as "release",
 
     def _validate_pg_stat_statements(self):
         sql = """
-select oid
+select oid,
+       extversion
   from pg_extension
  where extname = 'pg_stat_statements';
 """
@@ -195,14 +197,20 @@ select oid
    and relkind = 'v';
 """
         view = self._execute(sql, None).fetchone()
-        return bool(extn) and bool(extn.get("oid")) and bool(view) and bool(view.get("oid"))
+        ext_exists = bool(extn) and bool(extn.get("oid")) and bool(view) and bool(view.get("oid"))
+        ext_version = extn["extversion"] if ext_exists else None
+        return (ext_exists, ext_version)
 
     def get_statement_stats(self, limit=500, offset=None, records_per_db=100):
         params = {}
 
+        has_pss, pss_ver = self._validate_pg_stat_statements()
+        if not has_pss:
+            return [{"Result": "pg_stat_statements extension not installled"}]
+
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
-        col_name_sep = "_" if self.get_pg_engine_version()[RELEASE] < 13 else "_exec_"
+        col_name_sep = "_" if Decimal(pss_ver) < Decimal("1.8") else "_exec_"
         rank_case, rank_params = self._case_db_ordering_clause("d.datname")
         partition = f"partition by {rank_case}" if rank_case else ""
         params.update(rank_params)
@@ -253,10 +261,7 @@ where "rec_by_db" <= %(records_per_db)s
 ;
 """
         LOG.info(self._prep_log_message("requesting data from pg_stat_statements"))
-        if self._validate_pg_stat_statements():
-            return self._execute(sql, params).fetchall()
-        else:
-            return [{"Result": "pg_stat_statements extension not installled"}]
+        return self._execute(sql, params).fetchall()
 
     def get_lock_info(self, limit=500, offset=None):
         params = {}
