@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
-import logging
-
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -20,8 +18,6 @@ from reporting.models import OCPStorageVolumeLabelSummary
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.provider.ocp.models import OCPTagsValues
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPTagQueryHandlerTest(IamTestCase):

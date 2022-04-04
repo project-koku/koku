@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP-on-AWS tag query handler."""
-import logging
-
 from tenant_schemas.utils import tenant_context
 
 from api.functions import JSONBObjectKeys
@@ -16,8 +14,6 @@ from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummaryP
 from reporting.models import OCPAWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSTagsValues
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPAWSTagQueryHandlerTest(IamTestCase):

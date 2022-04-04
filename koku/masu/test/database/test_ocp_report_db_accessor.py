@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
-import logging
 import random
 import string
 import uuid
@@ -47,8 +46,6 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPReportDBAccessorTest(MasuTestCase):

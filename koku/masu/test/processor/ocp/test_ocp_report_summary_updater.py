@@ -5,7 +5,6 @@
 """Test the OCPReportProcessor."""
 import calendar
 import datetime
-import logging
 from unittest.mock import call
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -25,8 +24,6 @@ from masu.test import MasuTestCase
 from masu.test.database.helpers import ManifestCreationHelper
 from masu.test.database.helpers import ReportObjectCreator
 from reporting_common.models import CostUsageReportManifest
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPReportSummaryUpdaterTest(MasuTestCase):

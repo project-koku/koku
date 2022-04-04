@@ -4,7 +4,6 @@
 #
 """Test the Report views."""
 import datetime
-import logging
 import random
 from decimal import Decimal
 from unittest import skip
@@ -38,8 +37,6 @@ from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
-
-LOG = logging.getLogger(__name__)
 
 
 class OCPReportViewTest(IamTestCase):
