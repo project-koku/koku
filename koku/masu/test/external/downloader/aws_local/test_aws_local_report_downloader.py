@@ -86,19 +86,28 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
 
-    def test_download_bucket(self):
+    @patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True)
+    def test_download_bucket(self, _):
         """Test to verify that basic report downloading works."""
-        test_report_date = datetime(year=2018, month=8, day=7)
-        with patch.object(DateAccessor, "today", return_value=test_report_date):
-            report_context = {
-                "date": test_report_date.date(),
-                "manifest_id": 1,
-                "comporession": "GZIP",
-                "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
-            }
-            self.report_downloader.download_report(report_context)
-        expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
-        self.assertTrue(os.path.isdir(expected_path))
+        with patch("masu.processor.parquet.parquet_report_processor.Path"):
+            with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                with patch("masu.processor.parquet.parquet_report_processor.open"):
+                    with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
+                        with patch(
+                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                            "create_parquet_table"
+                        ):
+                            test_report_date = datetime(year=2018, month=8, day=7)
+                            with patch.object(DateAccessor, "today", return_value=test_report_date):
+                                report_context = {
+                                    "date": test_report_date.date(),
+                                    "manifest_id": 1,
+                                    "comporession": "GZIP",
+                                    "current_file": "./koku/masu/test/data/test_local_bucket.tar.gz",
+                                }
+                                self.report_downloader.download_report(report_context)
+                            expected_path = "{}/{}/{}".format(DATA_DIR, self.fake_customer_name, "aws-local")
+                            self.assertTrue(os.path.isdir(expected_path))
 
     def test_report_name_provided(self):
         """Test initializer when report_name is  provided."""
@@ -112,17 +121,26 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         )
         self.assertEqual(report_downloader.report_name, "awesome-report")
 
-    def test_extract_names_no_prefix(self):
+    @patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True)
+    def test_extract_names_no_prefix(self, _):
         """Test to extract the report and prefix names from a bucket with no prefix."""
-        report_downloader = AWSLocalReportDownloader(
-            **{
-                "customer_name": self.fake_customer_name,
-                "credentials": self.credentials,
-                "data_source": self.data_source,
-            }
-        )
-        self.assertEqual(report_downloader.report_name, self.fake_report_name)
-        self.assertIsNone(report_downloader.report_prefix)
+        with patch("masu.processor.parquet.parquet_report_processor.Path"):
+            with patch("masu.processor.parquet.parquet_report_processor.pd"):
+                with patch("masu.processor.parquet.parquet_report_processor.open"):
+                    with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
+                        with patch(
+                            "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
+                            "create_parquet_table"
+                        ):
+                            report_downloader = AWSLocalReportDownloader(
+                                **{
+                                    "customer_name": self.fake_customer_name,
+                                    "credentials": self.credentials,
+                                    "data_source": self.data_source,
+                                }
+                            )
+                            self.assertEqual(report_downloader.report_name, self.fake_report_name)
+                            self.assertIsNone(report_downloader.report_prefix)
 
     def test_download_bucket_with_prefix(self):
         """Test to verify that basic report downloading works."""
