@@ -939,7 +939,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             {"table_options": {"foo": "bar"}, "expected": {"foo": "bar"}},
         ]
         for test in test_matrix:
-            self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
+            self.assertEqual(normalize_table_options(test.get("table_options")), test.get("expected"))
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     def test_record_report_status(self, mock_accessor):
@@ -1240,13 +1240,13 @@ class TestRemoveStaleTenants(MasuTestCase):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
             middleware.get_tenant(Tenant, "localhost", mock_request)
-            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
-            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             self.customer.date_updated = DateHelper().n_days_ago(self.customer.date_updated, days)
             self.customer.save()
             before_len = Tenant.objects.count()
             remove_stale_tenants()
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
-            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)

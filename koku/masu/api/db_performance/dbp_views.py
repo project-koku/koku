@@ -8,6 +8,7 @@ import os
 from decimal import Decimal
 
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from jinja2 import Template as JinjaTemplate
@@ -34,9 +35,85 @@ DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
 # TERMINATE_URL = 1
 
 
-def render_template(page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
-    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template), "rt").read())
-    return tmpl.render(page_header=page_header, fields=fields, data=data, targets=targets, action_urls=action_urls)
+def get_limit_offset(request):
+    try:
+        limit = int(request.query_params.get("limit", "500"))
+    except (TypeError, ValueError):
+        limit = 500
+
+    try:
+        offset = int(request.query_params.get("offset"))
+    except (TypeError, ValueError):
+        offset = None
+
+    return limit, offset
+
+
+def get_parameter_list(request, param_name, default=None, sep=","):
+    qp = request.query_params
+
+    if param_name not in qp:
+        return default
+
+    param_val = qp.getlist(param_name)
+    if len(param_val) == 1:
+        param_val = param_val[0].split(sep)
+
+    return param_val
+
+
+def get_parameter_bool(request, param_name, default=None):
+    if default is not None:
+        default = bool(default)
+
+    qp = request.query_params
+
+    if param_name not in qp:
+        return default
+
+    param_val = qp.get(param_name, default)
+    if isinstance(param_val, str):
+        param_val = param_val.lower() in ("1", "y", "yes", "t", "true", "on")
+    else:
+        param_val = bool(param_val)
+
+    return param_val
+
+
+def get_menu(curr_url_name):
+    menu_values = (
+        ("db_version", "DB Engine Version"),
+        ("db_settings", "DB Engine Settings"),
+        ("conn_activity", "Connection Activity"),
+        ("stmt_stats", "Statement Statistics"),
+        ("lock_info", "Lock Information"),
+        ("explain_query", "Explain Query"),
+    )
+    menu_elements = ['<ul id="menu-list" class="menu unselectable">']
+    for url_name, content_name in menu_values:
+        if url_name == curr_url_name:
+            element = f'<li class="current unselectable"><a class="unselectable">{content_name}</a></li>'
+        else:
+            element = (
+                f'<li class="unselectable"><a class=unselectable href="{reverse(url_name)}">{content_name}</a></li>'
+            )
+        menu_elements.append(element)
+    menu_elements.append("</ul>")
+
+    return os.linesep.join(menu_elements)
+
+
+def render_template(url_name, page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
+    menu = get_menu(url_name)
+    tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template)).read())
+    return tmpl.render(
+        db_performance_menu=menu,
+        page_header=page_header,
+        fields=fields,
+        data=data,
+        targets=targets,
+        action_urls=action_urls,
+    )
 
 
 def set_null_display(rec, null_display_val=""):
@@ -54,12 +131,23 @@ def get_identity_username(request):
 @never_cache
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
+def db_performance_redirect(request):
+    return redirect("db_version")
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
 def lockinfo(request):
     """Get any blocked and blocking process data"""
 
+    limit, offset = get_limit_offset(request)
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.get_lock_info()
+        data = dbp.get_lock_info(limit=limit, offset=offset)
+
+    if not data:
+        data = [{"Result": "No blocking locks"}]
 
     targets = []
     if "blocking_pid" in data[0]:
@@ -112,6 +200,7 @@ def lockinfo(request):
     page_header = "Lock Information"
     return HttpResponse(
         render_template(
+            "lock_info",
             page_header,
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
@@ -131,9 +220,10 @@ def stat_statements(request):
     data = None
     query_bad_threshold = Decimal("5000")
     query_warn_threshold = Decimal("2500")
+    limit, offset = get_limit_offset(request)
 
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
-        data = dbp.get_statement_stats()
+        data = dbp.get_statement_stats(limit=limit, offset=offset)
 
     action_urls = []
     if "mean_exec_time" in data[0]:
@@ -156,6 +246,7 @@ def stat_statements(request):
     page_header = "Statement Statistics"
     return HttpResponse(
         render_template(
+            "stmt_stats",
             page_header,
             tuple(f for f in data[0] if not f.startswith("_")) if data else (),
             data,
@@ -182,39 +273,57 @@ def stat_activity(request):
     #     template = "gen_table.html"
 
     template = "t_action_table.html"
-    states = request.query_params.get("states", "")
-    states = states.split(",") if states else []
-    pids = request.query_params.get("pids", "")
-    pids = [int(pid) for pid in pids.split(",")] if pids else []
-    include_self = request.query_params.get("include_self", "false").lower() in ("1", "y", "yes", "t", "true", "on")
+    states = get_parameter_list(request, "state", default=[])
+    pids = get_parameter_list(request, "pid", default=[])
+    include_self = get_parameter_bool(request, "include_self", False)
+    records_per_db = int(request.query_params.get("records_per_db", "100"))
+    limit, offset = get_limit_offset(request)
 
     data = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
-        data = dbp.get_activity(pid=pids, state=states, include_self=include_self)
+        data = dbp.get_activity(
+            pid=pids,
+            state=states,
+            include_self=include_self,
+            limit=limit,
+            offset=offset,
+            records_per_db=records_per_db,
+        )
+    if not data:
+        data = [{"Response": "No data matching the criteria"}]
+        targets = ()
+    else:
+        targets = ("backend_pid",)
+        for rec in data:
+            set_null_display(rec)
+            rec["_raw_backend_pid"] = rec["backend_pid"]
+            rec["_attrs"] = {
+                "query": 'class="pre monospace"',
+                "state": 'class="monospace"',
+                "backend_pid": 'class="sans"',
+                "client_ip": 'class="sans"',
+                "backend_start": 'class="sans"',
+                "xact_start": 'class="sans"',
+                "query_start": 'class="sans"',
+                "state_change": 'class="sans"',
+                "active_time": 'class="sans"',
+                "wait_type_event": 'class="sans"',
+            }
+            rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
-    for rec in data:
-        set_null_display(rec)
-        rec["_raw_backend_pid"] = rec["backend_pid"]
-        rec["_attrs"] = {
-            "query": 'class="pre monospace"',
-            "state": 'class="monospace"',
-            "backend_pid": 'class="sans"',
-            "client_ip": 'class="sans"',
-            "backend_start": 'class="sans"',
-            "xact_start": 'class="sans"',
-            "query_start": 'class="sans"',
-            "state_change": 'class="sans"',
-            "active_time": 'class="sans"',
-            "wait_type_event": 'class="sans"',
-        }
-        rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     page_header = "Connection Activity"
     return HttpResponse(
-        render_template(page_header, fields, data, targets=("backend_pid",), template=template)
+        render_template("conn_activity", page_header, fields, data, targets=targets, template=template)
         # render_template(
-        #     page_header, fields, data, targets=("backend_pid",), template=template, action_urls=action_urls
+        #     "conn_activity",
+        #     page_header,
+        #     fields,
+        #     data,
+        #     targets=("backend_pid",),
+        #     template=template,
+        #     action_urls=action_urls
         # )
     )
 
@@ -243,7 +352,9 @@ def dbsettings(request):
 
     page_header = "Database Settings"
     return HttpResponse(
-        render_template(page_header, tuple(f for f in data[0] if not f.startswith("_")) if data else (), data)
+        render_template(
+            "db_settings", page_header, tuple(f for f in data[0] if not f.startswith("_")) if data else (), data
+        )
     )
 
 
@@ -258,7 +369,7 @@ def pg_engine_version(request):
         data = [{"postgresql_version": ".".join(str(v) for v in dbp.get_pg_engine_version())}]
 
     page_header = "PostgreSQL Engine Version"
-    return HttpResponse(render_template(page_header, tuple(data[0]) if data else (), data))
+    return HttpResponse(render_template("db_version", page_header, tuple(data[0]) if data else (), data))
 
 
 @never_cache
@@ -267,9 +378,11 @@ def pg_engine_version(request):
 def explain_query(request):
     """Get any blocked and blocking process data"""
     if request.method == "GET":
-        page_header = f"""Explain SQL Statement Using Database: "{CONFIGURATOR.get_database_name()}" """
+        page_header = f"""Explain Query Using Database: "{CONFIGURATOR.get_database_name()}" """
         return HttpResponse(
-            render_template(page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")])
+            render_template(
+                "explain_query", page_header, (), (), template="explain.html", action_urls=[reverse("explain_query")]
+            )
         )
     else:
         query_params = json.loads(request.body.decode("utf-8"))

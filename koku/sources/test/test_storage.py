@@ -344,8 +344,8 @@ class SourcesStorageTest(TestCase):
         ocp_obj.save()
 
         response = storage.get_source_type(test_source_id)
-        self.assertEquals(response, Provider.PROVIDER_OCP)
-        self.assertEquals(storage.get_source_type(test_source_id + 1), None)
+        self.assertEqual(response, Provider.PROVIDER_OCP)
+        self.assertEqual(storage.get_source_type(test_source_id + 1), None)
 
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
@@ -364,7 +364,7 @@ class SourcesStorageTest(TestCase):
         result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
         self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.authentication, test_authentication)
+        self.assertEqual(response.authentication, test_authentication)
 
     def test_add_provider_sources_auth_info_with_sub_id(self):
         """Test to add authentication to a source with subscription_id."""
@@ -405,7 +405,7 @@ class SourcesStorageTest(TestCase):
         result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
         self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.billing_source, test_billing)
+        self.assertEqual(response.billing_source, test_billing)
 
     def test_add_provider_sources_billing_info_no_source(self):
         """Test to add billing_source to a non-existent source."""
@@ -538,7 +538,7 @@ class SourcesStorageTest(TestCase):
 
             storage.enqueue_source_create_or_update(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
-            self.assertEquals(test.get("expected_pending_update"), response.pending_update)
+            self.assertEqual(test.get("expected_pending_update"), response.pending_update)
 
     def test_enqueue_source_update_unknown_source(self):
         """Test to enqueue a source update for an unknown source."""
@@ -568,7 +568,7 @@ class SourcesStorageTest(TestCase):
 
             storage.clear_update_flag(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
-            self.assertEquals(test.get("expected_pending_update"), response.pending_update)
+            self.assertEqual(test.get("expected_pending_update"), response.pending_update)
 
     def test_clear_update_flag_unknown_id(self):
         """Test to clear update flag for an unknown id."""
@@ -600,7 +600,7 @@ class SourcesStorageTest(TestCase):
             aws_obj.save()
 
             response = storage.load_providers_to_update()
-            self.assertEquals(len(response), test.get("expected_list_length"))
+            self.assertEqual(len(response), test.get("expected_list_length"))
             aws_obj.delete()
 
     def test_save_status(self):

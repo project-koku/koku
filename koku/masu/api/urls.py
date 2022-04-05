@@ -11,6 +11,7 @@ from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
+from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
@@ -66,6 +67,8 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
+    path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
+    path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),
     path("db-performance/lock-info/", lockinfo, name="lock_info"),
     path("db-performance/stat-activity/", stat_activity, name="conn_activity"),

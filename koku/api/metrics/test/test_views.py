@@ -77,7 +77,7 @@ class CostModelMetricsMapViewTest(IamTestCase):
         params = {"source_type": Provider.PROVIDER_OCP}
         url = url + "?" + urlencode(params, quote_via=quote_plus) + "&limit=11"
         response = client.get(url, **self.headers).data["data"]
-        self.assertEquals(len(COST_MODEL_METRIC_MAP), len(response))
+        self.assertEqual(len(COST_MODEL_METRIC_MAP), len(response))
         for metric in COST_MODEL_METRIC_MAP:
             self.assertIsNotNone(metric.get("source_type"))
             self.assertIsNotNone(metric.get("metric"))

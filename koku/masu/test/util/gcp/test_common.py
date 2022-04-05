@@ -25,11 +25,11 @@ class TestGCPUtils(MasuTestCase):
         """Test that bill IDs are returned for an GCP provider."""
         with schema_context(self.schema):
             expected_bill_ids = GCPCostEntryBill.objects.values_list("id")
-            expected_bill_ids = sorted([bill_id[0] for bill_id in expected_bill_ids])
+            expected_bill_ids = sorted(bill_id[0] for bill_id in expected_bill_ids)
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema)
 
         with schema_context(self.schema):
-            bill_ids = sorted([bill.id for bill in bills])
+            bill_ids = sorted(bill.id for bill in bills)
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
