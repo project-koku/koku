@@ -22,6 +22,7 @@ import faker
 from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.utils import IntegrityError
+from django.test.utils import override_settings
 from tenant_schemas.utils import schema_context
 
 from api.iam.models import Tenant
@@ -845,6 +846,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
 
 
+@override_settings(HOSTNAME="kokuworker")
 class TestWorkerCacheThrottling(MasuTestCase):
     """Tests for tasks that use the worker cache."""
 
@@ -852,13 +854,13 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Check for a single task key in the cache."""
         cache = caches["worker"]
         cache_str = create_single_task_cache_key(task_name, task_args)
-        return True if cache.get(cache_str) else False
+        return bool(cache.get(cache_str))
 
     def lock_single_task(self, task_name, task_args=None, timeout=None):
         """Add a cache entry for a single task to lock a specific task."""
         cache = caches["worker"]
         cache_str = create_single_task_cache_key(task_name, task_args)
-        cache.add(cache_str, "true", 3)
+        cache.add(cache_str, "kokuworker", 3)
 
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
@@ -882,6 +884,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the worker cache is used."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
         cache_args = [self.schema, Provider.PROVIDER_AWS]
         mock_lock.side_effect = self.lock_single_task
@@ -921,6 +924,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the worker cache is used."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
         cache_args = [self.schema]
 
@@ -955,6 +959,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the update_summary_table cloud exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_daily.return_value = start_date, end_date
@@ -990,6 +995,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the update_summary_table provider not found exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_daily.return_value = start_date, end_date
@@ -1011,6 +1017,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_update_cost_model_costs_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
@@ -1046,6 +1053,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_update_cost_model_costs_error(self, mock_inspect, mock_lock, mock_release, mock_updater):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
         expected_start_date = start_date.strftime("%Y-%m-%d")
@@ -1064,6 +1072,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         mock_lock.side_effect = self.lock_single_task
 
         task_name = "masu.processor.tasks.refresh_materialized_views"
