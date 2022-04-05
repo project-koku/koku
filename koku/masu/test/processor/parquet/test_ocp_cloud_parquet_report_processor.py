@@ -169,11 +169,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True)
 
+    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info):
+    def test_process(
+        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+    ):
         """Test that ocp on cloud data is fully processed."""
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
