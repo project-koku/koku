@@ -11,10 +11,12 @@ from masu.api.sources.views import SourcesViewSet
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
+from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
 from masu.api.views import download_report
 from masu.api.views import enabled_tags
 from masu.api.views import expired_data
+from masu.api.views import explain_query
 from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
@@ -65,10 +67,14 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
+    path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
+    path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),
     path("db-performance/lock-info/", lockinfo, name="lock_info"),
     path("db-performance/stat-activity/", stat_activity, name="conn_activity"),
     path("db-performance/stat-statements/", stat_statements, name="stmt_stats"),
+    path("db-performance/db-version/", pg_engine_version, name="db_version"),
+    path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
 ]
 

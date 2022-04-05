@@ -164,14 +164,13 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def test_get_cluster_capacity_monthly_resolution_start_end_date(self):
         """Test that cluster capacity returns capacity by month."""
         url = f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
-        month_count = 2
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
         total_capacity = Decimal(0)
         query_filter = handler.query_filter
-        query_group_by = ["usage_start"]
+        query_group_by = ["usage_start", "cluster_id"]
         annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
         cap_key = list(annotations.keys())[0]
 
@@ -182,7 +181,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)
-        total_capacity = total_capacity * month_count
 
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
 
@@ -591,9 +589,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             ("node", "cluster", "project"),
             ("node", "project", "cluster"),
         ]
-        base_url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"
-        )  # noqa: E501
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
         tolerance = 1
         for group_by in group_by_list:
             sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
@@ -648,7 +644,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                         self.assertEqual(len(item["values"]), 1)
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
@@ -671,6 +667,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
+        tested = False
         yesterday = self.dh.yesterday.date()
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
@@ -688,11 +685,23 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
-        correctlst = [project.get("project") for project in expected]
+        ranking_map = {}
+        count = 1
+        for project in expected:
+            ranking_map[project.get("project")] = count
+            count += 1
         for element in data:
-            lst = [project.get("project") for project in element.get("projects")]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+            previous = 0
+            for project in element.get("projects"):
+                project_name = project.get("project")
+                # This if is cause some days may not have same projects.
+                # however we want the projects that do match to be in the
+                # same order
+                if project_name in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[project_name], previous)
+                    previous = ranking_map[project_name]
+                    tested = True
+        self.assertTrue(tested)
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"

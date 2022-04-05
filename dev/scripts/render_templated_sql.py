@@ -83,7 +83,7 @@ if __name__ == "__main__":
     sql_file = arg_dict.pop("sql_file")
     output_file = arg_dict.pop("output_file")
 
-    with open(sql_file, "r") as f:
+    with open(sql_file) as f:
         sql_template = f.read()
 
     jinja_sql = JinjaSql()

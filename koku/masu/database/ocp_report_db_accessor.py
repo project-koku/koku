@@ -369,7 +369,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
@@ -488,7 +493,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "gcp_provider_uuid": gcp_provider_uuid,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
-        results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
+        results = self._execute_presto_raw_sql_query(
+            self.schema,
+            infra_sql,
+            bind_params=infra_sql_params,
+            log_ref="reporting_ocpinfrastructure_provider_map.sql",
+        )
         db_results = {}
         for entry in results:
             # This dictionary is keyed on an OpenShift provider UUID
@@ -645,7 +655,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
-                "Deleting partitions for the following: \n\tSchema: %s "
+                "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
                 self.schema,
                 source,
@@ -664,7 +674,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'
                         """
-                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        self._execute_presto_raw_sql_query(
+                            self.schema, sql, log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}"
+                        )
                         break
                     except TrinoExternalError as err:
                         if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
@@ -2289,7 +2301,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 resource_id
         """
 
-        nodes = self._execute_presto_raw_sql_query(self.schema, sql)
+        nodes = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_nodes_presto")
 
         return nodes
 
@@ -2306,7 +2318,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
+        pvcs = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_pvcs_presto")
 
         return pvcs
 
@@ -2322,7 +2334,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_presto_raw_sql_query(self.schema, sql)
+        projects = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_projects_presto")
 
         return [project[0] for project in projects]
 
@@ -2415,6 +2427,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        timestamps = self._execute_presto_raw_sql_query(self.schema, sql)
+        timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
         max, min = timestamps[0]
         return parse(max), parse(min)

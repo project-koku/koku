@@ -11,15 +11,17 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.common import error_obj
+from api.currency.currencies import CURRENCIES
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
 from api.provider.models import Provider
+from api.utils import get_currency
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
-CURRENCY_CHOICES = (("USD", "USD"),)
+CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
 
@@ -394,6 +396,8 @@ class CostModelSerializer(serializers.Serializer):
         choices=metric_constants.DISTRIBUTION_CHOICES, required=False, allow_blank=True
     )
 
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+
     @property
     def metric_map(self):
         """Map metrics and display names."""
@@ -444,6 +448,11 @@ class CostModelSerializer(serializers.Serializer):
         source_type = data.get("source_type")
         if source_type and Provider.PROVIDER_CASE_MAPPING.get(source_type.lower()):
             data["source_type"] = Provider.PROVIDER_CASE_MAPPING.get(source_type.lower())
+
+        if data.get("currency"):
+            data["currency"] = data.get("currency")
+        else:
+            data["currency"] = get_currency(self.context.get("request"))
 
         if (
             data.get("markup")
@@ -553,7 +562,16 @@ class CostModelSerializer(serializers.Serializer):
         return rep
 
     def to_internal_value(self, data):
-        """ Alter source_uuids to provider_uuids."""
+        """Alter source_uuids to provider_uuids."""
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal
+
+    def validate_currency(self, value):
+        """Validate incoming currency value based on path."""
+
+        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
+        if value not in valid_currency:
+            error = {"currency": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
