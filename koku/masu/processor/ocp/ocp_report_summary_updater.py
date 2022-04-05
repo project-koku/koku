@@ -12,6 +12,7 @@ from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -108,7 +109,22 @@ class OCPReportSummaryUpdater(PartitionHandlerMixin):
             report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
 
+        self.check_cluster_infrastructure(start_date, end_date)
+
         return start_date, end_date
+
+    def check_cluster_infrastructure(self, start_date, end_date):
+        LOG.info("Checking if OpenShift cluster %s is running on cloud infrastructure.", self._provider.uuid)
+        updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
+        infra_map = updater_base.get_infra_map()
+        if not infra_map:
+            # Check the cluster to see if it is running on cloud infrastructure
+            infra_map = updater_base._generate_ocp_infra_map_from_sql(start_date, end_date)
+        if infra_map:
+            for ocp_source, infra_tuple in infra_map.items():
+                LOG.info(
+                    "OpenShift cluster %s is running on %s source %s.", ocp_source, infra_tuple[1], infra_tuple[0]
+                )
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
