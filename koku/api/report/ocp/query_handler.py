@@ -115,11 +115,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_base_currency(self, source_uuid):
         """Look up the report base currency."""
-        pm = ProviderManager(source_uuid)
-        cost_models = pm.get_cost_models(self.tenant)
-        if cost_models:
-            cm = cost_models[0]
-            return cm.currency
+        if source_uuid:
+            pm = ProviderManager(source_uuid)
+            cost_models = pm.get_cost_models(self.tenant)
+            if cost_models:
+                cm = cost_models[0]
+                return cm.currency
+            # maybe return account setting currency here
         return KOKU_DEFAULT_CURRENCY
 
     def return_total_query(self, total_queryset):
@@ -142,7 +144,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_markup": 0,
             "cost_distributed": 0,
         }
+        print("QUERYSET : ", list(total_queryset))
         for query_set in total_queryset:
+            # print("TABLE: ", self.query_table)
+            # print("QUERY SET: ", list(query_set.values()))
+            # if query_set.get("source_uuid_id"):
+            #     print("OPTION 1: ", query_set.get("source_uuid_id"))
+            # else:
+            #     print("OPTION 2: ", query_set.get("source_uuid"))
             base = self._get_base_currency(query_set.get("source_uuid_id", query_set.get("source_uuid")))
             total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
@@ -314,7 +323,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
+                print("limit: ", self._limit)
                 query_data = self._group_by_ranks(query, query_data)
+                # the no node issue is happening here
                 if not self.parameters.get("order_by"):
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
@@ -323,8 +334,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
                 if self._report_type == "costs" and not is_csv_output:
-                    metrics = query_data.annotate(**aggregates)
-                    metric_sum = self.return_total_query(metrics)
+                    metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}

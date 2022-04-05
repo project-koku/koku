@@ -19,6 +19,7 @@ from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
 import ciso8601
+from celery import uuid
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Window
@@ -1079,6 +1080,7 @@ class ReportQueryHandler(QueryHandler):
             "list": [],
             "Decimal": Decimal(0),
             "NoneType": None,
+            "UUID": uuid,
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
         missed_data = []
