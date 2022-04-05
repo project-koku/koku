@@ -5,6 +5,8 @@
 """Test HCS csv_file_handler."""
 import logging
 
+from dateutil import parser
+
 from api.models import Provider
 from api.utils import DateHelper
 from hcs.csv_file_handler import CSVFileHandler
@@ -30,3 +32,11 @@ class TestHCSCSVFileHandler(HCSTestCase):
         self.assertEqual(fh._schema_name, "10001")
         self.assertEqual(fh._provider, "AWS")
         self.assertEqual(fh._provider_uuid, "cabfdddb-4ed5-421e-a041-311b75daf235")
+
+    def test_write_df_to_csv(self):
+        data = {"x": "123", "y": "456", "z": "456"}
+        with self.assertLogs("hcs.csv_file_handler", "INFO") as _logs:
+            fh = CSVFileHandler(self.schema, self.provider, self.provider_uuid)
+            fh.write_csv_to_s3(parser.parse("2022-04-04"), data.items(), "1234-1234-1234")
+
+            self.assertIn("preparing to write file to object storage", _logs.output[0])
