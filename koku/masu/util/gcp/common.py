@@ -104,7 +104,7 @@ def process_gcp_credits(credit_string):
 
 
 def gcp_post_processor(data_frame):
-    """Guarantee column order for Azure parquet files"""
+    """Guarantee column order for GCP parquet files"""
     columns = list(data_frame)
     column_name_map = {}
     for column in columns:
