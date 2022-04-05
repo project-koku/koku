@@ -23,12 +23,12 @@ class TestReportHCS(HCSTestCase):
         cls.today = DateHelper().today
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
-        cls.tracing_id = 12345 - 12345 - 12345
+        cls.tracing_id = "12345-12345-12345"
 
     def test_init(self):
         """Test the initializer."""
-        dr = ReportHCS(self.schema, self.provider, self.provider_uuid, 12345 - 12345 - 12345)
-        self.assertEqual(dr._schema_name, "10001")
+        dr = ReportHCS(self.schema, self.provider, self.provider_uuid, "12345-12345-12345")
+        self.assertEqual(dr._schema_name, "acct10001")
         self.assertEqual(dr._provider, "AWS")
         self.assertEqual(dr._provider_uuid, "cabfdddb-4ed5-421e-a041-311b75daf235")
-        self.assertEqual(self.tracing_id, 12345 - 12345 - 12345)
+        self.assertEqual(self.tracing_id, "12345-12345-12345")
