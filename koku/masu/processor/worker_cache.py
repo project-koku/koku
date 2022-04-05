@@ -141,21 +141,18 @@ class WorkerCache:
     def task_is_running(self, task_key):
         """Check if a task is in the cache."""
         task_list = self.get_all_running_tasks()
-        return True if task_key in task_list else False
+        return task_key in task_list
 
     def single_task_is_running(self, task_name, task_args=None):
         """Check for a single task key in the cache."""
         cache_str = create_single_task_cache_key(task_name, task_args)
-        return True if self.cache.get(cache_str) else False
+        return bool(self.cache.get(cache_str))
 
-    def lock_single_task(self, task_name, task_args=None, timeout=None):
+    def lock_single_task(self, task_name, task_args=None, timeout=TASK_CACHE_EXPIRE):
         """Add a cache entry for a single task to lock a specific task."""
         cache_str = create_single_task_cache_key(task_name, task_args)
         # Expire the cache so we don't infinite loop waiting
-        if timeout:
-            self.cache.add(cache_str, "true", timeout)
-        else:
-            self.cache.add(cache_str, "true", TASK_CACHE_EXPIRE)
+        self.cache.add(cache_str, "true", timeout, version=self._hostname)
 
     def release_single_task(self, task_name, task_args=None):
         """Delete the cache entry for a single task."""
