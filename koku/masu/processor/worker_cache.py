@@ -146,13 +146,14 @@ class WorkerCache:
     def single_task_is_running(self, task_name, task_args=None):
         """Check for a single task key in the cache."""
         cache_str = create_single_task_cache_key(task_name, task_args)
-        return bool(self.cache.get(cache_str))
+        host = self.cache.get(cache_str)
+        return host and host in self.worker_cache_keys
 
     def lock_single_task(self, task_name, task_args=None, timeout=TASK_CACHE_EXPIRE):
         """Add a cache entry for a single task to lock a specific task."""
         cache_str = create_single_task_cache_key(task_name, task_args)
         # Expire the cache so we don't infinite loop waiting
-        self.cache.add(cache_str, "true", timeout, version=self._hostname)
+        self.cache.add(cache_str, self._hostname, timeout)
 
     def release_single_task(self, task_name, task_args=None):
         """Delete the cache entry for a single task."""
