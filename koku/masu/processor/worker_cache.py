@@ -153,7 +153,7 @@ class WorkerCache:
         """Add a cache entry for a single task to lock a specific task."""
         cache_str = create_single_task_cache_key(task_name, task_args)
         # Expire the cache so we don't infinite loop waiting
-        self.cache.add(cache_str, self._hostname, timeout)
+        self.cache.set(cache_str, self._hostname, timeout)
 
     def release_single_task(self, task_name, task_args=None):
         """Delete the cache entry for a single task."""
