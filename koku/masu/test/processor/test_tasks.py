@@ -60,6 +60,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
+from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -845,6 +846,34 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
 
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    def test_update_openshift_on_cloud(self, mock_updater):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+            synchronous=True,
+        )
+
+        mock_updater.side_effect = ReportSummaryUpdaterCloudError
+        with self.assertRaises(ReportSummaryUpdaterCloudError):
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocp_on_aws_ocp_provider.uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
 
 @override_settings(HOSTNAME="kokuworker")
 class TestWorkerCacheThrottling(MasuTestCase):
@@ -862,6 +891,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         cache_str = create_single_task_cache_key(task_name, task_args)
         cache.add(cache_str, "kokuworker", 3)
 
+    @patch("masu.processor.tasks.group")
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
@@ -882,11 +912,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_daily,
         mock_summary,
         mock_delay,
+        mock_ocp_on_cloud,
     ):
         """Test that the worker cache is used."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema, Provider.PROVIDER_AWS]
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().this_month_start
@@ -1002,7 +1033,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(self.schema, Provider.PROVIDER_AWS, uuid4(), start_date, end_date)
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
             statement_found = False
             for log in logger.output:
                 if expected in log:
@@ -1076,7 +1107,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock.side_effect = self.lock_single_task
 
         task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema, Provider.PROVIDER_AWS]
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
 
         manifest_dict = {
             "assembly_id": "12345",
@@ -1089,10 +1120,74 @@ class TestWorkerCacheThrottling(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
         mock_delay.assert_not_called()
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
+        mock_delay.assert_called()
+        self.assertTrue(self.single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    @patch("masu.processor.tasks.update_openshift_on_cloud.s")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_openshift_on_cloud_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay, mock_update):
+        """Test that refresh materialized views runs with cache lock."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        mock_lock.side_effect = self.lock_single_task
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+
+        task_name = "masu.processor.tasks.update_openshift_on_cloud"
+        cache_args = [self.schema, self.aws_provider_uuid]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
+        mock_delay.assert_not_called()
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
