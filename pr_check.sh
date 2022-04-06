@@ -8,8 +8,8 @@ IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 DBM_IMAGE=${IMAGE}
 DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
-COMPONENTS="hive-metastore koku"  # specific components to deploy (optional, default: all)
-COMPONENTS_W_RESOURCES="hive-metastore koku"  # components which should preserve resource settings (optional, default: none)
+COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
+COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 SOURCE="appsre"
 
 ENABLE_PARQUET_PROCESSING="true"
@@ -69,9 +69,8 @@ function run_smoke_tests() {
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
-        --set-parameter presto/WORKER_REPLICAS=2 \
+        --set-parameter presto/WORKER_REPLICAS="2" \
         --timeout 600
-
 
     source $CICD_ROOT/cji_smoke_test.sh
 }
