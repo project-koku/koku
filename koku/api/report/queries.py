@@ -822,7 +822,7 @@ class ReportQueryHandler(QueryHandler):
                 for delta in ["delta_value", "delta_percent"]:
                     if data.get(delta):
                         total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account", "account_alias", "tags_exist"]:
+                for item in ["account", "account_alias", "tags_exist", "clusters", "node"]:
                     if data.get(item):
                         total_query[item] = data.get(item)
                 for group in all_group_by:
