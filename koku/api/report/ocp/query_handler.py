@@ -122,7 +122,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if cost_models:
                     cm = cost_models[0]
                     return cm.currency
-            except Exception as e:
+            except Exception:
                 LOG.warning("no cost model found associated with source.")
             # maybe return account setting currency here
         return KOKU_DEFAULT_CURRENCY

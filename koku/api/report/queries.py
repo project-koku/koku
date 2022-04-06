@@ -19,7 +19,6 @@ from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
 import ciso8601
-from celery import uuid
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Window
