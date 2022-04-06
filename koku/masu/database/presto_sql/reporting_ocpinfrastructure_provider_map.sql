@@ -54,7 +54,7 @@
     UNION
 {% endif %}
 
-{% if gcp_provider_uuid %}
+{% if gcp_provider_uuid or ocp_provider_uuid %}
     WITH cte_openshift_cluster_info AS (
     SELECT DISTINCT cluster_id,
         cluster_alias,
