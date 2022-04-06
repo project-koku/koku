@@ -43,7 +43,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         super().setUp()
         self.today = self.dh.today
 
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
     )
@@ -71,7 +71,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         updater = OCPCloudReportSummaryUpdater(
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=manifest
         )
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(
+            start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
+        )
 
         with schema_context(self.schema):
             bill = AWSCostEntryBill.objects.filter(
@@ -82,7 +84,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             start_date.date(), end_date.date(), cluster_id, [str(bill.id)], decimal.Decimal(0)
         )
 
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch("masu.processor.ocp.ocp_cloud_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_cost_daily_summary")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_ui_summary_tables"  # noqa: E501
@@ -105,16 +107,16 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         mock_utility.return_value = fake_bills
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
-        with ProviderDBAccessor(self.ocp_test_provider_uuid) as provider_accessor:
+        with ProviderDBAccessor(self.ocp_on_aws_ocp_provider.uuid) as provider_accessor:
             credentials = provider_accessor.get_credentials()
         cluster_id = credentials.get("cluster_id")
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
-        updater.update_summary_tables(start_date_str, end_date_str)
+        updater.update_summary_tables(
+            start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
+        )
         mock_ocp_on_aws.assert_called_with(
             start_date.date(), end_date.date(), cluster_id, bill_ids, decimal.Decimal(0)
         )
@@ -147,8 +149,15 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
                 provider = provider_accessor.get_provider()
 
             updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
-
-            updater.update_summary_tables(start_date_str, end_date_str)
+            infra_map = updater.get_infra_map(start_date_str, end_date_str)
+            for openshift_provider_uuid, infrastructure_tuple in infra_map.items():
+                updater.update_summary_tables(
+                    start_date_str,
+                    end_date_str,
+                    openshift_provider_uuid,
+                    infrastructure_tuple[0],
+                    infrastructure_tuple[1],
+                )
             mock_ocp_on_aws.assert_not_called()
 
     @patch(
@@ -176,7 +185,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=manifest
         )
 
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(
+            start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
+        )
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
         with AWSReportDBAccessor(self.schema) as aws_accessor:
@@ -201,7 +212,9 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
         )
 
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(
+            start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
+        )
 
         summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
         with AWSReportDBAccessor(self.schema) as aws_accessor:
@@ -213,21 +226,21 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             for item in query:
                 self.assertAlmostEqual(item.project_markup_cost, item.pod_cost * markup_dec)
 
-    def test_get_infra_map(self):
+    def test_get_infra_map_from_providers(self):
         """Test that an infrastructure map is returned."""
         updater = OCPCloudReportSummaryUpdater(
             schema=self.schema, provider=self.ocp_on_aws_ocp_provider, manifest=None
         )
 
         expected_mapping = (self.aws_provider_uuid, Provider.PROVIDER_AWS_LOCAL)
-        infra_map = updater.get_infra_map()
+        infra_map = updater.get_infra_map_from_providers()
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
         self.assertEqual(infra_map.get(str(self.ocp_on_aws_ocp_provider.uuid)), expected_mapping)
 
         updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.aws_provider, manifest=None)
 
-        infra_map = updater.get_infra_map()
+        infra_map = updater.get_infra_map_from_providers()
 
         self.assertEqual(len(infra_map.keys()), 1)
         self.assertIn(str(self.ocp_on_aws_ocp_provider.uuid), infra_map)
@@ -255,7 +268,13 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
 
         updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.azure_provider, manifest=None)
 
-        updater.update_summary_tables(start_date, end_date)
+        updater.update_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider.uuid,
+            Provider.PROVIDER_AZURE,
+        )
 
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
         with AzureReportDBAccessor(self.schema) as azure_accessor:

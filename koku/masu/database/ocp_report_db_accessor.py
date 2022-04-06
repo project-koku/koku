@@ -765,31 +765,41 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["pod_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
         }
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+        if start_date and end_date:
+            msg = f"Updating {table_name} from {start_date} to {end_date}"
+        else:
+            msg = f"Updating {table_name}"
+        LOG.info(msg)
+        self._execute_processing_script("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql", agg_sql_params)
+        LOG.info(f"Finished updating {table_name}")
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
         table_name = self._table_map["volume_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
         }
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+        if start_date and end_date:
+            msg = f"Updating {table_name} from {start_date} to {end_date}"
+        else:
+            msg = f"Updating {table_name}"
+        LOG.info(msg)
+        self._execute_processing_script(
+            "masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql", agg_sql_params
+        )
+        LOG.info(f"Finished updating {table_name}")
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""

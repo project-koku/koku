@@ -116,11 +116,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
     def _get_base_currency(self, source_uuid):
         """Look up the report base currency."""
         if source_uuid and source_uuid != "no-source_uuid_id":
-            pm = ProviderManager(source_uuid)
-            cost_models = pm.get_cost_models(self.tenant)
-            if cost_models:
-                cm = cost_models[0]
-                return cm.currency
+            try:
+                pm = ProviderManager(source_uuid)
+                cost_models = pm.get_cost_models(self.tenant)
+                if cost_models:
+                    cm = cost_models[0]
+                    return cm.currency
+            except Exception:
+                LOG.warning("no cost model found associated with source.")
             # maybe return account setting currency here
         return KOKU_DEFAULT_CURRENCY
 
