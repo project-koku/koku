@@ -162,7 +162,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
     def check_cluster_infrastructure(self, start_date, end_date):
         LOG.info("Checking if OpenShift cluster %s is running on cloud infrastructure.", self._provider.uuid)
         updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
-        infra_map = updater_base.get_infra_map()
+        infra_map = updater_base.get_infra_map_from_providers()
         if not infra_map:
             # Check the cluster to see if it is running on cloud infrastructure
             infra_map = updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
