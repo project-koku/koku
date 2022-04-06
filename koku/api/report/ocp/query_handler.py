@@ -115,12 +115,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def _get_base_currency(self, source_uuid):
         """Look up the report base currency."""
-        if source_uuid:
-            pm = ProviderManager(source_uuid)
-            cost_models = pm.get_cost_models(self.tenant)
-            if cost_models:
-                cm = cost_models[0]
-                return cm.currency
+        if source_uuid and source_uuid != "no-source_uuid_id":
+            try:
+                pm = ProviderManager(source_uuid)
+                cost_models = pm.get_cost_models(self.tenant)
+                if cost_models:
+                    cm = cost_models[0]
+                    return cm.currency
+            except Exception as e:
+                LOG.warning("no cost model found associated with source.")
             # maybe return account setting currency here
         return KOKU_DEFAULT_CURRENCY
 
@@ -144,14 +147,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "cost_markup": 0,
             "cost_distributed": 0,
         }
-        print("QUERYSET : ", list(total_queryset))
         for query_set in total_queryset:
-            # print("TABLE: ", self.query_table)
-            # print("QUERY SET: ", list(query_set.values()))
-            # if query_set.get("source_uuid_id"):
-            #     print("OPTION 1: ", query_set.get("source_uuid_id"))
-            # else:
-            #     print("OPTION 2: ", query_set.get("source_uuid"))
             base = self._get_base_currency(query_set.get("source_uuid_id", query_set.get("source_uuid")))
             total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
@@ -323,7 +319,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
-                print("limit: ", self._limit)
                 query_data = self._group_by_ranks(query, query_data)
                 # the no node issue is happening here
                 if not self.parameters.get("order_by"):

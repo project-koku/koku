@@ -505,6 +505,8 @@ class ReportQueryHandler(QueryHandler):
 
         out_data = OrderedDict()
         curr_group = group_by_list[group_index]
+        print("\n\n\ncurr_group: ")
+        print(curr_group)
 
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
@@ -1032,6 +1034,7 @@ class ReportQueryHandler(QueryHandler):
 
         for query_return in data:
             query_return = self._apply_group_null_label(query_return, gb)
+
         return self._ranked_list(data, rankings)
 
     def _ranked_list(self, data_list, ranks=None):
@@ -1080,9 +1083,11 @@ class ReportQueryHandler(QueryHandler):
             "list": [],
             "Decimal": Decimal(0),
             "NoneType": None,
-            "UUID": uuid,
+            "UUID": None,
         }
         empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
+        print("\n\n\n\nempty row: ")
+        print(empty_row)
         missed_data = []
         for missed in missing:
             ranked_empty_row = copy.deepcopy(empty_row)
