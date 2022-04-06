@@ -62,6 +62,7 @@ function run_smoke_tests() {
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
         ${COMPONENTS_RESOURCES_ARG} \
+        --set-parameter rbac/MIN_REPLICAS=1 \
         --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
@@ -72,6 +73,9 @@ function run_smoke_tests() {
         --set-parameter host-inventory/REPLICAS_PMIN=0 \
         --set-parameter host-inventory/REPLICAS_SP=0 \
         --set-parameter host-inventory/REPLICAS_SVC=0 \
+        --set-parameter presto/WORKER_REPLICAS=2 \
+        --set-parameter xjoin-search/NUM_REPLICAS=0 \
+        --set-parameter sources-api/MIN_REPLICAS=1  \
         --no-single-replicas \
         --source=appsre \
         --timeout 600
