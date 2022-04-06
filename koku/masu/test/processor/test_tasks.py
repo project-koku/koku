@@ -1138,6 +1138,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         end_date = DateHelper().today.date()
 
         mock_lock.side_effect = self.lock_single_task
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
         task_name = "masu.processor.tasks.update_openshift_on_cloud"
         cache_args = [self.schema, self.aws_provider_uuid]
