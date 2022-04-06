@@ -226,7 +226,7 @@ def date_range_pair(start_date, end_date, step=5):
     if len(dates) == 1:
         yield start_date.date(), end_date.date()
     for date in dates:
-        if date == start_date:
+        if date == start_date and date != end_date:
             continue
         yield start_date.date(), date.date()
         start_date = date + timedelta(days=1)
