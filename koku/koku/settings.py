@@ -453,6 +453,15 @@ ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
 ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
+# OCI tenant settings
+OCI_CONFIG = {
+    "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
+    "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),
+    "fingerprint": ENVIRONMENT.get_value("OCI_CLI_FINGERPRINT", default="OCI_FINGERPRINT"),
+    "tenancy": ENVIRONMENT.get_value("OCI_CLI_TENANCY", default="OCI_TENANT"),
+    "region": ENVIRONMENT.get_value("OCI_REGION", default="uk-london-1"),
+}
+
 # Presto Settings
 PRESTO_HOST = ENVIRONMENT.get_value("PRESTO_HOST", default=None)
 PRESTO_PORT = ENVIRONMENT.get_value("PRESTO_PORT", default=None)

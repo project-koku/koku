@@ -4,7 +4,6 @@
 #
 """Oracel cloud infrastructure provider implementation to be used by Koku."""
 import logging
-import os
 
 import oci
 from oci.exceptions import ClientError
@@ -15,6 +14,7 @@ from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
+from koku.settings import OCI_CONFIG
 from masu.config import Config
 
 DATA_DIR = Config.TMP_DIR
@@ -34,13 +34,7 @@ def _check_cost_report_access(customer_tenancy):
 
     # Get the list of reports
     # https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clienvironmentvariables.htm!!!
-    config = {
-        "user": os.environ["OCI_CLI_USER"],
-        "key_file": os.environ["OCI_CLI_KEY_FILE"],
-        "fingerprint": os.environ["OCI_CLI_FINGERPRINT"],
-        "tenancy": os.environ["OCI_CLI_TENANCY"],
-        "region": "uk-london-1",
-    }
+    config = OCI_CONFIG
 
     object_storage = oci.object_storage.ObjectStorageClient(config)
     try:

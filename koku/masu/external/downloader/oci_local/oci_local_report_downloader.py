@@ -146,10 +146,10 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Get the name of the file for the report.
 
-        Since with GCP the "report" *is* the file name, we simply return it.
+        Since with OCI the "report" *is* the file name, we simply return it.
 
         Args:
-            report (str): name of GCP storage blob
+            report (str): name of OCI storage blob
 
         """
         return report
