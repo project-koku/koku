@@ -119,11 +119,12 @@ class ProviderManager:
 
     def get_infrastructure_info(self):
         """Get the type/uuid of the infrastructure that the provider is running on."""
-        if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
-            return {
-                "type": self.model.infrastructure.infrastructure_type,
-                "uuid": self.model.infrastructure.infrastructure_provider_id,
-            }
+        if self.model:
+            if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
+                return {
+                    "type": self.model.infrastructure.infrastructure_type,
+                    "uuid": self.model.infrastructure.infrastructure_provider_id,
+                }
         return {}
 
     def get_additional_context(self):
