@@ -10,7 +10,6 @@ DBM_IMAGE=${IMAGE}
 DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
-SOURCE="appsre"
 
 ENABLE_PARQUET_PROCESSING="true"
 
