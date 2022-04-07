@@ -69,6 +69,9 @@ function run_smoke_tests() {
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --set-parameter koku/LISTENER_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_DOWNLOAD_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_OCP_MIN_REPLICAS=2 \
         --set-parameter host-inventory/REPLICAS_P1=1 \
         --set-parameter host-inventory/REPLICAS_PMIN=1 \
         --set-parameter host-inventory/REPLICAS_SP=1 \
