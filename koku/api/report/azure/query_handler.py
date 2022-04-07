@@ -243,8 +243,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
         else:
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
-            total_query[unit_key] = self.currency
-
+            if self._report_type == "costs":
+                total_query[unit_key] = self.currency
+            else:
+                total_query[unit_key] = unit_value
         if counts:
             total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)

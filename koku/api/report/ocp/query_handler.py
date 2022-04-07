@@ -380,7 +380,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self.currency}
+        if self._report_type == "costs":
+            sum_init = {"cost_units": self.currency}
+        else:
+            sum_init = {"cost_units": self._mapper.cost_units_key}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
