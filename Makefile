@@ -139,12 +139,17 @@ help:
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
 	@echo ""
-	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-forward-ports                      port forward the DB to localhost"
-	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
-	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
-	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
-	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
+	@echo ""
+	@echo "--- Ephemeral env Commands ---"
+	@echo "  ephemeral-reserve                    reserve an ephemeral namespace"
+	@echo "  		             		       	  @param hours - the number of hours the namespace is reserved(default 48h)"
+	@echo "  ephemeral-release                    release currently reserved(default), or specify the namespace to release"
+	@echo "  ephemeral-forward-ports              forward all dev ports to ephemeral env"
+	@echo "  ephemeral-get-namespaces             list ephemeral namespaces"
+	@echo "  ephemeral-get-pods                   list koku pods in namespace"
+	@echo "  ephemeral-get-minio-creds            list minio credentials for current namespace"
+	@echo "  ephemeral-build-image                build image from local repo and update config.yml file"
+	@echo "  ephemeral-deploy-image               deploy image to previously reserved ephemeral namespace"
 	@echo ""
 	@echo "--- Create Sources ---"
 	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
@@ -272,30 +277,39 @@ scan_project:
 	./sonarqube.sh
 
 ####################################
-# Commands using OpenShift Cluster #
+# Commands for Ephemeral env 	   #
 ####################################
 
-oc-forward-ports: oc-stop-forwarding-ports
-	@oc port-forward $$(oc get pods -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
+hours="48h"
+ephemeral-reserve:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh reserve $(hours)
 
-oc-login-dev:
-	oc login -u developer --insecure-skip-tls-verify=true localhost:8443
+ephemeral-release:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh release
 
-oc-make-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
-	$(MAKE) oc-stop-forwarding-ports
+ephemeral-build-image:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh build-image
 
-oc-run-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) migrate_schemas
-	$(MAKE) oc-stop-forwarding-ports
+ephemeral-deploy-image:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh deploy-image
 
-oc-stop-forwarding-ports:
-	@kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}') 2>/dev/null || true
+ephemeral-forward-ports:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh port-forward-all
 
-oc-delete-e2e:
-	oc delete project/hccm project/buildfactory project/secrets
+ephemeral-stop-forward-ports:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh stop-port-forward-all
+
+ephemeral-get-namespaces:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh list-namespaces
+
+ephemeral-get-pods:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh list-pods
+
+ephemeral-get-minio-creds:
+	$(SCRIPTDIR)/ephemeral/ephemeral.sh get-minio-creds
+
+ephemeral-create-customer-data:
+	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
 
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml

@@ -1,0 +1,18 @@
+# choose podman(not fully tested) or docker
+CONTAINER_EXEC=docker
+HOST=local
+
+# path the koku dev clowder config
+CONFIG_FILE=${KOKU_HOME}/dev/config.yaml
+
+# image for Hive
+HIVE_IMAGE_TAG=3.1.2-metastore-005
+
+# default local ports for forwarding
+SOURCES_FWD_PORT=3000
+KOKU_FWD_PORT=4000
+MASU_FWD_PORT=5042
+INGRESS_FWD_PORT=8000
+UNLEASH_FWD_PORT=4242
+MINIO_FWD_PORT=9090
+KOKU_DB_FWD_PORT=15432
