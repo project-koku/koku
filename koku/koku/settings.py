@@ -487,6 +487,7 @@ QE_SCHEMA = ENVIRONMENT.get_value("QE_SCHEMA", default=None)
 
 # Flag for maximum retries for source delete before proceeding
 MAX_SOURCE_DELETE_RETRIES = 25
+MAX_UPDATE_RETRIES = 5
 
 # Demo Accounts list
 DEMO_ACCOUNTS = {}
