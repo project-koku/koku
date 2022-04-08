@@ -141,11 +141,11 @@ help:
 	@echo ""
 	@echo ""
 	@echo "--- Ephemeral env Commands ---"
-	@echo "  ephemeral-reserve                    reserve an ephemeral namespace"
+	@echo "  ephemeral-reserve-ns             	  reserve an ephemeral namespace"
 	@echo "  		             		       	  @param hours - the number of hours the namespace is reserved(default 48h)"
-	@echo "  ephemeral-release                    release currently reserved(default), or specify the namespace to release"
+	@echo "  ephemeral-release-ns		          release currently reserved(default), or specify the namespace to release"
 	@echo "  ephemeral-forward-ports              forward all dev ports to ephemeral env"
-	@echo "  ephemeral-get-namespaces             list ephemeral namespaces"
+	@echo "  ephemeral-get-ns		              list ephemeral namespaces"
 	@echo "  ephemeral-get-pods                   list koku pods in namespace"
 	@echo "  ephemeral-get-minio-creds            list minio credentials for current namespace"
 	@echo "  ephemeral-build-image                build image from local repo and update config.yml file"
@@ -281,10 +281,10 @@ scan_project:
 ####################################
 
 hours="48h"
-ephemeral-reserve:
+ephemeral-reserve-ns:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh reserve $(hours)
 
-ephemeral-release:
+ephemeral-release-ns:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh release
 
 ephemeral-build-image:
@@ -299,7 +299,7 @@ ephemeral-forward-ports:
 ephemeral-stop-forward-ports:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh stop-port-forward-all
 
-ephemeral-get-namespaces:
+ephemeral-get-ns:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh list-namespaces
 
 ephemeral-get-pods:
