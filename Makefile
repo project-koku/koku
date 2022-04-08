@@ -148,8 +148,8 @@ help:
 	@echo "  ephemeral-get-ns		              list ephemeral namespaces"
 	@echo "  ephemeral-get-pods                   list koku pods in namespace"
 	@echo "  ephemeral-get-minio-creds            list minio credentials for current namespace"
-	@echo "  ephemeral-build-image                build image from local repo and update config.yml file"
-	@echo "  ephemeral-deploy-image               deploy image to previously reserved ephemeral namespace"
+	@echo "  ephemeral-image-build                build image from local repo and update config.yml file"
+	@echo "  ephemeral-image-deploy               deploy image to previously reserved ephemeral namespace"
 	@echo ""
 	@echo "--- Create Sources ---"
 	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
@@ -287,10 +287,10 @@ ephemeral-reserve-ns:
 ephemeral-release-ns:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh release
 
-ephemeral-build-image:
+ephemeral-image-build:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh build-image
 
-ephemeral-deploy-image:
+ephemeral-image-deploy:
 	$(SCRIPTDIR)/ephemeral/ephemeral.sh deploy-image
 
 ephemeral-forward-ports:
