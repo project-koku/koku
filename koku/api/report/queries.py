@@ -141,6 +141,10 @@ class ReportQueryHandler(QueryHandler):
             "cost_usage": 0,
             "cost_markup": 0,
         }
+        if self.provider == Provider.PROVIDER_GCP:
+            total_query["infra_credit"] = 0
+            total_query["sup_credit"] = 0
+            total_query["cost_credit"] = 0
         for query_set in total_queryset:
             codes = {
                 Provider.PROVIDER_AWS: "currency_code",
@@ -154,7 +158,7 @@ class ReportQueryHandler(QueryHandler):
             base = query_set.get(codes.get(self.provider))
             total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
-            for value in [
+            generic_list = [
                 "infra_total",
                 "infra_raw",
                 "infra_usage",
@@ -167,7 +171,10 @@ class ReportQueryHandler(QueryHandler):
                 "cost_raw",
                 "cost_usage",
                 "cost_markup",
-            ]:
+            ]
+            if self.provider == Provider.PROVIDER_GCP:
+                generic_list += ["infra_credit", "sup_credit", "cost_credit"]
+            for value in generic_list:
                 orig_value = total_query[value]
                 total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
         return total_query
@@ -812,6 +819,17 @@ class ReportQueryHandler(QueryHandler):
                 "total": {"value": 0, "units": self.currency},
             },
         }
+        if self.provider == Provider.PROVIDER_GCP:
+            values_example = {
+                "raw": {"value": 0, "units": self.currency},
+                "markup": {"value": 0, "units": self.currency},
+                "usage": {"value": 0, "units": self.currency},
+                "credit": {"value": 0, "units": self.currency},
+                "total": {"value": 0, "units": self.currency},
+            }
+            total_query["infrastructure"] = copy.deepcopy(values_example)
+            total_query["supplementary"] = copy.deepcopy(values_example)
+            total_query["cost"] = copy.deepcopy(values_example)
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
@@ -829,7 +847,10 @@ class ReportQueryHandler(QueryHandler):
                         group = group[6:]
                     total_query[group] = data.get(group)
                 for structure in ["infrastructure", "supplementary", "cost"]:
-                    for each in ["raw", "markup", "usage", "total"]:
+                    generic_list = ["raw", "markup", "usage", "total"]
+                    if self.provider == Provider.PROVIDER_GCP:
+                        generic_list.append("credit")
+                    for each in generic_list:
                         orig_value = total_query.get(structure).get(each).get("value")
                         total_query[structure][each]["value"] = Decimal(
                             data.get(structure).get(each).get("value")
