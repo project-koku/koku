@@ -114,7 +114,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, round(Decimal(expected_cost_total), 9))
+        self.assertEqual(result_cost_total, round(Decimal(expected_cost_total), 11))
 
     def test_get_cluster_capacity_monthly_resolution(self, mocked_exchange_rates):
         """Test that cluster capacity returns a full month's capacity."""
@@ -665,7 +665,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
-        self.assertEqual(result_cost_total, expected_cost_total)
+        self.assertEqual(result_cost_total, round(expected_cost_total, 11))
 
     def test_ocp_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""

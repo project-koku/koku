@@ -170,7 +170,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 "cost_distributed",
             ]:
                 orig_value = total_query[value]
-                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+                total_query[value] = orig_value + (query_set.get(value) * Decimal(exchange_rate))
 
         return total_query
 
@@ -187,9 +187,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if currency not in currencys.keys():
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
-                            new_value = round(
-                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
-                            )
+                            new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
                             data[structure][each]["value"] = new_value
                             data[structure][each]["units"] = self.currency
                     currencys[currency] = data
@@ -218,9 +216,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         for each in ["raw", "markup", "usage", "total", "distributed"]:
                             orig_value = base_values.get(structure).get(each).get("value")
-                            new_value = round(
-                                Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
-                            )
+                            new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
                             base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
                             base_values[structure][each]["units"] = self.currency
         return currencys
@@ -286,9 +282,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for structure in ["infrastructure", "supplementary", "cost"]:
                     for each in ["raw", "markup", "usage", "total", "distributed"]:
                         orig_value = total_query.get(structure).get(each).get("value")
-                        new_value = round(
-                            Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate), 9
-                        )
+                        new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
                         total_query[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
         return total_query, new_codes
 
@@ -332,7 +326,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: metric_sum.get(key) for key in aggregates}
+                query_sum = {key: round(metric_sum.get(key), 11) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
@@ -343,11 +337,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             order_date = None
             for i, param in enumerate(query_order_by):
+                # enter
                 if self.check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
+                # no enter
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
                 filtered_query_data = []
@@ -365,6 +361,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
                 query_data = self.order_by(sorted_data, ["-date"])
             else:
+                # enter
                 query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
@@ -375,6 +372,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
+                # enter
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
                 data = self._apply_group_by(list(query_data), groups)
