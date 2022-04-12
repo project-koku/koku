@@ -11,4 +11,3 @@ class HCSTestCase(IamTestCase):
         super().setUpClass()
 
         cls.schema = "acct10001"
-        cls.acct = "10001"
