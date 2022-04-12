@@ -51,7 +51,7 @@ def check_kafka_connection():
 def check_sources_connection():
     """Check sources-backend connection."""
     try:
-        return SourcesHTTPClient(SourcesConfig.SOURCES_FAKE_HEADER).get_cost_management_application_type_id()
+        return SourcesHTTPClient(SourcesConfig.SOURCES_PROBE_HEADER).get_cost_management_application_type_id()
     except (SourcesHTTPClientError, SourceNotFoundError):
         return
 

@@ -6,6 +6,7 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.test.util.constants import OCP_POD_LABELS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -107,7 +108,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tags_for_key_filter(self):
         """Test that the execute query runs properly with key query."""
-        key = "version"
+        key = list(OCP_POD_LABELS[0].keys())[0]
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)

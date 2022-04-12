@@ -32,18 +32,9 @@ LOG = logging.getLogger(__name__)
 class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
     """Class to update OCP report summary data."""
 
-    def update_summary_tables(self, start_date, end_date):
-        """Populate the summary tables for reporting.
-
-        Args:
-            start_date (str) The date to start populating the table.
-            end_date   (str) The date to end on.
-
-        Returns
-            None
-
-        """
-        infra_map = self.get_infra_map()
+    def get_infra_map(self, start_date, end_date):
+        """Get the map of cloud source and associated OpenShift clusters."""
+        infra_map = self.get_infra_map_from_providers()
         openshift_provider_uuids, infra_provider_uuids = self.get_openshift_and_infra_providers_lists(infra_map)
 
         if self._provider.type == Provider.PROVIDER_OCP and self._provider_uuid not in openshift_provider_uuids:
@@ -53,30 +44,37 @@ class OCPCloudReportSummaryUpdater(PartitionHandlerMixin, OCPCloudUpdaterBase):
             # of the matching clusters to run
             infra_map = self._generate_ocp_infra_map_from_sql(start_date, end_date)
 
-        # If running as an infrastructure provider (e.g. AWS)
-        # this loop should run for all associated OpenShift clusters.
-        # If running for an OpenShift provider, it should just run one time.
-        for ocp_provider_uuid, infra_tuple in infra_map.items():
-            infra_provider_uuid = infra_tuple[0]
-            infra_provider_type = infra_tuple[1]
-            if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
-                self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
-            elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
-                self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
-            elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
-                self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+        return infra_map
 
-            # Update markup for OpenShift tables
-            with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
-                OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(
-                    start_date, end_date
-                )
+    def update_summary_tables(self, start_date, end_date, ocp_provider_uuid, infra_provider_uuid, infra_provider_type):
+        """Populate the summary tables for reporting.
 
-            # Update the UI tables for the OpenShift provider
-            with OCPReportDBAccessor(self._schema) as ocp_accessor:
-                ocp_accessor.populate_ui_summary_tables(
-                    start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
-                )
+        Args:
+            start_date (str) The date to start populating the table.
+            end_date   (str) The date to end on.
+            ocp_provider_uuid (str) The OpenShift source UUID.
+            infra_tuple (tuple) A tuple of (Cloud provider source UUID, Source type)
+
+        Returns
+            None
+
+        """
+        if infra_provider_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
+            self.update_aws_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+        elif infra_provider_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
+            self.update_azure_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+        elif infra_provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            self.update_gcp_summary_tables(ocp_provider_uuid, infra_provider_uuid, start_date, end_date)
+
+        # Update markup for OpenShift tables
+        with ProviderDBAccessor(ocp_provider_uuid) as provider_accessor:
+            OCPCostModelCostUpdater(self._schema, provider_accessor.provider)._update_markup_cost(start_date, end_date)
+
+        # Update the UI tables for the OpenShift provider
+        with OCPReportDBAccessor(self._schema) as ocp_accessor:
+            ocp_accessor.populate_ui_summary_tables(
+                start_date, end_date, ocp_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
+            )
 
     def update_aws_summary_tables(self, openshift_provider_uuid, aws_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on AWS."""

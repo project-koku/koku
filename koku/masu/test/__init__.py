@@ -32,6 +32,12 @@ class MasuTestCase(IamTestCase):
             infrastructure__infrastructure_type=Provider.PROVIDER_AZURE_LOCAL
         ).first()
 
+        # TODO: Replaces instances of tmp_ocp_on_prem_provider with self.ocp_provider
+        self.tmp_ocp_on_prem_provider = Provider.objects.get(
+            type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"
+        )
+        self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+
         self.aws_provider_uuid = str(self.aws_provider.uuid)
         self.ocp_provider_uuid = str(self.ocp_provider.uuid)
         self.azure_provider_uuid = str(self.azure_provider.uuid)
@@ -42,7 +48,12 @@ class MasuTestCase(IamTestCase):
         self.ocp_test_provider_uuid = self.ocp_provider_uuid
         self.gcp_test_provider_uuid = self.gcp_provider_uuid
 
+        self.ocpaws_provider_uuid = str(self.ocp_on_aws_ocp_provider.uuid)
+        self.ocpazure_provider_uuid = str(self.ocp_on_azure_ocp_provider.uuid)
+
         self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpaws_ocp_cluster_id = self.ocp_on_aws_ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpazure_ocp_cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
 
         self.ocp_db_auth = self.ocp_provider.authentication
         self.aws_db_auth = self.aws_provider.authentication

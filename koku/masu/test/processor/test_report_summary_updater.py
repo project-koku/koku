@@ -12,6 +12,7 @@ from django.test import override_settings
 from api.provider.models import Provider
 from api.provider.models import ProviderAuthentication
 from api.provider.models import ProviderBillingSource
+from api.utils import DateHelper
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParquetSummaryUpdater
@@ -38,10 +39,9 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         cls.tomorrow = (today + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
         cls.tracing_id = "1234"
 
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables")
-    def test_aws_route(self, mock_daily, mock_update, mock_cloud):
+    def test_aws_route(self, mock_daily, mock_update):
         """Test that AWS report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -54,38 +54,13 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
         mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_called_with(mock_start, mock_end)
 
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
-    @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables")
-    def test_aws_ocp_exception_route(self, mock_daily, mock_update, mock_cloud):
-        """Test that AWS report updating works as expected."""
-        mock_start = 1
-        mock_end = 2
-        mock_daily.return_value = (mock_start, mock_end)
-        mock_update.return_value = (mock_start, mock_end)
-        mock_cloud.side_effect = Exception("test")
-
-        updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid, tracing_id=self.tracing_id)
-        self.assertIsInstance(updater._updater, AWSReportSummaryUpdater)
-
-        updater.update_daily_tables(self.today, self.tomorrow)
-        mock_daily.assert_called_with(self.today, self.tomorrow)
-        mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
-
-        with self.assertRaises(ReportSummaryUpdaterCloudError):
-            updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
-
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables")
-    def test_azure_route(self, mock_daily, mock_update, mock_cloud):
+    def test_azure_route(self, mock_daily, mock_update):
         """Test that Azure report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -98,16 +73,13 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
         mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_called_with(mock_start, mock_end)
 
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables")
-    def test_aws_local_route(self, mock_daily, mock_update, mock_cloud):
+    def test_aws_local_route(self, mock_daily, mock_update):
         """Test that AWS Local report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -119,16 +91,13 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
         mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_called_with(mock_start, mock_end)
 
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables")
-    def test_ocp_route(self, mock_daily, mock_update, mock_cloud):
+    def test_ocp_route(self, mock_daily, mock_update):
         """Test that OCP report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -140,16 +109,13 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
         mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_not_called()
 
-    @patch("masu.processor.report_summary_updater.OCPCloudReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables")
-    def test_azure_local_route(self, mock_daily, mock_update, mock_cloud):
+    def test_azure_local_route(self, mock_daily, mock_update):
         """Test that AZURE Local report updating works as expected."""
         mock_start = 1
         mock_end = 2
@@ -161,11 +127,9 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater.update_daily_tables(self.today, self.tomorrow)
         mock_daily.assert_called_with(self.today, self.tomorrow)
         mock_update.assert_not_called()
-        mock_cloud.assert_not_called()
 
         updater.update_summary_tables(self.today, self.tomorrow, self.tracing_id)
         mock_update.assert_called_with(self.today, self.tomorrow)
-        mock_cloud.assert_called_with(mock_start, mock_end)
 
     def test_bad_provider_type(self):
         """Test that an unimplemented provider type throws an error."""
@@ -226,3 +190,49 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
 
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
+    def test_update_openshift_on_cloud_summary_tables(self, mock_update):
+        """Test that we run OCP on Cloud summary."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        updater.update_openshift_on_cloud_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider_uuid,
+            Provider.PROVIDER_AZURE,
+            tracing_id=1,
+        )
+        mock_update.assert_called()
+
+        mock_update.reset_mock()
+
+        # Only run for cloud sources that support OCP on Cloud
+        updater = ReportSummaryUpdater(self.schema, self.ocp_on_azure_ocp_provider.uuid)
+        updater.update_openshift_on_cloud_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider_uuid,
+            Provider.PROVIDER_AZURE,
+            tracing_id=1,
+        )
+        mock_update.assert_not_called()
+
+        mock_update.reset_mock()
+
+        updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
+        mock_update.side_effect = Exception
+        with self.assertRaises(ReportSummaryUpdaterCloudError):
+            updater.update_openshift_on_cloud_summary_tables(
+                start_date,
+                end_date,
+                self.ocp_on_azure_ocp_provider.uuid,
+                self.azure_provider_uuid,
+                Provider.PROVIDER_AZURE,
+                tracing_id=1,
+            )
