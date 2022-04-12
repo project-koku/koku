@@ -817,7 +817,7 @@ class OCPReportViewTest(IamTestCase):
             delta_value = 0
             if values:
                 delta_value = values[0].get("delta_value", 0)
-            self.assertEqual(delta_value, expected_delta)
+            self.assertAlmostEqual(delta_value, expected_delta, 11)
             # self.assertAlmostEqual(delta_value, expected_delta, 1)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self, mocked_exchange_rates):
