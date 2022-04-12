@@ -523,7 +523,7 @@ class ReportQueryHandler(QueryHandler):
                     intersect_keys = list(set(datapoint_keys).intersection(grouped_keys))
                     if intersect_keys != []:
                         for inter_key in intersect_keys:
-                            grouped[inter_key][0].update(datapoint[inter_key])
+                            grouped[inter_key].update(datapoint[inter_key])
                 out_data[key].update(grouped)
             elif datapoint and isinstance(datapoint, list):
                 out_data[key] = grouped + datapoint
