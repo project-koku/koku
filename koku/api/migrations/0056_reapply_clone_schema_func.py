@@ -13,6 +13,6 @@ def apply_public_clone_func_update(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [("api", "0041_array_subtract_dbfunc")]
+    dependencies = [("api", "0055_install_pg_stat_statements")]
 
     operations = [migrations.RunPython(code=apply_public_clone_func_update)]
