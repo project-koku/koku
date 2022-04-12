@@ -362,21 +362,31 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None):
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, needs_desc=False):
         """Execute a single presto query"""
+        results, _ = self._run_trino_sql_query(schema, sql, bind_params, log_ref)
+        return results
+
+    def _execute_presto_raw_sql_query_with_description(self, schema, sql, bind_params=None, log_ref=None):
+        """Execute a single presto query and return cur.fetchall and the cur.description"""
+        return self._run_trino_sql_query(schema, sql, bind_params, log_ref)
+
+    def _run_trino_sql_query(self, schema, sql, bind_params=None, log_ref=None):
+        """Execute a single trino query and return cur.fetchall and cur.description"""
         try:
             t1 = time.time()
-            presto_conn = kpdb.connect(schema=schema)
-            presto_cur = presto_conn.cursor()
-            presto_cur.execute(sql, bind_params)
-            results = presto_cur.fetchall()
+            trino_conn = kpdb.connect(schema=schema)
+            trino_cur = trino_conn.cursor()
+            trino_cur.execute(sql, bind_params)
+            results = trino_cur.fetchall()
+            description = trino_cur.description
             t2 = time.time()
             if log_ref:
                 msg = f"{log_ref} for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
             else:
                 msg = f"Trino query for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
             LOG.info(msg)
-            return results
+            return results, description
         except Exception as ex:
             msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
             LOG.error(msg)
