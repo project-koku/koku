@@ -800,7 +800,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 for dikt in query_output.get("data", {}):
                     for v in dikt.get("values", []):
                         source_uuid_list.extend(v.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 

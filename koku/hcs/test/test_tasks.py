@@ -14,11 +14,14 @@ from hcs.test import HCSTestCase
 LOG = logging.getLogger(__name__)
 
 
-def enable_hcs_processing_mock(source_uuid, source_type, account):
-    return bool(True)
+def enable_hcs_processing_mock(schema=True):
+    tf = schema
+
+    return tf
 
 
-# @patch("time.sleep", Mock())
+@patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
+@patch("hcs.daily_report.ReportHCS")
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
@@ -31,8 +34,7 @@ class TestHCSTasks(HCSTestCase):
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
-    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
-    def test_get_report_dates(self):
+    def test_get_report_dates(self, mock_report):
         """Test with start and end dates provided"""
         from hcs.tasks import collect_hcs_report_data
 
@@ -41,26 +43,43 @@ class TestHCSTasks(HCSTestCase):
             end_date = self.today
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid, start_date, end_date)
 
-            self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}", _logs.output[1])
+            self.assertIn("Running HCS data collection", _logs.output[0])
 
-    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
-    def test_get_report_no_start_date(self):
-        """Test to with no start or end dates provided"""
+    def test_get_report_no_start_date(self, mock_report):
+        """Test no start or end dates provided"""
         from hcs.tasks import collect_hcs_report_data
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            start_date = self.today
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid)
 
-            self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}", _logs.output[1])
+            self.assertIn("Running HCS data collection", _logs.output[0])
 
-    @patch("hcs.tasks.enable_HCS_processing", enable_hcs_processing_mock)
-    def test_get_report_no_end_date(self):
-        """TTest to with no start end provided"""
+    def test_get_report_no_end_date(self, mock_report):
+        """Test no start end provided"""
         from hcs.tasks import collect_hcs_report_data
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid, start_date)
 
-            self.assertIn(f"OUTPUT FROM HCS TASK, Start-date: {start_date}", _logs.output[1])
+            self.assertIn("Running HCS data collection", _logs.output[0])
+
+    def test_get_report_invalid_provider(self, mock_report):
+        """Test invalid provider"""
+        from hcs.tasks import collect_hcs_report_data
+
+        enable_hcs_processing_mock.tf = False
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            start_date = self.yesterday
+            collect_hcs_report_data(self.schema, "bogus", self.provider_uuid, start_date)
+
+            self.assertIn("Customer not registered with HCS", _logs.output[0])
+
+    def test_schema_no_acct_prefix(self, mock_report):
+        """Test no start end provided"""
+        from hcs.tasks import collect_hcs_report_data
+
+        collect_hcs_report_data("10001", self.provider, self.provider_uuid, self.yesterday)
+
+        self.assertEqual("acct10001", self.schema)

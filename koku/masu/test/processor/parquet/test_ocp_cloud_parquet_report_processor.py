@@ -20,6 +20,7 @@ from masu.processor.parquet.parquet_report_processor import PARQUET_EXT
 from masu.test import MasuTestCase
 from masu.util.aws.common import match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
 class TestOCPCloudParquetReportProcessor(MasuTestCase):
@@ -133,6 +134,13 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
         self.assertEqual(self.report_processor.bill_id, expected)
 
+    def test_has_enabled_ocp_labels(self):
+        """Test that we return whether there are enabled labels"""
+        with schema_context(self.schema_name):
+            expected = OCPEnabledTagKeys.objects.exists()
+
+        self.assertEqual(self.report_processor.has_enabled_ocp_labels, expected)
+
     def test_get_report_period_id(self):
         """Test that the OpenShift cluster's report period ID is returned."""
         with OCPReportDBAccessor(self.schema_name) as accessor:
@@ -161,11 +169,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True)
 
+    @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
-    def test_process(self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info):
+    def test_process(
+        self, mock_data_processor, mock_create_parquet, mock_topology, mock_cluster_info, mock_trino_tags
+    ):
         """Test that ocp on cloud data is fully processed."""
         # this is a yes or no check so true is fine
         mock_cluster_info.return_value = True
@@ -197,3 +208,51 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         self.report_processor.process("", [pd.DataFrame()])
         mock_data_processor.assert_not_called()
         mock_create_parquet.assert_not_called()
+
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    def process_no_enabled_ocp_labels(
+        self, mock_data_processor, mock_create_parquet, mock_has_labels, mock_topology, mock_cluster_info
+    ):
+        """Test that process succeeds without OCP enabled labels"""
+        mock_cluster_info.return_value = True
+        mock_has_labels.return_value = False
+        mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
+        self.report_processor.process("", [pd.DataFrame()])
+
+        mock_topology.assert_called()
+        mock_data_processor.assert_called()
+        mock_create_parquet.assert_called()
+
+    @patch.object(OCPReportDBAccessor, "get_openshift_on_cloud_matched_tags")
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    def process_no_postgres_matched_tags(
+        self,
+        mock_data_processor,
+        mock_create_parquet,
+        mock_has_labels,
+        mock_topology,
+        mock_cluster_info,
+        mock_matched_tags,
+    ):
+        """Test that process succeeds without OCP enabled labels"""
+        mock_cluster_info.return_value = True
+        mock_has_labels.return_value = True
+        mock_matched_tags.return_value = []
+        mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
+
+        expected = "Matched tags not yet available via Postgres. Getting matching tags from Trino."
+        with self.assertLogs("masu.processor.parquet.cop_cloud_parquet_report_processor", level="INFO") as logger:
+            self.report_processor.process("", [pd.DataFrame()])
+            self.assertIn(expected, str(logger))
+
+        mock_topology.assert_called()
+        mock_data_processor.assert_called()
+        mock_create_parquet.assert_called()

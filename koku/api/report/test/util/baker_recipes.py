@@ -117,7 +117,7 @@ ocp_usage_storage = Recipe(  # Storage data_source
 )
 
 ocp_on_aws_daily_summary = Recipe(
-    "OCPAWSCostLineItemDailySummary",
+    "OCPAWSCostLineItemDailySummaryP",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),
     namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
@@ -130,7 +130,7 @@ ocp_on_aws_daily_summary = Recipe(
 )
 
 ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
-    "OCPAWSCostLineItemProjectDailySummary",
+    "OCPAWSCostLineItemProjectDailySummaryP",
     data_source="Pod",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),
@@ -148,7 +148,7 @@ ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
 )
 
 ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
-    "OCPAWSCostLineItemProjectDailySummary",
+    "OCPAWSCostLineItemProjectDailySummaryP",
     data_source="Storage",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),

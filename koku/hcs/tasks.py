@@ -4,13 +4,15 @@
 #
 """Tasks for Hybrid Committed Spend (HCS)"""
 import logging
+import uuid
+from datetime import timedelta
 
 from api.common import log_json
 from api.provider.models import Provider
 from api.utils import DateHelper
+from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
-
 
 LOG = logging.getLogger(__name__)
 
@@ -20,12 +22,12 @@ HCS_QUEUE = "hcs"
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_HCS_processing(source_uuid, source_type, account):  # pragma: no cover #noqa
+def enable_hcs_processing(schema_name):  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
-    if account and not account.startswith("acct"):
-        account = f"acct{account}"
+    if schema_name and not schema_name.startswith("acct"):
+        schema_name = f"acct{schema_name}"
 
-    context = {"schema": account}
+    context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
 
@@ -35,39 +37,44 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     """Update Hybrid Committed Spend report.
     :param provider:        (str) The provider type
     :param provider_uuid:   (str) The provider type
-    :param start_date:      The date to start populating the table
-    :param end_date:        The date to end on
+    :param start_date:      The date to start populating the table (default: (Today - 2 days))
+    :param end_date:        The date to end on (default: Today)
     :param schema_name:     (Str) db schema name
     :param tracing_id:      (uuid) for log tracing
 
     :returns None
     """
 
-    if enable_HCS_processing(provider_uuid, provider, schema_name) and provider in (
-        Provider.PROVIDER_AWS,
-        Provider.PROVIDER_AWS_LOCAL,
-        Provider.PROVIDER_AZURE,
-        Provider.PROVIDER_AZURE_LOCAL,
-    ):
-        stmt = (
-            f"Running HCS data collection for schema_name: {schema_name}, provider_uuid: {provider_uuid}, "
-            f"provider: {provider}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
+    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+        if schema_name and not schema_name.startswith("acct"):
+            schema_name = f"acct{schema_name}"
 
         if start_date is None:
-            start_date = DateHelper().today
+            start_date = DateHelper().today - timedelta(days=2)
 
-        if end_date:
-            stmt = f"OUTPUT FROM HCS TASK, Start-date: {start_date}, End-date: {end_date}"
-            LOG.info(log_json(tracing_id, stmt))
-        else:
-            stmt = f"OUTPUT FROM HCS TASK, Start-date: {start_date}"
-            LOG.info(log_json(tracing_id, stmt))
+        if end_date is None:
+            end_date = DateHelper().today
+
+        if tracing_id is None:
+            tracing_id = str(uuid.uuid4())
+
+        stmt = (
+            f"Running HCS data collection: "
+            f"schema_name: {schema_name}, "
+            f"provider_uuid: {provider_uuid}, "
+            f"provider: {provider}, "
+            f"dates {start_date} - {end_date}"
+        )
+        LOG.info(log_json(tracing_id, stmt))
+        reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
+        reporter.generate_report(start_date, end_date)
 
     else:
         stmt = (
             f"[SKIPPED] Customer not registered with HCS: "
-            f"Schema-name: {schema_name}, provider: {provider}, provider_uuid: {provider_uuid}"
+            f"Schema-name: {schema_name}, "
+            f"provider: {provider}, "
+            f"provider_uuid: {provider_uuid}, "
+            f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))

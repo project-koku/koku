@@ -415,7 +415,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                                     if "values" in item.keys():
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
@@ -438,11 +438,21 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        correctlst = [service.get("service") for service in expected]
+        tested = False
+        ranking_map = {}
+        count = 1
+        for service in expected:
+            ranking_map[service.get("service")] = count
+            count += 1
         for element in data:
-            lst = [service.get("service") for service in element.get("services", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+            previous = 0
+            for service in element.get("services"):
+                service_name = service.get("service")
+                if service_name in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[service_name], previous)
+                    previous = ranking_map[service_name]
+                    tested = True
+        self.assertTrue(tested)
 
     def test_ocp_aws_date_incorrect_date(self):
         wrong_date = "200BC"

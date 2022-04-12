@@ -138,10 +138,10 @@ class KokuTenantMiddlewareTest(IamTestCase):
         mock_request = self.request_context["request"]
         middleware = KokuTenantMiddleware()
         middleware.get_tenant(Tenant, "localhost", mock_request)  # Add one item to the cache
-        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
+        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)
         middleware.get_tenant(Tenant, "localhost", mock_request)  # Call the same tenant
-        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)  # Size should remain the same
-        self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 1)
+        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)  # Size should remain the same
+        self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 1)
         time.sleep(4)  # Wait the time greater than the ttl
         self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
 
@@ -182,21 +182,21 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test that the customer, tenant and user are created and cached"""
         mock_request = self.request
         middleware = IdentityHeaderMiddleware()
-        self.assertEquals(MD.USER_CACHE.currsize, 0)
-        self.assertEquals(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the mocked user cache has been updated
-        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 0)
+        self.assertEqual(MD.USER_CACHE.currsize, 0)
+        self.assertEqual(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the mocked user cache has been updated
+        self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 0)
         middleware.process_request(mock_request)  # Adds 1 to the customer and user cache
         self.assertTrue(hasattr(mock_request, "user"))
-        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 1)
-        self.assertEquals(MD.USER_CACHE.currsize, 1)
+        self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
         customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
         self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertIsNotNone(user)
         time.sleep(4)  # Wait for the ttl
-        self.assertEquals(IdentityHeaderMiddleware.customer_cache.currsize, 0)
-        self.assertEquals(MD.USER_CACHE.currsize, 0)
+        self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 0)
+        self.assertEqual(MD.USER_CACHE.currsize, 0)
 
     def test_process_no_customer(self):
         """Test that the customer, tenant and user are not created."""
@@ -243,15 +243,15 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test case for caching where another request may create the user in a race condition."""
         mock_request = self.request
         middleware = IdentityHeaderMiddleware()
-        self.assertEquals(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the user cache has changed
-        self.assertEquals(MD.USER_CACHE.currsize, 0)  # Confirm that the user cache is empty
+        self.assertEqual(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the user cache has changed
+        self.assertEqual(MD.USER_CACHE.currsize, 0)  # Confirm that the user cache is empty
         middleware.process_request(mock_request)
-        self.assertEquals(MD.USER_CACHE.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertTrue(hasattr(mock_request, "user"))
         customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
-        self.assertEquals(MD.USER_CACHE.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertIsNotNone(user)
         IdentityHeaderMiddleware.create_user(
             username=self.user_data["username"],  # pylint: disable=W0212
@@ -259,7 +259,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
             customer=customer,
             request=mock_request,
         )
-        self.assertEquals(MD.USER_CACHE.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
 
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):

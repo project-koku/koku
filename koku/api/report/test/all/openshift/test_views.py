@@ -47,7 +47,6 @@ class OCPAllReportViewTest(IamTestCase):
                 .values(*["tags"])
                 .first()
             )
-
             tags = labels.get("tags")
             group_by_key = list(tags.keys())[0]
 

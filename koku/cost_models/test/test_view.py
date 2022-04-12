@@ -54,14 +54,19 @@ class CostModelViewTests(IamTestCase):
                 "usage": {"usage_start": None, "usage_end": None},
             }
         ]
+        self.cost_model_name = "Test Cost Model for test_view.py"
+        # We have one preloaded cost model with bakery so the idx for
+        # the cost model we are creating in the results return is 1
+        self.results_idx = 1
         self.fake_data = {
-            "name": "Test Cost Model",
+            "name": self.cost_model_name,
             "description": "Test",
             "source_type": self.ocp_source_type,
             "source_uuids": [self.provider.uuid],
             "rates": [
                 {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
             ],
+            "currency": "USD",
         }
 
         with tenant_context(self.tenant):
@@ -184,13 +189,13 @@ class CostModelViewTests(IamTestCase):
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test" % reverse("cost-models-list")
+        url = "%s?name=test_view" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
 
         url = "%s?description=eSt" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
@@ -198,7 +203,7 @@ class CostModelViewTests(IamTestCase):
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
         self.assertEqual(results[0]["description"], "Test")
 
         url = "%s?description=Fo" % reverse("cost-models-list")
@@ -584,6 +589,7 @@ class CostModelViewTests(IamTestCase):
             "source_type": self.ocp_source_type,
             "source_uuids": [],
             "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
+            "currency": "USD",
         }
 
         url = reverse("cost-models-list")

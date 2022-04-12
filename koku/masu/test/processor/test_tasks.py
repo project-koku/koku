@@ -21,9 +21,8 @@ from uuid import uuid4
 import faker
 from dateutil import relativedelta
 from django.core.cache import caches
-from django.db.models import Max
-from django.db.models import Min
 from django.db.utils import IntegrityError
+from django.test.utils import override_settings
 from tenant_schemas.utils import schema_context
 
 from api.iam.models import Tenant
@@ -61,6 +60,7 @@ from masu.processor.tasks import summarize_reports
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_cost_model_costs
 from masu.processor.tasks import UPDATE_COST_MODEL_COSTS_QUEUE
+from masu.processor.tasks import update_openshift_on_cloud
 from masu.processor.tasks import update_summary_tables
 from masu.processor.tasks import vacuum_schema
 from masu.processor.worker_cache import create_single_task_cache_key
@@ -529,88 +529,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         # have something to pull from
         self.start_date = DateHelper().today.replace(day=1)
 
-    @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
-    @patch("masu.processor.tasks.update_cost_model_costs")
-    def test_update_summary_tables_aws(self, mock_charge_info, mock_views, mock_chain):
-        """Test that the summary table task runs."""
-        provider = Provider.PROVIDER_AWS
-        provider_aws_uuid = self.aws_provider_uuid
-
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-        start_date = self.start_date.replace(day=1) + relativedelta.relativedelta(months=-1)
-
-        with schema_context(self.schema):
-            daily_query = self.aws_accessor._get_db_obj_query(daily_table_name)
-            summary_query = self.aws_accessor._get_db_obj_query(summary_table_name)
-            daily_query.delete()
-            summary_query.delete()
-
-            initial_daily_count = daily_query.count()
-            initial_summary_count = summary_query.count()
-
-        self.assertEqual(initial_daily_count, 0)
-        self.assertEqual(initial_summary_count, 0)
-
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, synchronous=True)
-
-        with schema_context(self.schema):
-            self.assertNotEqual(daily_query.count(), initial_daily_count)
-            self.assertNotEqual(summary_query.count(), initial_summary_count)
-
-        mock_chain.return_value.apply_async.assert_called()
-
-    @patch("masu.processor.tasks.chain")
-    def test_update_summary_tables_aws_end_date(self, mock_charge_info):
-        """Test that the summary table task respects a date range."""
-        provider = Provider.PROVIDER_AWS_LOCAL
-        provider_aws_uuid = self.aws_provider_uuid
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-
-        start_date = DateHelper().last_month_start
-
-        end_date = DateHelper().last_month_end
-
-        daily_table = getattr(self.aws_accessor.report_schema, daily_table_name)
-        summary_table = getattr(self.aws_accessor.report_schema, summary_table_name)
-        ce_table = getattr(self.aws_accessor.report_schema, ce_table_name)
-        with schema_context(self.schema):
-            daily_table.objects.all().delete()
-            summary_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
-                Min("interval_start")
-            )["interval_start__min"]
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
-                Max("interval_start")
-            )["interval_start__max"]
-
-        # The summary tables will only include dates where there is data
-        expected_start_date = max(start_date, ce_start_date)
-        expected_start_date = expected_start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        expected_end_date = min(end_date, ce_end_date)
-        expected_end_date = expected_end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        update_summary_tables(self.schema, provider, provider_aws_uuid, start_date, end_date, synchronous=True)
-
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_end__max"]
-
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
-
-        with schema_context(self.schema):
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_end__max"]
-
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
-
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
@@ -637,22 +555,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         provider = Provider.PROVIDER_OCP
         provider_ocp_uuid = self.ocp_test_provider_uuid
 
-        daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
-
-        with schema_context(self.schema):
-            daily_query = self.ocp_accessor._get_db_obj_query(daily_table_name)
-            daily_query.delete()
-
-            initial_daily_count = daily_query.count()
-
-        self.assertEqual(initial_daily_count, 0)
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
-
-        with schema_context(self.schema):
-            self.assertNotEqual(daily_query.count(), initial_daily_count)
-
         update_cost_model_costs(
             schema_name=self.schema,
             provider_uuid=provider_ocp_uuid,
@@ -698,55 +603,19 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.chain")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_memory_gb_usage_per_hour_rates")
-    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.get_cpu_core_usage_per_hour_rates")
-    def test_update_summary_tables_ocp_end_date(self, mock_cpu_rate, mock_mem_rate, mock_charge_info):
-        """Test that the summary table task respects a date range."""
-        mock_cpu_rate.return_value = 1.5
-        mock_mem_rate.return_value = 2.5
-        provider = Provider.PROVIDER_OCP
-        provider_ocp_uuid = self.ocp_test_provider_uuid
-        ce_table_name = OCP_REPORT_TABLE_MAP["report"]
-        daily_table_name = OCP_REPORT_TABLE_MAP["line_item_daily"]
-
-        start_date = DateHelper().last_month_start
-        end_date = DateHelper().last_month_end
-        daily_table = getattr(self.ocp_accessor.report_schema, daily_table_name)
-        ce_table = getattr(self.ocp_accessor.report_schema, ce_table_name)
-
-        with schema_context(self.schema):
-            daily_table.objects.all().delete()
-            ce_start_date = ce_table.objects.filter(interval_start__gte=start_date.date()).aggregate(
-                Min("interval_start")
-            )["interval_start__min"]
-
-            ce_end_date = ce_table.objects.filter(interval_start__lte=end_date.date()).aggregate(
-                Max("interval_start")
-            )["interval_start__max"]
-
-        # The summary tables will only include dates where there is data
-        expected_start_date = max(start_date, ce_start_date)
-        expected_end_date = min(end_date, ce_end_date)
-
-        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_end"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_end__max"]
-
-        self.assertEqual(result_start_date, expected_start_date.date())
-        self.assertEqual(result_end_date, expected_end_date.date())
-
-    @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
+        # COST-444: We use start & end date based off manifest
         provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
-        expected_start_date = start_date.strftime("%Y-%m-%d")
-        expected_end_date = end_date.strftime("%Y-%m-%d")
         manifest_id = 1
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        billing_period_start = manifest.billing_period_start_datetime
+        expected_start_date = billing_period_start.strftime("%Y-%m-%d")
+        expected_end_date = DateHelper().month_end(billing_period_start).strftime("%Y-%m-%d")
         tracing_id = "1234"
 
         update_summary_tables(
@@ -939,7 +808,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             {"table_options": {"foo": "bar"}, "expected": {"foo": "bar"}},
         ]
         for test in test_matrix:
-            self.assertEquals(normalize_table_options(test.get("table_options")), test.get("expected"))
+            self.assertEqual(normalize_table_options(test.get("table_options")), test.get("expected"))
 
     @patch("masu.processor.tasks.ReportStatsDBAccessor.get_last_completed_datetime")
     def test_record_report_status(self, mock_accessor):
@@ -977,7 +846,36 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         for report_file in files_list:
             CostUsageReportStatus.objects.filter(report_name=report_file).exists()
 
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    def test_update_openshift_on_cloud(self, mock_updater):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
 
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+            synchronous=True,
+        )
+
+        mock_updater.side_effect = ReportSummaryUpdaterCloudError
+        with self.assertRaises(ReportSummaryUpdaterCloudError):
+            update_openshift_on_cloud(
+                self.schema,
+                self.ocp_on_aws_ocp_provider.uuid,
+                self.aws_provider_uuid,
+                Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
+
+@override_settings(HOSTNAME="kokuworker")
 class TestWorkerCacheThrottling(MasuTestCase):
     """Tests for tasks that use the worker cache."""
 
@@ -985,14 +883,15 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Check for a single task key in the cache."""
         cache = caches["worker"]
         cache_str = create_single_task_cache_key(task_name, task_args)
-        return True if cache.get(cache_str) else False
+        return bool(cache.get(cache_str))
 
     def lock_single_task(self, task_name, task_args=None, timeout=None):
         """Add a cache entry for a single task to lock a specific task."""
         cache = caches["worker"]
         cache_str = create_single_task_cache_key(task_name, task_args)
-        cache.add(cache_str, "true", 3)
+        cache.add(cache_str, "kokuworker", 3)
 
+    @patch("masu.processor.tasks.group")
     @patch("masu.processor.tasks.update_summary_tables.s")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
@@ -1013,10 +912,12 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_daily,
         mock_summary,
         mock_delay,
+        mock_ocp_on_cloud,
     ):
         """Test that the worker cache is used."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema, Provider.PROVIDER_AWS]
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().this_month_start
@@ -1054,6 +955,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the worker cache is used."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
         cache_args = [self.schema]
 
@@ -1088,6 +990,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the update_summary_table cloud exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_daily.return_value = start_date, end_date
@@ -1123,13 +1026,14 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_delay,
     ):
         """Test that the update_summary_table provider not found exception is caught."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
         mock_daily.return_value = start_date, end_date
         mock_summary.side_effect = ReportSummaryUpdaterProviderNotFoundError
         expected = "Processing for this provier will halt."
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
-            update_summary_tables(self.schema, Provider.PROVIDER_AWS, uuid4(), start_date, end_date)
+            update_summary_tables(self.schema, Provider.PROVIDER_AWS, str(uuid4()), start_date, end_date)
             statement_found = False
             for log in logger.output:
                 if expected in log:
@@ -1144,6 +1048,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_update_cost_model_costs_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         mock_lock.side_effect = self.lock_single_task
 
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
@@ -1179,6 +1084,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_update_cost_model_costs_error(self, mock_inspect, mock_lock, mock_release, mock_updater):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
         expected_start_date = start_date.strftime("%Y-%m-%d")
@@ -1197,10 +1103,11 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
         """Test that refresh materialized views runs with cache lock."""
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         mock_lock.side_effect = self.lock_single_task
 
         task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema, Provider.PROVIDER_AWS]
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
 
         manifest_dict = {
             "assembly_id": "12345",
@@ -1213,10 +1120,74 @@ class TestWorkerCacheThrottling(MasuTestCase):
             manifest = manifest_accessor.add(**manifest_dict)
             manifest.save()
 
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
         mock_delay.assert_not_called()
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
-        refresh_materialized_views(self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id)
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
+        refresh_materialized_views(
+            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
+        )
+        mock_delay.assert_called()
+        self.assertTrue(self.single_task_is_running(task_name, cache_args))
+        # Let the cache entry expire
+        time.sleep(3)
+        self.assertFalse(self.single_task_is_running(task_name, cache_args))
+
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
+    @patch("masu.processor.tasks.update_openshift_on_cloud.s")
+    @patch("masu.processor.tasks.WorkerCache.release_single_task")
+    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    def test_update_openshift_on_cloud_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay, mock_update):
+        """Test that refresh materialized views runs with cache lock."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        mock_lock.side_effect = self.lock_single_task
+        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
+
+        task_name = "masu.processor.tasks.update_openshift_on_cloud"
+        cache_args = [self.schema, self.aws_provider_uuid]
+
+        manifest_dict = {
+            "assembly_id": "12345",
+            "billing_period_start_datetime": DateHelper().today,
+            "num_total_files": 2,
+            "provider_uuid": self.aws_provider_uuid,
+        }
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.add(**manifest_dict)
+            manifest.save()
+
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
+        mock_delay.assert_not_called()
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
+        update_openshift_on_cloud(
+            self.schema,
+            self.ocp_on_aws_ocp_provider.uuid,
+            self.aws_provider_uuid,
+            Provider.PROVIDER_AWS,
+            start_date,
+            end_date,
+        )
         mock_delay.assert_called()
         self.assertTrue(self.single_task_is_running(task_name, cache_args))
         # Let the cache entry expire
@@ -1240,13 +1211,13 @@ class TestRemoveStaleTenants(MasuTestCase):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
             middleware.get_tenant(Tenant, "localhost", mock_request)
-            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing
-            self.assertNotEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             self.customer.date_updated = DateHelper().n_days_ago(self.customer.date_updated, days)
             self.customer.save()
             before_len = Tenant.objects.count()
             remove_stale_tenants()
             after_len = Tenant.objects.count()
             self.assertGreater(before_len, after_len)
-            self.assertEquals(KokuTenantMiddleware.tenant_cache.currsize, 0)
+            self.assertEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)

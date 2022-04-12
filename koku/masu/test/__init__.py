@@ -37,6 +37,8 @@ class MasuTestCase(IamTestCase):
             infrastructure__infrastructure_type=Provider.PROVIDER_GCP_LOCAL
         ).first()
 
+        self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+
         self.aws_provider_uuid = str(self.aws_provider.uuid)
         self.ocp_provider_uuid = str(self.ocp_provider.uuid)
         self.azure_provider_uuid = str(self.azure_provider.uuid)

@@ -11,6 +11,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 from celery import chain
+from celery import group
 from dateutil import parser
 from django.conf import settings
 from django.db import connection
@@ -59,7 +60,6 @@ REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
 UPDATE_SUMMARY_TABLES_QUEUE = "summary"
-VACUUM_SCHEMA_QUEUE = "summary"
 
 # any additional queues should be added to this list
 QUEUE_LIST = [
@@ -72,7 +72,6 @@ QUEUE_LIST = [
     SUMMARIZE_REPORTS_QUEUE,
     UPDATE_COST_MODEL_COSTS_QUEUE,
     UPDATE_SUMMARY_TABLES_QUEUE,
-    VACUUM_SCHEMA_QUEUE,
 ]
 
 
@@ -344,7 +343,8 @@ def update_summary_tables(  # noqa: C901
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
-    cache_args = [schema_name, provider]
+    cache_args = [schema_name, provider, provider_uuid]
+    ocp_on_cloud_infra_map = {}
 
     if not synchronous:
         worker_cache = WorkerCache()
@@ -378,7 +378,8 @@ def update_summary_tables(  # noqa: C901
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date, tracing_id)
+        start_date, end_date = updater.update_summary_tables(start_date, end_date, tracing_id)
+        ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(tracing_id, f"Failed to correlate OpenShift metrics for provider: {provider_uuid}. Error: {ex}")
@@ -424,6 +425,33 @@ def update_summary_tables(  # noqa: C901
         with CostModelDBAccessor(schema_name, provider_uuid) as cost_model_accessor:
             cost_model = cost_model_accessor.cost_model
 
+    # Create queued tasks for each OpenShift on Cloud cluster
+    signature_list = []
+    for openshift_provider_uuid, infrastructure_tuple in ocp_on_cloud_infra_map.items():
+        infra_provider_uuid = infrastructure_tuple[0]
+        infra_provider_type = infrastructure_tuple[1]
+        signature_list.append(
+            update_openshift_on_cloud.s(
+                schema_name,
+                openshift_provider_uuid,
+                infra_provider_uuid,
+                infra_provider_type,
+                str(start_date),
+                str(end_date),
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).set(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+        )
+
+    # Apply OCP on Cloud tasks
+    if signature_list:
+        if synchronous:
+            group(signature_list).apply()
+        else:
+            group(signature_list).apply_async()
+
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
@@ -440,8 +468,93 @@ def update_summary_tables(  # noqa: C901
         ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
 
     chain(linked_tasks).apply_async()
+
     if not synchronous:
         worker_cache.release_single_task(task_name, cache_args)
+
+
+@celery_app.task(
+    name="masu.processor.tasks.update_openshift_on_cloud",
+    bind=True,
+    autoretry_for=(ReportSummaryUpdaterCloudError,),
+    max_retries=settings.MAX_UPDATE_RETRIES,
+    queue=UPDATE_SUMMARY_TABLES_QUEUE,
+)
+def update_openshift_on_cloud(
+    self,
+    schema_name,
+    openshift_provider_uuid,
+    infrastructure_provider_uuid,
+    infrastructure_provider_type,
+    start_date,
+    end_date,
+    manifest_id=None,
+    queue_name=None,
+    synchronous=False,
+    tracing_id=None,
+):
+    """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
+    task_name = "masu.processor.tasks.update_openshift_on_cloud"
+    cache_args = [schema_name, infrastructure_provider_uuid]
+    if not synchronous:
+        worker_cache = WorkerCache()
+        if worker_cache.single_task_is_running(task_name, cache_args):
+            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
+            LOG.info(log_json(tracing_id, msg))
+            update_openshift_on_cloud.s(
+                schema_name,
+                openshift_provider_uuid,
+                infrastructure_provider_uuid,
+                infrastructure_provider_type,
+                start_date,
+                end_date,
+                manifest_id=manifest_id,
+                queue_name=queue_name,
+                synchronous=synchronous,
+                tracing_id=tracing_id,
+            ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+            return
+        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
+    stmt = (
+        f"update_openshift_on_cloud called with args: "
+        f" schema_name: {schema_name}, "
+        f" openshift_provider_uuid: {openshift_provider_uuid}, "
+        f" infrastructure_provider_uuid: {infrastructure_provider_uuid}, "
+        f" infrastructure_provider_type: {infrastructure_provider_type}, "
+        f" start_date: {start_date}, "
+        f" end_date: {end_date}, "
+        f" manifest_id: {manifest_id}, "
+        f" queue_name: {queue_name}, "
+        f" tracing_id: {tracing_id}"
+    )
+    LOG.info(log_json(tracing_id, stmt))
+
+    try:
+        updater = ReportSummaryUpdater(schema_name, infrastructure_provider_uuid, manifest_id, tracing_id)
+        updater.update_openshift_on_cloud_summary_tables(
+            start_date,
+            end_date,
+            openshift_provider_uuid,
+            infrastructure_provider_uuid,
+            infrastructure_provider_type,
+            tracing_id,
+        )
+    except ReportSummaryUpdaterCloudError as ex:
+        LOG.info(
+            log_json(
+                tracing_id,
+                (
+                    f"update_openshift_on_cloud failed for: {infrastructure_provider_type} ",
+                    f"provider: {infrastructure_provider_uuid}, ",
+                    f"OpenShift provider {openshift_provider_uuid}. \nError: {ex}\n",
+                    f"Retry {self.request.retries} of {settings.MAX_UPDATE_RETRIES}",
+                ),
+            )
+        )
+        raise ReportSummaryUpdaterCloudError
+    finally:
+        if not synchronous:
+            worker_cache.release_single_task(task_name, cache_args)
 
 
 @celery_app.task(name="masu.processor.tasks.update_all_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)
@@ -545,12 +658,17 @@ def update_cost_model_costs(
 )
 # fmt: on
 def refresh_materialized_views(  # noqa: C901
-    schema_name, provider_type, manifest_id=None, provider_uuid=None, synchronous=False, queue_name=None,
-    tracing_id=None
+    schema_name,
+    provider_type,
+    manifest_id=None,
+    provider_uuid=None,
+    synchronous=False,
+    queue_name=None,
+    tracing_id=None,
 ):
     """Refresh the database's materialized views for reporting."""
     task_name = "masu.processor.tasks.refresh_materialized_views"
-    cache_args = [schema_name, provider_type]
+    cache_args = [schema_name, provider_type, provider_uuid]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
@@ -563,7 +681,7 @@ def refresh_materialized_views(  # noqa: C901
                 provider_uuid=provider_uuid,
                 synchronous=synchronous,
                 queue_name=queue_name,
-                tracing_id=tracing_id
+                tracing_id=tracing_id,
             ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -735,7 +853,7 @@ SELECT s.relname as "table_name",
 
 @celery_app.task(name="masu.processor.tasks.remove_stale_tenants", queue=DEFAULT)
 def remove_stale_tenants():
-    """ Remove stale tenants from the tenant api """
+    """Remove stale tenants from the tenant api"""
     table_sql = """
         SELECT c.schema_name
         FROM api_customer c

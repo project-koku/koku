@@ -233,7 +233,7 @@ class ReportDownloaderTest(MasuTestCase):
 
         with patch("masu.external.report_downloader.ReportDownloader.is_report_processed", return_value=True):
             result = downloader.download_report(report_context)
-            self.assertEquals(result, {})
+            self.assertEqual(result, {})
 
     @patch("masu.external.downloader.aws.aws_report_downloader.AWSReportDownloader.__init__", return_value=None)
     def test_download_manifest(self, mock_dl):
@@ -272,4 +272,4 @@ class ReportDownloaderTest(MasuTestCase):
             side_effect=AWSReportDownloaderNoFileError,
         ):
             result = downloader.download_report(report_context)
-            self.assertEquals(result, {})
+            self.assertEqual(result, {})
