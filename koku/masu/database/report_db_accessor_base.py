@@ -362,7 +362,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, needs_desc=False):
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None):
         """Execute a single presto query"""
         results, _ = self._run_trino_sql_query(schema, sql, bind_params, log_ref)
         return results
