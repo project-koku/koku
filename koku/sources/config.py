@@ -24,11 +24,7 @@ class Config:
     SOURCES_INTERNAL_API_PREFIX = ENVIRONMENT.get_value("SOURCES_INTERNAL_API_PREFIX", default="/internal/v1.0")
     SOURCES_FAKE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_HEADER",
-        default=(
-            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidXNlciI6IHsiaXNfb3J"
-            "nX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdXJjZXMiLCAiZW1haWwiOiAic291cm"
-            "Nlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="
-        ),
+        default=("eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjEyMzQ1In19Cg=="),
     )
     SOURCES_FAKE_CLUSTER_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_CLUSTER_HEADER",

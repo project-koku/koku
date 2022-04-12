@@ -608,6 +608,8 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_FAKE_HEADER
+          value: ${SOURCES_FAKE_HEADER}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -746,6 +748,8 @@ objects:
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_FAKE_HEADER
+          value: ${SOURCES_FAKE_HEADER}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
@@ -2561,6 +2565,9 @@ parameters:
 - description: Unleash cache directory
   name: UNLEASH_CACHE_DIR
   value: /tmp/unleash
+- description: Header used by liveness/readiness probes
+  name: SOURCES_FAKE_HEADER
+  value: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjEyMzQ1In19Cg==
 - displayName: Secret Key (Ephemeral)
   from: '[a-f0-9]{20}'
   generate: expression

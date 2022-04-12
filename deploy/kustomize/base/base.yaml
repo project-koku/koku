@@ -374,6 +374,10 @@ parameters:
   name: UNLEASH_CACHE_DIR
   value: /tmp/unleash
 
+- description: Header used by liveness/readiness probes
+  name: SOURCES_FAKE_HEADER
+  value: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjEyMzQ1In19Cg==
+
 - name: SECRET_KEY
   displayName: Secret Key (Ephemeral)
   required: true
