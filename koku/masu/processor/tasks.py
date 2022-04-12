@@ -378,7 +378,7 @@ def update_summary_tables(  # noqa: C901
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        start_date, end_date = updater.update_summary_tables(start_date, end_date, tracing_id)
+        updater.update_summary_tables(start_date, end_date, tracing_id)
         ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
