@@ -15,4 +15,4 @@ class Migration(migrations.Migration):
 
     dependencies = [("api", "0055_install_pg_stat_statements")]
 
-    operations = [migrations.RunPython(code=apply_public_clone_func_update)]
+    operations = [migrations.RunPython(code=apply_public_clone_func_update, reverse_code=migrations.RunPython.noop)]
