@@ -1595,8 +1595,8 @@ class AWSReportQueryTest(IamTestCase):
         result = data_totals.get("cost", {}).get("total", {}).get("value")
         self.assertEqual(result, totals["cost"])
 
-    @skip("Skipping this temporarily since its broken on main")
-    def test_execute_query_with_org_unit_group_by(self, mocked_exchange_rates):
+    @skip("COST-2544")
+    def test_execute_query_with_org_unit_group_by(self):
         """Test that when data is grouped by org_unit_id, the totals add up correctly."""
 
         # helper function so that we don't have to repeat these steps for each ou
