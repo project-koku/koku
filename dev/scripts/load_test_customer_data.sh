@@ -95,7 +95,8 @@ check-api-status() {
   local _server_name=$1
   local _status_url=$2
 
-  CHECK=$(curl -s -w "%{http_code}\n" -L ${_status_url} -o /dev/null)
+  log-info "Checking that $_server_name is up and running..."
+  CHECK=$(curl --connect-timeout 20 -s -w "%{http_code}\n" -L ${_status_url} -o /dev/null)
   if [[ $CHECK != 200 ]];then
       log-err "$_server_name is not available at: $_status_url"
       log-err "exiting..."
