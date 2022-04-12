@@ -494,5 +494,5 @@ class AzureReportDBAccessorTest(MasuTestCase):
             )
         mock_trino.assert_called()
         # Confirms that the error log would be logged on last attempt
-        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts"), 0)
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

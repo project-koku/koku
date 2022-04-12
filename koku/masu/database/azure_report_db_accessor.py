@@ -355,12 +355,11 @@ class AzureReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        attempts_left = (retries - 1) - i
                         self._execute_presto_raw_sql_query(
                             self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_azure_hive_partition_by_day for {year}-{month}-{day}",
-                            attempts=attempts_left,
+                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:

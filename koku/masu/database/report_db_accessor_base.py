@@ -362,7 +362,7 @@ class ReportDBAccessorBase(KokuDBAccess):
 
         LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts=0):
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts_left=0):
         """Execute a single presto query"""
         try:
             t1 = time.time()
@@ -378,7 +378,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             LOG.info(msg)
             return results
         except Exception as ex:
-            if attempts == 0:
+            if attempts_left == 0:
                 msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
                 LOG.error(msg)
                 raise ex
