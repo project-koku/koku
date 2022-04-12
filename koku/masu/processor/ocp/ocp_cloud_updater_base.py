@@ -135,9 +135,10 @@ class OCPCloudUpdaterBase:
         """
         for key, infra_tuple in infra_map.items():
             with ProviderDBAccessor(key) as provider_accessor:
-                provider_accessor.set_infrastructure(
-                    infrastructure_provider_uuid=infra_tuple[0], infrastructure_type=infra_tuple[1]
-                )
+                if provider_accessor.provider:
+                    provider_accessor.set_infrastructure(
+                        infrastructure_provider_uuid=infra_tuple[0], infrastructure_type=infra_tuple[1]
+                    )
 
     def get_openshift_and_infra_providers_lists(self, infra_map):
         """Return two lists.

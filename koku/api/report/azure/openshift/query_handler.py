@@ -76,6 +76,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
         with tenant_context(self.tenant):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
+            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", self.currency)
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
@@ -132,6 +133,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
+                cost_units_value = query_data[0].get("cost_units")
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
@@ -149,7 +151,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        query_sum["cost_units"] = self.currency
+        if self._report_type == "costs":
+            query_sum["cost_units"] = self.currency
+        else:
+            query_sum["cost_units"] = cost_units_value
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value

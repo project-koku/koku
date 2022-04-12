@@ -17,7 +17,7 @@ LABELS_DIR="$WORKSPACE/github_labels"
 
 export IQE_PLUGINS="cost_management"
 export IQE_MARKER_EXPRESSION="cost_smoke"
-export IQE_CJI_TIMEOUT="260m"
+export IQE_CJI_TIMEOUT="300m"
 
 set -ex
 
@@ -68,6 +68,20 @@ function run_smoke_tests() {
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --set-parameter koku/KOKU_MIN_REPLICAS=3 \
+        --set-parameter koku/LISTENER_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_DOWNLOAD_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_OCP_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_SUMMARY_MIN_REPLICAS=2 \
+        --set-parameter host-inventory/REPLICAS_P1=1 \
+        --set-parameter host-inventory/REPLICAS_PMIN=1 \
+        --set-parameter host-inventory/REPLICAS_SP=1 \
+        --set-parameter host-inventory/REPLICAS_SVC=1 \
+        --set-parameter presto/WORKER_REPLICAS=2 \
+        --set-parameter xjoin-search/NUM_REPLICAS=1 \
+        --set-parameter sources-api/MIN_REPLICAS=1  \
+        --no-single-replicas \
+        --source=appsre \
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh

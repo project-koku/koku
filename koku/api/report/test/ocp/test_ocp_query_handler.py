@@ -667,7 +667,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, round(expected_cost_total, 11))
 
-    def test_ocp_date_order_by_cost_desc(self, mocked_exchange_rates):
+    @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
+    def test_ocp_date_order_by_cost_desc(self, mocked_exchange_rates, mocked_base_currency):
         """Test that order of every other date matches the order of the `order_by` date."""
         tested = False
         yesterday = self.dh.yesterday.date()
