@@ -381,7 +381,7 @@ class ReportDBAccessorBase(KokuDBAccess):
             if attempts_left == 0:
                 msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
                 LOG.error(msg)
-                raise ex
+            raise ex
 
     def _execute_presto_multipart_sql_query(
         self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
