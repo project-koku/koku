@@ -243,4 +243,5 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 raise TrinoStatementExecError(exc_msg)
 
             all_results.extend(results)
-    return results
+
+    return all_results
