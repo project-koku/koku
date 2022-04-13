@@ -204,7 +204,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     for delta in ["delta_value", "delta_percent"]:
                         if data.get(delta):
                             base_values[delta] = base_values.get(delta, 0) + data.get(delta)
-                    for item in ["account", "account_alias", "tags_exist", "clusters", "node"]:
+                    for item in ["account", "account_alias", "tags_exist", "node"]:
                         if data.get(item):
                             base_values[item] = data.get(item)
                     for group in all_group_by:
@@ -266,11 +266,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     if type(new_val) != list:
                         new_val = [new_val]
                     total_query[aggregate] = base_val + new_val
-                    # total_query[aggregate] = total_query.get(aggregate) + data.get(aggregate, [])
                 for delta in ["delta_value", "delta_percent"]:
                     if data.get(delta):
                         total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account", "account_alias", "tags_exist", "clusters", "node"]:
+                for item in ["account", "account_alias", "tags_exist", "node"]:
                     if data.get(item):
                         total_query[item] = data.get(item)
                 for group in all_group_by:
