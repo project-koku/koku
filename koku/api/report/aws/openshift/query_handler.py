@@ -78,7 +78,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if self.check_if_valid_date_str(param):
+                if check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering
