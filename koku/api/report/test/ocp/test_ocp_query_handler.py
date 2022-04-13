@@ -174,8 +174,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             total_capacity = (
                 OCPUsageLineItemDailySummary.objects.filter(
-                    usage_start__gt=start_date, usage_start__lte=end_date, data_source__exact="Pod"
+                    usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
                 )
+                .values("usage_start", "cluster_id")
                 .annotate(capacity=Max("cluster_capacity_cpu_core_hours"))
                 .aggregate(total=Sum("capacity"))
             )
