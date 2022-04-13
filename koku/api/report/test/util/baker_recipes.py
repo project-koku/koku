@@ -165,7 +165,7 @@ ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
 )
 
 ocp_on_azure_daily_summary = Recipe(
-    "OCPAzureCostLineItemDailySummary",
+    "OCPAzureCostLineItemDailySummaryP",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
@@ -178,7 +178,7 @@ ocp_on_azure_daily_summary = Recipe(
 )
 
 ocp_on_azure_project_daily_summary_pod = Recipe(  # Pod data_source
-    "OCPAzureCostLineItemProjectDailySummary",
+    "OCPAzureCostLineItemProjectDailySummaryP",
     data_source="Pod",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
@@ -195,7 +195,7 @@ ocp_on_azure_project_daily_summary_pod = Recipe(  # Pod data_source
 )
 
 ocp_on_azure_project_daily_summary_storage = Recipe(  # Storage data_source
-    "OCPAzureCostLineItemProjectDailySummary",
+    "OCPAzureCostLineItemProjectDailySummaryP",
     data_source="Storage",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
