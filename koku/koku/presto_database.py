@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import sqlparse
 import trino
+from trino.exceptions import TrinoExternalError
 from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
@@ -17,6 +18,10 @@ EOT = re.compile(r",\s*\)$")  # pylint: disable=anomalous-backslash-in-string
 
 
 class PreprocessStatementError(Exception):
+    pass
+
+
+class TrinoStatementExecError(Exception):
     pass
 
 
@@ -195,10 +200,10 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
     Returns:
         list : Results of each successful SQL statement executed.
     """
-    results = []
+    all_results = []
     stmt_count = 0
     # sqlparse.split() should be a safer means to split a sql script into discrete statements
-    for p_stmt in sqlparse.split(sqlscript):
+    for stmt_num, p_stmt in enumerate(sqlparse.split(sqlscript)):
         stmt_count = stmt_count + 1
         p_stmt = str(p_stmt).strip()
         if p_stmt:
@@ -212,13 +217,30 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                     stmt, s_params = preprocessor(p_stmt, params)
                 # If a different preprocessor is used, we can't know what the exception type is.
                 except Exception as e:
-                    LOG.error(f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}")
-                    LOG.error(f"Statement template : {p_stmt}")
-                    LOG.error(f"Parameters : {params}")
+                    LOG.error(
+                        f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}"
+                        + os.linesep
+                        + f"Statement template : {p_stmt}"
+                        + os.linesep
+                        + f"Parameters : {params}"
+                    )
                     exc_type = e.__class__.__name__
                     raise PreprocessStatementError(f"{exc_type} :: {e}")
             else:
                 stmt, s_params = p_stmt, params
 
-            results.extend(execute(presto_conn, stmt, params=s_params))
+            try:
+                results = execute(presto_conn, stmt, params=s_params)
+            except (TrinoQueryError, TrinoExternalError) as e:
+                exc_msg = (
+                    f"Query Execution Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
+                    + os.linesep
+                    + f"Statement: {stmt}"
+                    + os.linesep
+                    + f"Parameters: {s_params}"
+                )
+                LOG.error(exc_msg)
+                raise TrinoStatementExecError(exc_msg)
+
+            all_results.extend(results)
     return results

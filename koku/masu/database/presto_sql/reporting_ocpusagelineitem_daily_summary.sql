@@ -189,7 +189,7 @@ cte_shared_volume_node_count AS (
  *            POD
  * ====================================
  */
-SELECT cast(uuid() as varchar) as uuid,
+SELECT null as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
@@ -285,7 +285,7 @@ UNION
  *            STORAGE
  * ====================================
  */
-SELECT cast(uuid() as varchar) as uuid,
+SELECT null as uuid,
     {{report_period_id}} as report_period_id,
     {{cluster_id}} as cluster_id,
     {{cluster_alias}} as cluster_alias,
@@ -430,7 +430,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     source_uuid,
     infrastructure_usage_cost
 )
-SELECT cast(uuid as UUID),
+SELECT uuid(),
     report_period_id,
     cluster_id,
     cluster_alias,

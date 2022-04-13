@@ -739,7 +739,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
-            LOG.error(f"PRESTO OCP ERROR : {e}")
+            LOG.error(
+                f"PRESTO OCP ERROR : {e}"
+                + os.linesep
+                + "File : masu/database/presto_sql/reporting_ocpusagelineitem_daily_summary.sql"
+            )
             try:
                 presto_conn.rollback()
             except RuntimeError:
