@@ -18,6 +18,7 @@ from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
+import ciso8601
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Window
@@ -48,6 +49,15 @@ def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
     group_by = list(parameters.parameters.get("group_by", {}).keys())
     return [key for key in group_by if "project" in key]
+
+
+def check_if_valid_date_str(date_str):
+    """Check to see if a valid date has been passed in."""
+    try:
+        ciso8601.parse_datetime(date_str)
+    except (ValueError, TypeError):
+        return False
+    return True
 
 
 def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
