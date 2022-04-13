@@ -365,7 +365,7 @@ class ReportDBAccessorBase(KokuDBAccess):
     def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts_left=0):
         """Execute a single presto query returning only the fetchall results"""
         results, _ = self._execute_presto_raw_sql_query_with_description(
-            schema, sql, bind_params, log_ref, attempts_left=0
+            schema, sql, bind_params, log_ref, attempts_left
         )
         return results
 
