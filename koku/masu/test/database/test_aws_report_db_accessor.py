@@ -31,11 +31,9 @@ from api.utils import DateHelper
 from koku.database import get_model
 from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
-from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -535,101 +533,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertIsInstance(reservations, dict)
             self.assertEqual(len(reservations.keys()), count)
             self.assertIn(first_entry.reservation_arn, reservations)
-
-    def test_populate_ocp_on_aws_cost_daily_summary(self):
-        """Test that the OCP on AWS cost summary table is populated."""
-        summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-        project_summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        bill_ids = []
-        markup_value = Decimal(0.1)
-
-        summary_table = get_model(summary_table_name)
-        project_table = get_model(project_summary_table_name)
-
-        today = DateAccessor().today_with_timezone("UTC")
-        last_month = today - relativedelta.relativedelta(months=1)
-        resource_id = "i-12345"
-        with schema_context(self.schema):
-            for cost_entry_date in (today, last_month):
-                bill = self.creator.create_cost_entry_bill(
-                    provider_uuid=self.aws_provider.uuid, bill_date=cost_entry_date
-                )
-                bill_ids.append(str(bill.id))
-                cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
-                product = self.creator.create_cost_entry_product("Compute Instance")
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(
-                    bill, cost_entry, product, pricing, reservation, resource_id=resource_id
-                )
-
-        self.accessor.populate_line_item_daily_table(last_month, today, bill_ids)
-
-        li_table_name = AWS_CUR_TABLE_MAP["line_item"]
-        with schema_context(self.schema):
-            li_table = get_model(li_table_name)
-
-            sum_aws_cost = li_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
-
-        with OCPReportDBAccessor(self.schema) as ocp_accessor:
-            cluster_id = "testcluster"
-            with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
-                provider_uuid = provider_access.get_provider().uuid
-
-            for cost_entry_date in (today, last_month):
-                period = self.creator.create_ocp_report_period(
-                    provider_uuid, period_date=cost_entry_date, cluster_id=cluster_id
-                )
-                report = self.creator.create_ocp_report(period, cost_entry_date)
-                self.creator.create_ocp_usage_line_item(period, report, resource_id=resource_id)
-                self.creator.create_ocp_node_label_line_item(period, report)
-
-            ocp_report_table_name = OCP_REPORT_TABLE_MAP["report"]
-            with schema_context(self.schema):
-                report_table = getattr(ocp_accessor.report_schema, ocp_report_table_name)
-
-                report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-                start_date = report_entry["interval_start__min"]
-                end_date = report_entry["interval_start__max"]
-
-                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-            ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, provider_uuid)
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(summary_table_name)
-            initial_count = query.count()
-
-        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
-                "unblended_cost__sum"
-            ]
-            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
-                "unblended_cost__sum"
-            ]
-            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
-                "pod_cost__sum"
-            ]
-            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
-                "markup_cost__sum"
-            ]
-            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("markup_cost")
-            )["markup_cost__sum"]
-            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("project_markup_cost")
-            )["project_markup_cost__sum"]
-
-            self.assertEqual(sum_cost, sum_project_cost)
-            self.assertLessEqual(sum_cost, sum_aws_cost)
-            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 9)
-            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 9)
-            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 9)
 
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
