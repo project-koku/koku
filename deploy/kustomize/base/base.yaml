@@ -263,6 +263,8 @@ parameters:
   displayName: AUTO_DATA_INGEST
   name: AUTO_DATA_INGEST
   value: "True"
+- name: QE_SCHEMA
+  value: ""
 - description: Sources to be processed with Trino
   displayName: Sources to be processed with Trino
   name: ENABLE_TRINO_SOURCES
@@ -371,6 +373,10 @@ parameters:
 - description: Unleash cache directory
   name: UNLEASH_CACHE_DIR
   value: /tmp/unleash
+
+- description: Header used by liveness/readiness probes
+  name: SOURCES_PROBE_HEADER
+  value: eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjEyMzQ1In19Cg==
 
 - name: SECRET_KEY
   displayName: Secret Key (Ephemeral)

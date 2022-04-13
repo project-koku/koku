@@ -32,8 +32,6 @@ def create_expected_csv_files(start_date, end_date, invoice_month, etag, keys=Fa
     """Create the list of expected csv."""
     files = list()
     for start, end in date_range_pair(start_date, end_date):
-        if start == end:
-            continue
         end = end + relativedelta(days=1)
         files.append(f"{invoice_month}_{etag}_{start}:{end}.csv")
     if keys:
@@ -101,7 +99,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         err_msg = "GCP Error"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegexp(ReportDownloaderWarning, err_msg):
+            with self.assertRaisesRegex(ReportDownloaderWarning, err_msg):
                 GCPReportDownloader(
                     customer_name=FAKE.name(),
                     data_source=billing_source,
@@ -131,7 +129,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open") as mock_open:
             err_msg = "bad open"
             mock_open.side_effect = IOError(err_msg)
-            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
 
     def test_generate_monthly_pseudo_manifest(self):
@@ -227,7 +225,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         err_msg = "GCP Error"
         with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
             bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegexp(GCPReportDownloaderError, err_msg):
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")

@@ -118,7 +118,7 @@ def month_date_range(for_date_time):
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
     end_month = start_month.replace(day=num_days)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def safe_float(val):

@@ -15,7 +15,7 @@ def get_auth_header(request):
 
 
 def get_account_from_header(request):
-    """ Get account from header."""
+    """Get account from header."""
     account_id = None
     auth_header = get_auth_header(request)
     if auth_header:

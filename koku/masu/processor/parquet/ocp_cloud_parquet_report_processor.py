@@ -23,7 +23,7 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 from masu.util.aws.common import match_openshift_resources_and_labels as aws_match_openshift_resources_and_labels
 from masu.util.azure.common import match_openshift_resources_and_labels as azure_match_openshift_resources_and_labels
 from masu.util.gcp.common import match_openshift_resources_and_labels as gcp_match_openshift_resources_and_labels
-
+from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
         manifest = manifest_accessor.get_manifest_by_id(self.manifest_id)
 
         updater = OCPCloudUpdaterBase(self.schema_name, provider, manifest)
-        infra_map = updater.get_infra_map()
+        infra_map = updater.get_infra_map_from_providers()
         openshift_provider_uuids, infra_provider_uuids = updater.get_openshift_and_infra_providers_lists(infra_map)
 
         if self.provider_type in Provider.CLOUD_PROVIDER_LIST and self.provider_uuid not in infra_provider_uuids:
@@ -91,6 +91,12 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             bills = self.db_accessor.bills_for_provider_uuid(self.provider_uuid, self.start_date)
             bill_id = bills.first().id if bills else None
         return bill_id
+
+    @cached_property
+    def has_enabled_ocp_labels(self):
+        """Return whether we have enabled OCP labels."""
+        with schema_context(self.schema_name):
+            return OCPEnabledTagKeys.objects.exists()
 
     def get_report_period_id(self, ocp_provider_uuid):
         """Return the OpenShift report period ID."""
@@ -142,13 +148,15 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                 cluster_topology = accessor.get_openshift_topology_for_provider(ocp_provider_uuid)
             # Get matching tags
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
-            LOG.info("Getting matching tags from Postgres.")
-            matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
-            if not matched_tags:
-                LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
-                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
-                    self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
-                )
+            matched_tags = []
+            if self.has_enabled_ocp_labels:
+                LOG.info("Getting matching tags from Postgres.")
+                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
+                if not matched_tags:
+                    LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
+                    matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
+                        self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
+                    )
             for i, daily_data_frame in enumerate(daily_data_frames):
                 openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
                     daily_data_frame, cluster_topology, matched_tags

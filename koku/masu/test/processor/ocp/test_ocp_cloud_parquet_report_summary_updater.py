@@ -36,7 +36,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         self.today = self.dh.today
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AWSReportDBAccessor.populate_ocp_on_aws_tags_summary_table"  # noqa: E501
     )
@@ -84,20 +84,18 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self.ocpaws_provider_uuid, start_date)
         with schema_context(self.schema_name):
             current_ocp_report_period_id = report_period.id
 
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
+        mock_map.return_value = {self.ocpaws_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
-        updater.update_aws_summary_tables(
-            self.ocp_test_provider_uuid, self.aws_test_provider_uuid, start_date, end_date
-        )
+        updater.update_aws_summary_tables(self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date)
         distribution = None
         mock_ocp_on_aws.assert_called_with(
             start_date,
             end_date,
-            self.ocp_test_provider_uuid,
+            self.ocpaws_provider_uuid,
             self.aws_test_provider_uuid,
             current_ocp_report_period_id,
             bill_id,
@@ -106,7 +104,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         )
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
     )
@@ -154,19 +152,19 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self.ocpazure_provider_uuid, start_date)
         with schema_context(self.schema_name):
             current_ocp_report_period_id = report_period.id
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
+        mock_map.return_value = {self.ocpazure_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
-            self.ocp_test_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
+            self.ocpazure_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
         )
         distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
-            self.ocp_test_provider_uuid,
+            self.ocpazure_provider_uuid,
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
             bill_id,
@@ -175,7 +173,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         )
 
     @patch("masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider")
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.AzureReportDBAccessor.populate_ocp_on_azure_tags_summary_table"  # noqa: E501
     )
@@ -223,19 +221,19 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self.ocpazure_provider_uuid, start_date)
         with schema_context(self.schema_name):
             current_ocp_report_period_id = report_period.id
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
+        mock_map.return_value = {self.ocpazure_provider_uuid: (self.azure_provider_uuid, Provider.PROVIDER_AZURE)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
-            self.ocp_test_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
+            self.ocpazure_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
         )
         distribution = None
         mock_ocp_on_azure.assert_called_with(
             start_date,
             end_date,
-            self.ocp_test_provider_uuid,
+            self.ocpazure_provider_uuid,
             self.azure_test_provider_uuid,
             current_ocp_report_period_id,
             bill_id,
@@ -252,7 +250,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
     )
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
@@ -296,15 +294,13 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.gcp_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self.ocpgcp_provider_uuid, start_date)
         with schema_context(self.schema_name):
             current_ocp_report_period_id = report_period.id
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
+        mock_map.return_value = {self.ocpgcp_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
-        updater.update_gcp_summary_tables(
-            self.ocp_test_provider_uuid, self.gcp_test_provider_uuid, start_date, end_date
-        )
-        cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        updater.update_gcp_summary_tables(self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, start_date, end_date)
+        cluster_id = get_cluster_id_from_provider(self.ocpgcp_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
         sql_params = {
             "schema_name": self.schema_name,
@@ -313,15 +309,13 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "source_uuid": self.gcp_test_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
             "source_type": "GCP",
         }
         distribution = None
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
-            self.ocp_test_provider_uuid,
+            self.ocpgcp_provider_uuid,
             cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
@@ -342,7 +336,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
     )
-    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map")
+    @patch("masu.processor.ocp.ocp_cloud_updater_base.OCPCloudUpdaterBase.get_infra_map_from_providers")
     @patch(
         "masu.processor.ocp.ocp_cloud_parquet_summary_updater.GCPReportDBAccessor.populate_ocp_on_gcp_tags_summary_table"  # noqa: E501
     )
@@ -386,21 +380,21 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
         with ProviderDBAccessor(self.gcp_provider_uuid) as provider_accessor:
             provider = provider_accessor.get_provider()
         with OCPReportDBAccessor(self.schema_name) as accessor:
-            report_period = accessor.report_periods_for_provider_uuid(self.ocp_test_provider_uuid, start_date)
+            report_period = accessor.report_periods_for_provider_uuid(self.ocpgcp_provider_uuid, start_date)
         with schema_context(self.schema_name):
             current_ocp_report_period_id = report_period.id
-        mock_map.return_value = {self.ocp_test_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
+        mock_map.return_value = {self.ocpgcp_provider_uuid: (self.gcp_provider_uuid, Provider.PROVIDER_GCP)}
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_gcp_summary_tables(
-            self.ocp_test_provider_uuid, self.gcp_test_provider_uuid, str(start_date), str(end_date)
+            self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, str(start_date), str(end_date)
         )
-        cluster_id = get_cluster_id_from_provider(self.ocp_test_provider_uuid)
+        cluster_id = get_cluster_id_from_provider(self.ocpgcp_provider_uuid)
         cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
         distribution = None
         mock_ocp_on_gcp.assert_called_with(
             start_date,
             end_date,
-            self.ocp_test_provider_uuid,
+            self.ocpgcp_provider_uuid,
             cluster_id,
             self.gcp_test_provider_uuid,
             current_ocp_report_period_id,
@@ -415,8 +409,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             "source_uuid": self.gcp_test_provider_uuid,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
             "source_type": "GCP",
         }
         mock_ui_tables.assert_called_with(sql_params)
@@ -437,7 +429,7 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             provider = provider_accessor.get_provider()
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_azure_summary_tables(
-            self.ocp_test_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
+            self.ocpazure_provider_uuid, self.azure_test_provider_uuid, str(start_date), str(end_date)
         )
         mock_ocp_on_azure.assert_not_called()
 
@@ -455,6 +447,6 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             provider = provider_accessor.get_provider()
         updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
         updater.update_aws_summary_tables(
-            self.ocp_test_provider_uuid, self.aws_test_provider_uuid, str(start_date), str(end_date)
+            self.ocpaws_provider_uuid, self.aws_test_provider_uuid, str(start_date), str(end_date)
         )
         mock_ocp_on_aws.assert_not_called()

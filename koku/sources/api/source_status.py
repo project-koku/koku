@@ -103,7 +103,7 @@ class SourceStatus:
         except SkipStatusPush as error:
             LOG.info(f"Platform sources status push skipped. Reason: {str(error)}")
         except SourcesHTTPClientError as error:
-            err_msg = "Unable to push source status. Reason: {}".format(str(error))
+            err_msg = f"Unable to push source status. Reason: {str(error)}"
             LOG.warning(err_msg)
 
 

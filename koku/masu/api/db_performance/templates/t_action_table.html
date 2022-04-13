@@ -1,0 +1,188 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+        <style>
+            .container > * {
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .header1 {
+                display: block;
+                font-size: 2em;
+                margin-block-start: 0.67em;
+                margin-block-end: 0.67em;
+                margin-inline-start: 0px;
+                margin-inline-end: 0px;
+                font-weight: bold;
+                margin-right: 0.5em;
+                padding-right: 1em;
+                border-right: 2px solid black;
+            }
+            ul.menu {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: white;
+            }
+            ul.menu > li {
+                float: left;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+            ul.menu > li > a {
+                display: block;
+                color: black;
+                text-align: center;
+                padding: 16px;
+                text-decoration: none;
+                font-weight: bold;
+            }
+            ul.menu > li a:hover {
+                background-color: black;
+                color: white;
+            }
+            .current {
+                border-bottom: 2px solid black;
+            }
+            .pre {white-space: pre;}
+            .monospace {font-family: 'Courier New', Courier, monospace;}
+            .sans {font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;}
+            .left-btn {float: left}
+            hr {width: 100%;}
+            tbody > tr:not(:first-child) > td {border-top: 1px solid black;}
+            tbody > tr:nth-child(even) {background-color: #e7e7e7;}
+            th, td {vertical-align: top; padding-left: 0.5em; padding-right: 0.5em;}
+            th {border-bottom: 1px solid black; background-color: #cecece;}
+            th:not(:first-child) {border-left: 1px solid black;}
+            td:not(:first-child) {border-left: 1px solid black;}
+            .unselectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+
+                /*
+                    Introduced in IE 10.
+                    See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+                */
+                -ms-user-select: none;
+                user-select: none;
+            }
+        </style>
+        <script>
+            function do_terminate(target_pid) {
+                // var terminate_url = '{{action_urls[1]}}';
+                _msg = "This SQL will terminate the backend pid: " + target_pid + "\n"
+                       + "This will close the connection.\n\n"
+                       + "SELECT pg_terminate_backend(" + target_pid + ");";
+                window.alert(_msg);
+                location.reload();
+                // if ( window.confirm(_msg) ) {
+                //     _msg = 'Enter "TERMINATE" to terminate connection: ' + target_pid;
+                //     var reconfirm = window.prompt(_msg);
+                //     if ((reconfirm !== null) && (reconfirm == "TERMINATE")) {
+                //         var xhttp = new XMLHttpRequest();
+                //         var terminate_data = null;
+                //         xhttp.open("GET", terminate_url, false);
+                //         xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
+                //         xhttp.send();
+                //         if (xhttp.status == 200) {
+                //             terminate_data = JSON.parse(xhttp.responseText)[0];
+                //             _msg = "Successful request sent.\n"
+                //                 + "Response:\n"
+                //                 + "Pid: "
+                //                 + terminate_data.pid
+                //                 + " Terminated: "
+                //                 + terminate_data.terminate;
+                //             window.alert(_msg);
+                //             location.reload();
+                //         } else {
+                //             window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+                //         }
+                //     }
+                // }
+            }
+
+            function do_cancel(target_pid) {
+                // var cancel_url = '{{action_urls[0]}}';
+                _msg = "This SQL will cancel the backend pid: " + target_pid + "\n"
+                        + "This will halt the current action for that connection.\n"
+                        + "If the backend process is idle, this may not work. \n"
+                        + "Try a second time before terminating.\n\n"
+                        + "SELECT pg_cancel_backend(" + target_pid + ");";
+                window.alert(_msg);
+                location.reload();
+                // if ( window.confirm(_msg) ) {
+                //     var xhttp = new XMLHttpRequest();
+                //     var cancel_data = null;
+                //     xhttp.open("GET", cancel_url, false);;
+                //     xhttp.setRequestHeader("PARAM-DB-CONNID", target_pid);
+                //     xhttp.send();
+                //     if (xhttp.status == 200) {
+                //         cancel_data = JSON.parse(xhttp.responseText)[0];
+                //         _msg = "Successful request sent.\n"
+                //                + "Response:\n"
+                //                + "Pid: "
+                //                + cancel_data.pid
+                //                + " Cancelled: "
+                //                + cancel_data.cancel;
+                //         window.alert(_msg);
+                //         location.reload();
+                //     }
+                // }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="header-container" class="container unselectable">
+            <div id="header-div" class="header1 unselectable" style="display: inline-block !important;">Database Performance</div>
+            <div id="menu-div unselectable">
+                {{db_performance_menu}}
+            </div>
+        </div>
+        <hr />
+        <h2 id="data_header">{{page_header}}</h2>
+        <table id="term_action_table" cellspacing="0">
+{% for rec in data %}
+    {% set rec_loop = loop %}
+    {% if loop.first %}
+            <thead>
+                <tr>
+                    <th>Action</th>
+        {% for field in fields %}
+                        <th id="{{field}}-h">{{field}}</th>
+        {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+    {% endif %}
+                <tr>
+                    <td id="row-{{rec_loop.index}}.action">
+                        <div>
+    {% for target in targets %}
+        {% set raw_target = rec["_raw_" + target] %}
+                            <button class="left-btn" id="cancel-{{target}}-{{rec_loop.index}}" onclick="do_cancel('{{raw_target}}');">Show SQL for Cancel {{target}} {{raw_target}}</button>
+                            <br/>
+   {% endfor %}
+                            <br />
+    {% for target in targets %}
+        {% set raw_target = rec["_raw_" + target] %}
+                            <button class="left-btn" id="terminate-{{target}}-{{rec_loop.index}}" onclick="do_terminate('{{raw_target}}');">Show SQL for Terminate {{target}} {{raw_target}}</button>
+                            <br/>
+   {% endfor %}
+                        </div>
+                    </td>
+    {% for field in fields %}
+                    <td id="{{field}}-{{rec_loop.index}}" {% if field in rec.get("_attrs", {}) %} {{rec["_attrs"][field]}} {% endif %}>{{rec[field]}}</td>
+    {% endfor %}
+                </tr>
+    {% if rec_loop.last %}
+            </tbody>
+    {% endif %}
+{% endfor %}
+        </table>
+    </body>
+</html>

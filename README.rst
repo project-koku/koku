@@ -177,7 +177,7 @@ If you need to run PostgreSQL using SSL for local development:
 
 1. Ensure that you have ``openssl`` installed.
 2. Ensure that you have the ``KOKU_PATH`` environment set to the koku source root directory.
-3. Execute ``${KOKU_PATH}/scripts/genssc`` and follow the prompts to create local a self-signed certificate for PostgreSQL.
+3. Execute ``${KOKU_PATH}/dev/scripts/genssc`` and follow the prompts to create local a self-signed certificate for PostgreSQL.
 4. In the ``docker-compose.yml`` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
 
 See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12

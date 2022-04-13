@@ -87,7 +87,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 }
                 summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
                 self._execute_raw_sql_query(
-                    table_name, summary_sql, start_date, extended_end_date, bind_params=list(summary_sql_params)
+                    table_name,
+                    summary_sql,
+                    start_date,
+                    extended_end_date,
+                    bind_params=list(summary_sql_params),
+                    operation="DELETE/INSERT",
                 )
 
     def get_cost_entry_bills(self):
@@ -268,8 +273,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
 
-        LOG.info(f"Summary SQL: {str(summary_sql)}")
-        self._execute_presto_raw_sql_query(self.schema, summary_sql)
+        self._execute_presto_raw_sql_query(
+            self.schema, summary_sql, log_ref="reporting_gcpcostentrylineitem_daily_summary.sql"
+        )
 
     def populate_tags_summary_table(self, bill_ids, start_date, end_date):
         """Populate the line item aggregated totals data table."""
@@ -429,7 +435,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
         """
 
-        topology = self._execute_presto_raw_sql_query(self.schema, sql)
+        topology = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_gcp_topology_trino")
 
         return topology
 
@@ -528,10 +534,17 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def populate_ocp_on_gcp_ui_summary_tables(self, sql_params, tables=OCPGCP_UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
-        for table_name in tables:
-            summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{table_name}.sql")
-            summary_sql = summary_sql.decode("utf-8")
-            self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=sql_params)
+        dh = DateHelper()
+        invoice_month_list = dh.gcp_find_invoice_months_in_date_range(sql_params["start_date"], sql_params["end_date"])
+        for invoice_month in invoice_month_list:
+            for table_name in tables:
+                sql_params["invoice_month"] = invoice_month
+                summary_sql = pkgutil.get_data("masu.database", f"sql/gcp/openshift/{table_name}.sql")
+                summary_sql = summary_sql.decode("utf-8")
+                summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, sql_params)
+                self._execute_raw_sql_query(
+                    table_name, summary_sql, bind_params=list(summary_sql_params), operation="DELETE/INSERT"
+                )
 
     def delete_ocp_on_gcp_hive_partition_by_day(self, days, gcp_source, ocp_source, year, month):
         """Deletes partitions individually for each day in days list."""
@@ -539,7 +552,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
-                "Deleting partitions for the following: \n\tSchema: %s "
+                "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tGCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
                 self.schema,
                 ocp_source,
@@ -559,7 +572,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                                 AND year = '{year}'
                                 AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                                 AND day = '{day}'"""
-                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        self._execute_presto_raw_sql_query(
+                            self.schema,
+                            sql,
+                            log_ref=f"delete_ocp_on_gcp_hive_partition_by_day for {year}-{month}-{day}",
+                        )
                         break
                     except TrinoExternalError as err:
                         if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
@@ -584,6 +601,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
 
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
@@ -592,9 +612,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_source_uuid": ocp_source_uuid,
             "year": start_date.strftime("%Y"),
             "month": start_date.strftime("%m"),
+            "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
-        results = self._execute_presto_raw_sql_query(self.schema, sql, bind_params=sql_params)
+        results = self._execute_presto_raw_sql_query(
+            self.schema, sql, bind_params=sql_params, log_ref="reporting_ocpgcp_matched_tags.sql"
+        )
         return [json.loads(result[0]) for result in results]
 
     def populate_ocp_on_gcp_tags_summary_table(self, gcp_bill_ids, start_date, end_date):

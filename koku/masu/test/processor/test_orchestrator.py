@@ -21,6 +21,8 @@ from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
+LOG = logging.getLogger(__name__)
+
 
 class FakeDownloader:
     """Fake Downloader for tests."""
@@ -34,7 +36,7 @@ class FakeDownloader:
         for _ in range(1, random.randint(5, 50)):
             fake_files.append(
                 {
-                    "file": "{}/{}/aws/{}-{}.csv".format(path, self.fake.word(), self.fake.word(), self.fake.word()),
+                    "file": f"{path}/{self.fake.word()}/aws/{self.fake.word()}-{self.fake.word()}.csv",
                     "compression": random.choice(["GZIP", "PLAIN"]),
                 }
             )
@@ -67,7 +69,7 @@ class OrchestratorTest(MasuTestCase):
             }
         ]
 
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
     def test_initializer(self, mock_inspect):  # noqa: C901
         """Test to init."""
         orchestrator = Orchestrator()
@@ -174,7 +176,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 5)
+            self.assertEqual(len(results), 7)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 
@@ -312,6 +314,35 @@ class OrchestratorTest(MasuTestCase):
                 mock_task.assert_called()
             else:
                 mock_task.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_priority_queue(self, mock_download_manifest, mock_task, mock_inspect):
+        """Test start_manifest_processing using priority queue."""
+        test_queues = [
+            {"name": "qe-account", "queue-name": "priority", "expected": "priority"},
+            {"name": "qe-account", "queue-name": None, "expected": "summary"},
+        ]
+        mock_manifest = {
+            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
+        }
+        for test in test_queues:
+            with self.subTest(test=test.get("name")):
+                mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
+                orchestrator = Orchestrator(queue_name=test.get("queue-name"))
+                account = self.mock_accounts[0]
+                orchestrator.start_manifest_processing(
+                    account.get("customer_name"),
+                    account.get("credentials"),
+                    account.get("data_source"),
+                    "AWS-local",
+                    account.get("schema_name"),
+                    account.get("provider_uuid"),
+                    DateAccessor().get_billing_months(1)[0],
+                )
+                actual_queue = mock_task.call_args.args[1].options.get("queue")
+                self.assertEqual(actual_queue, test.get("expected"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")

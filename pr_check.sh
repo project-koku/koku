@@ -11,7 +11,7 @@ DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
-ENABLE_PARQUET_PROCESSING="false"
+ENABLE_PARQUET_PROCESSING="true"
 
 LABELS_DIR="$WORKSPACE/github_labels"
 
@@ -55,7 +55,7 @@ function run_smoke_tests() {
 
     bonfire deploy \
         ${APP_NAME} \
-        --ref-env insights-stage \
+        --ref-env insights-production \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
         --namespace ${NAMESPACE} \
@@ -68,16 +68,28 @@ function run_smoke_tests() {
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
+        --set-parameter koku/LISTENER_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_DOWNLOAD_MIN_REPLICAS=2 \
+        --set-parameter koku/WORKER_OCP_MIN_REPLICAS=2 \
+        --set-parameter host-inventory/REPLICAS_P1=1 \
+        --set-parameter host-inventory/REPLICAS_PMIN=1 \
+        --set-parameter host-inventory/REPLICAS_SP=1 \
+        --set-parameter host-inventory/REPLICAS_SVC=1 \
+        --set-parameter presto/WORKER_REPLICAS=2 \
+        --set-parameter xjoin-search/NUM_REPLICAS=1 \
+        --set-parameter sources-api/MIN_REPLICAS=1  \
+        --no-single-replicas \
+        --source=appsre \
         --timeout 600
 
     source $CICD_ROOT/cji_smoke_test.sh
 }
 
 function run_trino_smoke_tests() {
-    if check_for_labels "trino-smoke-tests"
+    if check_for_labels "disable-trino-smoke-tests"
     then
-        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to TRUE"
-        ENABLE_PARQUET_PROCESSING="true"
+        echo "Running smoke tests with ENABLE_PARQUET_PROCESSING set to FALSE"
+        ENABLE_PARQUET_PROCESSING="false"
     fi
 }
 

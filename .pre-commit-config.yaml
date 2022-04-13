@@ -7,12 +7,12 @@ repos:
   - id: reorder-python-imports
     args: [--py3-plus, --application-directories, "koku"]
 - repo: https://github.com/asottile/pyupgrade
-  rev: v1.19.0
+  rev: v2.31.1
   hooks:
   - id: pyupgrade
     args: [--py36-plus]
 - repo: https://github.com/ambv/black
-  rev: 19.3b0
+  rev: 22.3.0
   hooks:
   - id: black
     args: [--line-length, "119"]
@@ -34,7 +34,7 @@ repos:
     - id: validate-dashboards
       name: Validate Grafana Dashboards
       description: Ensures dashboard files are valid JSON
-      entry: scripts/validate_dashboards.sh
+      entry: dev/scripts/validate_dashboards.sh
       language: script
       pass_filenames: false
       files: dashboards\/.*\.yaml

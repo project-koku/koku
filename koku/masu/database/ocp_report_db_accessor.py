@@ -369,7 +369,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             }
             summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
             self._execute_raw_sql_query(
-                table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
+                table_name,
+                summary_sql,
+                start_date,
+                end_date,
+                bind_params=list(summary_sql_params),
+                operation="DELETE/INSERT",
             )
 
     def update_line_item_daily_summary_with_enabled_tags(self, start_date, end_date, report_period_ids):
@@ -488,7 +493,12 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "gcp_provider_uuid": gcp_provider_uuid,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
-        results = self._execute_presto_raw_sql_query(self.schema, infra_sql, bind_params=infra_sql_params)
+        results = self._execute_presto_raw_sql_query(
+            self.schema,
+            infra_sql,
+            bind_params=infra_sql_params,
+            log_ref="reporting_ocpinfrastructure_provider_map.sql",
+        )
         db_results = {}
         for entry in results:
             # This dictionary is keyed on an OpenShift provider UUID
@@ -645,7 +655,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         retries = settings.HIVE_PARTITION_DELETE_RETRIES
         if self.table_exists_trino(table):
             LOG.info(
-                "Deleting partitions for the following: \n\tSchema: %s "
+                "Deleting Hive partitions for the following: \n\tSchema: %s "
                 "\n\tOCP Source: %s \n\tTable: %s \n\tYear-Month: %s-%s \n\tDays: %s",
                 self.schema,
                 source,
@@ -664,7 +674,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND (month = replace(ltrim(replace('{month}', '0', ' ')),' ', '0') OR month = '{month}')
                         AND day = '{day}'
                         """
-                        self._execute_presto_raw_sql_query(self.schema, sql)
+                        self._execute_presto_raw_sql_query(
+                            self.schema, sql, log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}"
+                        )
                         break
                     except TrinoExternalError as err:
                         if err.error_name == "HIVE_METASTORE_ERROR" and i < (retries - 1):
@@ -742,61 +754,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             LOG.info("PRESTO OCP: Close connection")
             presto_conn.close()
 
-    def populate_pod_label_summary_table_presto(self, report_period_ids, start_date, end_date, source):
-        """
-        Populate label usage summary tables
-
-        Args:
-            report_period_ids (list(int)) : List of report_period_ids for processing
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            source (UUID) : provider uuid
-
-        Returns
-            (None)
-        """
-        # Cast start_date to date
-        if isinstance(start_date, str):
-            start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d").date()
-            end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d").date()
-        if isinstance(start_date, datetime.datetime):
-            start_date = start_date.date()
-            end_date = end_date.date()
-
-        agg_sql = pkgutil.get_data("masu.database", "presto_sql/reporting_ocp_usage_label_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
-        agg_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "schema": self.schema,
-            "report_period_ids": tuple(report_period_ids),
-            "start_date": start_date,
-            "end_date": end_date,
-            "source": str(source),
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
-        }
-
-        LOG.info("PRESTO OCP: Connect")
-        presto_conn = kpdb.connect(schema=self.schema)
-        try:
-            LOG.info("PRESTO OCP: executing SQL buffer for OCP tag/label processing")
-            kpdb.executescript(presto_conn, agg_sql, params=agg_sql_params, preprocessor=self.jinja_sql.prepare_query)
-        except Exception as e:
-            LOG.error(f"PRESTO OCP ERROR : {e}")
-            try:
-                presto_conn.rollback()
-            except RuntimeError:
-                # If presto has not started a transaction, it will throw
-                # a RuntimeError that we just want to ignore.
-                pass
-            raise e
-        else:
-            LOG.info("PRESTO OCP: Commit actions")
-            presto_conn.commit()
-        finally:
-            LOG.info("PRESTO OCP: Close connection")
-            presto_conn.close()
-
     def get_cost_summary_for_clusterid(self, cluster_identifier):
         """Get the cost summary for a cluster id query."""
         table_name = self._table_map["cost_summary"]
@@ -808,31 +765,41 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """Populate the line item aggregated totals data table."""
         table_name = self._table_map["pod_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
         }
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+        if start_date and end_date:
+            msg = f"Updating {table_name} from {start_date} to {end_date}"
+        else:
+            msg = f"Updating {table_name}"
+        LOG.info(msg)
+        self._execute_processing_script("masu.database", "sql/reporting_ocpusagepodlabel_summary.sql", agg_sql_params)
+        LOG.info(f"Finished updating {table_name}")
 
     def populate_volume_label_summary_table(self, report_period_ids, start_date, end_date):
         """Populate the OCP volume label summary table."""
         table_name = self._table_map["volume_label_summary"]
 
-        agg_sql = pkgutil.get_data("masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql")
-        agg_sql = agg_sql.decode("utf-8")
         agg_sql_params = {
+            "uuid": str(uuid.uuid4()).replace("-", "_"),
             "schema": self.schema,
             "report_period_ids": report_period_ids,
             "start_date": start_date,
             "end_date": end_date,
         }
-        agg_sql, agg_sql_params = self.jinja_sql.prepare_query(agg_sql, agg_sql_params)
-        self._execute_raw_sql_query(table_name, agg_sql, bind_params=list(agg_sql_params))
+        if start_date and end_date:
+            msg = f"Updating {table_name} from {start_date} to {end_date}"
+        else:
+            msg = f"Updating {table_name}"
+        LOG.info(msg)
+        self._execute_processing_script(
+            "masu.database", "sql/reporting_ocpstoragevolumelabel_summary.sql", agg_sql_params
+        )
+        LOG.info(f"Finished updating {table_name}")
 
     def populate_markup_cost(self, markup, start_date, end_date, cluster_id):
         """Set markup cost for OCP including infrastructure cost markup."""
@@ -2337,7 +2304,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 resource_id
         """
 
-        nodes = self._execute_presto_raw_sql_query(self.schema, sql)
+        nodes = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_nodes_presto")
 
         return nodes
 
@@ -2354,7 +2321,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        pvcs = self._execute_presto_raw_sql_query(self.schema, sql)
+        pvcs = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_pvcs_presto")
 
         return pvcs
 
@@ -2370,7 +2337,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        projects = self._execute_presto_raw_sql_query(self.schema, sql)
+        projects = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_projects_presto")
 
         return [project[0] for project in projects]
 
@@ -2463,6 +2430,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
         """
 
-        timestamps = self._execute_presto_raw_sql_query(self.schema, sql)
+        timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
         max, min = timestamps[0]
         return parse(max), parse(min)

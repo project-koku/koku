@@ -172,12 +172,12 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(gcp.sku_description, '')) as sku_alias,
     max(nullif(gcp.location_region, '')) as region,
     max(gcp.usage_pricing_unit) as unit,
-    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
-    sum(daily_credits) as credit_amount,
-    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
-    cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
+    max(daily_credits) as credit_amount,
+    cast(max(gcp.cost) AS decimal(24,9)) as unblended_cost,
+    cast(max(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
     cast(NULL AS double) AS pod_cost,
     sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -201,6 +201,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
@@ -278,12 +279,12 @@ SELECT gcp.uuid as gcp_uuid,
     max(nullif(gcp.sku_description, '')) as sku_alias,
     max(nullif(gcp.location_region, '')) as region,
     max(gcp.usage_pricing_unit) as unit,
-    cast(sum(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
+    cast(max(gcp.usage_amount_in_pricing_units) AS decimal(24,9)) as usage_amount,
     max(gcp.currency) as currency,
     gcp.invoice_month as invoice_month,
-    sum(daily_credits) as credit_amount,
-    cast(sum(gcp.cost) AS decimal(24,9)) as unblended_cost,
-    cast(sum(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
+    max(daily_credits) as credit_amount,
+    cast(max(gcp.cost) AS decimal(24,9)) as unblended_cost,
+    cast(max(gcp.cost * {{markup | sqlsafe}}) AS decimal(24,9)) as markup_cost,
     cast(NULL as double) AS project_markup_cost,
     cast(NULL AS double) AS pod_cost,
     sum(ocp.pod_usage_cpu_core_hours) as pod_usage_cpu_core_hours,
@@ -304,8 +305,8 @@ JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
                 (strpos(gcp.labels, 'openshift_project') != 0 AND strpos(gcp.labels, lower(ocp.namespace)) != 0)
                 OR (strpos(gcp.labels, 'openshift_node') != 0 AND strpos(gcp.labels, lower(ocp.node)) != 0)
                 OR (strpos(gcp.labels, 'openshift_cluster') != 0 AND (strpos(gcp.labels, lower(ocp.cluster_id)) != 0 OR strpos(gcp.labels, lower(ocp.cluster_alias)) != 0))
-                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
-                OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
+                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.pod_labels, replace(x, ' ')) != 0))
+                -- OR (gcp.matched_tag != '' AND any_match(split(gcp.matched_tag, ','), x->strpos(ocp.volume_labels, replace(x, ' ')) != 0))
             )
 LEFT JOIN hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp AS pds
     ON gcp.uuid = pds.gcp_uuid
@@ -314,6 +315,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
@@ -417,11 +419,13 @@ SELECT pds.gcp_uuid,
     credit_amount / r.gcp_uuid_count as credit_amount,
     unblended_cost / r.gcp_uuid_count as unblended_cost,
     markup_cost / r.gcp_uuid_count as markup_cost,
-    CASE WHEN data_source = 'Pod'
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
         ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
-    CASE WHEN data_source = 'Pod'
+    CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
+            OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
         THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
         ELSE unblended_cost / r.gcp_uuid_count
     END as pod_cost,

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python scripts/create_manifest.py
+python dev/scripts/create_manifest.py
 
 changed=`git diff --name-only HEAD`
 
