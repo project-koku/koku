@@ -909,14 +909,17 @@ select count(*) from {self.schema_name}.{table} ;
         """
         with schema_context(self.schema_name):
             aws_lids = AWSCostEntryLineItemDailySummary.objects.order_by("-usage_start")[0]
-            aws_lids.usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 10))
+            year10_usage_start = aws_lids.usage_start.replace(year=(aws_lids.usage_start.year + 10))
+            aws_lids.usage_start = year10_usage_start
             aws_lids.save()
+            year10_count = 0
             with conn.cursor() as cur:
                 cur.execute(
-                    f"select count(*) as num_recs from {AWSCostEntryLineItemDailySummary._meta.db_table}_default;"
+                    f"select count(*) as num_recs from {AWSCostEntryLineItemDailySummary._meta.db_table}"
+                    + "_default where usage_start = %s;",
+                    (year10_usage_start,),
                 )
-                res = cur.fetchone()[0]
-            self.assertEqual(res, 1)
+                year10_count = cur.fetchone()[0]
 
             ppart.PartitionDefaultData(
                 self.schema_name, AWSCostEntryLineItemDailySummary._meta.db_table
@@ -941,7 +944,7 @@ select count(*) as num_recs
 """
                 )
                 res = cur.fetchone()[0]
-            self.assertEqual(res, 1)
+            self.assertEqual(res, year10_count)
 
     def test_repartition_all_tables(self):
         """

@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Max
+from django.db.models import Sum
 from django.db.models.expressions import OrderBy
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -163,28 +164,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_monthly_resolution_start_end_date(self):
         """Test that cluster capacity returns capacity by month."""
-        url = f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
-        month_count = 2
+        start_date = self.dh.last_month_end.date()
+        end_date = self.dh.today.date()
+        url = f"?start_date={start_date}&end_date={end_date}&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
-        total_capacity = Decimal(0)
-        query_filter = handler.query_filter
-        query_group_by = ["usage_start"]
-        annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
-        cap_key = list(annotations.keys())[0]
-
-        q_table = handler._mapper.provider_map.get("tables").get("query")
-        query = q_table.objects.filter(query_filter)
-
         with tenant_context(self.tenant):
-            cap_data = query.values(*query_group_by).annotate(**annotations)
-            for entry in cap_data:
-                total_capacity += entry.get(cap_key, 0)
-        total_capacity = total_capacity * month_count
-
-        self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
+            total_capacity = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
+                )
+                .values("usage_start", "cluster_id")
+                .annotate(capacity=Max("cluster_capacity_cpu_core_hours"))
+                .aggregate(total=Sum("capacity"))
+            )
+        self.assertAlmostEqual(
+            query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity.get("total"), 6
+        )
 
     def test_get_cluster_capacity_monthly_resolution_start_end_date_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
@@ -669,6 +667,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_ocp_date_order_by_cost_desc(self):
         """Test that order of every other date matches the order of the `order_by` date."""
+        tested = False
         yesterday = self.dh.yesterday.date()
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCostView)
@@ -686,11 +685,23 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")
             )
-        correctlst = [project.get("project") for project in expected]
+        ranking_map = {}
+        count = 1
+        for project in expected:
+            ranking_map[project.get("project")] = count
+            count += 1
         for element in data:
-            lst = [project.get("project") for project in element.get("projects")]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+            previous = 0
+            for project in element.get("projects"):
+                project_name = project.get("project")
+                # This if is cause some days may not have same projects.
+                # however we want the projects that do match to be in the
+                # same order
+                if project_name in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[project_name], previous)
+                    previous = ranking_map[project_name]
+                    tested = True
+        self.assertTrue(tested)
 
     def test_ocp_date_incorrect_date(self):
         wrong_date = "200BC"

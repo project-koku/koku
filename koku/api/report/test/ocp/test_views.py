@@ -6,6 +6,7 @@
 import datetime
 import random
 from decimal import Decimal
+from unittest import skip
 from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
@@ -428,7 +429,7 @@ class OCPReportViewTest(IamTestCase):
             "filter[time_scope_units]": "day",
             "filter[resolution]": "daily",
         }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        url = f"{url}?{urlencode(params, quote_via=quote_plus)}"
         response = client.get(url, **self.headers)
         data = response.data
 
@@ -450,6 +451,8 @@ class OCPReportViewTest(IamTestCase):
 
         # assert the others count is correct
         meta = data.get("meta")
+        if "'no-node'" in str(data):
+            num_nodes += 1
         self.assertEqual(meta.get("others"), num_nodes - 1)
 
         # Check if limit returns the correct number of results, and
@@ -458,12 +461,12 @@ class OCPReportViewTest(IamTestCase):
             if item.get("nodes"):
                 date = item.get("date")
                 nodes = item.get("nodes")
-                self.assertEqual(len(nodes), 2)
-                self.assertEqual(nodes[1].get("node"), "Others")
-                usage_total = nodes[0].get("values")[0].get("usage", {}).get("value") + nodes[1].get("values")[0].get(
-                    "usage", {}
-                ).get("value")
-                self.assertEqual(usage_total, totals.get(date))
+                node_total_usage = 0
+                for node in nodes:
+                    if node.get("values")[0].get("usage", {}):
+                        node_value = node.get("values")[0].get("usage", {}).get("value", 0)
+                        node_total_usage += node_value
+                self.assertEqual(node_total_usage, totals.get(date))
 
     def test_execute_query_ocp_memory_group_by_limit_large(self):
         """Test that OCP Mem endpoint works with limits."""
@@ -551,27 +554,27 @@ class OCPReportViewTest(IamTestCase):
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("cpu", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("cpu", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("memory", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("memory", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("memory", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("memory", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("pvc", "supplementary_monthly_cost_json"),
+                            KeyDecimalTransform("pvc", "supplementary_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(
-                            KeyDecimalTransform("pvc", "infrastructure_monthly_cost_json"),
+                            KeyDecimalTransform("pvc", "infrastructure_project_monthly_cost"),
                             Value(0, output_field=DecimalField()),
                         )
                         + Coalesce(F("infrastructure_project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -582,7 +585,7 @@ class OCPReportViewTest(IamTestCase):
             expected_total = cost if cost is not None else 0
         total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertNotEqual(total, Decimal(0))
-        self.assertEqual(total, expected_total)
+        self.assertAlmostEqual(total, expected_total, 6)
 
     def test_execute_query_ocp_costs_with_delta(self):
         """Test that deltas work for costs."""
@@ -804,7 +807,7 @@ class OCPReportViewTest(IamTestCase):
         expected_delta = current_total - prev_total
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
-        self.assertEqual(delta, expected_delta)
+        self.assertAlmostEqual(delta, expected_delta, 6)
         for item in data.get("data"):
             date = item.get("date")
             expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
@@ -812,7 +815,7 @@ class OCPReportViewTest(IamTestCase):
             delta_value = 0
             if values:
                 delta_value = values[0].get("delta_value")
-            self.assertEqual(delta_value, expected_delta)
+            self.assertAlmostEqual(delta_value, expected_delta, 1)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self):
         """Test that bad deltas don't work for costs."""
@@ -1232,6 +1235,7 @@ class OCPReportViewTest(IamTestCase):
             self.assertNotEqual(result, Decimal(0))
             self.assertEqual(result, expected)
 
+    @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_with_wildcard_tag_filter(self):
         """Test that data is filtered to include entries with tag key."""
         url = "?filter[type]=pod&filter[enabled]=true"
@@ -1278,13 +1282,14 @@ class OCPReportViewTest(IamTestCase):
 
         data = response.data
         data_totals = data.get("meta", {}).get("total", {})
-        for key in totals:
-            expected = totals[key]
-            if key == "cost":
-                result = data_totals.get(key, {}).get("total", {}).get("value")
-            else:
-                result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, expected)
+        for data_key in totals:
+            with self.subTest(data_key=data_key):
+                expected = totals[data_key]
+                if data_key == "cost":
+                    result = data_totals.get(data_key, {}).get("total", {}).get("value")
+                else:
+                    result = data_totals.get(data_key, {}).get("value")
+                self.assertEqual(result, expected)
 
     def test_execute_query_with_tag_group_by(self):
         """Test that data is grouped by tag key."""
@@ -1384,42 +1389,49 @@ class OCPReportViewTest(IamTestCase):
         order_mapping = ["cost", "infrastructure", "supplementary"]
 
         for option in order_by_options:
-            print(option)
-            url = reverse("reports-openshift-cpu")
-            client = APIClient()
-            order_by_dict_key = f"order_by[{option}]"
-            params = {
-                "filter[resolution]": "monthly",
-                "filter[time_scope_value]": "-1",
-                "filter[time_scope_units]": "month",
-                "group_by[node]": "*",
-                order_by_dict_key: "desc",
-                "filter[limit]": 5,
-            }
+            with self.subTest(test=option):
+                client = APIClient()
+                order_by_dict_key = f"order_by[{option}]"
+                params = {
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-1",
+                    "filter[time_scope_units]": "month",
+                    "group_by[node]": "*",
+                    order_by_dict_key: "desc",
+                    "filter[limit]": 5,
+                }
 
-            url = url + "?" + urlencode(params, quote_via=quote_plus)
-            response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+                url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.json()
-            data = data.get("data", [])
-            data_key = None
-            if option in order_mapping:
-                data_key = option
-                previous_value = (
-                    data[0].get("nodes", [])[0].get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
-                )
-            else:
-                previous_value = data[0].get("nodes", [])[0].get("values", [])[0].get(option, {}).get("value")
-            for entry in data[0].get("nodes", []):
-                if "Other" in entry.get("node", ""):
-                    continue
-                if data_key:
-                    current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                data = response.json()
+                data = data.get("data", [])
+                self.assertTrue(data)
+                nodes = data[0].get("nodes", [])
+                data_key = None
+                if option in order_mapping:
+                    data_key = option
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                        break
                 else:
-                    current_value = entry.get("values", [])[0].get(option, {}).get("value")
-                self.assertTrue(current_value <= previous_value)
-                previous_value = current_value
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(option, {}).get("value")
+                        break
+                for entry in nodes:
+                    if entry.get("node", "") in ("Others", "no-node"):
+                        continue
+                    if data_key:
+                        current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                    else:
+                        current_value = entry.get("values", [])[0].get(option, {}).get("value")
+                    self.assertTrue(current_value <= previous_value)
+                    previous_value = current_value
 
     def test_execute_query_with_order_by(self):
         """Test that the possible order by options work."""
@@ -1439,61 +1451,30 @@ class OCPReportViewTest(IamTestCase):
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_with_order_by_delta_and_limit(self):
+    def test_execute_query_with_order_by_delta(self):
         """Test that data is grouped and limited by order by delta."""
-        url = reverse("reports-openshift-cpu")
         client = APIClient()
         params = {
             "filter[resolution]": "monthly",
             "filter[time_scope_value]": "-1",
             "filter[time_scope_units]": "month",
-            "group_by[node]": "*",
+            "group_by[cluster]": "*",
             "order_by[delta]": "desc",
-            "filter[limit]": 1,
             "delta": "usage__capacity",
         }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        url = reverse("reports-openshift-cpu") + "?" + urlencode(params, quote_via=quote_plus)
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
         data = response.json()
-        data = data.get("data", [])
-        previous_usage = data[0].get("nodes", [])[0].get("values", [])[0].get("usage", {}).get(
-            "value"
-        ) / data[  # noqa: W504
-            0
-        ].get(
-            "nodes", []
-        )[
-            0
-        ].get(
-            "values", []
-        )[
-            0
-        ].get(
-            "capacity", {}
-        ).get(
-            "value"
-        )
-        for entry in data[0].get("nodes", []):
-            current_usage = data[0].get("nodes", [])[0].get("values", [])[0].get("usage", {}).get(
-                "value"
-            ) / data[  # noqa: W504
-                0
-            ].get(
-                "nodes", []
-            )[
-                0
-            ].get(
-                "values", []
-            )[
-                0
-            ].get(
-                "capacity", {}
-            ).get(
-                "value"
-            )
-            self.assertTrue(current_usage >= previous_usage)
+        cluster = data.get("data", [])[0].get("clusters", [])
+        p_usage = cluster[0].get("values", [])[0].get("usage", {}).get("value")
+        p_cap = cluster[0].get("values", [])[0].get("capacity", {}).get("value")
+        previous_usage = p_usage / p_cap
+        for entry in cluster:
+            c_usage = entry.get("values", [])[0].get("usage", {}).get("value")
+            c_cap = entry.get("values", [])[0].get("capacity", {}).get("value")
+            current_usage = c_usage / c_cap
+            self.assertTrue(current_usage <= previous_usage)
             previous_usage = current_usage
 
     def test_execute_query_volume(self):
