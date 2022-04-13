@@ -224,7 +224,7 @@
             "name": "provider_uuid",
             "in": "query",
             "description": "The provider UUID",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
@@ -255,7 +255,7 @@
             "name": "start_date",
             "in": "query",
             "description": "The date to begin summarizing",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date",
