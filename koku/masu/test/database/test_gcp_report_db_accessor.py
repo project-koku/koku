@@ -358,7 +358,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             "start_date": start_date,
             "end_date": end_date,
             "gcp_source_uuid": self.gcp_provider_uuid,
-            "ocp_source_uuid": self.ocp_provider_uuid,
+            "ocp_source_uuid": self.ocp_on_gcp_ocp_provider,
         }
         self.accessor.populate_ocp_on_gcp_ui_summary_tables(summary_sql_params)
         mock_sql.assert_called()
