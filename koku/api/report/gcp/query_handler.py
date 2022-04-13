@@ -14,6 +14,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)

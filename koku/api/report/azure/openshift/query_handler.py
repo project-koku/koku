@@ -12,6 +12,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)

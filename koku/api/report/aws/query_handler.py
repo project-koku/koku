@@ -19,6 +19,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
 

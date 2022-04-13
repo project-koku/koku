@@ -17,6 +17,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.provider.provider_manager import ProviderManager
 from api.report.ocp.provider_map import OCPProviderMap
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY

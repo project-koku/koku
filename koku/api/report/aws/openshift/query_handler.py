@@ -13,6 +13,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)

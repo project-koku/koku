@@ -430,7 +430,7 @@ class OCPReportViewTest(IamTestCase):
             "filter[time_scope_units]": "day",
             "filter[resolution]": "daily",
         }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        url = f"{url}?{urlencode(params, quote_via=quote_plus)}"
         response = client.get(url, **self.headers)
         data = response.data
 
@@ -586,7 +586,7 @@ class OCPReportViewTest(IamTestCase):
             expected_total = cost if cost is not None else 0
         total = data.get("meta", {}).get("total", {}).get("cost", {}).get("total", {}).get("value", 0)
         self.assertNotEqual(total, Decimal(0))
-        self.assertAlmostEqual(total, expected_total, 1)
+        self.assertAlmostEqual(total, expected_total, 6)
 
     def test_execute_query_ocp_costs_with_delta(self, mocked_exchange_rates):
         """Test that deltas work for costs."""
@@ -1392,39 +1392,49 @@ class OCPReportViewTest(IamTestCase):
         order_mapping = ["cost", "infrastructure", "supplementary"]
 
         for option in order_by_options:
-            url = reverse("reports-openshift-cpu")
-            client = APIClient()
-            order_by_dict_key = f"order_by[{option}]"
-            params = {
-                "filter[resolution]": "monthly",
-                "filter[time_scope_value]": "-1",
-                "filter[time_scope_units]": "month",
-                "group_by[cluster]": "*",
-                order_by_dict_key: "desc",
-                "filter[limit]": 5,
-            }
+            with self.subTest(test=option):
+                client = APIClient()
+                order_by_dict_key = f"order_by[{option}]"
+                params = {
+                    "filter[resolution]": "monthly",
+                    "filter[time_scope_value]": "-1",
+                    "filter[time_scope_units]": "month",
+                    "group_by[node]": "*",
+                    order_by_dict_key: "desc",
+                    "filter[limit]": 5,
+                }
 
-            url = url + "?" + urlencode(params, quote_via=quote_plus)
-            response = client.get(url, **self.headers)
-            self.assertEqual(response.status_code, status.HTTP_200_OK)
+                url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
+                response = client.get(url, **self.headers)
+                self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-            data = response.json()
-            clusters = data.get("data", [])[0].get("clusters", [])
-            previous_base = clusters[0].get("values", [])[0].get(option, {})
-            if option in order_mapping:
-                previous_value = previous_base.get("total", {}).get("value", "No Data")
-            else:
-                previous_value = previous_base.get("value", "No Data")
-            for entry in clusters:
-                if "Other" in entry.get("cluster", ""):
-                    continue
-                current_base = entry.get("values", [])[0].get(option, {})
+                data = response.json()
+                data = data.get("data", [])
+                self.assertTrue(data)
+                nodes = data[0].get("nodes", [])
+                data_key = None
                 if option in order_mapping:
-                    current_value = current_base.get("total", {}).get("value")
+                    data_key = option
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                        break
                 else:
-                    current_value = current_base.get("value")
-                self.assertTrue(current_value <= previous_value)
-                previous_value = current_value
+                    for node in nodes:
+                        if node.get("node") in ("Others", "no-node"):
+                            continue
+                        previous_value = node.get("values", [])[0].get(option, {}).get("value")
+                        break
+                for entry in nodes:
+                    if entry.get("node", "") in ("Others", "no-node"):
+                        continue
+                    if data_key:
+                        current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
+                    else:
+                        current_value = entry.get("values", [])[0].get(option, {}).get("value")
+                    self.assertTrue(current_value <= previous_value)
+                    previous_value = current_value
 
     def test_execute_query_with_order_by(self, mocked_exchange_rates):
         """Test that the possible order by options work."""

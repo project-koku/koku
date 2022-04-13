@@ -15,6 +15,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.query_handler import GCPReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
