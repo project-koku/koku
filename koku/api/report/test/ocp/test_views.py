@@ -429,7 +429,7 @@ class OCPReportViewTest(IamTestCase):
             "filter[time_scope_units]": "day",
             "filter[resolution]": "daily",
         }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        url = f"{url}?{urlencode(params, quote_via=quote_plus)}"
         response = client.get(url, **self.headers)
         data = response.data
 
@@ -451,10 +451,9 @@ class OCPReportViewTest(IamTestCase):
 
         # assert the others count is correct
         meta = data.get("meta")
-        self.assertEqual(meta.get("others"), num_nodes)
-        # if "'no-node'" in str(data):
-        #     num_nodes += 1
-        # self.assertEqual(meta.get("others"), num_nodes - 1)
+        if "'no-node'" in str(data):
+            num_nodes += 1
+        self.assertEqual(meta.get("others"), num_nodes - 1)
 
         # Check if limit returns the correct number of results, and
         # that the totals add up properly

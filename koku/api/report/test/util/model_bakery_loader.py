@@ -200,7 +200,7 @@ class ModelBakeryDataLoader(DataLoader):
         with AWSReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
-        return provider, bills
+        return bills
 
     def load_azure_data(self, linked_openshift_provider=None):
         """Load Azure data for tests."""
@@ -245,7 +245,7 @@ class ModelBakeryDataLoader(DataLoader):
         with AzureReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
-        return provider, bills
+        return bills
 
     def load_gcp_data(self, linked_openshift_provider=None):
         """Load Azure data for tests."""
@@ -284,7 +284,7 @@ class ModelBakeryDataLoader(DataLoader):
         with GCPReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
-        return provider, bills
+        return bills
 
     def load_openshift_data(self, cluster_id, on_cloud=False):
         """Load OpenShift data for tests."""
