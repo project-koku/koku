@@ -162,9 +162,7 @@ class SourcesHTTPClient:
             msg = f"[get_data_source] Unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        application_url = (
-            f"{self._base_url}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self._source_id}&filter[application_type_id]={app_type_id}" # noqa: E501
-        )
+        application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self._source_id}&filter[application_type_id]={app_type_id}" # noqa: E501
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         applications_data = (applications_response.get("data") or [None])[0]
         if not applications_data:
@@ -196,9 +194,7 @@ class SourcesHTTPClient:
     def _get_aws_credentials(self, _):
         """Get the roleARN from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -224,9 +220,7 @@ class SourcesHTTPClient:
     def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -249,9 +243,7 @@ class SourcesHTTPClient:
 
         # get client and tenant ids
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}" # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
