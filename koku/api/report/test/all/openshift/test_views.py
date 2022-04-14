@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All Report views."""
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -24,6 +25,7 @@ URLS = [
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAllReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -38,7 +40,7 @@ class OCPAllReportViewTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
 
-    def test_group_bys_with_second_group_by_tag(self):
+    def test_group_bys_with_second_group_by_tag(self, mocked_exchange_rate):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (

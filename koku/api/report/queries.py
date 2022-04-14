@@ -176,7 +176,7 @@ class ReportQueryHandler(QueryHandler):
                 generic_list += ["infra_credit", "sup_credit", "cost_credit"]
             for value in generic_list:
                 orig_value = total_query[value]
-                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+                total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
         return total_query
 
     @cached_property
@@ -703,7 +703,7 @@ class ReportQueryHandler(QueryHandler):
                                 # change to currency code
                                 in_value[this_key] = self.currency
                             elif this_key in ["value"]:
-                                in_value[this_key] = round(Decimal(this_value) * Decimal(exchange_rate), 9)
+                                in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
                                 # multiply and override
                             value[in_key] = in_value
 

@@ -128,7 +128,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         self.assertTrue("capacity" in query_data[0])
         self.assertIsNotNone(query_data[0].get("capacity"))
         self.assertIsNotNone(total_capacity.get("capacity"))
-        self.assertEqual(query_data[0].get("capacity"), round(total_capacity.get("capacity"), 9))
+        self.assertEqual(query_data[0].get("capacity"), round(total_capacity.get("capacity"), 11))
 
     def test_get_cluster_capacity_monthly_resolution_group_by_cluster(self, mocked_exchange_rates):
         """Test that cluster capacity returns capacity by cluster."""
