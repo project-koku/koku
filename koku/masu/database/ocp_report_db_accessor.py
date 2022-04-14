@@ -449,7 +449,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return db_results
 
-    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):
+    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
         """Get the OCP on infrastructure map.
 
         Args:
@@ -467,13 +467,25 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
         gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
 
+        check_aws = False
+        check_azure = False
+        check_gcp = False
+
         if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
-        if aws_provider_uuid and not self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE):
-            return {}
-        if azure_provider_uuid and not self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE):
-            return {}
-        if gcp_provider_uuid and not self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE):
+        if aws_provider_uuid or ocp_provider_uuid:
+            check_aws = self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if aws_provider_uuid and not check_aws:
+                return {}
+        if azure_provider_uuid or ocp_provider_uuid:
+            check_azure = self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if azure_provider_uuid and not check_azure:
+                return {}
+        if gcp_provider_uuid or ocp_provider_uuid:
+            check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if gcp_provider_uuid and not check_gcp:
+                return {}
+        if not any([check_aws, check_azure, check_gcp]):
             return {}
 
         if isinstance(start_date, str):
@@ -491,6 +503,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_provider_uuid": ocp_provider_uuid,
             "azure_provider_uuid": azure_provider_uuid,
             "gcp_provider_uuid": gcp_provider_uuid,
+            "check_aws": check_aws,
+            "check_azure": check_azure,
+            "check_gcp": check_gcp,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         results = self._execute_presto_raw_sql_query(
