@@ -33,6 +33,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         :param schema (str): The customer schema to associate with
         """
         super().__init__(schema)
+        self._ebs_acct_num = schema.strip("acct")
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
@@ -53,7 +54,12 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
             sql = sql.decode("utf-8")
 
-            sql_params = {"date": date, "schema": self.schema, "table": HCS_TABLE_MAP.get(provider)}
+            sql_params = {
+                "date": date,
+                "schema": self.schema,
+                "ebs_acct_num": self._ebs_acct_num,
+                "table": HCS_TABLE_MAP.get(provider),
+            }
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
             data, description = self._execute_presto_raw_sql_query_with_description(
                 self.schema, sql, bind_params=sql_params
