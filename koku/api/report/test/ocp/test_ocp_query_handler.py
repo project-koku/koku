@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.db.models import Max
+from django.db.models import Sum
 from django.db.models.expressions import OrderBy
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -163,26 +164,25 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_get_cluster_capacity_monthly_resolution_start_end_date(self):
         """Test that cluster capacity returns capacity by month."""
-        url = f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
+        start_date = self.dh.last_month_end.date()
+        end_date = self.dh.today.date()
+        url = f"?start_date={start_date}&end_date={end_date}&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         query_data = handler.execute_query()
 
-        total_capacity = Decimal(0)
-        query_filter = handler.query_filter
-        query_group_by = ["usage_start", "cluster_id"]
-        annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
-        cap_key = list(annotations.keys())[0]
-
-        q_table = handler._mapper.provider_map.get("tables").get("query")
-        query = q_table.objects.filter(query_filter)
-
         with tenant_context(self.tenant):
-            cap_data = query.values(*query_group_by).annotate(**annotations)
-            for entry in cap_data:
-                total_capacity += entry.get(cap_key, 0)
-
-        self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
+            total_capacity = (
+                OCPUsageLineItemDailySummary.objects.filter(
+                    usage_start__gte=start_date, usage_start__lte=end_date, data_source="Pod"
+                )
+                .values("usage_start", "cluster_id")
+                .annotate(capacity=Max("cluster_capacity_cpu_core_hours"))
+                .aggregate(total=Sum("capacity"))
+            )
+        self.assertAlmostEqual(
+            query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity.get("total"), 6
+        )
 
     def test_get_cluster_capacity_monthly_resolution_start_end_date_group_by_cluster(self):
         """Test that cluster capacity returns capacity by cluster."""
