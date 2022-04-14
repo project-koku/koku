@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
+from unittest.mock import patch
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -30,10 +32,11 @@ NETWORK_SUMMARY = OCPAllNetworkSummaryPT
 DATABASE_SUMMARY = OCPAllDatabaseSummaryPT
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAllQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
-    def test_set_or_filters(self):
+    def test_set_or_filters(self, mocked_exchange_rate):
         """Test that OCP on All or_filter is appropriately set."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAllStorageView)
@@ -42,7 +45,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         filters = handler._set_or_filters()
         self.assertEqual(filters.connector, "OR")
 
-    def test_ocp_all_view_storage_model(self):
+    def test_ocp_all_view_storage_model(self, mocked_exchange_rate):
         """Test that ALL storage view model is used."""
 
         url = "/reports/openshift/infrastructures/all/storage/"
@@ -50,7 +53,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler = OCPAllReportQueryHandler(query_params)
         self.assertTrue(handler.query_table == STORAGE_SUMMARY)
 
-    def test_ocp_all_view_compute_model(self):
+    def test_ocp_all_view_compute_model(self, mocked_exchange_rate):
         """Test that ALL compute view model is used."""
 
         url = "/reports/openshift/infrastructures/all/instance-types/"
@@ -58,7 +61,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler = OCPAllReportQueryHandler(query_params)
         self.assertTrue(handler.query_table == COMPUTE_SUMMARY)
 
-    def test_ocp_all_view_network_model(self):
+    def test_ocp_all_view_network_model(self, mocked_exchange_rate):
         """Test that ALL network view model is used."""
 
         url = (
@@ -69,7 +72,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler = OCPAllReportQueryHandler(query_params)
         self.assertTrue(handler.query_table == NETWORK_SUMMARY)
 
-    def test_ocp_all_view_database_model(self):
+    def test_ocp_all_view_database_model(self, mocked_exchange_rate):
         """Test that ALL database view model is used."""
 
         url = (
@@ -81,7 +84,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler = OCPAllReportQueryHandler(query_params)
         self.assertTrue(handler.query_table == DATABASE_SUMMARY)
 
-    def disable_test_source_uuid_mapping(self):  # noqa: C901
+    def disable_test_source_uuid_mapping(self, mocked_exchange_rate):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAllCostView, OCPAllInstanceTypeView, OCPAllStorageView]
         with tenant_context(self.tenant):
@@ -117,7 +120,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_query_table(self):
+    def test_query_table(self, mocked_exchange_rate):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
             ("?", OCPAllCostView, OCPAllCostSummaryPT),
@@ -180,7 +183,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                 self.assertEqual(handler.query_table, table)
 
     @RbacPermissions({"openshift.project": {"read": ["analytics"]}})
-    def test_set_access_filters_with_array_field(self):
+    def test_set_access_filters_with_array_field(self, mocked_exchange_rate):
         """Test that a filter is correctly set for arrays."""
 
         query_params = self.mocked_query_params("?filter[project]=analytics", OCPAllCostView)
@@ -195,7 +198,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
         self.assertEqual(filters._filters, expected)
 
     @RbacPermissions({"openshift.project": {"read": ["analytics"]}})
-    def test_set_access_filters_with_array_field_and_list(self):
+    def test_set_access_filters_with_array_field_and_list(self, mocked_exchange_rate):
         """Test that a filter is correctly set for arrays."""
 
         query_params = self.mocked_query_params("?filter[project]=analytics", OCPAllCostView)

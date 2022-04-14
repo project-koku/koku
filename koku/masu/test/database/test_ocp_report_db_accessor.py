@@ -2920,4 +2920,6 @@ select * from eek where val1 in {{report_period_id}} ;
         with self.assertRaises(TrinoExternalError):
             self.accessor.delete_ocp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
         mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
