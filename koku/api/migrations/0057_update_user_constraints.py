@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0055_install_pg_stat_statements"),
+        ("api", "0056_reapply_clone_schema_func"),
     ]
 
     operations = [
