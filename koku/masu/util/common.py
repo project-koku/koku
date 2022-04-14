@@ -225,13 +225,14 @@ def date_range_pair(start_date, end_date, step=5):
     # Special case with only 1 period
     if len(dates) == 1:
         yield start_date.date(), end_date.date()
-    for date in dates:
-        if date == start_date:
-            continue
-        yield start_date.date(), date.date()
-        start_date = date + timedelta(days=1)
-    if len(dates) != 1 and end_date not in dates:
-        yield start_date.date(), end_date.date()
+    else:
+        for date in dates:
+            if date == start_date and date != end_date:
+                continue
+            yield start_date.date(), date.date()
+            start_date = date + timedelta(days=1)
+        if len(dates) != 1 and end_date not in dates:
+            yield start_date.date(), end_date.date()
 
 
 def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):
