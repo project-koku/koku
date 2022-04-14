@@ -194,32 +194,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     currencys[currency] = data
                 else:
                     base_values = currencys.get(currency)
-                    for value in ["source_uuid", "clusters"]:
-                        base_val = base_values.get(value)
-                        if type(base_val) != list:
-                            base_val = [base_val]
-                        new_val = data.get(value)
-                        if type(new_val) != list:
-                            new_val = [new_val]
-                        base_values[value] = base_val + new_val
-                    for delta in ["delta_value", "delta_percent"]:
-                        if data.get(delta):
-                            base_values[delta] = base_values.get(delta, 0) + data.get(delta)
-                    for item in ["account", "account_alias", "tags_exist", "node"]:
-                        if data.get(item):
-                            base_values[item] = data.get(item)
-                    for group in all_group_by:
-                        if group.startswith("tags"):
-                            group = group[6:]
-                        elif group.startswith("pod_labels__"):
-                            group = group[12:]
-                        base_values[group] = data.get(group)
-                    for structure in ["infrastructure", "supplementary", "cost"]:
-                        for each in ["raw", "markup", "usage", "total", "distributed"]:
-                            orig_value = base_values.get(structure).get(each).get("value")
-                            new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
-                            base_values[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
-                            base_values[structure][each]["units"] = self.currency
+                    remove_keys = ["source_uuid_id"]
+                    data_keys = data.keys()
+                    # remove source_uuid_id from data keys
+                    keys = list(filter(lambda w: w not in remove_keys, data_keys))
+                    for key in keys:
+                        if key in ["infrastructure", "supplementary", "cost"]:
+                            for each in ["raw", "markup", "usage", "total", "distributed"]:
+                                orig_value = base_values.get(key).get(each).get("value")
+                                new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
+                                base_values[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                        else:
+                            base_val = base_values.get(key)
+                            new_val = data.get(key)
+                            if base_val and not isinstance(base_val, str):
+                                new_val = base_val + new_val
+                            base_values[key] = new_val
         return currencys
 
     def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
@@ -258,32 +248,23 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
                 base_currency = self._get_base_currency(source_uuid_id)
                 exchange_rate = self._get_exchange_rate(base_currency)
-                total_query["date"] = data.get("date")
-                for aggregate in ["source_uuid", "clusters"]:
-                    base_val = total_query.get(aggregate)
-                    if type(base_val) != list:
-                        base_val = [base_val]
-                    new_val = data.get(aggregate)
-                    if type(new_val) != list:
-                        new_val = [new_val]
-                    total_query[aggregate] = base_val + new_val
-                for delta in ["delta_value", "delta_percent"]:
-                    if data.get(delta):
-                        total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account", "account_alias", "tags_exist", "node"]:
-                    if data.get(item):
-                        total_query[item] = data.get(item)
-                for group in all_group_by:
-                    if group.startswith("tags"):
-                        group = group[6:]
-                    elif group.startswith("pod_labels__"):
-                        group = group[12:]
-                    total_query[group] = data.get(group)
-                for structure in ["infrastructure", "supplementary", "cost"]:
-                    for each in ["raw", "markup", "usage", "total", "distributed"]:
-                        orig_value = total_query.get(structure).get(each).get("value")
-                        new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
-                        total_query[structure][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                data_keys = data.keys()
+                # remove source_uuid_id from data keys
+                remove_keys = ["source_uuid_id"]
+                keys = list(filter(lambda w: w not in remove_keys, data_keys))
+                for key in keys:
+                    if key in ["infrastructure", "supplementary", "cost"]:
+                        for each in ["raw", "markup", "usage", "total", "distributed"]:
+                            orig_value = total_query.get(key).get(each).get("value")
+                            new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
+                            total_query[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                    else:
+                        base_val = total_query.get(key)
+                        new_val = data.get(key)
+                        if base_val and not isinstance(base_val, str):
+                            new_val = base_val + new_val
+                        total_query[key] = new_val
+
         return total_query, new_codes
 
     def execute_query(self):  # noqa: C901

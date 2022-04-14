@@ -849,7 +849,7 @@ class ReportQueryHandler(QueryHandler):
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
-                        if base_val:
+                        if base_val and not isinstance(base_val, str):
                             new_val = base_val + new_val
                         total_query[key] = new_val
         return total_query
