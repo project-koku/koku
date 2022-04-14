@@ -19,6 +19,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -634,7 +635,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if self.check_if_valid_date_str(param):
+                if check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering

@@ -20,7 +20,9 @@ class MasuTestCase(IamTestCase):
         self.customer, __ = Customer.objects.get_or_create(account_id=self.acct, schema_name=self.schema)
 
         self.aws_provider = Provider.objects.filter(type=Provider.PROVIDER_AWS_LOCAL).first()
-        self.ocp_provider = Provider.objects.filter(type=Provider.PROVIDER_OCP).first()
+        self.ocp_provider = Provider.objects.get(
+            type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"
+        )
         self.azure_provider = Provider.objects.get(type=Provider.PROVIDER_AZURE_LOCAL)
         self.gcp_provider = Provider.objects.get(type=Provider.PROVIDER_GCP_LOCAL)
         self.unkown_test_provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
@@ -31,11 +33,10 @@ class MasuTestCase(IamTestCase):
         self.ocp_on_azure_ocp_provider = Provider.objects.filter(
             infrastructure__infrastructure_type=Provider.PROVIDER_AZURE_LOCAL
         ).first()
+        self.ocp_on_gcp_ocp_provider = Provider.objects.filter(
+            infrastructure__infrastructure_type=Provider.PROVIDER_GCP_LOCAL
+        ).first()
 
-        # TODO: Replaces instances of tmp_ocp_on_prem_provider with self.ocp_provider
-        self.tmp_ocp_on_prem_provider = Provider.objects.get(
-            type=Provider.PROVIDER_OCP, authentication__credentials__cluster_id="OCP-on-Prem"
-        )
         self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
 
         self.aws_provider_uuid = str(self.aws_provider.uuid)
@@ -50,10 +51,12 @@ class MasuTestCase(IamTestCase):
 
         self.ocpaws_provider_uuid = str(self.ocp_on_aws_ocp_provider.uuid)
         self.ocpazure_provider_uuid = str(self.ocp_on_azure_ocp_provider.uuid)
+        self.ocpgcp_provider_uuid = str(self.ocp_on_gcp_ocp_provider.uuid)
 
         self.ocp_cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
         self.ocpaws_ocp_cluster_id = self.ocp_on_aws_ocp_provider.authentication.credentials.get("cluster_id")
         self.ocpazure_ocp_cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
+        self.ocpgcp_ocp_cluster_id = self.ocp_on_gcp_ocp_provider.authentication.credentials.get("cluster_id")
 
         self.ocp_db_auth = self.ocp_provider.authentication
         self.aws_db_auth = self.aws_provider.authentication

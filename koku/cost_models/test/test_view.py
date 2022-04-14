@@ -19,7 +19,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from cost_models.models import CostModel
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
@@ -118,15 +117,13 @@ class CostModelViewTests(IamTestCase):
         url = reverse("cost-models-list")
         client = APIClient()
 
-        with tenant_context(self.tenant):
-            original_cost_model = CostModel.objects.all()[0]
         with patch("cost_models.cost_model_manager.chain"):
             response = client.post(url, data=self.fake_data, format="json", **self.headers)
         new_cost_model_uuid = response.data.get("uuid")
 
         # Test that the previous cost model for this provider is still associated.
         with tenant_context(self.tenant):
-            result = CostModelMap.objects.filter(cost_model_id=original_cost_model.uuid).all()
+            result = CostModelMap.objects.filter(cost_model_id=self.fake_data_cost_model_uuid).all()
             self.assertEqual(len(result), 1)
             # Test that the new cost model is not associated to the provider
             result = CostModelMap.objects.filter(cost_model_id=new_cost_model_uuid).all()
@@ -164,9 +161,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_success(self):
         """Test that we can read a cost model."""
-        cost_model = CostModel.objects.filter(name=self.cost_model_name).first()
-        self.assertTrue(cost_model)
-        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -231,9 +226,7 @@ class CostModelViewTests(IamTestCase):
         new_value = round(Decimal(random.random()), 6)
         self.fake_data["rates"][0]["tiered_rates"][0]["value"] = new_value
 
-        with tenant_context(self.tenant):
-            cost_model = CostModel.objects.filter(name=self.cost_model_name).first()
-            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
         response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -272,8 +265,7 @@ class CostModelViewTests(IamTestCase):
         test_data = self.fake_data
         test_data["rates"][0]["tiered_rates"][0]["value"] = round(Decimal(random.random()), 6)
         with tenant_context(self.tenant):
-            cost_model = CostModel.objects.first()
-            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+            url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
             client = APIClient()
 
             response = client.patch(url, test_data, format="json", **self.headers)
@@ -291,8 +283,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_delete_cost_model_success(self):
         """Test that we can delete an existing rate."""
-        cost_model = CostModel.objects.first()
-        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
         with patch("cost_models.cost_model_manager.chain"):
             response = client.delete(url, **self.headers)
@@ -328,11 +319,18 @@ class CostModelViewTests(IamTestCase):
         for keyname in ["meta", "links", "data"]:
             self.assertIn(keyname, response.data)
         self.assertIsInstance(response.data.get("data"), list)
-        model = CostModel.objects.filter(name=self.cost_model_name).first()
-        self.assertTrue(model)
-        cost_model = response.data.get("data")[self.results_idx]
-        self.assertIsNotNone(cost_model.get("uuid"))
-        self.assertIsNotNone(cost_model.get("sources"))
+        self.assertGreater(len(response.data.get("data")), 0)
+
+        cost_model = None
+        for model in response.data.get("data"):
+            self.assertIsNotNone(model.get("uuid"))
+            self.assertIsNotNone(model.get("sources"))
+
+            # only the fake cost model will work with the rest of the assertions, so grab the correct model:
+            if model.get("uuid") == str(self.fake_data_cost_model_uuid):
+                cost_model = model
+
+        self.assertIsNotNone(cost_model)
         self.assertEqual(
             self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
         )
