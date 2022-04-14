@@ -27,7 +27,7 @@ from reporting.models import OCPEnabledTagKeys
 
 GITHUB_ACTIONS = ENVIRONMENT.bool("GITHUB_ACTIONS", default=False)
 LOG = logging.getLogger(__name__)
-OCP_ENABLED_TAGS = ["app", "storageclass", "environment", "version"]
+OCP_ENABLED_TAGS = ["storageclass", "environment", "version"]
 
 if GITHUB_ACTIONS:
     sys.stdout = open(os.devnull, "w")
@@ -93,9 +93,11 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         customer, __ = Customer.objects.get_or_create(
                             account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
                         )
+                        ######### TODO: remove after azure has been converted ########
                         with tenant_context(tenant):
                             for tag_key in OCP_ENABLED_TAGS:
                                 OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
+                        ##############################################################
                         data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
@@ -113,24 +115,27 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         ocp_on_gcp_cluster_id = "OCP-on-GCP"
                         ocp_on_prem_cluster_id = "OCP-on-Prem"
 
-                        # TODO: COST-444: uncomment these when the above data_loader is removed
                         ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
                             ocp_on_aws_cluster_id, on_cloud=True
                         )
+                        # TODO: COST-444: uncomment these when the above NISE data_loader is removed
                         # ocp_on_azure_ocp_provider, ocp_on_azure_report_periods = bakery_data_loader.load_openshift_data(
                         #     ocp_on_azure_cluster_id, on_cloud=True
                         # )
-                        # ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
-                        #     ocp_on_gcp_cluster_id, on_cloud=True
-                        # )
-                        _, __ = bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
-                        _, aws_bills = bakery_data_loader.load_aws_data(
+                        ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
+                            ocp_on_gcp_cluster_id, on_cloud=True
+                        )
+
+                        bakery_data_loader.load_openshift_data(ocp_on_prem_cluster_id, on_cloud=False)
+
+                        aws_bills = bakery_data_loader.load_aws_data(
                             linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
                         )
-                        # _, azure_bills = bakery_data_loader.load_azure_data(
+                        # TODO: COST-444: uncomment these when the above NISE data_loader is removed
+                        # azure_bills = bakery_data_loader.load_azure_data(
                         #     linked_openshift_provider=ocp_on_azure_ocp_provider
                         # )
-                        _, gcp_bills = bakery_data_loader.load_gcp_data()
+                        gcp_bills = bakery_data_loader.load_gcp_data(linked_openshift_provider=ocp_on_gcp_ocp_provider)
 
                         bakery_data_loader.load_openshift_on_cloud_data(
                             Provider.PROVIDER_AWS_LOCAL, ocp_on_aws_cluster_id, aws_bills, ocp_on_aws_report_periods
@@ -141,9 +146,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         #     azure_bills,
                         #     ocp_on_azure_report_periods,
                         # )
-                        # bakery_data_loader.load_openshift_on_cloud_data(
-                        #     Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
-                        # )
+                        bakery_data_loader.load_openshift_on_cloud_data(
+                            Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
+                        )
 
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
