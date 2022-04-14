@@ -15,6 +15,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.gcp.openshift.provider_map import OCPGCPProviderMap
 from api.report.gcp.query_handler import GCPReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
@@ -167,7 +168,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if self.check_if_valid_date_str(param):
+                if check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering

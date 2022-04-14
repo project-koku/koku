@@ -12,6 +12,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             order_date = None
             for i, param in enumerate(query_order_by):
-                if self.check_if_valid_date_str(param):
+                if check_if_valid_date_str(param):
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering

@@ -61,6 +61,15 @@ def is_grouped_by_project(parameters):
     return [key for key in group_by if "project" in key]
 
 
+def check_if_valid_date_str(date_str):
+    """Check to see if a valid date has been passed in."""
+    try:
+        ciso8601.parse_datetime(date_str)
+    except (ValueError, TypeError):
+        return False
+    return True
+
+
 def check_view_filter_and_group_by_criteria(filter_set, group_by_set):
     """Return a bool for whether a view can be used."""
     no_view_group_bys = {"project", "node"}
@@ -114,15 +123,6 @@ class ReportQueryHandler(QueryHandler):
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
         return self._mapper.report_type_map.get("annotations", {})
-
-    def check_if_valid_date_str(self, date_str):
-        """Check to see if a valid date has been passed in."""
-
-        try:
-            ciso8601.parse_datetime(date_str)
-            return True
-        except (ValueError, TypeError):
-            return False
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
@@ -832,28 +832,26 @@ class ReportQueryHandler(QueryHandler):
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
-                source_uuids = total_query.get("source_uuid")
-                total_query["date"] = data.get("date")
-                total_query["source_uuid"] = source_uuids + data.get("source_uuid")
-                for delta in ["delta_value", "delta_percent"]:
-                    if data.get(delta):
-                        total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account", "account_alias", "tags_exist", "clusters", "node"]:
-                    if data.get(item):
-                        total_query[item] = data.get(item)
-                for group in all_group_by:
-                    if group.startswith("tags"):
-                        group = group[6:]
-                    total_query[group] = data.get(group)
-                for structure in ["infrastructure", "supplementary", "cost"]:
-                    generic_list = ["raw", "markup", "usage", "total"]
-                    if self.provider == Provider.PROVIDER_GCP:
-                        generic_list.append("credit")
-                    for each in generic_list:
-                        orig_value = total_query.get(structure).get(each).get("value")
-                        total_query[structure][each]["value"] = Decimal(
-                            data.get(structure).get(each).get("value")
-                        ) + Decimal(orig_value)
+                data_keys = data.keys()
+                # remove currency/currency code from data keys
+                remove_keys = ["currency", "currency_code"]
+                keys = list(filter(lambda w: w not in remove_keys, data_keys))
+                for key in keys:
+                    if key in ["infrastructure", "supplementary", "cost"]:
+                        generic_list = ["raw", "markup", "usage", "total"]
+                        if self.provider == Provider.PROVIDER_GCP:
+                            generic_list.append("credit")
+                        for each in generic_list:
+                            orig_value = total_query.get(key).get(each).get("value")
+                            total_query[key][each]["value"] = Decimal(data.get(key).get(each).get("value")) + Decimal(
+                                orig_value
+                            )
+                    else:
+                        base_val = total_query.get(key)
+                        new_val = data.get(key)
+                        if base_val and not isinstance(base_val, str):
+                            new_val = base_val + new_val
+                        total_query[key] = new_val
         return total_query
 
     def _transform_data(self, groups, group_index, data):
