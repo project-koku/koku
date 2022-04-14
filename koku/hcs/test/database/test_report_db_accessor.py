@@ -4,6 +4,7 @@
 #
 """Test HCSReportDBAccessor."""
 from datetime import timedelta
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from api.models import Provider
@@ -50,9 +51,10 @@ class TestHCSReportDBAccessor(HCSTestCase):
             self.assertRaises(FileNotFoundError)
 
     @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query")
-    def test_no_data_hcs_customer(self, mock_dba, mock_dba_query):
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query_with_description")
+    def test_no_data_hcs_customer(self, mock_dba_query, mock_dba):
         """Test no data found for specified date"""
+        mock_dba_query.return_value = (MagicMock(), MagicMock())
 
         with self.assertLogs("hcs.database", "INFO") as _logs:
             hcs_accessor = HCSReportDBAccessor(self.schema)
@@ -69,10 +71,10 @@ class TestHCSReportDBAccessor(HCSTestCase):
 
     @patch("hcs.csv_file_handler.CSVFileHandler")
     @patch("hcs.csv_file_handler.CSVFileHandler.write_csv_to_s3")
-    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query", mock_sql_query)
-    def test_data_hcs_customer(self, mock_fh, mock_fh_writer):
+    @patch("masu.database.report_db_accessor_base.ReportDBAccessorBase._execute_presto_raw_sql_query_with_description")
+    def test_data_hcs_customer(self, mock_dba_query, mock_fh_writer, mock_fh):
         """Test data found for specified date"""
-        from hcs.database.report_db_accessor import HCSReportDBAccessor
+        mock_dba_query.return_value = (MagicMock(), MagicMock())
 
         with self.assertLogs("hcs.database", "INFO") as _logs:
             hcs_accessor = HCSReportDBAccessor(self.schema)
