@@ -832,28 +832,26 @@ class ReportQueryHandler(QueryHandler):
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
-                source_uuids = total_query.get("source_uuid")
-                total_query["date"] = data.get("date")
-                total_query["source_uuid"] = source_uuids + data.get("source_uuid")
-                for delta in ["delta_value", "delta_percent"]:
-                    if data.get(delta):
-                        total_query[delta] = total_query.get(delta, 0) + data.get(delta)
-                for item in ["account", "account_alias", "tags_exist", "clusters", "node"]:
-                    if data.get(item):
-                        total_query[item] = data.get(item)
-                for group in all_group_by:
-                    if group.startswith("tags"):
-                        group = group[6:]
-                    total_query[group] = data.get(group)
-                for structure in ["infrastructure", "supplementary", "cost"]:
-                    generic_list = ["raw", "markup", "usage", "total"]
-                    if self.provider == Provider.PROVIDER_GCP:
-                        generic_list.append("credit")
-                    for each in generic_list:
-                        orig_value = total_query.get(structure).get(each).get("value")
-                        total_query[structure][each]["value"] = Decimal(
-                            data.get(structure).get(each).get("value")
-                        ) + Decimal(orig_value)
+                data_keys = data.keys()
+                # remove currency/currency code from data keys
+                remove_keys = ["currency", "currency_code"]
+                keys = list(filter(lambda w: w not in remove_keys, data_keys))
+                for key in keys:
+                    if key in ["infrastructure", "supplementary", "cost"]:
+                        generic_list = ["raw", "markup", "usage", "total"]
+                        if self.provider == Provider.PROVIDER_GCP:
+                            generic_list.append("credit")
+                        for each in generic_list:
+                            orig_value = total_query.get(key).get(each).get("value")
+                            total_query[key][each]["value"] = Decimal(data.get(key).get(each).get("value")) + Decimal(
+                                orig_value
+                            )
+                    else:
+                        base_val = total_query.get(key)
+                        new_val = data.get(key)
+                        if base_val:
+                            new_val = base_val + new_val
+                        total_query[key] = new_val
         return total_query
 
     def _transform_data(self, groups, group_index, data):
