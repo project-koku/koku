@@ -5,8 +5,6 @@ from decimal import Decimal
 
 import sqlparse
 import trino
-from trino.exceptions import TrinoExternalError
-from trino.exceptions import TrinoQueryError
 from trino.transaction import IsolationLevel
 
 
@@ -173,13 +171,9 @@ def execute(presto_conn, sql, params=None):
     # and only returns the SQL with parameters formatted inline.
     presto_stmt = sql_mogrify(sql, params)
     presto_cur = _cursor(presto_conn)
-    try:
-        LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
-        presto_cur = _execute(presto_cur, presto_stmt)
-        results = _fetchall(presto_cur)
-    except TrinoQueryError as e:
-        LOG.error(f"Presto Query Error : {str(e)}{os.linesep}{presto_stmt}")
-        raise e
+    LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
+    presto_cur = _execute(presto_cur, presto_stmt)
+    results = _fetchall(presto_cur)
 
     return results
 
@@ -231,9 +225,9 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
 
             try:
                 results = execute(presto_conn, stmt, params=s_params)
-            except (TrinoQueryError, TrinoExternalError) as e:
+            except Exception as e:
                 exc_msg = (
-                    f"Query Execution Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
+                    f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
                     + os.linesep
                     + f"Statement: {stmt}"
                     + os.linesep
