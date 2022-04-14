@@ -849,6 +849,11 @@ class ReportQueryHandler(QueryHandler):
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
+                        if key in ["clusters", "source_uuid"]:
+                            if not isinstance(base_val, list):
+                                base_val = [base_val]
+                            if not isinstance(new_val, list):
+                                new_val = [new_val]
                         if base_val and not isinstance(base_val, str):
                             new_val = base_val + new_val
                         total_query[key] = new_val
