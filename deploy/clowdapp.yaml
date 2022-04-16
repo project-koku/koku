@@ -613,7 +613,7 @@ objects:
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
-              key: psks
+              key: psk
               name: ${SOURCES_PSK_SECRET_NAME}
               optional: true
         - name: DJANGO_SECRET_KEY
@@ -753,7 +753,7 @@ objects:
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
-              key: psks
+              key: psk
               name: ${SOURCES_PSK_SECRET_NAME}
               optional: true
         - name: DJANGO_SECRET_KEY
