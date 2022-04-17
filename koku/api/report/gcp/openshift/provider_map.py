@@ -73,54 +73,102 @@ class OCPGCPProviderMap(ProviderMap):
                     "costs": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                         },
                         "aggregate_key": "unblended_cost",
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
-                            "infra_usage": Value(0, output_field=DecimalField()),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_total": Sum(
+                            "infra_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_usage": Value(0, output_field=DecimalField()),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_total": Sum(
+                            "cost_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
@@ -139,6 +187,7 @@ class OCPGCPProviderMap(ProviderMap):
                                     + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
@@ -154,54 +203,82 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                         },
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
@@ -220,6 +297,7 @@ class OCPGCPProviderMap(ProviderMap):
                                     + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
@@ -231,28 +309,52 @@ class OCPGCPProviderMap(ProviderMap):
                     "instance_type": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
@@ -261,29 +363,53 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
-                            "infra_usage": Value(0, output_field=DecimalField()),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_total": Sum(
+                            "infra_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_usage": Value(0, output_field=DecimalField()),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_total": Sum(
+                            "cost_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
@@ -316,28 +442,42 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
@@ -349,28 +489,42 @@ class OCPGCPProviderMap(ProviderMap):
                         "aggregate_key": "usage_amount",
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
@@ -403,28 +557,52 @@ class OCPGCPProviderMap(ProviderMap):
                     "storage": {
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("unblended_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("unblended_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
@@ -433,29 +611,53 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
-                            "infra_raw": Sum("unblended_cost"),
-                            "infra_usage": Value(0, output_field=DecimalField()),
-                            "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "infra_total": Sum(
+                            "infra_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "infra_usage": Value(0, output_field=DecimalField()),
+                            "infra_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "infra_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "sup_credit": Sum(Value(0, output_field=DecimalField())),
-                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_usage": Value(0, output_field=DecimalField()),
-                            "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "cost_total": Sum(
+                            "cost_raw": Sum(
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))),
+                            "cost_usage": Value(0, output_field=DecimalField()),
+                            "cost_markup": Sum(
+                                Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_total": Sum(
+                                (
+                                    Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
+                            "cost_credit": Sum(
+                                Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
@@ -485,28 +687,42 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "aggregates": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
                             "sup_usage": Sum(Value(0, output_field=DecimalField())),
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
@@ -516,28 +732,42 @@ class OCPGCPProviderMap(ProviderMap):
                         },
                         "annotations": {
                             "infra_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "sup_raw": Value(0, output_field=DecimalField()),
                             "sup_usage": Value(0, output_field=DecimalField()),
                             "sup_markup": Value(0, output_field=DecimalField()),
                             "sup_total": Value(0, output_field=DecimalField()),
                             "cost_total": Sum(
-                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
