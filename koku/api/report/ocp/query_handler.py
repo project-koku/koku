@@ -11,11 +11,10 @@ from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 
-from django.db.models import ExpressionWrapper
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
-from django.db.models import Value
-from django.db.models.fields import CharField
-from django.db.models.functions import Coalesce
+from django.db.models import When
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -23,6 +22,7 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from cost_models.models import CostModelMap
 
 LOG = logging.getLogger(__name__)
 
@@ -84,13 +84,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {
-            "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(
-                ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
-                Value(self._mapper.report_type_map.get("cost_units_fallback"), output_field=CharField()),
-            ),
-        }
+        annotations = {"date": self.date_trunc("usage_start")}
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
@@ -103,6 +97,27 @@ class OCPReportQueryHandler(ReportQueryHandler):
             annotations["project"] = F("namespace")
 
         return annotations
+
+    def _get_base_currencies(self, source_uuids):
+        """Look up the report base currency."""
+        with tenant_context(self.tenant):
+            cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
+        currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
+        for uuid in source_uuids:
+            if uuid in currencies:
+                continue
+            currencies[str(uuid)] = "usd"
+
+        return currencies
+
+    def get_exchange_rate_annotation(self, query):
+        """Get the exchange rate annotation based on the curriences found in the query."""
+        source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
+        currencies = self._get_base_currencies(source_uuids)
+        whens = [
+            When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -136,16 +151,16 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query_data)
-            query_data = query_data.annotate(**exchange_annotation)
+            query = query.annotate(**self.annotations)
+            exchange_annotation = self.get_exchange_rate_annotation(query)
+            query = query.annotate(**exchange_annotation)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
-            query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            query_data = query.values(*query_group_by).annotate(**self.report_annotations)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -206,7 +221,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self._mapper.cost_units_key}
+        sum_init = {"cost_units": self.currency}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
