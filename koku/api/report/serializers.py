@@ -9,8 +9,13 @@ from django.utils.translation import ugettext as _
 from rest_framework import serializers
 from rest_framework.fields import DateField
 
+from api.currency.currencies import CURRENCIES
 from api.utils import DateHelper
+from api.utils import get_currency
 from api.utils import materialized_view_month_start
+
+
+CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 
 
 def handle_invalid_fields(this, data):
@@ -302,6 +307,8 @@ class ParamSerializer(BaseSerializer):
     start_date = serializers.DateField(required=False)
     end_date = serializers.DateField(required=False)
 
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
+
     order_by_allowlist = ("cost", "supplementary", "infrastructure", "delta", "usage", "request", "limit", "capacity")
 
     def _init_tagged_fields(self, **kwargs):
@@ -342,6 +349,8 @@ class ParamSerializer(BaseSerializer):
 
         """
         super().validate(data)
+        if not data.get("currency"):
+            data["currency"] = get_currency(self.context.get("request"))
 
         start_date = data.get("start_date")
         end_date = data.get("end_date")

@@ -33,7 +33,7 @@ def get_cost_type(request):
     """get cost_type from the DB user settings table or sets cost_type to default if table is empty."""
 
     with schema_context(request.user.customer.schema_name):
-        query_settings = UserSettings.objects.all().first()
+        query_settings = UserSettings.objects.first()
         if not query_settings:
             cost_type = KOKU_DEFAULT_COST_TYPE
         else:
@@ -45,7 +45,7 @@ def get_currency(request):
     """get currency from the DB user settings table or sets currency to default if table is empty."""
 
     with schema_context(request.user.customer.schema_name):
-        query_settings = UserSettings.objects.all().first()
+        query_settings = UserSettings.objects.first()
         currency = KOKU_DEFAULT_CURRENCY
         if query_settings:
             currency = query_settings.settings["currency"]
@@ -55,7 +55,7 @@ def get_currency(request):
 def get_account_settings(request):
     """Returns users settings from the schema or the default settings"""
     with schema_context(request.user.customer.schema_name):
-        query_settings = UserSettings.objects.all().first()
+        query_settings = UserSettings.objects.first()
     if query_settings:
         return query_settings
     return USER_SETTINGS

@@ -25,34 +25,6 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 
-EXPORT_COLUMNS = [
-    "cost_entry_id",
-    "cost_entry_bill_id",
-    "cost_entry_product_id",
-    "cost_entry_pricing_id",
-    "cost_entry_reservation_id",
-    "tags",
-    "invoice_id",
-    "line_item_type",
-    "usage_account_id",
-    "usage_start",
-    "usage_end",
-    "product_code",
-    "usage_type",
-    "operation",
-    "availability_zone",
-    "usage_amount",
-    "normalization_factor",
-    "normalized_usage_amount",
-    "currency_code",
-    "unblended_rate",
-    "unblended_cost",
-    "savingsplan_effective_cost",
-    "blended_rate",
-    "blended_cost",
-    "tax_type",
-]
-
 
 class AWSReportQueryHandler(ReportQueryHandler):
     """Handles report queries and responses for AWS."""

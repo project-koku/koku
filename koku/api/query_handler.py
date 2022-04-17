@@ -13,6 +13,7 @@ from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 from pytz import UTC
 
+from api.currency.models import ExchangeRates
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
@@ -54,6 +55,7 @@ class QueryHandler:
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
+        self.currency = parameters.parameters.get("currency", "USD")
         self.parameters = parameters
         self.default_ordering = self._mapper._report_type_map.get("default_ordering")
         self.time_interval = []
@@ -105,6 +107,17 @@ class QueryHandler:
         if not in_list:
             return False
         return any(WILDCARD == item for item in in_list)
+
+    @property
+    def exchange_rates(self):
+        """Look up the exchange rate for the target currency."""
+        try:
+            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
+        except ExchangeRates.DoesNotExist as err:
+            LOG.error(err)
+            exchange_rate = 1
+
+        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
 
     @property
     def order(self):

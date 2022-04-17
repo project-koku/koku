@@ -22,8 +22,11 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
@@ -498,6 +501,16 @@ class ReportQueryHandler(QueryHandler):
                 group_pos = self.parameters.url_data.index(tag)
                 group_by.append((tag_db_name, group_pos))
         return group_by
+
+    def get_exchange_rate_annotation(self, query):
+        """Get the exchange rate annotation based on the curriences found in the query."""
+        currencies = query.values_list("cost_units", flat=True).distinct()
+        lowered_currencies = [currency.lower() for currency in currencies]
+        currency_key = f"{self._mapper.cost_units_key}__iexact"
+        whens = [
+            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items() if k in lowered_currencies
+        ]
+        return {"exchange_rate": Case(*whens, default=0, output_field=DecimalField())}
 
     @property
     def annotations(self):
