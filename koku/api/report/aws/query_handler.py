@@ -320,7 +320,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
-            units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
+            units_value = self.currency
             sum_units = {"cost_units": units_value}
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
@@ -329,7 +329,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if annotations.get("count_units"):
                 sum_units["count_units"] = count_units_fallback
             if annotations.get("usage_units"):
@@ -537,7 +537,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations)
+            exchange_annotation = self.get_exchange_rate_annotation(query)
+            query = query.annotate(**exchange_annotation)
 
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -549,7 +551,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 annotations.pop("count", None)
                 annotations.pop("count_units", None)
 
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
 
             if "account" in query_group_by:
                 query_data = query_data.annotate(
@@ -637,10 +639,17 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+<<<<<<< HEAD
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
+=======
+        query = query.annotate(**self.annotations)
+        exchange_annotation = self.get_exchange_rate_annotation(query)
+        query = query.annotate(**exchange_annotation)
+        query_data = query.values(*query_group_by)
+>>>>>>> d966c5e51 (update aws for currency support)
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
         if not self.parameters.parameters.get("compute_count"):
