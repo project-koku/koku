@@ -11,7 +11,11 @@ from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 
+from django.db.models import ExpressionWrapper
 from django.db.models import F
+from django.db.models import Value
+from django.db.models.fields import CharField
+from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -80,7 +84,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {"date": self.date_trunc("usage_start")}
+        annotations = {
+            "date": self.date_trunc("usage_start"),
+            "cost_units": Coalesce(
+                ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
+                Value(self._mapper.report_type_map.get("cost_units_fallback"), output_field=CharField()),
+            ),
+        }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
@@ -127,6 +137,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
+            exchange_annotation = self.get_exchange_rate_annotation(query_data)
+            query_data = query_data.annotate(**exchange_annotation)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value

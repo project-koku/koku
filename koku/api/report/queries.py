@@ -510,7 +510,7 @@ class ReportQueryHandler(QueryHandler):
         whens = [
             When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items() if k in lowered_currencies
         ]
-        return {"exchange_rate": Case(*whens, default=0, output_field=DecimalField())}
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     @property
     def annotations(self):

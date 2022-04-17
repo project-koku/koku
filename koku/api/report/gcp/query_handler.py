@@ -6,6 +6,8 @@
 import copy
 import logging
 
+from django.db.models import CharField
+from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -134,17 +136,21 @@ class GCPReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
-        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
-            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
+            sum_annotations = {
+                "cost_units": Coalesce(
+                    ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
+                    Value(self._mapper.report_type_map.get("cost_units_fallback"), output_field=CharField()),
+                ),
+            }
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
 
-            units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
+            units_value = self.currency
             sum_units = {"cost_units": units_value}
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
@@ -152,7 +158,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -172,7 +178,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            query = query.annotate(**self.annotations)
+            exchange_annotation = self.get_exchange_rate_annotation(query)
+            query = query.annotate(**exchange_annotation)
 
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -182,7 +190,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             for alias_key, alias_value in self.group_by_alias.items():
                 if alias_key in query_group_by:
                     annotations[f"{alias_key}_alias"] = F(alias_value)
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
             if self._limit:
@@ -251,12 +259,17 @@ class GCPReportQueryHandler(ReportQueryHandler):
             (dict) The aggregated totals for the query
 
         """
-        query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+<<<<<<< HEAD
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
+=======
+        query = query.annotate(**self.annotations)
+        exchange_annotation = self.get_exchange_rate_annotation(query)
+        query = query.annotate(**exchange_annotation)
+>>>>>>> bc1bb64ad (update gcp for currency support)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         total_query = query.aggregate(**aggregates)
