@@ -55,7 +55,7 @@ class QueryHandler:
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant
         self.access = parameters.access
-        self.currency = parameters.parameters.get("currency", "USD")
+        self.currency = parameters.currency
         self.parameters = parameters
         self.default_ordering = self._mapper._report_type_map.get("default_ordering")
         self.time_interval = []
@@ -113,8 +113,8 @@ class QueryHandler:
         """Look up the exchange rate for the target currency."""
         try:
             exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
-        except ExchangeRates.DoesNotExist as err:
-            LOG.error(err)
+        except ExchangeRates.DoesNotExist:
+            LOG.warning("Invalid exchange rate. Using default of 1.")
             exchange_rate = 1
 
         return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}

@@ -12,8 +12,10 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 
 from django.db.models import Case
+from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Value
 from django.db.models import When
 from tenant_schemas.utils import tenant_context
 
@@ -84,7 +86,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        annotations = {"date": self.date_trunc("usage_start")}
+        annotations = {
+            "date": self.date_trunc("usage_start"),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency": Value(self.currency, output_field=CharField()),
+            # set a default value for exchange rates
+            # the real values are set with get_exchange_rate_annotation
+            "exchange_rate": Value(1, output_field=DecimalField()),
+        }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
@@ -106,7 +115,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for uuid in source_uuids:
             if uuid in currencies:
                 continue
-            currencies[str(uuid)] = "usd"
+            currencies[str(uuid)] = self._mapper.cost_units_key.lower()
 
         return currencies
 
@@ -180,7 +189,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -211,8 +219,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
-                data = list(query_data)
+            if self.is_csv_output:
+                if self._limit:
+                    data = self._ranked_list(list(query_data))
+                else:
+                    data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix

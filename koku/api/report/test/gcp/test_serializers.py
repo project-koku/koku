@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.gcp.serializers import GCPExcludeSerializer
 from api.report.gcp.serializers import GCPFilterSerializer
 from api.report.gcp.serializers import GCPGroupBySerializer
@@ -228,7 +229,7 @@ class GCPOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class GCPQueryParamSerializerTest(TestCase):
+class GCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -321,11 +322,14 @@ class GCPQueryParamSerializerTest(TestCase):
             "/api/cost-management/v1/reports/gcp/storage/": ["usage"],
         }
         for url, delta_list in valid_delta_map.items():
-            req = Mock(path=url)
             for valid_delta in delta_list:
-                query_params = {"delta": valid_delta}
-                serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
-                self.assertTrue(serializer.is_valid())
+                with self.subTest(path_delta=(url, valid_delta)):
+                    ctx = self._create_request_context(
+                        self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=url
+                    )
+                    query_params = {"delta": valid_delta}
+                    serializer = GCPQueryParamSerializer(data=query_params, context=ctx)
+                    self.assertTrue(serializer.is_valid())
 
     def test_invalid_deltas(self):
         """Test failure while handling invalid delta for gcp endpoints."""

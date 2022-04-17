@@ -7,6 +7,7 @@ import copy
 import logging
 
 from django.db.models import CharField
+from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
@@ -55,12 +56,16 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
+        units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
-                Value(self._mapper.report_type_map.get("cost_units_fallback"), output_field=CharField()),
+                Value(units_fallback, output_field=CharField()),
             ),
+            # set a default value for exchange rates
+            # the real values are set with get_exchange_rate_annotation
+            "exchange_rate": Value(1, output_field=DecimalField()),
         }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
@@ -112,8 +117,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
@@ -153,8 +156,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                     count_units_value = query_data[0].get("count_units")
 
-            if is_csv_output:
-                data = list(query_data)
+            if self.is_csv_output:
+                if self._limit:
+                    data = self._ranked_list(list(query_data))
+                else:
+                    data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")

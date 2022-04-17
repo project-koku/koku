@@ -59,6 +59,7 @@ class ModelBakeryDataLoader(DataLoader):
         self.tags = [{"app": "mobile"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
+        self._populate_exchange_rates()
 
     def get_test_data_dates(self, num_days):
         """Return a list of tuples with dates for nise data."""
@@ -86,6 +87,10 @@ class ModelBakeryDataLoader(DataLoader):
                         baker.make(table_name, key=key)
         with schema_context(self.schema):
             baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
+
+    def _populate_exchange_rates(self):
+        baker.make("ExchangeRates", currency_type="usd", exchange_rate=1)
+        baker.make("ExchangeRates", currency_type="eur", exchange_rate=0.5)
 
     def create_provider(self, provider_type, credentials, billing_source, name, linked_openshift_provider=None):
         """Create a Provider record"""

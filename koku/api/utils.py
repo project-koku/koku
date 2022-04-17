@@ -43,10 +43,11 @@ def get_cost_type(request):
 
 def get_currency(request):
     """get currency from the DB user settings table or sets currency to default if table is empty."""
-
+    currency = KOKU_DEFAULT_CURRENCY
+    if not request:
+        return currency
     with schema_context(request.user.customer.schema_name):
         query_settings = UserSettings.objects.first()
-        currency = KOKU_DEFAULT_CURRENCY
         if query_settings:
             currency = query_settings.settings["currency"]
         return currency

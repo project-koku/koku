@@ -386,6 +386,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "infra_raw": Sum(
                                 Coalesce(F("infrastructure_raw_cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
                             "infra_usage": Sum(
                                 (
@@ -579,7 +580,7 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -1199,7 +1200,7 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -1526,7 +1527,7 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage_units": Value("Core-Hours", output_field=CharField()),
                             "usage": Sum("pod_usage_cpu_core_hours"),
                             "request": Sum("pod_request_cpu_core_hours"),
@@ -1814,7 +1815,7 @@ class OCPProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum("pod_usage_memory_gigabyte_hours"),
                             "request": Sum("pod_request_memory_gigabyte_hours"),
                             "limit": Sum("pod_limit_memory_gigabyte_hours"),
@@ -2117,7 +2118,7 @@ class OCPProviderMap(ProviderMap):
                             "usage": Sum("persistentvolumeclaim_usage_gigabyte_months"),
                             "request": Sum("volume_request_storage_gigabyte_months"),
                             "capacity": Sum("persistentvolumeclaim_capacity_gigabyte_months"),
-                            "cost_units": Value("USD", output_field=CharField()),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage_units": Value("GB-Mo", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(

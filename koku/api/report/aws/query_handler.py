@@ -9,6 +9,7 @@ import operator
 from functools import reduce
 
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
@@ -59,7 +60,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
-        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
 
@@ -75,6 +75,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            # set a default value for exchange rates
+            # the real values are set with get_exchange_rate_annotation
+            "exchange_rate": Value(1, output_field=DecimalField()),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")

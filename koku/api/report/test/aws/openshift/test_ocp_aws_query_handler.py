@@ -96,12 +96,14 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             self.services = OCPAWSCostLineItemDailySummaryP.objects.values("product_code").distinct()
             self.services = [entry.get("product_code") for entry in self.services]
 
-    def get_totals_by_time_scope(self, aggregates, filters=None):
-        """Return the total aggregates for a time period."""
+    def get_totals_by_time_scope(self, handler, filters=None):
         if filters is None:
             filters = self.ten_day_filter
+        aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            return OCPAWSCostLineItemDailySummaryP.objects.filter(**filters).aggregate(**aggregates)
+            query = OCPAWSCostLineItemDailySummaryP.objects.filter(**filters).annotate(**handler.annotations)
+            exchange_annotations = handler.get_exchange_rate_annotation(query)
+            return query.annotate(**exchange_annotations).aggregate(**aggregates)
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""
@@ -110,8 +112,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         filt = {"product_family__contains": "Storage"}
         filt.update(self.ten_day_filter)
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, filt)
+        current_totals = self.get_totals_by_time_scope(handler, filt)
         query_output = handler.execute_query()
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
@@ -129,8 +130,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_monthly(self):
@@ -144,8 +144,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
     def test_execute_query_current_month_by_service(self):
@@ -160,8 +159,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -187,10 +185,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
         filt = copy.deepcopy(self.this_month_filter)
         filt["product_code"] = "AmazonEC2"
-        current_totals = self.get_totals_by_time_scope(aggregates, filt)
+        current_totals = self.get_totals_by_time_scope(handler, filt)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -217,8 +214,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(total.get("cost"))
         filt = copy.deepcopy(self.this_month_filter)
         filt["product_code__icontains"] = "ec2"
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, filt)
+        current_totals = self.get_totals_by_time_scope(handler, filt)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -244,8 +240,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -269,8 +264,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-        aggregates = handler._mapper.report_type_map.get("aggregates")
-        current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
+        current_totals = self.get_totals_by_time_scope(handler, self.this_month_filter)
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
@@ -434,11 +428,12 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         data = query_output.get("data")
 
         svc_annotations = handler.annotations.get("service")
+        exch_annotations = handler.annotations.get("exchange_rate")
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 OCPAWSCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
-                .annotate(service=svc_annotations)
+                .annotate(service=svc_annotations, exchange_rate=exch_annotations)
                 .values("service")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")

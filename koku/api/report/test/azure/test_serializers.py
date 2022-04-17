@@ -4,11 +4,11 @@
 #
 """Test the Azure Provider serializers."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.azure.serializers import AzureExcludeSerializer
 from api.report.azure.serializers import AzureFilterSerializer
 from api.report.azure.serializers import AzureGroupBySerializer
@@ -234,7 +234,7 @@ class AzureOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class AzureQueryParamSerializerTest(TestCase):
+class AzureQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -327,30 +327,42 @@ class AzureQueryParamSerializerTest(TestCase):
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
         query_params = {"delta": "cost"}
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/azure/storage/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/storage/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/azure/storage/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/storage/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 

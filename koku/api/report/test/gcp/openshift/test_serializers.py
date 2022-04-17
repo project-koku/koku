@@ -4,11 +4,11 @@
 #
 """Test the GCP Provider serializers."""
 from unittest import TestCase
-from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.gcp.openshift.serializers import OCPGCPExcludeSerializer
 from api.report.gcp.openshift.serializers import OCPGCPFilterSerializer
 from api.report.gcp.openshift.serializers import OCPGCPGroupBySerializer
@@ -298,7 +298,7 @@ class OCPGCPOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPGCPQueryParamSerializerTest(TestCase):
+class OCPGCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_gcp_params_success(self):
@@ -409,30 +409,42 @@ class OCPGCPQueryParamSerializerTest(TestCase):
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
         query_params = {"delta": "cost"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/storage/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/storage/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/storage/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/storage/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 

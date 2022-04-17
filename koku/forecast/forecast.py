@@ -13,11 +13,21 @@ from functools import reduce
 
 import numpy as np
 import statsmodels.api as sm
+from django.conf import settings
+from django.db.models import Case
+from django.db.models import CharField
+from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
+from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
+from django.db.models.functions import Coalesce
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -32,6 +42,7 @@ from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
+from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -67,6 +78,7 @@ class Forecast:
         """
         self.dh = DateHelper()
         self.params = query_params
+        self.currency = query_params.currency
 
         if self.provider is Provider.PROVIDER_AWS:
             if query_params.get("cost_type"):
@@ -81,10 +93,10 @@ class Forecast:
         if access:
             access_key = tuple(access.keys())
             filter_fields = self.provider_map.provider_map.get("filters")
-            materialized_view = self.provider_map.views.get("costs").get(access_key)
-            if materialized_view:
-                # We found a matching materialized view, use that
-                self.cost_summary_table = materialized_view
+            ui_table = self.provider_map.views.get("costs").get(access_key)
+            if ui_table:
+                # We found a matching ui table, use that
+                self.cost_summary_table = ui_table
             else:
                 # We have access constraints, but no view to accomodate, default to daily summary table
                 self.cost_summary_table = self.provider_map.query_table
@@ -114,6 +126,13 @@ class Forecast:
         return self.provider_map_class(self.provider, self.REPORT_TYPE)
 
     @property
+    def cost_units(self):
+        return Coalesce(
+            ExpressionWrapper(F(self.provider_map.cost_units_key), output_field=CharField()),
+            Value(settings.KOKU_DEFAULT_CURRENCY, output_field=CharField()),
+        )
+
+    @property
     def total_cost_term(self):
         """Return the provider map value for total cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("cost_total")
@@ -128,20 +147,48 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    @property
+    def exchange_rates(self):
+        """Look up the exchange rate for the target currency."""
+        try:
+            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
+        except ExchangeRates.DoesNotExist:
+            LOG.warning("Invalid exchange rate. Using default of 1.")
+            exchange_rate = 1
+
+        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
+
+    def get_exchange_rate_annotation(self, query):
+        """Get the exchange rate annotation based on the curriences found in the query."""
+        currencies = query.values_list("cost_units", flat=True).distinct()
+        lowered_currencies = [currency.lower() for currency in currencies]
+        currency_key = f"{self.provider_map.cost_units_key}__iexact"
+        whens = [
+            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items() if k in lowered_currencies
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    def get_data(self):
+        """Query the database."""
+        query = self.cost_summary_table.objects.filter(self.filters.compose())
+        if self.provider is not Provider.PROVIDER_OCP:
+            query = query.annotate(cost_units=self.cost_units)
+        return (
+            query.annotate(exchange_rate=self.get_exchange_rate_annotation(query))
+            .order_by("usage_start")
+            .values("usage_start")
+            .annotate(
+                total_cost=self.total_cost_term,
+                supplementary_cost=self.supplementary_cost_term,
+                infrastructure_cost=self.infrastructure_cost_term,
+            )
+        )
+
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-            data = (
-                self.cost_summary_table.objects.filter(self.filters.compose())
-                .order_by("usage_start")
-                .values("usage_start")
-                .annotate(
-                    total_cost=self.total_cost_term,
-                    supplementary_cost=self.supplementary_cost_term,
-                    infrastructure_cost=self.infrastructure_cost_term,
-                )
-            )
+            data = self.get_data()
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
@@ -266,7 +313,7 @@ class Forecast:
     def format_result(self, results):
         """Format results for API consumption."""
         f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
-        units = "USD"
+        units = self.currency
 
         response = []
         for key in results:
@@ -550,6 +597,27 @@ class OCPForecast(Forecast):
 
     provider = Provider.PROVIDER_OCP
     provider_map_class = OCPProviderMap
+
+    def _get_base_currencies(self, source_uuids):
+        """Look up the report base currency."""
+        with tenant_context(self.params.tenant):
+            cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
+        currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
+        for uuid in source_uuids:
+            if uuid in currencies:
+                continue
+            currencies[str(uuid)] = self.provider_map.cost_units_key.lower()
+
+        return currencies
+
+    def get_exchange_rate_annotation(self, query):
+        """Get the exchange rate annotation based on the curriences found in the query."""
+        source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
+        currencies = self._get_base_currencies(source_uuids)
+        whens = [
+            When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
 
 
 class OCPAWSForecast(Forecast):

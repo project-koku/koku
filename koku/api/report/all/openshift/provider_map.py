@@ -76,7 +76,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -87,7 +87,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                         },
@@ -96,7 +96,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
@@ -107,7 +107,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -147,7 +147,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -160,7 +160,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -171,7 +171,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -184,7 +184,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -221,7 +221,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -232,7 +232,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -244,7 +244,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
@@ -255,7 +255,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -299,7 +299,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -312,7 +312,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -326,7 +326,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -339,7 +339,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -380,7 +380,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Sum(Value(0, output_field=DecimalField())),
@@ -391,7 +391,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -405,7 +405,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum(F("unblended_cost")),
+                            "infra_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "sup_raw": Value(0, output_field=DecimalField()),
@@ -416,7 +416,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum(F("unblended_cost")),
+                            "cost_raw": Sum(Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
@@ -461,7 +461,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -474,7 +474,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -490,7 +490,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "infra_raw": Sum("pod_cost"),
+                            "infra_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "infra_usage": Sum(Value(0, output_field=DecimalField())),
                             "infra_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
@@ -503,7 +503,7 @@ class OCPAllProviderMap(ProviderMap):
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_raw": Sum("pod_cost"),
+                            "cost_raw": Sum(Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
