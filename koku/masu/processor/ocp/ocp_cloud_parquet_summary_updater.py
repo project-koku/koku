@@ -53,7 +53,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
             if not report_period:
-                LOG.info(f"No report period for provider {openshift_provider_uuid} with start date {start_date}")
+                LOG.info(f"No report period for AWS provider {openshift_provider_uuid} with start date {start_date}")
                 return
 
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
@@ -165,6 +165,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            if not report_period:
+                LOG.info(f"No report period for Azure provider {openshift_provider_uuid} with start date {start_date}")
+                return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
@@ -268,6 +271,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         with OCPReportDBAccessor(self._schema) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            if not report_period:
+                LOG.info(f"No report period for GCP provider {openshift_provider_uuid} with start date {start_date}")
+                return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
