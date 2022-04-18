@@ -213,7 +213,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not self.is_csv_output:
             query_sum["cost_units"] = self.currency
         else:
             query_sum["cost_units"] = cost_units_value

@@ -52,6 +52,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
@@ -148,11 +149,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not self.is_csv_output:
                 query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -196,7 +196,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
@@ -215,7 +215,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 
-        if self._report_type == "costs" and not is_csv_output:
+        if self._report_type == "costs" and not self.is_csv_output:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
 
         return self._format_query_response()
@@ -231,7 +231,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not self.is_csv_output:
             query_group_by.append("currency")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)

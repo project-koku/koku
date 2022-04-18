@@ -605,7 +605,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not self.is_csv_output:
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -697,7 +697,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not self.is_csv_output:
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)

@@ -168,11 +168,10 @@ class GCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not is_csv_output:
+            if self._report_type == "costs" and not self.is_csv_output:
                 query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -220,7 +219,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
@@ -238,7 +237,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         self.query_sum = ordered_total
         groupby = self._get_group_by()
-        if self._report_type == "costs" and not is_csv_output:
+        if self._report_type == "costs" and not self.is_csv_output:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
@@ -253,7 +252,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs":
+        if self._report_type == "costs" and not self.is_csv_output:
             query_group_by.append("currency")
 
         query = self.query_table.objects.filter(self.query_filter)
@@ -266,7 +265,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         else:
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
-            if self._report_type == "costs":
+            if self._report_type == "costs" and not self.is_csv_output:
                 total_query[unit_key] = self.currency
             else:
                 total_query[unit_key] = unit_value
