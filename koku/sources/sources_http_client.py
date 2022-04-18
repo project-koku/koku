@@ -324,10 +324,10 @@ class SourcesHTTPClient:
                     f"[set_source_status] error: Status code: "
                     f"{application_response.status_code}. Response: {application_response.text}."
                 )
-                if application_response.status_code != 204:
-                    if application_response.status_code != 404:
-                        raise SourcesHTTPClientError(error_message)
-                    else:
-                        LOG.info(error_message)
-                return True
+                if 200 <= application_response.status_code < 300:
+                    return True
+                if application_response.status_code != 404:
+                    raise SourcesHTTPClientError(error_message)
+                else:
+                    LOG.info(error_message)
         return False
