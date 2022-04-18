@@ -854,6 +854,9 @@ class ReportQueryHandler(QueryHandler):
                                 base_val = [base_val]
                             if not isinstance(new_val, list):
                                 new_val = [new_val]
+                        elif key in ["delta_value", "delta_percent"]:
+                            if new_val:
+                                total_query[key] = total_query.get(key, 0) + data.get(key)
                         if base_val and not isinstance(base_val, str):
                             new_val = base_val + new_val
                         total_query[key] = new_val
