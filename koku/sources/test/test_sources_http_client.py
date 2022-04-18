@@ -248,7 +248,7 @@ class SourcesHTTPClientTest(TestCase):
                 with requests_mock.mock() as m:
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
-                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
+                        f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [test.get("json")]},
                     )
@@ -265,7 +265,7 @@ class SourcesHTTPClientTest(TestCase):
                 with requests_mock.mock() as m:
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
-                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
+                        f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -282,7 +282,7 @@ class SourcesHTTPClientTest(TestCase):
                 with requests_mock.mock() as m:
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
-                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
+                        f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": json},
                     )
@@ -322,7 +322,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -338,7 +338,7 @@ class SourcesHTTPClientTest(TestCase):
             {
                 "url": (
                     f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
-                    f"source_id={self.source_id}&authtype={auth_type}"
+                    f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}"
                 ),
                 "status": 200,
                 "json": {"data": [{"id": resource_id}]},
@@ -368,7 +368,7 @@ class SourcesHTTPClientTest(TestCase):
                 with self.subTest(test=test):
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
-                        f"source_id={self.source_id}&authtype={auth_type}",
+                        f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
@@ -399,7 +399,7 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             resource_id = 2
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [{"id": resource_id, "username": self.authentication}]},
             )
@@ -416,7 +416,7 @@ class SourcesHTTPClientTest(TestCase):
                 with self.subTest(test=test):
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
-                        f"source_id={self.source_id}&authtype={auth_type}",
+                        f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": test},
                     )
@@ -450,12 +450,12 @@ class SourcesHTTPClientTest(TestCase):
         with requests_mock.mock() as m:
             m.get(
                 f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
-                f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
+                f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                 status_code=200,
                 json={"data": [applications_reponse]},
             )
             m.get(
-                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_id}&authtype={auth_type}",
+                f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_id}&filter[authtype]={auth_type}",  # noqa: E501
                 status_code=200,
                 json={"data": [authentications_response]},
             )
@@ -557,13 +557,13 @@ class SourcesHTTPClientTest(TestCase):
                 with requests_mock.mock() as m:
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?"
-                        f"source_id={self.source_id}&application_type_id={COST_MGMT_APP_TYPE_ID}",
+                        f"filter[source_id]={self.source_id}&filter[application_type_id]={COST_MGMT_APP_TYPE_ID}",
                         status_code=200,
                         json={"data": [app.get("json")]},
                     )
                     m.get(
                         f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?"
-                        f"source_id={self.source_id}&authtype={auth_type}",
+                        f"filter[source_id]={self.source_id}&filter[authtype]={auth_type}",
                         status_code=200,
                         json={"data": [auth.get("json")]},
                     )
