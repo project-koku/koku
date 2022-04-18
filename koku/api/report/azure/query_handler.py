@@ -52,10 +52,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
-        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
     @property
     def annotations(self):

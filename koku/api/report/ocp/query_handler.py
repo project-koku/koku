@@ -204,6 +204,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 orig_value = base_values.get(key).get(each).get("value")
                                 new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
                                 base_values[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                        elif key in ["delta_value", "delta_percent"]:
+                            if data.get(key):
+                                base_values[key] = base_values.get(key, 0) + data.get(key)
                         else:
                             base_val = base_values.get(key)
                             new_val = data.get(key)
@@ -263,6 +266,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                             orig_value = total_query.get(key).get(each).get("value")
                             new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
                             total_query[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
+                    elif key in ["delta_value", "delta_percent"]:
+                        if data.get(key):
+                            total_query[key] = total_query.get(key, 0) + data.get(key)
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
