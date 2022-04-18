@@ -6,9 +6,7 @@
 import copy
 import logging
 
-from django.db.models import CharField
 from django.db.models import DecimalField
-from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -139,15 +137,11 @@ class GCPReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
+        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
-            sum_annotations = {
-                "cost_units": Coalesce(
-                    ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
-                    Value(self._mapper.report_type_map.get("cost_units_fallback"), output_field=CharField()),
-                ),
-            }
+            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))

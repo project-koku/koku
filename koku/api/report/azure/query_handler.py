@@ -161,14 +161,14 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query_data)
-            query_data = query_data.annotate(**exchange_annotation)
+            query = query.annotate(**self.annotations)
+            exchange_annotation = self.get_exchange_rate_annotation(query)
+            query = query.annotate(**exchange_annotation)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
             if self._limit and query_data:

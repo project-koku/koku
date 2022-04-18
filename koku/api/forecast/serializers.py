@@ -5,8 +5,10 @@
 """Forecast Serializers."""
 from rest_framework import serializers
 
+from api.currency.currencies import CURRENCY_CHOICES
 from api.report.serializers import handle_invalid_fields
 from api.utils import get_cost_type
+from api.utils import get_currency
 
 
 class ForecastParamSerializer(serializers.Serializer):
@@ -14,6 +16,8 @@ class ForecastParamSerializer(serializers.Serializer):
 
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
+
+    currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
     def __init__(self, *args, **kwargs):
         """Initialize the BaseSerializer."""
@@ -31,6 +35,8 @@ class ForecastParamSerializer(serializers.Serializer):
             (ValidationError): if field inputs are invalid
 
         """
+        if not data.get("currency"):
+            data["currency"] = get_currency(self.context.get("request"))
         handle_invalid_fields(self, data)
         return data
 
