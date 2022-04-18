@@ -7,7 +7,6 @@ import copy
 import logging
 
 from django.db.models import CharField
-from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
@@ -64,9 +63,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
                 Value(units_fallback, output_field=CharField()),
             ),
-            # set a default value of 1 for exchange rates for csv requests
-            # the values are set for all other requests in get_exchange_rate_annotation
-            "exchange_rate": Value(1, output_field=DecimalField()),
+            "exchange_rate": self.get_exchange_rate_annotation(),
         }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
@@ -100,8 +97,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query)
-            query = query.annotate(**exchange_annotation)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]

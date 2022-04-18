@@ -90,8 +90,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
             "currency": Value(self.currency, output_field=CharField()),
-            # set a default value of 1 for exchange rates for csv requests
-            # the values are set for all other requests in get_exchange_rate_annotation
+            # Set a default value of 1 for exchange rates for csv requests.
+            # The values are set for all other requests in get_exchange_rate_annotation.
+            # OCP requires a query param into get_exchange_rate_annotation which is why
+            # its usage is different compared to the cloud providers.
             "exchange_rate": Value(1, output_field=DecimalField()),
         }
         # { query_param: database_field_name }

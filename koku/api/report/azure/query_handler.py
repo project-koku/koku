@@ -6,7 +6,6 @@
 import copy
 import logging
 
-from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
@@ -72,9 +71,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
                 Value(units_fallback, output_field=CharField()),
             ),
-            # set a default value of 1 for exchange rates for csv requests
-            # the values are set for all other requests in get_exchange_rate_annotation
-            "exchange_rate": Value(1, output_field=DecimalField()),
+            "exchange_rate": self.get_exchange_rate_annotation(),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -110,17 +107,12 @@ class AzureReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
-        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
+        # cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
 
         if query.exists():
-            sum_annotations = {
-                "cost_units": Coalesce(
-                    ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
-                    Value(cost_units_fallback, output_field=CharField()),
-                )
-            }
+            sum_annotations = {"cost_units": Value(self.currency, output_field=CharField())}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(
@@ -162,12 +154,11 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query)
-            query = query.annotate(**exchange_annotation)
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
+            # annotations["cost_units"] = Value(self.currency, output_field=CharField())
             query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
@@ -243,8 +234,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         query = query.annotate(**self.annotations)
-        exchange_annotation = self.get_exchange_rate_annotation(query)
-        query = query.annotate(**exchange_annotation)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         total_query = query.aggregate(**aggregates)

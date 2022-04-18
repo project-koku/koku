@@ -9,7 +9,6 @@ import operator
 from functools import reduce
 
 from django.core.exceptions import FieldDoesNotExist
-from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
@@ -75,9 +74,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
-            # set a default value of 1 for exchange rates for csv requests
-            # the values are set for all other requests in get_exchange_rate_annotation
-            "exchange_rate": Value(1, output_field=DecimalField()),
+            "exchange_rate": self.get_exchange_rate_annotation(),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -541,8 +538,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query)
-            query = query.annotate(**exchange_annotation)
 
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
@@ -649,8 +644,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         query_data = query_data.values(*query_group_by)
 =======
         query = query.annotate(**self.annotations)
-        exchange_annotation = self.get_exchange_rate_annotation(query)
-        query = query.annotate(**exchange_annotation)
         query_data = query.values(*query_group_by)
 >>>>>>> d966c5e51 (update aws for currency support)
 

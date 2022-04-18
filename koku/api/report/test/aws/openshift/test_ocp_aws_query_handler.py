@@ -101,9 +101,11 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             filters = self.ten_day_filter
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            query = OCPAWSCostLineItemDailySummaryP.objects.filter(**filters).annotate(**handler.annotations)
-            exchange_annotations = handler.get_exchange_rate_annotation(query)
-            return query.annotate(**exchange_annotations).aggregate(**aggregates)
+            return (
+                OCPAWSCostLineItemDailySummaryP.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
 
     def test_execute_sum_query_storage(self):
         """Test that the sum query runs properly."""

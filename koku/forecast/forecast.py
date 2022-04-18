@@ -158,23 +158,17 @@ class Forecast:
 
         return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
 
-    def get_exchange_rate_annotation(self, query):
+    def get_exchange_rate_annotation(self, query=None):
         """Get the exchange rate annotation based on the curriences found in the query."""
-        currencies = query.values_list("cost_units", flat=True).distinct()
-        lowered_currencies = [currency.lower() for currency in currencies]
         currency_key = f"{self.provider_map.cost_units_key}__iexact"
-        whens = [
-            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items() if k in lowered_currencies
-        ]
+        whens = [When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items()]
         return Case(*whens, default=1, output_field=DecimalField())
 
     def get_data(self):
         """Query the database."""
-        query = self.cost_summary_table.objects.filter(self.filters.compose())
-        if self.provider is not Provider.PROVIDER_OCP:
-            query = query.annotate(cost_units=self.cost_units)
         return (
-            query.annotate(exchange_rate=self.get_exchange_rate_annotation(query))
+            self.cost_summary_table.objects.filter(self.filters.compose())
+            .annotate(exchange_rate=self.get_exchange_rate_annotation())
             .order_by("usage_start")
             .values("usage_start")
             .annotate(

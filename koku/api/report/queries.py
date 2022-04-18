@@ -26,6 +26,7 @@ from django.db.models import Case
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
 from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
@@ -504,17 +505,17 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((tag_db_name, group_pos))
         return group_by
 
-    def get_exchange_rate_annotation(self, query):
+    def get_exchange_rate_annotation(self, query=None):
         """Get the exchange rate annotation based on the curriences found in the query."""
         if self.is_csv_output:
-            return {"exchenge_rate": self.annotations["exchange_rate"]}
-        currencies = query.values_list("cost_units", flat=True).distinct()
-        lowered_currencies = [currency.lower() for currency in currencies]
+            return Value(1, output_field=DecimalField())
+        # currencies = query.values_list(self._mapper.cost_units_key, flat=True).distinct()
+        # lowered_currencies = [currency.lower() for currency in currencies]
         currency_key = f"{self._mapper.cost_units_key}__iexact"
         whens = [
-            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items() if k in lowered_currencies
+            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items()  # if k in lowered_currencies
         ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        return Case(*whens, default=1, output_field=DecimalField())
 
     @property
     def annotations(self):

@@ -68,9 +68,11 @@ class AzureReportQueryHandlerTest(IamTestCase):
             filters = self.this_month_filter
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            query = AzureCostEntryLineItemDailySummary.objects.filter(**filters).annotate(**handler.annotations)
-            exchange_annotations = handler.get_exchange_rate_annotation(query)
-            result = query.annotate(**exchange_annotations).aggregate(**aggregates)
+            result = (
+                AzureCostEntryLineItemDailySummary.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)

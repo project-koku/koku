@@ -104,9 +104,11 @@ class OCPGCPQueryHandlerTest(IamTestCase):
             filters = self.ten_day_filter
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            query = OCPGCPCostLineItemDailySummaryP.objects.filter(**filters).annotate(**handler.annotations)
-            exchange_annotations = handler.get_exchange_rate_annotation(query)
-            return query.annotate(**exchange_annotations).aggregate(**aggregates)
+            return (
+                OCPGCPCostLineItemDailySummaryP.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
 
     def test_execute_query_w_delta_no_previous_data(self):
         """Test deltas with no previous data."""
