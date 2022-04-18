@@ -506,6 +506,8 @@ class ReportQueryHandler(QueryHandler):
 
     def get_exchange_rate_annotation(self, query):
         """Get the exchange rate annotation based on the curriences found in the query."""
+        if self.is_csv_output:
+            return {"exchenge_rate": self.annotations["exchange_rate"]}
         currencies = query.values_list("cost_units", flat=True).distinct()
         lowered_currencies = [currency.lower() for currency in currencies]
         currency_key = f"{self._mapper.cost_units_key}__iexact"

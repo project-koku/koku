@@ -90,8 +90,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
             "currency": Value(self.currency, output_field=CharField()),
-            # set a default value for exchange rates
-            # the real values are set with get_exchange_rate_annotation
+            # set a default value of 1 for exchange rates for csv requests
+            # the values are set for all other requests in get_exchange_rate_annotation
             "exchange_rate": Value(1, output_field=DecimalField()),
         }
         # { query_param: database_field_name }
@@ -121,6 +121,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def get_exchange_rate_annotation(self, query):
         """Get the exchange rate annotation based on the curriences found in the query."""
+        if self.is_csv_output:
+            return {"exchange_rate": self.annotations["exchange_rate"]}
         source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
         currencies = self._get_base_currencies(source_uuids)
         whens = [

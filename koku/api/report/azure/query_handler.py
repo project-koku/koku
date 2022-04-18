@@ -72,8 +72,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
                 Value(units_fallback, output_field=CharField()),
             ),
-            # set a default value for exchange rates
-            # the real values are set with get_exchange_rate_annotation
+            # set a default value of 1 for exchange rates for csv requests
+            # the values are set for all other requests in get_exchange_rate_annotation
             "exchange_rate": Value(1, output_field=DecimalField()),
         }
         if self._mapper.usage_units_key:

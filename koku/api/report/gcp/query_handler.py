@@ -101,8 +101,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
-            # set a default value for exchange rates
-            # the real values are set with get_exchange_rate_annotation
+            # set a default value of 1 for exchange rates for csv requests
+            # the values are set for all other requests in get_exchange_rate_annotation
             "exchange_rate": Value(1, output_field=DecimalField()),
         }
         if self._mapper.usage_units_key:
