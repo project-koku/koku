@@ -215,6 +215,7 @@ class Orchestrator:
             reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
             LOG.debug(log_json(tracing_id, f"[{SUMMARY_QUEUE}] Manifest Processing Async ID: {async_id}"))
+
             # run HCS reports
             hcs_async_id = chord(report_tasks, collect_hcs_report_data.s().set(queue=HCS_QUEUE))()
             LOG.debug(log_json(tracing_id, f"[{HCS_QUEUE}] Manifest Processing Async ID: {hcs_async_id}"))
