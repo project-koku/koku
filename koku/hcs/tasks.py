@@ -6,13 +6,11 @@
 import datetime
 import logging
 import uuid
-from datetime import timedelta
 
 from dateutil import parser
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
@@ -53,19 +51,16 @@ def collect_hcs_report_data_from_manifest(reports_to_check):
                         LOG.info("using start and end dates from the manifest")
                         start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
                         end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
-                    else:
-                        LOG.info("generating start and end dates for manifest")
-                        start_date = DateAccessor().today() - datetime.timedelta(days=2)
-                        start_date = start_date.strftime("%Y-%m-%d")
-                        end_date = DateAccessor().today().strftime("%Y-%m-%d")
 
                     tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
-                    schema_name = report.get("schema_name")
-                    provider = report.get("provider_type")
-                    provider_uuid = report.get("provider_uuid")
 
                     collect_hcs_report_data.s(
-                        schema_name, provider, provider_uuid, start_date, end_date, tracing_id
+                        report.get("schema_name"),
+                        report.get("provider_type"),
+                        report.get("provider_uuid"),
+                        start_date,
+                        end_date,
+                        tracing_id,
                     ).apply_async(HCS_QUEUE)
 
 
@@ -98,10 +93,11 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
         schema_name = f"acct{schema_name}"
 
     if start_date is None:
-        start_date = DateHelper().today - timedelta(days=2)
+        start_date = DateAccessor().today() - datetime.timedelta(days=2)
+        start_date = start_date.strftime("%Y-%m-%d")
 
     if end_date is None:
-        end_date = DateHelper().today
+        end_date = DateAccessor().today().strftime("%Y-%m-%d")
 
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
