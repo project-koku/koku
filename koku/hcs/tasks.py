@@ -3,9 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tasks for Hybrid Committed Spend (HCS)"""
+import datetime
 import logging
 import uuid
 from datetime import timedelta
+
+from dateutil import parser
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -13,6 +16,8 @@ from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku.feature_flags import UNLEASH_CLIENT
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -32,6 +37,38 @@ def enable_hcs_processing(schema_name):  # pragma: no cover #noqa
     return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
 
 
+@celery_app.task(name="hcs.tasks.collect_hcs_report_data_from_manifest", queue=HCS_QUEUE)
+def collect_hcs_report_data_from_manifest(reports_to_check):
+    #
+    # process HCS reports from provided manifests.
+    #
+    if reports_to_check is not None:
+        reports = [report for report in reports_to_check if report]
+        reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
+
+        for report in reports_deduplicated:
+            with ReportManifestDBAccessor() as manifest_accessor:
+                if manifest_accessor.manifest_ready_for_summary(report.get("manifest_id")):
+                    if report.get("start") and report.get("end"):
+                        LOG.info("using start and end dates from the manifest")
+                        start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
+                        end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
+                    else:
+                        LOG.info("generating start and end dates for manifest")
+                        start_date = DateAccessor().today() - datetime.timedelta(days=2)
+                        start_date = start_date.strftime("%Y-%m-%d")
+                        end_date = DateAccessor().today().strftime("%Y-%m-%d")
+
+                    tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
+                    schema_name = report.get("schema_name")
+                    provider = report.get("provider_type")
+                    provider_uuid = report.get("provider_uuid")
+
+                    collect_hcs_report_data.s(
+                        schema_name, provider, provider_uuid, start_date, end_date, tracing_id
+                    ).apply_async(HCS_QUEUE)
+
+
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
 def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=None, end_date=None, tracing_id=None):
     """Update Hybrid Committed Spend report.
@@ -45,36 +82,37 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :returns None
     """
 
-    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
-        if schema_name and not schema_name.startswith("acct"):
-            schema_name = f"acct{schema_name}"
-
-        if start_date is None:
-            start_date = DateHelper().today - timedelta(days=2)
-
-        if end_date is None:
-            end_date = DateHelper().today
-
-        if tracing_id is None:
-            tracing_id = str(uuid.uuid4())
-
+    if not enable_hcs_processing(schema_name) and provider not in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
         stmt = (
-            f"Running HCS data collection: "
-            f"schema_name: {schema_name}, "
-            f"provider_uuid: {provider_uuid}, "
-            f"provider: {provider}, "
-            f"dates {start_date} - {end_date}"
-        )
-        LOG.info(log_json(tracing_id, stmt))
-        reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
-        reporter.generate_report(start_date, end_date)
-
-    else:
-        stmt = (
-            f"[SKIPPED] Customer not registered with HCS: "
+            f"[SKIPPED] HCS report generation: "
             f"Schema-name: {schema_name}, "
             f"provider: {provider}, "
             f"provider_uuid: {provider_uuid}, "
             f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))
+
+        return
+
+    if schema_name and not schema_name.startswith("acct"):
+        schema_name = f"acct{schema_name}"
+
+    if start_date is None:
+        start_date = DateHelper().today - timedelta(days=2)
+
+    if end_date is None:
+        end_date = DateHelper().today
+
+    if tracing_id is None:
+        tracing_id = str(uuid.uuid4())
+
+    stmt = (
+        f"Running HCS data collection: "
+        f"schema_name: {schema_name}, "
+        f"provider_uuid: {provider_uuid}, "
+        f"provider: {provider}, "
+        f"dates {start_date} - {end_date}"
+    )
+    LOG.info(log_json(tracing_id, stmt))
+    reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
+    reporter.generate_report(start_date, end_date)

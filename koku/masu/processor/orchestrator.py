@@ -9,6 +9,8 @@ from celery import chord
 
 from api.common import log_json
 from api.models import Provider
+from hcs.tasks import collect_hcs_report_data
+from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -212,7 +214,10 @@ class Orchestrator:
         if report_tasks:
             reports_tasks_queued = True
             async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
-            LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+            LOG.debug(log_json(tracing_id, f"[{SUMMARY_QUEUE}] Manifest Processing Async ID: {async_id}"))
+            # run HCS reports
+            hcs_async_id = chord(report_tasks, collect_hcs_report_data.s().set(queue=HCS_QUEUE))()
+            LOG.debug(log_json(tracing_id, f"[{HCS_QUEUE}] Manifest Processing Async ID: {hcs_async_id}"))
         return manifest, reports_tasks_queued
 
     def prepare(self):
