@@ -68,7 +68,7 @@ class ProviderBuilder:
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        if provider_type in [Provider.PROVIDER_OCP, Provider.PROVIDER_OCI]:
+        if provider_type == Provider.PROVIDER_OCP:
             return {}
         else:
             return self._build_provider_data_source(billing_source)

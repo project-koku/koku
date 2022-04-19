@@ -163,11 +163,13 @@ class ProviderSerializerTest(IamTestCase):
     def test_create_oci_provider(self):
         """Test creating a provider."""
         tenant = "oci.tenant..my_tenant"
+        bucket = "my-bucket"
+        namespace = "my-namespace"
         provider = {
             "name": "test_oci_provider",
             "type": Provider.PROVIDER_OCI.lower(),
             "authentication": {"credentials": {"tenant": tenant}},
-            "billing_source": {},
+            "billing_source": {"data_source": {"bucket": bucket, "bucket_namespace": namespace}},
         }
         instance = None
 

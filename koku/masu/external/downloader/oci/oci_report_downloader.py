@@ -60,7 +60,8 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
         self.tenant = self.credentials.get("tenant")
-        self.reporting_namespace = "bling"
+        self.namespace = data_source.get("bucket_namespace")
+        self.bucket = data_source.get("bucket")
         self._oci_client = self._get_oci_client()
         self.files_list = self._extract_names()
 

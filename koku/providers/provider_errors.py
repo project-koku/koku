@@ -34,6 +34,8 @@ class ProviderErrors:
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
 
     OCI_NO_REPORT_FOUND = "authentication.tenant.noreportfound"
+    OCI_BUCKET_MISSING = "billing_source.bucket.missing"
+    OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
     OCI_MISSING_TENANCY = "authentication.tenant.missing"
     OCI_MISSING_LOCAL_DIR = "billing_source.data_source.local_dir.missing"
 
@@ -104,5 +106,13 @@ class ProviderErrors:
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
+    OCI_BUCKET_MISSING_MESSAGE = (
+        "Cost management requires an OCI bucket to store cost and usage reports. "
+        "Edit your OCI source to include the name of your OCI bucket."
+    )
+    OCI_BUCKET_NAMESPACE_MISSING_MESSAGE = (
+        "Cost management requires the namespace for the OCI bucket storing cost and usage reports. "
+        "Edit your OCI source to include the namespace for your OCI bucket."
+    )
     OCI_MISSING_TENANCY_MESSAGE = "Tenant is a required parameter for OCI and must not be blank."
     OCI_MISSING_LOCAL_DIR_MESSAGE = "Local dir is a required param for local OCI testing."

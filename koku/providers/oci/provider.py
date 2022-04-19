@@ -21,14 +21,8 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def _check_cost_report_access(customer_tenancy):
+def _check_cost_report_access(bucket, namespace):
     """Check for provider cost and usage report access."""
-    # CUR bucket is made from customers tenancy name
-    reporting_bucket = customer_tenancy
-
-    # The Object Storage namespace used for the reports is bling; the bucket name is the tenancy OCID.
-    reporting_namespace = "bling"
-
     # Download all usage and cost files."" will downlaod both usage and cost files.
     prefix_file = ""
 
@@ -38,18 +32,16 @@ def _check_cost_report_access(customer_tenancy):
 
     object_storage = oci.object_storage.ObjectStorageClient(config)
     try:
-        oci.pagination.list_call_get_all_results(
-            object_storage.list_objects, reporting_namespace, reporting_bucket, prefix=prefix_file
-        )
+        oci.pagination.list_call_get_all_results(object_storage.list_objects, namespace, bucket, prefix=prefix_file)
 
     except (ClientError, OciConnectionError) as oci_error:
         key = ProviderErrors.OCI_NO_REPORT_FOUND
-        message = f"Unable to obtain cost and usage reports with tenant/bucket: {customer_tenancy}."
+        message = f"Unable to obtain cost and usage reports with bucket: {bucket}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
     # return a auth friendly format
-    return config, customer_tenancy
+    return config, namespace, bucket
 
 
 class OCIProvider(ProviderInterface):
@@ -59,16 +51,28 @@ class OCIProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_OCI
 
-    def cost_usage_source_is_reachable(self, credentials, _):
-        """Verify that the tenant bucket exists and is reachable."""
+    def cost_usage_source_is_reachable(self, credentials, data_source):
+        """Verify that the bucket exists and is reachable."""
 
-        tenancy = credentials.get("tenant")
-        if not tenancy or tenancy.isspace():
+        credential_name = credentials.get("tenant")
+        if not credential_name or credential_name.isspace():
             key = ProviderErrors.OCI_MISSING_TENANCY
             message = ProviderErrors.OCI_MISSING_TENANCY_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
-        _check_cost_report_access(tenancy)
+        storage_resource_name = data_source.get("bucket")
+        if not storage_resource_name or storage_resource_name.isspace():
+            key = ProviderErrors.OCI_BUCKET_MISSING
+            message = ProviderErrors.OCI_BUCKET_MISSING_MESSAGE
+            raise serializers.ValidationError(error_obj(key, message))
+
+        bucket_namespace = data_source.get("bucket_namespace")
+        if not bucket_namespace or bucket_namespace.isspace():
+            key = ProviderErrors.OCI_BUCKET_NAMESPACE_MISSING
+            message = ProviderErrors.OCI_BUCKET_NAMESPACE_MISSING_MESSAGE
+            raise serializers.ValidationError(error_obj(key, message))
+
+        _check_cost_report_access(bucket=storage_resource_name, namespace=bucket_namespace)
 
         return True
 
