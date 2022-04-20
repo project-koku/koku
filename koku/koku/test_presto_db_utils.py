@@ -1,5 +1,6 @@
 import datetime
 import uuid
+from unittest.mock import patch
 
 from jinjasql import JinjaSql
 from trino.dbapi import Connection
@@ -111,3 +112,29 @@ select a from b;
         conn = FakePrestoConn()
         res = kpdb.executescript(conn, sqlscript)
         self.assertEqual(res, [["eek"], ["eek"]])
+
+    def test_preprocessor_err(self):
+        def t_preprocessor(*args):
+            raise TypeError("This is a test")
+
+        sqlscript = """
+select x from y;
+select a from b;
+"""
+        params = {"eek": 1}
+        conn = FakePrestoConn()
+        with self.assertRaises(kpdb.PreprocessStatementError):
+            kpdb.executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
+
+    def test_executescript_error(self):
+        def t_exec_error(*args, **kwargs):
+            raise ValueError("Nope!")
+
+        sqlscript = """
+select x from y;
+select a from b;
+"""
+        with patch("koku.presto_database._execute", side_effect=ValueError("Nope!")):
+            with self.assertRaises(kpdb.TrinoStatementExecError):
+                conn = FakePrestoConn()
+                kpdb.executescript(conn, sqlscript)
