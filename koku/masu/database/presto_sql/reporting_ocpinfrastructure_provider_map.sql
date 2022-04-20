@@ -2,7 +2,7 @@
     WITH cte_openshift_cluster_info AS (
     SELECT DISTINCT cluster_id,
         cluster_alias,
-        provider_id
+        cast(provider_id as varchar) as provider_id
     FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
     ),
     cte_distinct_gcp_labels AS (
