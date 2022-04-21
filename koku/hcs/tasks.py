@@ -98,10 +98,9 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
 
         if start_date is None:
             start_date = DateAccessor().today() - datetime.timedelta(days=2)
-            start_date = start_date.strftime("%Y-%m-%d")
 
         if end_date is None:
-            end_date = DateAccessor().today().strftime("%Y-%m-%d")
+            end_date = DateAccessor().today()
 
         if tracing_id is None:
             tracing_id = str(uuid.uuid4())
