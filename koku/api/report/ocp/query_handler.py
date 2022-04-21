@@ -319,7 +319,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type == "costs" and not is_csv_output:
+                if self._report_type in ["costs", "instance_type"] and not is_csv_output:
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
@@ -375,7 +375,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        if self._report_type == "costs":
+        if self._report_type in ["costs", "instance_type"]:
             sum_init = {"cost_units": self.currency}
         else:
             sum_init = {"cost_units": self._mapper.cost_units_key}
