@@ -17,7 +17,6 @@ from koku.settings import OCI_CONFIG
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from providers.oci.provider import OCIProvider
@@ -63,7 +62,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.namespace = data_source.get("bucket_namespace")
         self.bucket = data_source.get("bucket")
         self._oci_client = self._get_oci_client()
-        self.files_list = self._extract_names()
 
     @staticmethod
     def _get_oci_client():
@@ -81,44 +79,85 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             LOG.warning(log_json(self.tracing_id, msg, self.context))
             raise OCIReportDownloaderError(str(ex))
 
-    def _collect_reports(self, prefix, tag=None):
+    def get_last_reports(self, assembly_id):
         """
-        Collect reports from OCI
+        Collect dict of last report previously downloaded
+
+        Returns:
+            Dict of file names
+        """
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
+            if manifest:
+                last_reports = manifest.last_reports
+            else:
+                last_reports = {"cost": "", "usage": ""}
+
+        return last_reports
+
+    def update_last_reports(self, report_type, key, manifest_id):
+        """
+        Update stored dict of last report previously downloaded
+
+        Returns:
+            Dict of file names
+        """
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            if manifest:
+                last_reports = manifest.last_reports
+                last_reports[report_type] = key
+                manifest.last_reports = last_reports
+                manifest.save()
+
+    def _collect_reports(self, prefix, last_report=None):
+        """
+        Collect list of reports from OCI
 
         Returns:
             list of reports
         """
-        # Tenant bucket
-        reporting_bucket = self.tenant
-
         report_list = self._oci_client.list_objects(
-            self.reporting_namespace,
-            reporting_bucket,
+            self.namespace,
+            self.bucket,
             prefix=prefix,
-            fields="etag,md5,timeCreated,timeModified",
-            start_after=tag,
+            fields="timeCreated",
+            start_after=last_report,
         )
         return report_list
 
-    def _extract_names(self, usage_tag=None, cost_tag=None):
+    def _extract_names(self, assembly_id, start_date):
         """
-        Get list of file names.
+        Get list of file names for manifest/downloading.
 
         Returns:
-             list of files for download
+            list of files for download
 
         """
-        # Check we can acees reports
+        # Check we can access reports
         self._check_access
-
-        reports = []
-        usage_reports = self._collect_reports(self, prefix="reports/usage-csv", tag=usage_tag)
-        cost_reports = self._collect_reports(self, prefix="reports/cost-csv", tag=cost_tag)
+        # Grabbing ingest delta for initial ingest
+        months_delta = Config.INITIAL_INGEST_NUM_MONTHS
+        ingest_month = start_date + relativedelta(months=-months_delta)
+        ingest_month = ingest_month.replace(day=1)
+        # Pulling a dict of last downloaded files from manifest
+        last_reports = self.get_last_reports(assembly_id)
+        initial_ingest = True if last_reports == {} else False
+        usage_report = last_reports["usage"] if "usage" in last_reports else ""
+        cost_report = last_reports["cost"] if "cost" in last_reports else ""
+        # Collecting CUR's from OCI bucket
+        usage_reports = self._collect_reports(prefix="reports/usage-csv", last_report=usage_report)
+        cost_reports = self._collect_reports(prefix="reports/cost-csv", last_report=cost_report)
         reports = usage_reports.data.objects + cost_reports.data.objects
-
+        # Create list of filenames for downloading
         file_names = []
         for report in reports:
-            file_names.append(report.name)
+            if initial_ingest:
+                # Reduce initial ingest download footprint by only downloading files within the ingest window
+                if report.time_created.date() > ingest_month:
+                    file_names.append(report.name)
+            else:
+                file_names.append(report.name)
         return file_names
 
     def get_manifest_context_for_date(self, date):
@@ -136,7 +175,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-
         manifest_dict = {}
         report_dict = {}
 
@@ -175,36 +213,18 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                self._provider_uuid, start_date
-            )
-        if not manifest_list:
-            # if it is an empty list, that means it is the first time we are
-            # downloading this month, so we need to update our
-            # scan range to include the full month.
-            self.scan_start = start_date
-            end_of_month = start_date + relativedelta(months=1)
-            if isinstance(end_of_month, datetime.datetime):
-                end_of_month = end_of_month.date()
-            if end_of_month < self.scan_end:
-                self.scan_end = end_of_month
-            today = DateAccessor().today().date()
-            if today < end_of_month:
-                self.scan_end = today
         invoice_month = start_date.strftime("%Y%m")
         assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
 
         dh = DateHelper()
         start_date = dh.invoice_month_start(str(invoice_month))
-        bill_date = self.scan_start.replace(day=1)
-        file_names = self.files_list
+        bill_date = start_date
+        file_names = self._extract_names(assembly_id, start_date)
 
         manifest_data = {
             "assembly_id": assembly_id,
             "compression": UNCOMPRESSED,
             "start_date": bill_date,
-            "end_date": self.scan_end,
             "file_names": file_names,
         }
         LOG.info(f"Manifest Data: {str(manifest_data)}")
@@ -238,40 +258,32 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and OCI's etag.
 
         """
-        reporting_bucket = self.tenant
-        # The Object Storage namespace used biling reports is bling.
-        reporting_namespace = self.reporting_namespace
+        bucket = self.bucket
+        bucket_namespace = self.namespace
+        etag = key
 
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
-        etag = key
-
-        msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
-        object_details = self._oci_client.get_object(reporting_namespace, reporting_bucket, key)
-
-        with open(full_local_path, "wb") as f:
-            for chunk in object_details.data.raw.stream(1024 * 1024, decode_content=False):
-                f.write(chunk)
-
-        directory_path = self._get_local_directory_path
-        full_file_path = self._get_local_file_path(directory_path, key)
 
         file_creation_date = None
-        msg = f"Returning full_file_path: {full_file_path}"
+        msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        msg = f"Downloading {key} to {full_file_path}"
+        msg = f"Downloading {key} to {full_local_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        report_file = self._oci_client.get_object(reporting_namespace, reporting_bucket, key)
+        report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
 
-        with open(full_file_path, "wb") as f:
+        with open(full_local_path, "wb") as f:
             for chunk in report_file.data.raw.stream(1024 * 1024, decode_content=False):
                 f.write(chunk)
+            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_local_path))
 
-            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
+        if "usage" in key:
+            self.update_last_reports("usage", key, manifest_id)
+        else:
+            self.update_last_reports("cost", key, manifest_id)
 
-        return full_file_path, etag, file_creation_date, []
+        return full_local_path, etag, file_creation_date, []
 
     def _get_local_directory_path(self):
         """
@@ -302,14 +314,3 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
-
-    def _remove_manifest_file(self, manifest_file):
-        """Clean up the manifest file after extracting information."""
-        try:
-            os.remove(manifest_file)
-            msg = f"Deleted manifest file at {manifest_file}"
-            LOG.info(log_json(self.request_id, msg, self.context))
-        except OSError:
-            msg = f"Could not delete manifest file at {manifest_file}"
-            LOG.info(log_json(self.request_id, msg, self.context))
-        return None

@@ -24,12 +24,7 @@ class OCILocalProvider(OCIProvider):
 
     def cost_usage_source_is_reachable(self, credentials, data_source):
         """Verify that the cost usage source exists and is reachable."""
-        tenancy = credentials.get("tenant")
-        local_dir = data_source.get("local_dir")
-        if not tenancy or tenancy.isspace():
-            key = ProviderErrors.OCI_MISSING_TENANCY
-            message = ProviderErrors.OCI_MISSING_TENANCY_MESSAGE
-            raise serializers.ValidationError(error_obj(key, message))
+        local_dir = data_source.get("bucket")
         if not local_dir:
             key = ProviderErrors.OCI_MISSING_LOCAL_DIR
             message = ProviderErrors.OCI_MISSING_LOCAL_DIR_MESSAGE

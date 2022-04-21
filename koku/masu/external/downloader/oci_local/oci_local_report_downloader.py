@@ -50,7 +50,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
         self.data_source = data_source
-        self.storage_location = self.data_source.get("local_dir")
+        self.storage_location = self.data_source.get("bucket")
         self.customer_name = customer_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
@@ -65,7 +65,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         if not self.storage_location:
-            err_msg = "The required local_dir parameter was not provided in the data_source json."
+            err_msg = "The required bucket parameter was not provided in the data_source json."
             raise OCIReportDownloaderError(err_msg)
         files_list = []
         for root, dirs, files in os.walk(self.storage_location, followlinks=True):

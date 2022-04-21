@@ -82,7 +82,7 @@ class ReportSummaryUpdater:
             raise ReportSummaryUpdaterError(err)
 
         if not self._updater:
-            raise ReportSummaryUpdaterError("Invalid \n YOU ARE HERE! \n\n\n Invalid provider type specified.")
+            raise ReportSummaryUpdaterError("Invalid provider type specified.")
         msg = f"Starting report data summarization for provider uuid: {self._provider.uuid}."
         LOG.info(log_json(self._tracing_id, msg))
 
