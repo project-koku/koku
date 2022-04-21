@@ -90,9 +90,10 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     # drop "-local" from provider name when in development environment
     if "-local" in provider:
         LOG.debug(log_json(tracing_id, "dropping '-local' from provider name"))
-        provider = provider.split("-")[0]
+        provider.strip("-local")
 
     if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+
         if schema_name and not schema_name.startswith("acct"):
             schema_name = f"acct{schema_name}"
 
