@@ -209,12 +209,12 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"extra": {"bucket": "test_bucket"}}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN}]},
                 },
@@ -264,12 +264,12 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                     "json": {"data": [{"name": SOURCE_TYPE_IDS[SOURCE_TYPE_IDS_MAP[Provider.PROVIDER_AWS]]}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_APPLICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"extra": {"bucket": "test_bucket_2"}}]},
                 },
                 {
-                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?source_id={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
+                    "url": f"{MOCK_URL}/api/v1.0/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self.source_ids.get(Provider.PROVIDER_AWS)}",  # noqa: E501
                     "status": 200,
                     "json": {"data": [{"id": self.source_ids.get(Provider.PROVIDER_AWS), "username": FAKE_AWS_ARN2}]},
                 },

@@ -17,10 +17,12 @@
           value: ${CLOWDER_ENABLED}
         - name: SOURCES
           value: "true"
+        - name: SOURCES_PROBE_HEADER
+          value: ${SOURCES_PROBE_HEADER}
         - name: SOURCES_PSK
           valueFrom:
             secretKeyRef:
-              key: psks
+              key: psk
               name: ${SOURCES_PSK_SECRET_NAME}
               optional: true
         - name: DJANGO_SECRET_KEY
