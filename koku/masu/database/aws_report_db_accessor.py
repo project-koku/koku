@@ -403,6 +403,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             self.schema,
                             sql,
                             log_ref=f"delete_ocp_on_aws_hive_partition_by_day for {year}-{month}-{day}",
+                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:

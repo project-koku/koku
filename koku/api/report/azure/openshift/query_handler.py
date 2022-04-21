@@ -12,6 +12,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
@@ -98,18 +99,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-
-            def check_if_valid_date_str(date_str):
-                """Check to see if a valid date has been passed in."""
-                import ciso8601
-
-                try:
-                    ciso8601.parse_datetime(date_str)
-                except ValueError:
-                    return False
-                except TypeError:
-                    return False
-                return True
 
             order_date = None
             for i, param in enumerate(query_order_by):

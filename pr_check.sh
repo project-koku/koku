@@ -177,6 +177,7 @@ if [[ $exit_code == 0 ]]; then
     else
         echo "running PR smoke tests"
         run_smoke_tests
+        source $CICD_ROOT/post_test_results.sh  # send test results to Ibutsu
     fi
 fi
 

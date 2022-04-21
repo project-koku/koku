@@ -5,6 +5,7 @@
 """View for running_celery_tasks endpoint."""
 import logging
 import uuid
+from datetime import timedelta
 
 import ciso8601
 import pytz
@@ -46,21 +47,22 @@ def hcs_report_data(request):
     error_msg_key = "Error"
 
     if request.method == "GET":
-        if provider_uuid is None and provider_type is None:
-            errmsg = "provider_uuid or provider_type must be supplied as a parameter"
+        if provider_uuid is None:
+            errmsg = "provider_uuid must be supplied as a parameter"
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        if provider_uuid and provider_type is None:
+        if provider_type is None:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
-                LOG.debug(f"*** DEBUG *** PROVIDER: {provider_accessor.provider}")
+                LOG.debug(f"PROVIDER: {provider_accessor.provider}")
                 provider = provider_accessor.get_type()
         else:
             provider = provider_type
 
-        if start_date is None:
-            return Response({error_msg_key: "start_date is a required parameter"}, status=status.HTTP_400_BAD_REQUEST)
-
-        start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+        start_date = (
+            ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+            if start_date
+            else DateHelper().today - timedelta(days=2)
+        )
         end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
         months = DateHelper().list_month_tuples(start_date, end_date)
         num_months = len(months)
@@ -73,8 +75,8 @@ def hcs_report_data(request):
         # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
         for i, month in enumerate(months):
             start, end = month
-            start_date = start.date().strftime("%Y-%m-%d")
-            end_date = end.date().strftime("%Y-%m-%d")
+            start_date = start.date().strftime("%Y%m%d")
+            end_date = end.date().strftime("%Y%m%d")
             months[i] = (start_date, end_date)
 
         if schema_name is None:
