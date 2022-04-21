@@ -675,7 +675,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                         AND day = '{day}'
                         """
                         self._execute_presto_raw_sql_query(
-                            self.schema, sql, log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}"
+                            self.schema,
+                            sql,
+                            log_ref=f"delete_ocp_hive_partition_by_day for {year}-{month}-{day}",
+                            attempts_left=(retries - 1) - i,
                         )
                         break
                     except TrinoExternalError as err:
@@ -731,15 +734,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": days_str,
         }
 
-        LOG.info("PRESTO OCP: Connect")
+        LOG.info("TRINO OCP: Connect")
         presto_conn = kpdb.connect(schema=self.schema)
         try:
-            LOG.info("PRESTO OCP: executing SQL buffer for OCP usage processing")
+            LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
             kpdb.executescript(
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
-            LOG.error(f"PRESTO OCP ERROR : {e}")
+            LOG.error(
+                f"TRINO OCP ERROR : {e}"
+                + os.linesep
+                + "File : masu/database/presto_sql/reporting_ocpusagelineitem_daily_summary.sql"
+            )
             try:
                 presto_conn.rollback()
             except RuntimeError:
@@ -748,10 +755,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 pass
             raise e
         else:
-            LOG.info("PRESTO OCP: Commit actions")
+            LOG.info("TRINO OCP: Commit actions")
             presto_conn.commit()
         finally:
-            LOG.info("PRESTO OCP: Close connection")
+            LOG.info("TRINO OCP: Close connection")
             presto_conn.close()
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
@@ -2432,4 +2439,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
         max, min = timestamps[0]
+        min = min if min else start_date
+        max = max if max else end_date
         return parse(max), parse(min)

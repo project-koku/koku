@@ -95,17 +95,19 @@ BEGIN
                )
            ), '{}'::jsonb[])
       INTO sequence_owner_info
-      FROM pg_depend d
+      FROM pg_class s
+      JOIN pg_sequence ps
+        ON ps.seqrelid = s.oid
+      JOIN pg_depend d
+        ON d.objid = s.oid
       JOIN pg_attribute a
         ON a.attrelid = d.refobjid
        AND a.attnum = d.refobjsubid
-      JOIN pg_class s
-        ON s.oid = d.objid
-       AND s.relkind = 'S'
       JOIN pg_class o
         ON o.oid = d.refobjid
-     WHERE o.relnamespace = source_schema::regnamespace
-       AND not o.relispartition;
+     WHERE s.relkind = 'S'
+       AND o.relnamespace = source_schema::regnamespace
+       AND NOT o.relispartition;
 
     IF _verbose THEN
         RAISE INFO '    Got %s schema owner objects...', cardinality(sequence_owner_info);

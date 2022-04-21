@@ -1315,24 +1315,23 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             tag_rate_vals = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(pod_labels__has_key=tag_rate_key)
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
             nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
             # The number of unique pod_labels key value pairs per node
             k_v_pairs_num = (
-                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                .distinct()
-                .filter(**{"pod_labels__has_key": tag_rate_key})
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    pod_labels__has_key=tag_rate_key,
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
                     node__in=nodes,
                 )
+                .values_list("pod_labels", "node")
+                .distinct()
                 .count()
             )
 
@@ -1394,24 +1393,23 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             tag_rate_vals = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(pod_labels__has_key=tag_rate_key)
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
             nodes = self.accessor.get_distinct_nodes(start_date, end_date, self.cluster_id)
             # The number of unique pod_labels key value pairs per node
             k_v_pairs_num = (
-                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                .distinct()
-                .filter(**{"pod_labels__has_key": tag_rate_key})
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    pod_labels__has_key=tag_rate_key,
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
                     node__in=nodes,
                 )
+                .values_list("pod_labels", "node")
+                .distinct()
                 .count()
             )
 
@@ -1426,13 +1424,10 @@ select * from eek where val1 in {{report_period_id}} ;
                         monthly_cost_type="Node",
                     )
 
-                    # call populate monthly default tag_cost with the rates defined above
-                    _ = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            infrastructure_monthly_cost_json__isnull=False,
-                            monthly_cost_type="Node",
-                        )
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Node",
                     ).delete()
                     self.accessor.populate_monthly_tag_default_cost(
                         "Node",
@@ -1470,25 +1465,22 @@ select * from eek where val1 in {{report_period_id}} ;
             pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
 
             k_v_pairs = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
-                .distinct()
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
+                    volume_labels__has_key=tag_rate_key,
                 )
+                .distinct()
+                .values_list("volume_labels", "node")
             )
-            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
+            key_value_pairs = {tag_rate_key: list({tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs})}
 
         pvc_tag_rates = {}
         pvc_rate = random.randrange(1, 100)
         for key, values in key_value_pairs.items():
-            values_dict = {}
-            for value in values:
-                values_dict[value] = pvc_rate
-            pvc_tag_rates[key] = values_dict
+            pvc_tag_rates[key] = {value: pvc_rate for value in values}
 
         with schema_context(self.schema):
             qset = OCPUsageLineItemDailySummary.objects.filter(
@@ -1509,14 +1501,12 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.ocpaws_provider_uuid,
             )
 
-            # assert that after the update, there are now the monthly values
-            # for the three different PVCs that have a value
             self.assertEqual(qset.count(), len(pvcs))
-            qset_total = 0
-            for value in qset:
-                qset_total += value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
+            qset_total = sum(
+                value.infrastructure_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0) for value in qset
+            )
+
             expected_total = len(k_v_pairs) * pvc_rate
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_tag_cost_node_supplementary_cost(self):
@@ -1602,25 +1592,22 @@ select * from eek where val1 in {{report_period_id}} ;
             pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
 
             k_v_pairs = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
-                .distinct()
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
+                    volume_labels__has_key=tag_rate_key,
                 )
+                .distinct()
+                .values_list("volume_labels", "node")
             )
-            key_value_pairs = {tag_rate_key: [tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs]}
+            key_value_pairs = {tag_rate_key: list({tag_node[0].get(tag_rate_key) for tag_node in k_v_pairs})}
 
         pvc_tag_rates = {}
         pvc_rate = random.randrange(1, 100)
         for key, values in key_value_pairs.items():
-            values_dict = {}
-            for value in values:
-                values_dict[value] = pvc_rate
-            pvc_tag_rates[key] = values_dict
+            pvc_tag_rates[key] = {value: pvc_rate for value in values}
         with schema_context(self.schema):
             # create a query set based on the criteria we are looking for
             # so it can be evaluated before and after the function call
@@ -1641,14 +1628,12 @@ select * from eek where val1 in {{report_period_id}} ;
                 metric_constants.CPU_DISTRIBUTION,
                 self.ocpaws_provider_uuid,
             )
-            # assert that after the update, there are now the monthly values for
-            # the three different PVCs that have a value
+
             self.assertEqual(qset.count(), len(pvcs))
             qset_total = 0
             for value in qset:
                 qset_total += value.supplementary_monthly_cost_json.get(metric_constants.PVC_DISTRIBUTION, 0)
             expected_total = len(k_v_pairs) * pvc_rate
-            # assert that the total value of the qset costs is equal to the total costs from the tag rates
             self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_pvc_infrastructure_cost(self):
@@ -1664,23 +1649,22 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             tag_rate_vals = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(pod_labels__has_key=tag_rate_key)
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
             pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
             # The number of unique pod_labels key value pairs per node
             k_v_pairs_num = (
-                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                .distinct()
-                .filter(**{"pod_labels__has_key": tag_rate_key})
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    pod_labels__has_key=tag_rate_key,
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
                 )
+                .values_list("pod_labels", "node")
+                .distinct()
                 .count()
             )
 
@@ -1736,16 +1720,15 @@ select * from eek where val1 in {{report_period_id}} ;
             pvcs = self.accessor.get_distinct_pvcs(start_date, end_date, self.cluster_id)
             # The number of unique pod_labels key value pairs per node
             k_v_pairs_num = (
-                OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                .distinct()
-                .filter(**{"pod_labels__has_key": tag_rate_key})
-                .values_list("pod_labels", "node")
-                .filter(
+                OCPUsageLineItemDailySummary.objects.filter(
+                    pod_labels__has_key=tag_rate_key,
                     cluster_id=self.cluster_id,
                     source_uuid=self.ocpaws_provider_uuid,
                     usage_start__gte=start_date,
                     usage_end__lte=end_date,
                 )
+                .values_list("pod_labels", "node")
+                .distinct()
                 .count()
             )
 
@@ -2136,7 +2119,7 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             tag_rate_vals = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(pod_labels__has_key=tag_rate_key)
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
@@ -2147,28 +2130,21 @@ select * from eek where val1 in {{report_period_id}} ;
                 node_tag_rates = {tag_rate_key: {"default_value": default_val, "defined_keys": [tag_rate_vals]}}
                 with schema_context(self.schema):
                     k_v_pairs_num = (
-                        OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                        .distinct()
-                        .filter(
-                            **{
-                                "pod_labels__has_key": tag_rate_key,
-                                "usage_start__gte": start_date,
-                                "usage_start__lte": end_date,
-                            }
-                        )
-                        .values_list("pod_labels")
-                        .filter(
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            pod_labels__has_key=tag_rate_key,
+                            usage_start__gte=start_date,
+                            usage_start__lte=end_date,
                             cluster_id=self.cluster_id,
                         )
+                        .values_list("pod_labels", flat=True)
+                        .distinct()
                         .count()
                     )
 
-                    _ = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            infrastructure_monthly_cost_json__isnull=False,
-                            monthly_cost_type="Cluster",
-                        )
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
                     ).delete()
                     self.accessor.populate_monthly_tag_default_cost(
                         "Cluster",
@@ -2191,11 +2167,9 @@ select * from eek where val1 in {{report_period_id}} ;
                     )
 
                     self.assertEqual(len(qset), 1)
-                    qset_total = 0
-                    for value in qset:
-                        qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
+                    qset_total = sum(value.infrastructure_monthly_cost_json.get(distribution, 0) for value in qset)
+
                     expected_total = default_val * k_v_pairs_num
-                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_cluster_infrastructure_cost_string_dates(self):
@@ -2220,25 +2194,20 @@ select * from eek where val1 in {{report_period_id}} ;
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
-                    _ = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            infrastructure_monthly_cost_json__isnull=False,
-                            monthly_cost_type="Cluster",
-                        )
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
                     ).delete()
                     k_v_pairs_num = (
-                        OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                        .distinct()
-                        .filter(
-                            **{
-                                "pod_labels__has_key": tag_rate_key,
-                                "usage_start__gte": start_date,
-                                "usage_start__lte": end_date,
-                            }
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            pod_labels__has_key=tag_rate_key,
+                            usage_start__gte=start_date,
+                            usage_start__lte=end_date,
+                            cluster_id=self.cluster_id,
                         )
                         .values_list("pod_labels")
-                        .filter(cluster_id=self.cluster_id)
+                        .distinct()
                         .count()
                     )
 
@@ -2261,13 +2230,11 @@ select * from eek where val1 in {{report_period_id}} ;
                         self.ocpaws_provider_uuid,
                     )
 
-                    # assert that after the update, there is now the cluster cost
                     self.assertEqual(qset.count(), 1)
                     qset_total = 0
                     for value in qset:
                         qset_total += value.infrastructure_monthly_cost_json.get(distribution, 0)
                     expected_total = default_val * k_v_pairs_num
-                    # assert that the total value of the qset costs is equal to the total costs from the tag rates
                     self.assertEqual(expected_total, qset_total)
 
     def test_populate_monthly_default_tag_cost_cluster_supplementary_cost(self):
@@ -2280,7 +2247,7 @@ select * from eek where val1 in {{report_period_id}} ;
         with schema_context(self.schema):
             tag_rate_key = OCPEnabledTagKeys.objects.distinct("key").values_list("key", flat=True)[0]
             tag_rate_vals = (
-                OCPUsageLineItemDailySummary.objects.filter(**{"pod_labels__has_key": tag_rate_key})
+                OCPUsageLineItemDailySummary.objects.filter(pod_labels__has_key=tag_rate_key)
                 .distinct()
                 .values_list("pod_labels", flat=True)
             )[1]
@@ -2292,25 +2259,20 @@ select * from eek where val1 in {{report_period_id}} ;
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
                 with schema_context(self.schema):
-                    _ = (
-                        OCPUsageLineItemDailySummary.objects.filter(
-                            cluster_id=self.cluster_id,
-                            infrastructure_monthly_cost_json__isnull=False,
-                            monthly_cost_type="Cluster",
-                        )
+                    OCPUsageLineItemDailySummary.objects.filter(
+                        cluster_id=self.cluster_id,
+                        infrastructure_monthly_cost_json__isnull=False,
+                        monthly_cost_type="Cluster",
                     ).delete()
                     k_v_pairs_num = (
-                        OCPUsageLineItemDailySummary.objects.exclude(**{"pod_labels__contains": tag_rate_vals})
-                        .distinct()
-                        .filter(
-                            **{
-                                "pod_labels__has_key": tag_rate_key,
-                                "usage_start__gte": start_date,
-                                "usage_start__lte": end_date,
-                            }
+                        OCPUsageLineItemDailySummary.objects.filter(
+                            pod_labels__has_key=tag_rate_key,
+                            usage_start__gte=start_date,
+                            usage_start__lte=end_date,
+                            cluster_id=self.cluster_id,
                         )
                         .values_list("pod_labels")
-                        .filter(cluster_id=self.cluster_id)
+                        .distinct()
                         .count()
                     )
 
@@ -2462,7 +2424,7 @@ select * from eek where val1 in {{report_period_id}} ;
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
@@ -2493,10 +2455,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     mobile_qset = (
@@ -2505,10 +2465,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     weather_qset = (
@@ -2517,10 +2475,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
 
@@ -2536,8 +2492,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         for entry in qset:
                             # For each label, by date store the usage, cost
                             initial_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage", 0),
-                                entry.get("cost", 0),
+                                entry.get("usage") or 0,
+                                entry.get("cost") or 0,
                             )
 
                     # call populate monthly tag_cost with the rates defined above
@@ -2554,10 +2510,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     mobile_qset = (
@@ -2566,10 +2520,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     weather_qset = (
@@ -2580,10 +2532,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
 
@@ -2594,8 +2544,8 @@ select * from eek where val1 in {{report_period_id}} ;
                     for word, qset in mapper.items():
                         for entry in qset:
                             post_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage", 0),
-                                entry.get("cost", 0),
+                                entry.get("usage") or 0,
+                                entry.get("cost") or 0,
                             )
 
                     # assert that after the update, the appropriate values were added to each usage_cost
@@ -2632,7 +2582,7 @@ select * from eek where val1 in {{report_period_id}} ;
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.cluster_id = "OCP-on-Azure"
+        self.cluster_id = "OCP-on-AWS"
         with schema_context(self.schema):
             # define the two usage types to test
             usage_types = {"Infrastructure": "infrastructure_usage_cost", "Supplementary": "supplementary_usage_cost"}
@@ -2666,10 +2616,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     mobile_qset = (
@@ -2678,10 +2626,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     weather_qset = (
@@ -2690,10 +2636,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
 
@@ -2704,8 +2648,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         for entry in qset:
                             # For each label, by date store the usage, cost
                             initial_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage", 0),
-                                entry.get("cost", 0),
+                                entry.get("usage") or 0,
+                                entry.get("cost") or 0,
                             )
 
                     # call populate monthly tag_cost with the rates defined above
@@ -2722,10 +2666,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     mobile_qset = (
@@ -2734,10 +2676,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
                     weather_qset = (
@@ -2748,10 +2688,8 @@ select * from eek where val1 in {{report_period_id}} ;
                         )
                         .values("usage_start")
                         .annotate(
-                            **{
-                                "cost": Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
-                                "usage": Sum(usage_fields[1]),
-                            }
+                            cost=Sum(KeyDecimalTransform(usage_fields[0], cost_field)),
+                            usage=Sum(usage_fields[1]),
                         )
                     )
 
@@ -2762,8 +2700,8 @@ select * from eek where val1 in {{report_period_id}} ;
                     for word, qset in mapper.items():
                         for entry in qset:
                             post_results_dict[word][entry.get("usage_start")] = (
-                                entry.get("usage", 0),
-                                entry.get("cost", 0),
+                                entry.get("usage") or 0,
+                                entry.get("cost") or 0,
                             )
 
                     # assert that after the update, the appropriate values were added to each usage_cost
@@ -2982,4 +2920,6 @@ select * from eek where val1 in {{report_period_id}} ;
         with self.assertRaises(TrinoExternalError):
             self.accessor.delete_ocp_hive_partition_by_day([1], self.ocp_provider_uuid, "2022", "01")
         mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
