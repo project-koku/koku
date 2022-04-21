@@ -144,9 +144,6 @@ class ReportQueryHandler(QueryHandler):
             total_query["infra_credit"] = 0
             total_query["sup_credit"] = 0
             total_query["cost_credit"] = 0
-        if self._report_type == "instance_type":
-            total_query["count"] = 0
-            total_query["usage"] = 0
         for query_set in total_queryset:
             codes = {
                 Provider.PROVIDER_AWS: "currency_code",
@@ -178,10 +175,11 @@ class ReportQueryHandler(QueryHandler):
             for value in generic_list:
                 orig_value = total_query[value]
                 total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
-            if self._report_type == "instance_type":
-                for each in ["cost", "usage"]:
-                    orig_value = total_query.get(each, 0)
-                    total_query[each] = orig_value + Decimal(query_set.get(each, 0))
+            for each in ["count", "usage"]:
+                orig_value = total_query.get(each)
+                new_val = query_set.get(each)
+                if new_val is not None:
+                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
     @cached_property
@@ -834,10 +832,6 @@ class ReportQueryHandler(QueryHandler):
             total_query["infrastructure"] = copy.deepcopy(values_example)
             total_query["supplementary"] = copy.deepcopy(values_example)
             total_query["cost"] = copy.deepcopy(values_example)
-        if self._report_type == "instance_type":
-            count_usage = {"value": 0, "units": None}
-            total_query["usage"] = copy.deepcopy(count_usage)
-            total_query["count"] = copy.deepcopy(count_usage)
         for currency_entry in currency_codes:
             values = currency_entry.get("values")
             for data in values:
@@ -856,9 +850,15 @@ class ReportQueryHandler(QueryHandler):
                                 orig_value
                             )
                     elif key in ["count", "usage"]:
-                        orig_value = total_query.get(key).get("value")
-                        total_query[key]["value"] = Decimal(data.get(key).get("value")) + Decimal(orig_value)
-                        total_query[key]["units"] = data.get(key).get("units")
+                        check_val = data.get(key)
+                        if check_val:
+                            orig_value = total_query.get(key)
+                            if not orig_value:
+                                count_usage = {"value": 0, "units": None}
+                                total_query[key] = copy.deepcopy(count_usage)
+                            total_query_val = total_query.get(key).get("value")
+                            total_query[key]["value"] = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            total_query[key]["units"] = data.get(key).get("units")
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
@@ -871,7 +871,7 @@ class ReportQueryHandler(QueryHandler):
                             if new_val:
                                 total_query[key] = total_query.get(key, 0) + data.get(key)
                         if base_val and not isinstance(base_val, str):
-                            new_val = base_val + new_val
+                            new_val = list(filter(None, (base_val + new_val)))
                         total_query[key] = new_val
         return total_query
 

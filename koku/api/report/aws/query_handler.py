@@ -723,10 +723,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             total_query = query.aggregate(**aggregates)
 
         for unit_key, unit_value in units.items():
-            if self._report_type in ["costs", "instance_type"]:
+            total_query[unit_key] = unit_value
+            if self._report_type in ["costs", "instance_type"] and unit_key not in ["count_units", "usage_units"]:
                 total_query[unit_key] = self.currency
-            else:
-                total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts

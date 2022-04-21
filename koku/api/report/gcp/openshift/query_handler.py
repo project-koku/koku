@@ -75,7 +75,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -103,7 +102,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             for value in [
                 "infra_total",
@@ -123,7 +121,12 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 "cost_credit",
             ]:
                 orig_value = total_query[value]
-                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+                total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
+            for each in ["count", "usage"]:
+                orig_value = total_query.get(each)
+                new_val = query_set.get(each)
+                if new_val is not None:
+                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
     def execute_query(self):  # noqa: C901

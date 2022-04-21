@@ -265,9 +265,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
         else:
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
+            total_query[unit_key] = unit_value
             if self._report_type in ["costs", "instance_type"] and not self.is_csv_output:
-                total_query[unit_key] = self.currency
-            else:
-                total_query[unit_key] = unit_value
+                if unit_key not in ["count_units", "usage_units"]:
+                    total_query[unit_key] = self.currency
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
         return total_query
