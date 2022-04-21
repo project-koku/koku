@@ -59,19 +59,19 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
 
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
-        provider_id = report.get("provider_uuid")
+        provider_uuid = report.get("provider_uuid")
         tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
 
         stmt = (
             f"[collect_hcs_report_data_from_manifest] schema_name: {schema_name},"
             f"provider_type: {provider_type},"
-            f"provider_id: {provider_id},"
-            f"start_date: {start_date},"
-            f"end_date: {end_date}"
+            f"provider_uuid: {provider_uuid},"
+            f"start: {start_date},"
+            f"end: {end_date}"
         )
         LOG.debug(log_json(tracing_id, stmt))
 
-        collect_hcs_report_data(schema_name, provider_type, provider_id, start_date, end_date, tracing_id)
+        collect_hcs_report_data(schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id)
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
