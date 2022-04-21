@@ -99,7 +99,7 @@ class ReportDownloader:
             "OCP": OCPReportDownloader,
         }
         if self.provider_type in downloader_map:
-            return downloader_map[self.Provider_type](
+            return downloader_map[self.provider_type](
                 customer_name=self.customer_name,
                 credentials=self.credentials,
                 data_source=self.data_source,
