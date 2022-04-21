@@ -21,7 +21,7 @@ def enable_hcs_processing_mock(schema=True):
 
 
 @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-@patch("hcs.daily_report.ReportHCS")
+@patch("hcs.daily_report.ReportHCS.generate_report")
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
