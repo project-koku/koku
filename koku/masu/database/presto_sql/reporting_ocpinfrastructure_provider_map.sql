@@ -1,4 +1,26 @@
-{% if aws_provider_uuid or ocp_provider_uuid %}
+{% if check_gcp %}
+    WITH cte_openshift_cluster_info AS (
+    SELECT DISTINCT cluster_id,
+        cluster_alias,
+        cast(provider_id as varchar) as provider_id
+    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
+    ),
+    cte_distinct_gcp_labels AS (
+    SELECT DISTINCT labels,
+        source
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
+    WHERE source = '{{gcp_provider_uuid | sqlsafe}}'
+        AND year = '{{year | sqlsafe}}'
+        AND month = '{{month | sqlsafe}}'
+    ),
+    cte_label_keys AS (
+    SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
+        source
+    FROM cte_distinct_gcp_labels
+    )
+{% endif %}
+
+{% if check_aws %}
     SELECT DISTINCT ocp.source as ocp_uuid,
         aws.source as infra_uuid,
         'AWS' as type
@@ -22,11 +44,11 @@
         {% endif %}
 {% endif %}
 
-{% if ocp_provider_uuid  %}
+{% if ocp_provider_uuid and check_azure and check_aws  %}
     UNION
 {% endif %}
 
-{% if azure_provider_uuid or ocp_provider_uuid %}
+{% if check_azure %}
     SELECT DISTINCT ocp.source as ocp_uuid,
         azure.source as infra_uuid,
         'Azure' as type
@@ -50,30 +72,11 @@
         {% endif %}
 {% endif %}
 
-{% if ocp_provider_uuid  %}
+{% if ocp_provider_uuid and check_gcp and (check_aws or check_azure)  %}
     UNION
 {% endif %}
 
-{% if gcp_provider_uuid %}
-    WITH cte_openshift_cluster_info AS (
-    SELECT DISTINCT cluster_id,
-        cluster_alias,
-        provider_id
-    FROM postgres.{{schema | sqlsafe}}.reporting_ocp_clusters
-    ),
-    cte_distinct_gcp_labels AS (
-    SELECT DISTINCT labels,
-        source
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily
-    WHERE source = '{{gcp_provider_uuid | sqlsafe}}'
-        AND year = '{{year | sqlsafe}}'
-        AND month = '{{month | sqlsafe}}'
-    ),
-    cte_label_keys AS (
-    SELECT cast(json_parse(labels) as map(varchar, varchar)) as parsed_labels,
-        source
-    FROM cte_distinct_gcp_labels
-    )
+{% if check_gcp %}
     SELECT ocp.provider_id as ocp_uuid,
         gcp.source as infra_uuid,
         'GCP' as type
