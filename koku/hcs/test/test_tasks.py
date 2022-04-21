@@ -74,7 +74,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, "bogus", self.provider_uuid, start_date)
 
-            self.assertIn("Customer not registered with HCS", _logs.output[0])
+            self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
 
     def test_schema_no_acct_prefix(self, mock_report):
         """Test no start end provided"""
