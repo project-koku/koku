@@ -44,7 +44,7 @@
         {% endif %}
 {% endif %}
 
-{% if ocp_provider_uuid and check_azure  %}
+{% if ocp_provider_uuid and check_azure and check_aws  %}
     UNION
 {% endif %}
 
@@ -72,7 +72,7 @@
         {% endif %}
 {% endif %}
 
-{% if ocp_provider_uuid and check_gcp  %}
+{% if ocp_provider_uuid and check_gcp and (check_aws or check_azure)  %}
     UNION
 {% endif %}
 
