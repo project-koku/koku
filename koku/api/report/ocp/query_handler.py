@@ -170,7 +170,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 orig_value = total_query[value]
                 total_query[value] = orig_value + (query_set.get(value) * Decimal(exchange_rate))
 
-            for each in ["usage", "request", "capacity"]:
+            for each in ["usage", "request", "limit", "capacity"]:
                 orig_value = total_query.get(each)
                 new_val = query_set.get(each)
                 if new_val is not None:
@@ -209,7 +209,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         # Use date to see if we are out of the for loop
                         elif key == "delta_value" and data.get(key):
                             base_values[key] = base_values.get(key, 0) + data.get(key)
-                        elif key in ["usage", "request", "capacity"]:
+                        elif key in ["usage", "request", "limit", "capacity"]:
                             check_val = data.get(key)
                             if check_val:
                                 orig_value = base_values.get(key)
@@ -291,7 +291,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                             percent_ratio = percentage / 100
                             previous_total = current_delta / percent_ratio
                             overall_previous += previous_total
-                    elif key in ["usage", "request", "capacity"]:
+                    elif key in ["usage", "request", "limit", "capacity"]:
                         check_val = data.get(key)
                         if check_val:
                             orig_value = total_query.get(key)
@@ -330,7 +330,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by_value = self._get_group_by()
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query_group_by = ["date"] + group_by_value
-            if self._report_type in ["costs", "costs_by_project", "volume"] and not is_csv_output:
+            if self._report_type in ["costs", "costs_by_project", "volume", "cpu"] and not is_csv_output:
                 if self.query_table == OCPUsageLineItemDailySummary:
                     query_group_by.append("source_uuid")
                     self.report_annotations.pop("source_uuid")
@@ -352,7 +352,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type in ["costs", "costs_by_project", "volume"] and not is_csv_output:
+                if self._report_type in ["costs", "costs_by_project", "volume", "cpu"] and not is_csv_output:
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
@@ -407,8 +407,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 groups.remove("date")
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
-
-        if self._report_type in ["costs", "costs_by_project", "volume"]:
+        if self._report_type in ["costs", "costs_by_project", "volume", "cpu"]:
             sum_init = {"cost_units": self.currency}
         else:
             sum_init = {"cost_units": self._mapper.cost_units_key}
@@ -422,7 +421,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        if self._report_type in ["costs", "costs_by_project", "volume"] and not is_csv_output:
+        if self._report_type in ["costs", "costs_by_project", "volume", "cpu"] and not is_csv_output:
             groupby = self._get_group_by()
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         self.query_sum = ordered_total
