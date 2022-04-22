@@ -33,11 +33,10 @@ class ProviderErrors:
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
 
-    OCI_NO_REPORT_FOUND = "authentication.tenant.noreportfound"
+    OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
     OCI_BUCKET_MISSING = "billing_source.bucket.missing"
     OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
-    OCI_MISSING_TENANCY = "authentication.tenant.missing"
-    OCI_MISSING_LOCAL_DIR = "billing_source.data_source.local_dir.missing"
+    OCI_BUCKET_REGION_MISSING = "billing_source.bucket_region.missing"
 
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
@@ -112,7 +111,9 @@ class ProviderErrors:
     )
     OCI_BUCKET_NAMESPACE_MISSING_MESSAGE = (
         "Cost management requires the namespace for the OCI bucket storing cost and usage reports. "
-        "Edit your OCI source to include the namespace for your OCI bucket."
+        "Edit your OCI source to include the namespace of your OCI bucket."
     )
-    OCI_MISSING_TENANCY_MESSAGE = "Tenant is a required parameter for OCI and must not be blank."
-    OCI_MISSING_LOCAL_DIR_MESSAGE = "Local dir is a required param for local OCI testing."
+    OCI_BUCKET_REGION_MISSING_MESSAGE = (
+        "Cost management requires the region for the OCI bucket storing cost and usage reports. "
+        "Edit your OCI source to include the region of your OCI bucket."
+    )

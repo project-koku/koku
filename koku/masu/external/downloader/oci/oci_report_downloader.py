@@ -58,15 +58,16 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.customer_name = customer_name.replace(" ", "_")
         self.credentials = kwargs.get("credentials", {})
         self._provider_uuid = kwargs.get("provider_uuid")
-        self.tenant = self.credentials.get("tenant")
         self.namespace = data_source.get("bucket_namespace")
         self.bucket = data_source.get("bucket")
-        self._oci_client = self._get_oci_client()
+        self.region = data_source.get("bucket_region")
+        self._oci_client = self._get_oci_client(self.region)
 
     @staticmethod
-    def _get_oci_client():
+    def _get_oci_client(region):
         # Grab oci config credentials
         config = OCI_CONFIG
+        config["region"] = region
         oci_objects_client = oci.object_storage.ObjectStorageClient(config)
 
         return oci_objects_client

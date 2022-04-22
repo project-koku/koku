@@ -33,11 +33,9 @@ class OCILocalProviderTestCase(TestCase):
 
     def test_cost_usage_tenant_is_reachable(self):
         """Verify that the cost usage source is authenticated and created."""
-        credentials = {"tenant": "my_tenant"}
-        data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace"}
-
+        data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
+        credentials = "not-required"
         provider_interface = OCILocalProvider()
-
         try:
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception as error:
@@ -45,10 +43,8 @@ class OCILocalProviderTestCase(TestCase):
 
     def test_cost_usage_tenant_not_reachable(self):
         """Verify that the cost usage source is not authenticated and created when tenant/bucket is not provided."""
-        credentials = {"tenant": None}
-        data_source = {"bucket": None, "bucket_namespace": None}
-
+        data_source = {"bucket": None, "bucket_namespace": None, "bucket_region": None}
+        credentials = "not-required"
         provider_interface = OCILocalProvider()
-
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)

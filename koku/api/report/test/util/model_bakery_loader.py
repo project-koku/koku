@@ -457,7 +457,9 @@ class ModelBakeryDataLoader(DataLoader):
         provider_type = Provider.PROVIDER_OCI_LOCAL
         pay_id = self.faker.uuid4()
         credentials = {"tenant": pay_id}
-        billing_source = {"data_source": {"bucket": "oci_bucket", "bucket_namespace": "oci_namespace"}}
+        billing_source = {
+            "data_source": {"bucket": "oci_bucket", "bucket_namespace": "oci_namespace", "region": "my-region"}
+        }
 
         provider = self.create_provider(
             provider_type,

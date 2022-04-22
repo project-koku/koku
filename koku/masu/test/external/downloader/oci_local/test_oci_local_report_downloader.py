@@ -55,7 +55,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         shutil.copy2(test_report, self.csv_file_path)
 
         self.credentials = {"tenant": "test-tenant"}
-        self.data_source = {"bucket": local_dir, "bucket_namespace": "test-namespace"}
+        self.data_source = {"bucket": local_dir, "bucket_namespace": "test-namespace", "region": "my-region"}
 
         self.report_downloader = ReportDownloader(
             customer_name=self.fake_customer_name,

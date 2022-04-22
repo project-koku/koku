@@ -22,11 +22,11 @@ class OCILocalProvider(OCIProvider):
         """Return name of the provider."""
         return Provider.PROVIDER_OCI_LOCAL
 
-    def cost_usage_source_is_reachable(self, credentials, data_source):
+    def cost_usage_source_is_reachable(self, _, data_source):
         """Verify that the cost usage source exists and is reachable."""
         local_dir = data_source.get("bucket")
         if not local_dir:
-            key = ProviderErrors.OCI_MISSING_LOCAL_DIR
-            message = ProviderErrors.OCI_MISSING_LOCAL_DIR_MESSAGE
+            key = ProviderErrors.OCI_BUCKET_MISSING
+            message = ProviderErrors.OCI_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
         return True
