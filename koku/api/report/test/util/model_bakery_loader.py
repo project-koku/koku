@@ -40,6 +40,7 @@ BILL_MODELS = {
     Provider.PROVIDER_GCP: "GCPCostEntryBill",
     Provider.PROVIDER_GCP_LOCAL: "GCPCostEntryBill",
     Provider.PROVIDER_OCP: "OCPUsageReportPeriod",
+    Provider.PROVIDER_OCI_LOCAL: "OCICostEntryBill",
 }
 LOG = logging.getLogger(__name__)
 
@@ -449,3 +450,44 @@ class ModelBakeryDataLoader(DataLoader):
             cls_method(sql_params)
 
         refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
+
+    def load_oci_data(self, linked_openshift_provider=None):
+        """Load OCI data for tests."""
+        bills = []
+        provider_type = Provider.PROVIDER_OCI_LOCAL
+        pay_id = self.faker.uuid4()
+        credentials = {"tenant": pay_id}
+        billing_source = {"data_source": {"bucket": "oci_bucket", "bucket_namespace": "oci_namespace"}}
+
+        provider = self.create_provider(
+            provider_type,
+            credentials,
+            billing_source,
+            "test-oci",
+        )
+        for start_date, end_date, bill_date in self.dates:
+            LOG.info(f"load oci data for start: {start_date}, end: {end_date}")
+            self.create_manifest(provider, bill_date)
+            bill = self.create_bill(provider_type, provider, bill_date)
+            bills.append(bill)
+        # TODO: Uncomment this when we start testinging processing
+        #     with schema_context(self.schema):
+        #         days = (end_date - start_date).days
+        #         for i in range(days):
+        #             baker.make_recipe(
+        #                 "api.report.test.util.oci_daily_summary",
+        #                 cost_entry_bill=bill,
+        #                 payer_tenant_id=pay_id,
+        #                 usage_start=start_date + timedelta(i),
+        #                 usage_end=start_date + timedelta(i),
+        #                 tags=cycle(self.tags),
+        #                 currency=self.currency,
+        #                 source_uuid=provider.uuid,
+        #                 _quantity=len(self.tags),
+        #             )
+        # bill_ids = [bill.id for bill in bills]
+        # with OCIReportDBAccessor(self.schema) as accessor:
+        #     accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
+        #     accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
+        # refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
+        return bills

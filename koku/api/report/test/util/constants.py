@@ -262,3 +262,29 @@ OCP_ON_PREM_COST_MODEL = {
         },
     ],
 }
+
+# TODO: Uncomment this when we start testinging processing
+# OCI_SERVICE_NAMES = (
+#     "SQL Database",
+#     "Virtual Machines",
+#     "Virtual Machines",
+#     "Virtual Network",
+#     "DNS",
+#     "Load Balancer",
+#     "General Block Blob",
+#     "Blob Storage",
+#     "Standard SSD Managed Disks",
+# )
+# OCI_INSTANCE_TYPES = (None, "Standard_A0", "Standard_B2s") + (None,) * 6
+# OCI_INSTANCE_IDS = ([None], ["id1"], ["id2"]) + ([None],) * 6
+# OCI_INSTANCE_COUNTS = (0, 1, 1) + (0,) * 6
+# OCI_UNITS_OF_MEASURE = ("Hrs",) * 3 + (None,) * 3 + ("GB-Mo",) * 3
+# OCI_CONSTANTS = SameLengthDict(
+#     {
+#         "service_names": OCI_SERVICE_NAMES,
+#         "instance_types": OCI_INSTANCE_TYPES,
+#         "instance_ids": OCI_INSTANCE_IDS,
+#         "instance_counts": OCI_INSTANCE_COUNTS,
+#         "units_of_measure": OCI_UNITS_OF_MEASURE,
+#     }
+# )
