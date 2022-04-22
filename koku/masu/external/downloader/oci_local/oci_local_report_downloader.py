@@ -4,7 +4,6 @@
 #
 """OCI Local Report Downloader."""
 import datetime
-import hashlib
 import logging
 import os
 import shutil
@@ -169,27 +168,22 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and OCI's etag.
 
         """
-        tenancy = self.credentials.get("tenant")
-
-        directory_path = f"{DATA_DIR}/{self.customer_name}/oci-local/{tenancy}"
+        directory_path = f"{DATA_DIR}/{self.customer_name}/oci-local{self.storage_location}"
         full_file_path = f"{directory_path}/{key}"
-
-        base_path = f"/tmp/oci_local/{key}"
+        etag = key
+        base_path = f"{self.storage_location}/{key}"
 
         if not os.path.isfile(base_path):
-            log_msg = f"Unable to locate {base_path} in {tenancy}"
+            log_msg = f"Unable to locate {key} in {self.storage_location}"
             raise OCIReportDownloaderNoFileError(log_msg)
 
         # Make sure the data directory exists
         os.makedirs(directory_path, exist_ok=True)
-        etag_hasher = hashlib.new("ripemd160")
-        etag_hasher.update(bytes(key, "utf-8"))
-        etag = etag_hasher.hexdigest()
 
         file_creation_date = None
         msg = f"Returning full_file_path: {full_file_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
-        if etag != stored_etag or not os.path.isfile(full_file_path):
+        if not os.path.isfile(full_file_path):
             msg = f"Downloading {base_path} to {full_file_path}"
             LOG.info(log_json(self.tracing_id, msg, self.context))
             shutil.copy2(base_path, full_file_path)

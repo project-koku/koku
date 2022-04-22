@@ -453,7 +453,7 @@ ENABLE_TRINO_SOURCES = ENVIRONMENT.list("ENABLE_TRINO_SOURCES", default=[])
 ENABLE_TRINO_ACCOUNTS = ENVIRONMENT.list("ENABLE_TRINO_ACCOUNTS", default=[])
 ENABLE_TRINO_SOURCE_TYPE = ENVIRONMENT.list("ENABLE_TRINO_SOURCE_TYPE", default=[])
 
-# OCI tenant settings
+# OCI tenant settings TODO!! This region set needs to match the region of the bucket we are trying to access, could request that the replication bucket is in a particular region!!
 OCI_CONFIG = {
     "user": ENVIRONMENT.get_value("OCI_CLI_USER", default="OCI_USER"),
     "key_file": ENVIRONMENT.get_value("OCI_CLI_KEY_FILE", default="None"),

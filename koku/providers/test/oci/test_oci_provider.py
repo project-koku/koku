@@ -84,7 +84,7 @@ class OCIProviderTestCase(TestCase):
         provider_interface = OCIProvider()
         try:
             credentials = {"tenant": "ocid1.tenancy.oc1..my_tenant"}
-            data_source = None
+            data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
@@ -94,7 +94,7 @@ class OCIProviderTestCase(TestCase):
         provider_interface = OCIProvider()
         with self.assertRaises(ValidationError):
             credentials = {"tenant": None}
-            data_source = None
+            data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace"}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
     @patch(
@@ -113,6 +113,6 @@ class OCIProviderTestCase(TestCase):
         """Verify that the cost usage source bucket is not accessible."""
         provider_interface = OCIProvider()
         with self.assertRaises(ValidationError):
-            credentials = {"tenant": None}
-            data_source = None
+            credentials = {"tenant": "my-tenant"}
+            data_source = {"bucket": None, "bucket_namespace": None}
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
