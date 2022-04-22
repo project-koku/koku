@@ -45,13 +45,13 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         super().setUp()
         self.start_date = datetime(year=2020, month=11, day=8).date()
         self.invoice = "202011"
-        self.customer = "acct10001"
         self.etag = "reports_cost-csv_0001000000603747.csv"
         test_report = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
         self.local_storage = tempfile.mkdtemp()
         local_dir = f"{self.local_storage}"
         self.csv_file_name = test_report.split("/")[-1]
         self.csv_file_path = f"{local_dir}/{self.csv_file_name}"
+        self.testing_dir = f"{DATA_DIR}/{CUSTOMER_NAME}/oci-local{self.local_storage}/{self.etag}"
         shutil.copy2(test_report, self.csv_file_path)
 
         self.credentials = {"tenant": "test-tenant"}
@@ -62,7 +62,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
             credentials=self.credentials,
             data_source=self.data_source,
             provider_type=Provider.PROVIDER_OCI_LOCAL,
-            provider_uuid=self.provider_uuid,
+            provider_uuid=self.oci_provider_uuid,
         )
 
         self.oci_local_report_downloader = OCILocalReportDownloader(
@@ -70,7 +70,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
                 "customer_name": self.fake_customer_name,
                 "credentials": self.credentials,
                 "data_source": self.data_source,
-                "provider_uuid": self.provider_uuid,
+                "provider_uuid": self.oci_provider_uuid,
             }
         )
 
@@ -86,25 +86,24 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         """Test OCI-Local report download."""
 
         full_file_path, etag, _, __ = self.oci_local_report_downloader.download_file(self.csv_file_name)
-        self.assertEqual(full_file_path, self.csv_file_path)
+        self.assertEqual(full_file_path, self.testing_dir)
         self.assertIsNotNone(etag)
         self.assertEqual(etag, self.etag)
 
         # Download a second time, verify etag is returned
         full_file_path, second_run_etag, _, __ = self.oci_local_report_downloader.download_file(self.csv_file_name)
         self.assertEqual(etag, second_run_etag)
-        self.assertEqual(full_file_path, self.csv_file_path)
+        self.assertEqual(full_file_path, self.testing_dir)
 
     def test_get_manifest_for_date(self):
         """Test OCI-local get manifest."""
-        expected_assembly_id = ":".join([str(self.provider_uuid), self.invoice])
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])
         result_report_dict = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
         self.assertEqual(result_report_dict.get("assembly_id"), expected_assembly_id)
-        result_files = result_report_dict.get("files")
+        result_files = result_report_dict.get("file_names")
         self.assertTrue(result_files)
-        for file_info in result_files:
-            self.assertEqual(file_info.get("key"), self.csv_file_name)
-            self.assertEqual(file_info.get("local_file"), self.csv_file_name)
+        for file in result_files:
+            self.assertEqual(file[0], self.csv_file_name)
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
@@ -144,7 +143,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
 
     def test_generate_monthly_pseudo_manifest(self):
         """Test generating the monthly manifest."""
-        expected_assembly_id = ":".join([str(self.provider_uuid), self.invoice])
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])
         result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
         self.assertTrue(result_manifest_data)
         self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
