@@ -181,22 +181,28 @@ class ProviderManager:
                 provider=self.model, billing_period_start_datetime=month
             ).order_by("manifest_creation_datetime")
 
-            ocp_on_cloud_updated_datetime = None
-            if self.model.type == Provider.PROVIDER_OCP:
-                LOG.info((self.model.type, month))
-                ocp_on_cloud_updated_datetime = (
-                    OCPUsageReportPeriod.objects.filter(provider=self.model, report_period_start=month)
-                    .first()
-                    .ocp_on_cloud_updated_datetime
-                )
-            if ocp_on_cloud_updated_datetime:
-                ocp_on_cloud_updated_datetime = ocp_on_cloud_updated_datetime.strftime(DATE_TIME_FORMAT)
-                if (
-                    provider_stats["ocp_on_cloud_data_updated_date"] is None
-                    or ocp_on_cloud_updated_datetime > provider_stats["ocp_on_cloud_data_updated_date"]
-                ):
-                    provider_stats["ocp_on_cloud_data_updated_date"] = ocp_on_cloud_updated_datetime
-            provider_stats[stats_key]["ocp_on_cloud_updated_datetime"] = ocp_on_cloud_updated_datetime
+            if self.model.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+                clusters = Provider.objects.filter(infrastructure__infrastructure_provider_id=self.model.uuid).all()
+                report_periods = OCPUsageReportPeriod.objects.filter(
+                    provider__in=clusters, report_period_start=month
+                ).all()
+                ocp_on_cloud_updates = []
+
+                for rp in report_periods:
+                    updated_date_str = (
+                        rp.ocp_on_cloud_updated_datetime.strftime(DATE_TIME_FORMAT)
+                        if rp.ocp_on_cloud_updated_datetime
+                        else ""
+                    )
+                    ocp_on_cloud_updates.append(
+                        {"ocp_source_uuid": str(rp.provider_id), "ocp_on_cloud_updated_datetime": updated_date_str}
+                    )
+                    if (
+                        provider_stats["ocp_on_cloud_data_updated_date"] is None
+                        or updated_date_str > provider_stats["ocp_on_cloud_data_updated_date"]
+                    ):
+                        provider_stats["ocp_on_cloud_data_updated_date"] = updated_date_str
+                provider_stats[stats_key]["ocp_on_cloud"] = ocp_on_cloud_updates
 
             for provider_manifest in stats_query.reverse()[:3]:
                 month_stats.append(self.generate_manifest_status(provider_manifest))
