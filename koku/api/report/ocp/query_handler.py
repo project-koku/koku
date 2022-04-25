@@ -235,7 +235,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
                                 dikt[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
                         elif key == "delta_value" and data.get(key):
-                            dikt[key] = base_values.get(key, 0) + data.get(key)
+                            dikt[key] = dikt.get(key, 0) + data.get(key)
                         elif key == "delta_percent":
                             current_delta = data.get("delta_value", 0)
                             percentage = data.get("delta_percent", None)
@@ -247,7 +247,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 if update_previous:
                                     overall_previous += previous_total
                         else:
-                            base_val = total_query.get(key)
+                            base_val = dikt.get(key)
                             new_val = data.get(key)
                             if key in ["clusters", "source_uuid"]:
                                 if not isinstance(base_val, list):
@@ -259,7 +259,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                             dikt[key] = new_val
                         update_previous = False
         if total_query.get("delta_value") and overall_previous:
-            total_query["delta_percentage"] = (total_query.get("delta_value") / overall_previous) * 100
+            total_query["delta_percent"] = (total_query.get("delta_value") / overall_previous) * 100
         return total_query, currencys
 
     # def get_currency_codes_ocp(self, currency_codes, all_group_by):  # noqa: C901
