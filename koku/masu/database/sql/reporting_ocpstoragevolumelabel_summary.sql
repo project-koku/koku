@@ -7,7 +7,7 @@ create table {{schema | sqlsafe}}.cte_tag_value_{{uuid | sqlsafe}} as
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary AS li,
         jsonb_each_text(li.volume_labels) labels
     WHERE li.data_source = 'Storage'
-    {% if report_periods %}
+    {% if report_period_ids %}
         AND li.report_period_id IN (
         {%- for report_period_id in report_period_ids -%}
         {{report_period_id}}{% if not loop.last %},{% endif %}
