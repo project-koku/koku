@@ -175,10 +175,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return total_query
 
-    def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
-        """Aggregate and format the data after currency."""
+    def aggregate_currency_codes(self, currency_codes):  # noqa: C901
+        """Aggregate and format the unconverted after currency."""
+        # New copy may not be needed
         new_copy = copy.deepcopy(currency_codes)
-        total_query = {
+        total_results = {
             "date": None,
             "source_uuid": [],
             "clusters": [],
@@ -204,184 +205,70 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 "total": {"value": 0, "units": self.currency},
             },
         }
-        overall_previous = 0
+        overall_previous_total = 0
         currencys = {}
         for currency_entry in new_copy:
-            values = currency_entry.get("values")
+            unconverted_values = currency_entry.get("values")
             source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
             currency = self._get_base_currency(source_uuid_id)
             exchange_rate = self._get_exchange_rate(currency)
-            dikts_to_update = [total_query]
-            for data in values:
-                base_values = currencys.get(currency)
+            ui_dikts = [total_results]
+            for unconverted in unconverted_values:
+                currencys_values = currencys.get(currency)
                 if currency not in currencys.keys():
                     new_structure = {}
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         new_structure[structure] = {}
                         for each in ["raw", "markup", "usage", "distributed", "total"]:
-                            new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
-                            new_structure[structure][each] = {"value": new_value, "units": self.currency}
+                            converted = Decimal(unconverted.get(structure).get(each).get("value")) * Decimal(
+                                exchange_rate
+                            )
+                            new_structure[structure][each] = {"value": converted, "units": self.currency}
                     currencys[currency] = new_structure
                 else:
-                    dikts_to_update.append(base_values)
-                data_keys = data.keys()
+                    # if we have seen that currency before append it to the list
+                    # to be updated with previous_converted + converted
+                    ui_dikts.append(currencys_values)
+                data_keys = unconverted.keys()
                 remove_keys = ["source_uuid_id"]
                 keys = list(filter(lambda w: w not in remove_keys, data_keys))
                 for key in keys:
-                    update_previous = True
-                    for dikt in dikts_to_update:
+                    sum_previous_delta = True
+                    for ui_view_dikt in ui_dikts:
                         if key in ["infrastructure", "supplementary", "cost"]:
                             for each in ["raw", "markup", "usage", "distributed", "total"]:
-                                orig_value = dikt.get(key).get(each).get("value")
-                                new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
-                                dikt[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
-                        elif key == "delta_value" and data.get(key):
-                            dikt[key] = dikt.get(key, 0) + data.get(key)
+                                current_ui_value = ui_view_dikt.get(key).get(each).get("value")
+                                converted = Decimal(unconverted.get(key).get(each).get("value")) * Decimal(
+                                    exchange_rate
+                                )
+                                ui_view_dikt[key][each]["value"] = Decimal(converted) + Decimal(current_ui_value)
+                        elif key == "delta_value" and unconverted.get(key):
+                            ui_view_dikt[key] = ui_view_dikt.get(key, 0) + unconverted.get(key)
                         elif key == "delta_percent":
-                            current_delta = data.get("delta_value", 0)
-                            percentage = data.get("delta_percent", None)
+                            current_delta = unconverted.get("delta_value", 0)
+                            percentage = unconverted.get("delta_percent", None)
                             # To calculate the overall delta percentage we need the overall previous_total.
                             # percentage = (delta / previous_toal) * 100
                             if percentage:
                                 percent_ratio = percentage / 100
                                 previous_total = current_delta / percent_ratio
-                                if update_previous:
-                                    overall_previous += previous_total
+                                if sum_previous_delta:
+                                    overall_previous_total += previous_total
                         else:
-                            base_val = dikt.get(key)
-                            new_val = data.get(key)
+                            current_vals = ui_view_dikt.get(key)
+                            new_val = unconverted.get(key)
                             if key in ["clusters", "source_uuid"]:
-                                if not isinstance(base_val, list):
-                                    base_val = [base_val]
+                                if not isinstance(current_vals, list):
+                                    current_vals = [current_vals]
                                 if not isinstance(new_val, list):
                                     new_val = [new_val]
-                            if base_val and not isinstance(base_val, str):
-                                new_val = base_val + new_val
-                            dikt[key] = new_val
-                        update_previous = False
-        if total_query.get("delta_value") and overall_previous:
-            total_query["delta_percent"] = (total_query.get("delta_value") / overall_previous) * 100
-        return total_query, currencys
-
-    # def get_currency_codes_ocp(self, currency_codes, all_group_by):  # noqa: C901
-    #     """Format the same as the other endpoints."""
-    #     # currencys = {}
-
-    # for currency_entry in currency_codes:
-    # values = currency_entry.get("values")
-    # source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
-    # currency = self._get_base_currency(source_uuid_id)
-    # exchange_rate = self._get_exchange_rate(currency)
-    # for data in values:
-    # if currency not in currencys.keys():
-    #     for structure in ["infrastructure", "supplementary", "cost"]:
-    #         for each in ["raw", "markup", "usage", "total", "distributed"]:
-    #             new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
-    #             data[structure][each]["value"] = new_value
-    #             data[structure][each]["units"] = self.currency
-    #     currencys[currency] = data
-    # else:
-    # base_values = currencys.get(currency)
-    # remove_keys = ["source_uuid_id", "delta_percent"]
-    # data_keys = data.keys()
-    # remove source_uuid_id from data keys
-    # keys = list(filter(lambda w: w not in remove_keys, data_keys))
-    # for key in keys:
-    # if key in ["infrastructure", "supplementary", "cost"]:
-    #     for each in ["raw", "markup", "usage", "total", "distributed"]:
-    #         orig_value = base_values.get(key).get(each).get("value")
-    #         new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
-    #         base_values[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
-    # Use date to see if we are out of the for loop
-    # elif key == "delta_value" and data.get(key):
-    #     base_values[key] = base_values.get(key, 0) + data.get(key)
-    # else:
-    #     base_val = base_values.get(key)
-    #     new_val = data.get(key)
-    #     if key in ["clusters", "source_uuid"]:
-    #         if not isinstance(base_val, list):
-    #             base_val = [base_val]
-    #         if not isinstance(new_val, list):
-    #             new_val = [new_val]
-    #     if base_val and not isinstance(base_val, str):
-    #         new_val = base_val + new_val
-    #     base_values[key] = new_val
-    # return currencys
-
-    # def aggregate_currency_codes2(self, currency_codes, all_group_by):  # noqa: C901
-    #     """Aggregate and format the data after currency."""
-    # new_copy = copy.deepcopy(currency_codes)
-    # new_codes = self.get_currency_codes_ocp(new_copy, all_group_by)
-    # total_query = {
-    #     "date": None,
-    #     "source_uuid": [],
-    #     "clusters": [],
-    #     "infrastructure": {
-    #         "raw": {"value": 0, "units": self.currency},
-    #         "markup": {"value": 0, "units": self.currency},
-    #         "usage": {"value": 0, "units": self.currency},
-    #         "distributed": {"value": 0, "units": self.currency},
-    #         "total": {"value": 0, "units": self.currency},
-    #     },
-    #     "supplementary": {
-    #         "raw": {"value": 0, "units": self.currency},
-    #         "markup": {"value": 0, "units": self.currency},
-    #         "usage": {"value": 0, "units": self.currency},
-    #         "distributed": {"value": 0, "units": self.currency},
-    #         "total": {"value": 0, "units": self.currency},
-    #     },
-    #     "cost": {
-    #         "raw": {"value": 0, "units": self.currency},
-    #         "markup": {"value": 0, "units": self.currency},
-    #         "usage": {"value": 0, "units": self.currency},
-    #         "distributed": {"value": 0, "units": self.currency},
-    #         "total": {"value": 0, "units": self.currency},
-    #     },
-    # }
-    # overall_previous = 0
-    # for currency_entry in currency_codes:
-    # values = currency_entry.get("values")
-    # for data in values:
-    # source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
-    # base_currency = self._get_base_currency(source_uuid_id)
-    # exchange_rate = self._get_exchange_rate(base_currency)
-
-    # data_keys = data.keys()
-    # remove source_uuid_id from data keys
-    # remove_keys = ["source_uuid_id"]
-    # keys = list(filter(lambda w: w not in remove_keys, data_keys))
-    # for key in keys:
-    # if key in ["infrastructure", "supplementary", "cost"]:
-    #     for each in ["raw", "markup", "usage", "total", "distributed"]:
-    #         orig_value = total_query.get(key).get(each).get("value")
-    #         new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
-    #         total_query[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
-    # elif key == "delta_value" and data.get(key):
-    #     # We can just add all of the delta_values together to get the aggregated deltas
-    #     total_query[key] = total_query.get(key, 0) + data.get(key)
-    # elif key == "delta_percent":
-    #     current_delta = data.get("delta_value", 0)
-    #     percentage = data.get("delta_percent", None)
-    #     # To calculate the overall delta percentage we need the overall previous_total.
-    #     # percentage = (delta / previous_toal) * 100
-    #     if percentage:
-    #         percent_ratio = percentage / 100
-    #         previous_total = current_delta / percent_ratio
-    #         overall_previous += previous_total
-    # else:
-    #     base_val = total_query.get(key)
-    #     new_val = data.get(key)
-    #     if key in ["clusters", "source_uuid"]:
-    #         if not isinstance(base_val, list):
-    #             base_val = [base_val]
-    #         if not isinstance(new_val, list):
-    #             new_val = [new_val]
-    #     if base_val and not isinstance(base_val, str):
-    #         new_val = base_val + new_val
-    #     total_query[key] = new_val
-    # if total_query.get("delta_value") and overall_previous:
-    #     total_query["delta_percentage"] = (total_query.get("delta_value") / overall_previous) * 100
-    # return total_query, new_codes
+                            if current_vals and not isinstance(current_vals, str):
+                                new_val = current_vals + new_val
+                            ui_view_dikt[key] = new_val
+                        sum_previous_delta = False
+        if total_results.get("delta_value") and overall_previous_total:
+            total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
+        return total_results, currencys
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.

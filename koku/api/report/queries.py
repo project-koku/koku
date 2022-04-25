@@ -775,16 +775,15 @@ class ReportQueryHandler(QueryHandler):
 
     def aggregate_currency_codes_ui(self, out_data):
         """Aggregate currency code info for UI."""
-        all_group_by = self._get_group_by()
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
-            total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
+            total_query = self.aggregate_currency_codes(currency_codes)
             out_data["values"] = [total_query]
             currencys = out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currencys
         else:
-            total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
+            total_query, new_codes = self.aggregate_currency_codes(currency_codes)
             out_data["values"] = [total_query]
             currency_list = []
             for key, value in new_codes.items():
@@ -794,7 +793,7 @@ class ReportQueryHandler(QueryHandler):
             out_data["currencys"] = currency_list
         return out_data
 
-    def aggregate_currency_codes(self, currency_codes, all_group_by):  # noqa: C901
+    def aggregate_currency_codes(self, currency_codes):  # noqa: C901
         """Aggregate and format the data after currency."""
         total_query = {
             "date": None,
