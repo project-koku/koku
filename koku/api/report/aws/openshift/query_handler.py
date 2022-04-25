@@ -135,7 +135,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
 
         self.query_data = data
-        print("DATA: ", self.query_data)
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 

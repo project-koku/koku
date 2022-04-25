@@ -268,7 +268,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
             total_query[unit_key] = unit_value
             if self._report_type in ["costs", "storage"] and not self.is_csv_output:
                 if unit_key not in ["cost_unites", "usage_units"]:
-                    print("UNIT: ", unit_key)
                     total_query[unit_key] = self.currency
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
         return total_query

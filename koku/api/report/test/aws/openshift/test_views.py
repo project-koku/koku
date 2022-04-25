@@ -131,10 +131,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         for item in data.get("data"):
             if item.get("values"):
-                print("VALUES: ", item.get("values"))
                 values = list(item.get("values")[0])
-                print()
-                print("VALUES: ", values)
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 
