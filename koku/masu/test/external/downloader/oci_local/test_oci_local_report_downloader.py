@@ -100,10 +100,10 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])
         result_report_dict = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
         self.assertEqual(result_report_dict.get("assembly_id"), expected_assembly_id)
-        result_files = result_report_dict.get("file_names")
+        result_files = result_report_dict.get("files")
         self.assertTrue(result_files)
         for file in result_files:
-            self.assertEqual(file[0], self.csv_file_name)
+            self.assertEqual(file["key"], self.csv_file_name)
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
@@ -137,9 +137,8 @@ class OCILocalReportDownloaderTest(MasuTestCase):
 
     def test_extract_names(self):
         """Test extract names creates mapping."""
-        result_mapping = self.oci_local_report_downloader._extract_names()
-        file_data = result_mapping.get(self.invoice, {})
-        self.assertIsNotNone(file_data)
+        filenames = self.oci_local_report_downloader._extract_names()
+        self.assertIsNotNone(filenames)
 
     def test_generate_monthly_pseudo_manifest(self):
         """Test generating the monthly manifest."""
@@ -147,13 +146,6 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
         self.assertTrue(result_manifest_data)
         self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
-
-    @patch("masu.external.downloader.oci_local.oci_local_report_downloader.ReportManifestDBAccessor.get_manifest")
-    def test_generate_monthly_pseudo_manifest_already_exist(self, patch_manifest):
-        """Test manifest already exists."""
-        patch_manifest.side_effect = [True]
-        manifest = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
-        self.assertEqual(manifest, {})
 
     def test_remove_manifest_file(self):
         """Test remove manifest file."""

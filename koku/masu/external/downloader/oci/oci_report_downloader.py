@@ -272,6 +272,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.request_id, msg, self.context))
         msg = f"Downloading {key} to {full_local_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
+        # try:
         report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
 
         with open(full_local_path, "wb") as f:
@@ -283,6 +284,14 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.update_last_reports("usage", key, manifest_id)
         else:
             self.update_last_reports("cost", key, manifest_id)
+        # except ClientError as err:
+        #     err_msg = (
+        #         "Could not download file."
+        #         f"\n  Provider: {self._provider_uuid}"
+        #         f"\n  Customer: {self.customer_name}"
+        #         f"\n  Response: {err.message}"
+        #     )
+        #     LOG.warning(err_msg)
 
         return full_local_path, etag, file_creation_date, []
 
