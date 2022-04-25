@@ -75,7 +75,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -103,7 +102,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             for value in [
                 "infra_total",
@@ -123,7 +121,12 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 "cost_credit",
             ]:
                 orig_value = total_query[value]
-                total_query[value] = round(orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate), 9)
+                total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
+            for each in ["count", "usage"]:
+                orig_value = total_query.get(each)
+                new_val = query_set.get(each)
+                if new_val is not None:
+                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
     def execute_query(self):  # noqa: C901
@@ -145,7 +148,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             if (
-                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                 and not is_csv_output
             ):
                 query_group_by.append("currency")
@@ -161,7 +164,8 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
                 if (
-                    self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                    self._report_type
+                    in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                     and not is_csv_output
                 ):
                     metric_sum = self.return_total_query(query_data)
@@ -220,7 +224,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
         init_order_keys = []
         if (
-            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
             and not self.is_csv_output
         ):
             query_sum["cost_units"] = self.currency
@@ -239,6 +243,9 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         self.query_sum = ordered_total
         self.query_data = data
         groupby = self._get_group_by()
-        if self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"] and not is_csv_output:
+        if (
+            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
+            and not is_csv_output
+        ):
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()

@@ -40,7 +40,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             if (
-                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                 and not is_csv_output
             ):
                 query_group_by.append("currency_code")
@@ -62,7 +62,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
                 if (
-                    self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                    self._report_type
+                    in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                     and not is_csv_output
                 ):
                     metric_sum = self.return_total_query(query_data)
@@ -119,7 +120,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
-        if self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]:
+        if self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]:
             query_sum["cost_units"] = self.currency
         else:
             query_sum["cost_units"] = cost_units_value
@@ -138,7 +139,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 
-        if self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"] and not is_csv_output:
+        if (
+            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
+            and not is_csv_output
+        ):
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 

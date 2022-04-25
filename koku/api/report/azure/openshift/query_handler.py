@@ -84,7 +84,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             if (
-                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                 and not self.is_csv_output
             ):
                 query_group_by.append("currency")
@@ -100,7 +100,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
                 if (
-                    self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+                    self._report_type
+                    in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
                     and not self.is_csv_output
                 ):
                     metric_sum = self.return_total_query(query_data)
@@ -159,7 +160,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
         init_order_keys = []
         if (
-            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
             and not self.is_csv_output
         ):
             query_sum["cost_units"] = self.currency
@@ -180,7 +181,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         groupby = self._get_group_by()
 
         if (
-            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project"]
+            self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
             and not self.is_csv_output
         ):
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)

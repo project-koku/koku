@@ -129,7 +129,6 @@ class ReportQueryHandler(QueryHandler):
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -158,7 +157,6 @@ class ReportQueryHandler(QueryHandler):
                 Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             generic_list = [
                 "infra_total",
@@ -179,7 +177,7 @@ class ReportQueryHandler(QueryHandler):
             for value in generic_list:
                 orig_value = total_query[value]
                 total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
-            for each in ["usage"]:
+            for each in ["count", "usage"]:
                 orig_value = total_query.get(each)
                 new_val = query_set.get(each)
                 if new_val is not None:
@@ -697,7 +695,7 @@ class ReportQueryHandler(QueryHandler):
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
-        if self._report_type == "costs":
+        if self._report_type in ["costs", "instance_type"]:
             exchange_rate = 1
             if source_uuid:
                 base_currency = self._get_base_currency(source_uuid[0])
@@ -859,7 +857,7 @@ class ReportQueryHandler(QueryHandler):
                             total_query[key][each]["value"] = Decimal(data.get(key).get(each).get("value")) + Decimal(
                                 orig_value
                             )
-                    elif key in ["usage"]:
+                    elif key in ["count", "usage"]:
                         check_val = data.get(key)
                         if check_val:
                             orig_value = total_query.get(key)
@@ -914,7 +912,7 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-        if self.provider != Provider.PROVIDER_OCP and self._report_type in ["costs", "storage"]:
+        if self.provider != Provider.PROVIDER_OCP and self._report_type in ["costs", "storage", "instance_type"]:
             out_data = self._apply_exchange_rate(out_data)
         return out_data
 
@@ -1308,7 +1306,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         codes = self.get_codes()
-        if self._report_type in ["costs", "storage"]:
+        if self._report_type in ["costs", "storage", "instance_type"]:
             delta_group_by.append(codes.get(self.provider)[:-1])
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
