@@ -218,7 +218,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     new_structure = {}
                     for structure in ["infrastructure", "supplementary", "cost"]:
                         new_structure[structure] = {}
-                        for each in ["raw", "markup", "usage", "total", "distributed"]:
+                        for each in ["raw", "markup", "usage", "distributed", "total"]:
                             new_value = Decimal(data.get(structure).get(each).get("value")) * Decimal(exchange_rate)
                             new_structure[structure][each] = {"value": new_value, "units": self.currency}
                     currencys[currency] = new_structure
@@ -231,7 +231,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     update_previous = True
                     for dikt in dikts_to_update:
                         if key in ["infrastructure", "supplementary", "cost"]:
-                            for each in ["raw", "markup", "usage", "total", "distributed"]:
+                            for each in ["raw", "markup", "usage", "distributed", "total"]:
                                 orig_value = dikt.get(key).get(each).get("value")
                                 new_value = Decimal(data.get(key).get(each).get("value")) * Decimal(exchange_rate)
                                 dikt[key][each]["value"] = Decimal(new_value) + Decimal(orig_value)
