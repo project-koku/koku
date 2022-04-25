@@ -787,12 +787,18 @@ class ReportQueryHandler(QueryHandler):
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
             total_query = self.aggregate_currency_codes(currency_codes, all_group_by)
-            out_data["values"] = [total_query]
+            total_query_list = [total_query]
+            if not total_query.get("date"):
+                total_query_list = []
+            out_data["values"] = total_query_list
             currencys = out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currencys
         else:
             total_query, new_codes = self.aggregate_currency_codes(currency_codes, all_group_by)
-            out_data["values"] = [total_query]
+            total_query_list = [total_query]
+            if not total_query.get("date"):
+                total_query_list = []
+            out_data["values"] = total_query_list
             currency_list = []
             for key, value in new_codes.items():
                 cur_dictionary = {"currency": key, "values": [value]}
