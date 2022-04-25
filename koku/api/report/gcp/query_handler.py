@@ -171,7 +171,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not self.is_csv_output:
+            if self._report_type in ["costs", "storage"] and not self.is_csv_output:
                 query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -237,7 +237,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         self.query_sum = ordered_total
         groupby = self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
+        if self._report_type in ["costs", "storage"] and not self.is_csv_output:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
@@ -252,22 +252,23 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
+        if self._report_type in ["costs", "storage"] and not self.is_csv_output:
             query_group_by.append("currency")
 
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
-        if self._report_type == "costs":
+        if self._report_type in ["costs", "storage"]:
             total_queryset = query_data.annotate(**aggregates)
             total_query = self.return_total_query(total_queryset)
         else:
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
-            if self._report_type == "costs" and not self.is_csv_output:
-                total_query[unit_key] = self.currency
-            else:
-                total_query[unit_key] = unit_value
+            total_query[unit_key] = unit_value
+            if self._report_type in ["costs", "storage"] and not self.is_csv_output:
+                if unit_key not in ["cost_unites", "usage_units"]:
+                    print("UNIT: ", unit_key)
+                    total_query[unit_key] = self.currency
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
         return total_query
