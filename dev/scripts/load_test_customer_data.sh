@@ -75,7 +75,7 @@ log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
     START_DATE=${2:-$(date -v '-1m' +'%Y-%m-01')}
 else
-    START_DATE=${2:-$(date --date='last month' + '%Y-%m-01')}
+    START_DATE=${2:-$(date --date='last month' '+%Y-%m-01')}
 fi
 
 END_DATE=${3:-$(date +'%Y-%m-%d')}    # defaults to today

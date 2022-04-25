@@ -211,7 +211,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                     stmt, s_params = preprocessor(p_stmt, params)
                 # If a different preprocessor is used, we can't know what the exception type is.
                 except Exception as e:
-                    LOG.error(
+                    LOG.warning(
                         f"Preprocessor Error ({e.__class__.__name__}) : {str(e)}"
                         + os.linesep
                         + f"Statement template : {p_stmt}"
@@ -233,7 +233,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                     + os.linesep
                     + f"Parameters: {s_params}"
                 )
-                LOG.error(exc_msg)
+                LOG.warning(exc_msg)
                 raise TrinoStatementExecError(exc_msg)
 
             all_results.extend(results)
