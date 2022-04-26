@@ -645,7 +645,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                     if "values" in item.keys():
                                         self.assertEqual(len(item["values"]), 1)
                                         value = item["values"][0]
-                                        source_uuid_list.extend(value.get("source_uuid"))
+                                        source_uuid = value.get("source_uuid")
+                                        if source_uuid and source_uuid not in source_uuid_list:
+                                            source_uuid_list.extend(source_uuid)
         self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
