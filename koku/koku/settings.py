@@ -137,6 +137,7 @@ if DEVELOPMENT:
         "entitlements": {"cost_management": {"is_entitled": "True"}},
     }
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
+    FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
     MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
     DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
