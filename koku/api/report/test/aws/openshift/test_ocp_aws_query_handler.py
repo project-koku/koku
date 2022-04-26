@@ -114,8 +114,8 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        self.assertEqual(
-            total.get("cost", {}).get("total", {}).get("value", 0), round(current_totals.get("cost_total", 1), 13)
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 11
         )
 
     def test_execute_query_current_month_daily(self, mocked_exchange_rates):

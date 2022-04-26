@@ -695,7 +695,7 @@ class ReportQueryHandler(QueryHandler):
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
-        if self._report_type in ["costs", "instance_type"]:
+        if self._report_type not in ["memory", "volume", "cpu"]:
             exchange_rate = 1
             if source_uuid:
                 base_currency = self._get_base_currency(source_uuid[0])
@@ -912,7 +912,7 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-        if self.provider != Provider.PROVIDER_OCP and self._report_type in ["costs", "storage", "instance_type"]:
+        if self.provider != Provider.PROVIDER_OCP and self._report_type not in ["memory", "volume", "cpu"]:
             out_data = self._apply_exchange_rate(out_data)
         return out_data
 
@@ -1306,7 +1306,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         codes = self.get_codes()
-        if self._report_type in ["costs", "storage", "instance_type"]:
+        if self._report_type not in ["memory", "volume", "cpu"]:
             delta_group_by.append(codes.get(self.provider)[:-1])
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
