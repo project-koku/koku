@@ -136,7 +136,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = OCPAWSTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
+            tags = OCPAWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
             tag_values = [value for tag in tags for value in tag.get("values")]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tags()
