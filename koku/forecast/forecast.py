@@ -243,15 +243,20 @@ class Forecast:
     def _key_results_by_date(self, results, check_term="total_cost"):
         """Take results formatted by cost type, and return results keyed by date."""
         results_by_date = defaultdict(dict)
-        date_based_dict = results[check_term][0] if results[check_term] else []
-        for date in date_based_dict:
-            for cost_term in results:
-                if results[cost_term][0].get(date):
-                    results_by_date[date][cost_term] = (
-                        results[cost_term][0][date],
-                        {"rsquared": results[cost_term][1]},
-                        {"pvalues": results[cost_term][2]},
-                    )
+        for cost_term in ["total_cost", "infrastructure_cost", "supplementary_cost"]:
+            result = results[cost_term]
+            if len(result) != 3:
+                # results are an empty list when self._predict could not predict a result.
+                # this happens when there are too many excluded outliers resulting in too few
+                # data points to predict.
+                continue
+            rsquared, pvalues = result[1], result[2]
+            for date, res in result[0].items():
+                results_by_date[date][cost_term] = (
+                    res,
+                    {"rsquared": rsquared},
+                    {"pvalues": pvalues},
+                )
         return results_by_date
 
     def format_result(self, results):
