@@ -1202,6 +1202,7 @@ class TestRemoveStaleTenants(MasuTestCase):
         request = self.request_context["request"]
         request.path = "/api/v1/tags/aws/"
 
+    @override_settings(MIDDLEWARE_TIME_TO_LIVE=900)
     def test_remove_stale_tenant(self):
         """Test removal of stale tenants that are older than two weeks"""
         days = 14
