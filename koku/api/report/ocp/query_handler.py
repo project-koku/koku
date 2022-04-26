@@ -170,11 +170,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 orig_value = total_query[value]
                 total_query[value] = orig_value + (query_set.get(value) * Decimal(exchange_rate))
 
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            query_keys = aggregates.keys()
             for each in ["usage", "request", "limit", "capacity"]:
-                orig_value = total_query.get(each)
+                orig_value = total_query.get(each, 0)
                 new_val = query_set.get(each)
-                if new_val is not None:
-                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
+                if new_val is not None or (each in query_keys):
+                    total_query[each] = orig_value + Decimal(new_val or 0)
         return total_query
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
