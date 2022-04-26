@@ -6,7 +6,6 @@
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
-from api.report.test.util.constants import OCP_POD_LABELS
 from api.tags.aws.queries import AWSTagQueryHandler
 from api.tags.aws.view import AWSTagView
 from api.utils import DateHelper
@@ -108,7 +107,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tags_for_key_filter(self):
         """Test that the execute query runs properly with key query."""
-        key = list(OCP_POD_LABELS[0].keys())[0]
+        key = "app"
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -122,8 +121,10 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_values_for_value_filter(self):
         """Test that the execute query runs properly with value query."""
-        key = "version"
-        value = "prod"
+        key = "app"
+        with tenant_context(self.tenant):
+            tag = AWSTagsValues.objects.filter(key__exact=key).values("value").first()
+        value = tag.get("value")
         url = f"?filter[value]={value}"
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
@@ -138,9 +139,11 @@ class AWSTagQueryHandlerTest(IamTestCase):
 
     def test_get_tag_values_for_value_filter_partial_match(self):
         """Test that the execute query runs properly with value query."""
-        key = "version"
-        value = "a"
-        url = f"/version/?filter[value]={value}"
+        key = "app"
+        with tenant_context(self.tenant):
+            tag = AWSTagsValues.objects.filter(key__exact=key).values("value").first()
+        value = tag.get("value")[0]  # get first letter of value
+        url = f"/{key}/?filter[value]={value}"
         query_params = self.mocked_query_params(url, AWSTagView)
         # the mocked query parameters dont include the key from the url so it needs to be added
         query_params.kwargs = {"key": key}
