@@ -112,7 +112,7 @@ class AWSTagQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSTagView)
         handler = AWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = AWSTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
+            tags = AWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
             tag_values = tags[0].get("values")
         expected = {"key": key, "values": tag_values}
         result = handler.get_tags()
