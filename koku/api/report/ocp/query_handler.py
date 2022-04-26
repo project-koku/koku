@@ -177,8 +177,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
         """Aggregate and format the unconverted after currency."""
-        # New copy may not be needed
-        new_copy = copy.deepcopy(currency_codes)
         total_results = {
             "date": None,
             "source_uuid": [],
@@ -207,7 +205,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         overall_previous_total = 0
         currencys = {}
-        for currency_entry in new_copy:
+        for currency_entry in currency_codes:
             unconverted_values = currency_entry.get("values")
             source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
             currency = self._get_base_currency(source_uuid_id)
