@@ -35,6 +35,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
 LOG = logging.getLogger(__name__)
+COST_FIELD_NAMES = ["total_cost", "infrastructure_cost", "supplementary_cost"]
 
 
 class Forecast:
@@ -139,7 +140,7 @@ class Forecast:
                 )
             )
 
-            for fieldname in ["total_cost", "infrastructure_cost", "supplementary_cost"]:
+            for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
                 cost_predictions[fieldname] = self._predict(uniq_data)
 
@@ -243,7 +244,7 @@ class Forecast:
     def _key_results_by_date(self, results, check_term="total_cost"):
         """Take results formatted by cost type, and return results keyed by date."""
         results_by_date = defaultdict(dict)
-        for cost_term in ["total_cost", "infrastructure_cost", "supplementary_cost"]:
+        for cost_term in COST_FIELD_NAMES:
             result = results[cost_term]
             if len(result) != 3:
                 # results are an empty list when self._predict could not predict a result.
