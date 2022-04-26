@@ -113,7 +113,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
-        if self._report_type in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]:
+        if self._report_type not in ["memory", "volume", "cpu"]:
             query_sum["cost_units"] = self.currency
         else:
             query_sum["cost_units"] = cost_units_value
