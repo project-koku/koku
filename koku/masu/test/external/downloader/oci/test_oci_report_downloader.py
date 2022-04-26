@@ -57,6 +57,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         provider_uuid=uuid4(),
         namespace=FAKE.slug(),
         region=FAKE.slug(),
+        report="reports_cost-csv_0001000000603504.csv",
     ):
         """
         Create a OCIReportDownloader that skips the initial OCI checks.
@@ -72,10 +73,12 @@ class OCIReportDownloaderTest(MasuTestCase):
         Returns:
             OCIReportDownloader instance with faked argument data and Mocks.
         """
+        report_file = MagicMock()
+        report_file.get_objects = report
         billing_source = {"bucket": bucket, "bucket_namespace": namespace, "bucket_region": region}
         with patch("masu.external.downloader.oci.oci_report_downloader.OCIProvider"), patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_oci_client",
-            return_value="client",
+            return_value=report_file,
         ):
             downloader = OCIReportDownloader(
                 customer_name=customer_name,
@@ -114,6 +117,36 @@ class OCIReportDownloaderTest(MasuTestCase):
         }
         self.assertEqual(result_manifest, expected_manifest_data)
 
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
+    def test_generate_monthly_pseudo_no_manifest(self, mock_collect_reports):
+        """Test get monthly psuedo manifest with no manifest."""
+        dh = DateHelper()
+        reports = MagicMock()
+        reports.data.objects = []
+        mock_collect_reports.side_effect = [reports, reports]
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=uuid4())
+        start_date = dh.last_month_start
+        manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
+        self.assertIsNotNone(manifest_dict)
+
+    def test_get_manifest_context_for_date(self):
+        """Test successful return of get manifest context for date."""
+        self.maxDiff = None
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        invoice_month = start_date.strftime("%Y%m")
+        p_uuid = uuid4()
+        expected_assembly_id = f"{p_uuid}:{invoice_month}"
+        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
+        with patch(
+            "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
+            return_value=2,
+        ):
+            report_dict = downloader.get_manifest_context_for_date(start_date.date())
+        self.assertEqual(report_dict.get("manifest_id"), 2)
+        self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
+        self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
+
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
         downloader = self.create_oci_downloader_with_mocked_values()
@@ -122,35 +155,47 @@ class OCIReportDownloaderTest(MasuTestCase):
         local_name = downloader.get_local_file_for_report(report_name)
         self.assertEqual(local_name, expected_report_name)
 
+    def test_get_last_reports(self):
+        """Assert collecting dict of last reports downloaded."""
+        downloader = self.create_oci_downloader_with_mocked_values()
+        expected_reports = {"usage": "", "cost": ""}
+        result_reports = downloader.get_last_reports("assembly")
+        self.assertEqual(expected_reports, result_reports)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader.update_last_reports")
+    def test_update_last_reports(self, mock_update_last_reports):
+        """Assert updating dict of last reports downloaded."""
+        key = "test-report"
+        manifest_id = "1"
+        downloader = self.create_oci_downloader_with_mocked_values()
+        expected_reports = {"usage": "new_report", "cost": "new_cost_report"}
+        mock_update_last_reports.return_value = expected_reports
+        result_reports = downloader.update_last_reports(key, manifest_id)
+        self.assertEqual(expected_reports, result_reports)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIProvider")
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_oci_client")
+    def test_download_with_unreachable_source(self, mock_get_oci_client, oci_provider):
+        """Assert errors correctly when source is unreachable."""
+        mock_get_oci_client.return_value = "client"
+        oci_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
+        billing_source = {"bucket": FAKE.slug(), "bucket_namespace": FAKE.slug(), "bucket_region": FAKE.slug()}
+        with self.assertRaises(OCIReportDownloaderError):
+            OCIReportDownloader(FAKE.name(), billing_source)
+
     @patch("masu.external.downloader.oci.oci_report_downloader.os.makedirs")
-    @patch("masu.external.downloader.oci.oci_report_downloader.oci")
-    def test_download_file_success(self, mock_oci, mock_makedirs):
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._oci_client.get_object")
+    def test_download_file_success(self, mock_objects, mock_makedirs):
         """Assert download_file successful scenario"""
-        mock_oci.client.return_value.query.return_value = ["This", "test"]
         key = "reports_cost-csv_0001000000603504.csv"
         mock_name = "mock-test-customer-success"
         expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
-        downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name)
+        downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name, report=key)
         with patch("masu.external.downloader.oci.oci_report_downloader.open"):
             # with patch("masu.external.downloader.oci.oci_report_downloader.create_daily_archives"):
             full_path, etag, date, _ = downloader.download_file(key)
             mock_makedirs.assert_called()
-            self.assertEqual(date, self.today)
-            self.assertEqual(full_path, expected_full_path)
-
-    @patch("masu.external.downloader.oci.oci_report_downloader.os.makedirs")
-    @patch("masu.external.downloader.oci.oci_report_downloader.oci")
-    def test_download_file_success_end_date_today(self, mock_oci, mock_makedirs):
-        """Assert download_file successful scenario"""
-        mock_oci.client.return_value.query.return_value = ["This", "test"]
-        key = "reports_cost-csv_0001000000603504.csv"
-        mock_name = "mock-test-customer-end-date"
-        expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
-        downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name)
-        with patch("masu.external.downloader.oci.oci_report_downloader.open"):
-            # with patch("masu.external.downloader.oci.oci_report_downloader.create_daily_archives"):
-            full_path, etag, date, _ = downloader.download_file(key)
-            mock_makedirs.assert_called()
+            mock_objects.assert_called()
             self.assertEqual(date, self.today)
             self.assertEqual(full_path, expected_full_path)
 
@@ -164,46 +209,6 @@ class OCIReportDownloaderTest(MasuTestCase):
             oci_client.Client.side_effect = GoogleCloudError(err_msg)
             with self.assertRaisesRegex(OCIReportDownloaderError, err_msg):
                 downloader.download_file(key)
-
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIProvider")
-    def test_download_with_unreachable_source(self, oci_provider):
-        """Assert errors correctly when source is unreachable."""
-        oci_provider.return_value.cost_usage_source_is_reachable.side_effect = ValidationError
-        billing_source = {"bucket": FAKE.slug(), "bucket_namespace": FAKE.slug()}
-        with self.assertRaises(OCIReportDownloaderError):
-            OCIReportDownloader(FAKE.name(), billing_source)
-
-    def test_get_manifest_context_for_date(self):
-        """Test successful return of get manifest context for date."""
-        self.maxDiff = None
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        invoice_month = start_date.strftime("%Y%m")
-        p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{invoice_month}"
-        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
-        expected_files = ["reports_cost-csv_0001000000603504.csv"]
-        with patch(
-            "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
-            return_value=2,
-        ):
-            report_dict = downloader.get_manifest_context_for_date(start_date.date())
-        self.assertEqual(report_dict.get("manifest_id"), 2)
-        self.assertEqual(report_dict.get("files"), expected_files)
-        self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
-        self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
-
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._collect_reports")
-    def test_generate_monthly_pseudo_no_manifest(self, mock_collect_reports):
-        """Test get monthly psuedo manifest with no manifest."""
-        dh = DateHelper()
-        reports = MagicMock()
-        reports.data.objects = []
-        mock_collect_reports.side_effect = [reports, reports]
-        downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=uuid4())
-        start_date = dh.last_month_start
-        manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
-        self.assertIsNotNone(manifest_dict)
 
     # @override_settings(ENABLE_PARQUET_PROCESSING=True)
     # @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")

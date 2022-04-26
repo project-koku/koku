@@ -63,6 +63,13 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.region = data_source.get("bucket_region")
         self._oci_client = self._get_oci_client(self.region)
 
+        try:
+            OCIProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
+        except ValidationError as ex:
+            msg = f"OCI source ({self._provider_uuid}) for {self.customer_name} is not reachable. Error: {str(ex)}"
+            LOG.warning(log_json(self.tracing_id, msg, self.context))
+            raise OCIReportDownloaderError(str(ex))
+
     @staticmethod
     def _get_oci_client(region):
         # Grab oci config credentials
@@ -71,14 +78,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         oci_objects_client = oci.object_storage.ObjectStorageClient(config)
 
         return oci_objects_client
-
-    def _check_access(self):
-        try:
-            OCIProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
-        except ValidationError as ex:
-            msg = f"OCI source ({self._provider_uuid}) for {self.customer_name} is not reachable. Error: {str(ex)}"
-            LOG.warning(log_json(self.tracing_id, msg, self.context))
-            raise OCIReportDownloaderError(str(ex))
 
     def get_last_reports(self, assembly_id):
         """
@@ -110,6 +109,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 last_reports[report_type] = key
                 manifest.last_reports = last_reports
                 manifest.save()
+                return last_reports
 
     def _collect_reports(self, prefix, last_report=None):
         """
@@ -135,8 +135,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             list of files for download
 
         """
-        # Check we can access reports
-        self._check_access
         # Grabbing ingest delta for initial ingest
         months_delta = Config.INITIAL_INGEST_NUM_MONTHS
         ingest_month = start_date + relativedelta(months=-months_delta)
@@ -272,7 +270,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.request_id, msg, self.context))
         msg = f"Downloading {key} to {full_local_path}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        # try:
         report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
 
         with open(full_local_path, "wb") as f:
@@ -284,14 +281,6 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.update_last_reports("usage", key, manifest_id)
         else:
             self.update_last_reports("cost", key, manifest_id)
-        # except ClientError as err:
-        #     err_msg = (
-        #         "Could not download file."
-        #         f"\n  Provider: {self._provider_uuid}"
-        #         f"\n  Customer: {self.customer_name}"
-        #         f"\n  Response: {err.message}"
-        #     )
-        #     LOG.warning(err_msg)
 
         return full_local_path, etag, file_creation_date, []
 
