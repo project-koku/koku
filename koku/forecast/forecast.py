@@ -250,8 +250,8 @@ class Forecast:
                 # this happens when there are too many excluded outliers resulting in too few
                 # data points to predict.
                 continue
-            rsquared, pvalues = result[1], result[2]
-            for date, res in result[0].items():
+            date_results, rsquared, pvalues = result
+            for date, res in date_results.items():
                 results_by_date[date][cost_term] = (
                     res,
                     {"rsquared": rsquared},
