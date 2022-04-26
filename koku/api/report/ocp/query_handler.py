@@ -255,14 +255,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 if sum_previous_delta:
                                     overall_previous_total += previous_total
                         else:
-                            current_vals = ui_view_dikt.get(key)
-                            new_val = unconverted.get(key)
-                            if key in ["clusters", "source_uuid"] and new_val is not None:
+                            current_vals = ui_view_dikt.get(key, [])
+                            new_val = unconverted.get(key, [])
+                            if key in ["clusters", "source_uuid"]:
                                 if not isinstance(current_vals, list):
-                                    if current_vals:
-                                        current_vals = [current_vals]
-                                    else:
-                                        current_vals = []
+                                    current_vals = [current_vals]
                                 if not isinstance(new_val, list):
                                     new_val = [new_val]
                             if current_vals and not isinstance(current_vals, str):
