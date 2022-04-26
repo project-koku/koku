@@ -210,9 +210,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             source_uuid_id = currency_entry.get("source_uuid_id", currency_entry.get("source_uuid"))
             currency = self._get_base_currency(source_uuid_id)
             exchange_rate = self._get_exchange_rate(currency)
-            ui_dikts = [total_results]
+            ui_dikts = {"total": total_results}
             for unconverted in unconverted_values:
                 currencys_values = currencys.get(currency)
+                ui_dikts["currencys"] = currencys_values
+                initial_currency_ingest = False
                 if currency not in currencys.keys():
                     new_structure = {}
                     for structure in ["infrastructure", "supplementary", "cost"]:
@@ -222,24 +224,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 exchange_rate
                             )
                             new_structure[structure][each] = {"value": converted, "units": self.currency}
-                    currencys[currency] = new_structure
-                else:
-                    # if we have seen that currency before append it to the list
-                    # to be updated with previous_converted + converted
-                    ui_dikts.append(currencys_values)
+                    initial_currency_ingest = True
+                    ui_dikts["currencys"] = new_structure
                 data_keys = unconverted.keys()
                 remove_keys = ["source_uuid_id"]
                 keys = list(filter(lambda w: w not in remove_keys, data_keys))
                 for key in keys:
                     sum_previous_delta = True
-                    for ui_view_dikt in ui_dikts:
+                    for dikt_type, ui_view_dikt in ui_dikts.items():
                         if key in ["infrastructure", "supplementary", "cost"]:
-                            for each in ["raw", "markup", "usage", "distributed", "total"]:
-                                current_ui_value = ui_view_dikt.get(key).get(each).get("value")
-                                converted = Decimal(unconverted.get(key).get(each).get("value")) * Decimal(
-                                    exchange_rate
-                                )
-                                ui_view_dikt[key][each]["value"] = Decimal(converted) + Decimal(current_ui_value)
+                            if dikt_type == "currencys" and initial_currency_ingest:
+                                # Don't update the currencys dikt if initial ingest
+                                pass
+                            else:
+                                for each in ["raw", "markup", "usage", "distributed", "total"]:
+                                    current_ui_value = ui_view_dikt.get(key).get(each).get("value")
+                                    converted = Decimal(unconverted.get(key).get(each).get("value")) * Decimal(
+                                        exchange_rate
+                                    )
+                                    ui_view_dikt[key][each]["value"] = Decimal(converted) + Decimal(current_ui_value)
                         elif key == "delta_value" and unconverted.get(key):
                             ui_view_dikt[key] = ui_view_dikt.get(key, 0) + unconverted.get(key)
                         elif key == "delta_percent":
@@ -264,6 +267,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                 new_val = current_vals + new_val
                             ui_view_dikt[key] = new_val
                         sum_previous_delta = False
+                if initial_currency_ingest:
+                    currencys[currency] = ui_dikts["currencys"]
         if total_results.get("delta_value") and overall_previous_total:
             total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
         return total_results, currencys
