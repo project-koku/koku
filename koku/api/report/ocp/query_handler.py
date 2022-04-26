@@ -282,7 +282,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if initial_currency_ingest:
                     currencys[currency] = ui_dikts["currencys"]
         if total_results.get("delta_value") and overall_previous_total:
-            total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
+            if not "__" in self._delta:
+                total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
+            else:
+                delta_dikt = {}
+                deltas = self._delta.split("__")
+                for each in deltas:
+                    value = total_results.get(each, {}).get("value", 0)
+                    delta_dikt[each] = value
+                total_results["delta_percent"] = (delta_dikt[deltas[0]] / delta_dikt[deltas[1]] * 100)
         return total_results, currencys
 
     def execute_query(self):  # noqa: C901
