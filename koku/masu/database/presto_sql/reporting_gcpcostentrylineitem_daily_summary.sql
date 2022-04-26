@@ -1,5 +1,3 @@
--- TODO:
--- Do we do the markup cost from the blended or unblended cost
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_gcpcostentrylineitem_daily_summary (
     uuid,
     cost_entry_bill_id,
