@@ -347,7 +347,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         self.query_sum = query_sum
         # reset to the original query filters
         groupby = self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output and not org_unit_applied:
+        if self._report_type not in ["volume", "cpu", "memory"] and not self.is_csv_output and not org_unit_applied:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
@@ -605,7 +605,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not self.is_csv_output:
+            if self._report_type not in ["volume", "cpu", "memory"] and not self.is_csv_output:
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -697,7 +697,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
+        if self._report_type not in ["volume", "cpu", "memory"] and not self.is_csv_output:
             query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
@@ -716,17 +716,16 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .distinct()
             )
             counts = len(resource_ids)
-        if self._report_type == "costs":
+        if self._report_type not in ["volume", "cpu", "memory"]:
             total_queryset = query_data.annotate(**aggregates)
             total_query = self.return_total_query(total_queryset)
         else:
             total_query = query.aggregate(**aggregates)
 
         for unit_key, unit_value in units.items():
-            if self._report_type == "costs":
+            total_query[unit_key] = unit_value
+            if self._report_type not in ["volume", "cpu", "memory"] and unit_key not in ["cost_units", "usage_units"]:
                 total_query[unit_key] = self.currency
-            else:
-                total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts

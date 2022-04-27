@@ -99,6 +99,8 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.currency = parameters.parameters.get("currency")
+        # if not self.currency:
+        #     self.currency = KOKU_DEFAULT_CURRENCY
 
         self.query_filter = self._get_filter()
 
@@ -127,7 +129,6 @@ class ReportQueryHandler(QueryHandler):
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -156,7 +157,6 @@ class ReportQueryHandler(QueryHandler):
                 Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             generic_list = [
                 "infra_total",
@@ -177,6 +177,11 @@ class ReportQueryHandler(QueryHandler):
             for value in generic_list:
                 orig_value = total_query[value]
                 total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
+            for each in ["count", "usage"]:
+                orig_value = total_query.get(each)
+                new_val = query_set.get(each)
+                if new_val is not None:
+                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
     @cached_property
@@ -690,7 +695,7 @@ class ReportQueryHandler(QueryHandler):
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
-        if self._report_type == "costs":
+        if self._report_type not in ["memory", "volume", "cpu"]:
             exchange_rate = 1
             if source_uuid:
                 base_currency = self._get_base_currency(source_uuid[0])
@@ -851,6 +856,16 @@ class ReportQueryHandler(QueryHandler):
                             total_query[key][each]["value"] = Decimal(data.get(key).get(each).get("value")) + Decimal(
                                 orig_value
                             )
+                    elif key in ["count", "usage"]:
+                        check_val = data.get(key)
+                        if check_val:
+                            orig_value = total_query.get(key)
+                            if not orig_value:
+                                count_usage = {"value": 0, "units": None}
+                                total_query[key] = copy.deepcopy(count_usage)
+                            total_query_val = total_query.get(key).get("value")
+                            total_query[key]["value"] = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            total_query[key]["units"] = data.get(key).get("units")
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
@@ -863,7 +878,7 @@ class ReportQueryHandler(QueryHandler):
                             if new_val:
                                 total_query[key] = total_query.get(key, 0) + data.get(key)
                         if base_val and not isinstance(base_val, str):
-                            new_val = base_val + new_val
+                            new_val = list(filter(None, (base_val + new_val)))
                         total_query[key] = new_val
         return total_query
 
@@ -896,7 +911,7 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-        if self.provider != Provider.PROVIDER_OCP and self._report_type == "costs":
+        if self.provider != Provider.PROVIDER_OCP and self._report_type not in ["memory", "volume", "cpu"]:
             out_data = self._apply_exchange_rate(out_data)
         return out_data
 
@@ -1290,7 +1305,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         codes = self.get_codes()
-        if self._report_type == "costs":
+        if self._report_type not in ["memory", "volume", "cpu"]:
             delta_group_by.append(codes.get(self.provider)[:-1])
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
