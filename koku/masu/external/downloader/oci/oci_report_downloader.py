@@ -6,9 +6,11 @@
 import datetime
 import logging
 import os
+from uuid import uuid4
 
 import oci
 import pandas as pd
+from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
 
@@ -29,11 +31,11 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path, filename):
+def divide_csv_monthly(file_path, filename):
     """
     Split local file into daily content.
     """
-    daily_files = []
+    monthly_files = []
     directory = os.path.dirname(file_path)
 
     try:
@@ -44,23 +46,26 @@ def divide_csv_daily(file_path, filename):
 
     report_type = "usage" if "usage" in filename else "cost"
     unique_days = pd.to_datetime(data_frame["lineItem/intervalUsageStart"]).dt.date.unique()
-    days = [day.strftime("%Y-%m-%d") for day in unique_days]
-    daily_data_frames = [
-        {"data_frame": data_frame[data_frame["lineItem/intervalUsageStart"].str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
+    months = list({day.strftime("%Y-%m") for day in unique_days})
+    monthly_data_frames = [
+        {"data_frame": data_frame[data_frame["lineItem/intervalUsageStart"].str.contains(month)], "date": month}
+        for month in months
     ]
 
-    for daily_data in daily_data_frames:
-        day = daily_data.get("date")
+    for daily_data in monthly_data_frames:
+        month = daily_data.get("date")
+        start_date = parser.parse(month + "-01")
         df = daily_data.get("data_frame")
-        day_file = f"{report_type}.{day}.csv"
-        day_filepath = f"{directory}/{day_file}"
-        df.to_csv(day_filepath, index=False, header=True)
-        daily_files.append({"filename": day_file, "filepath": day_filepath, "report_type": report_type})
-    return daily_files
+        month_file = f"{report_type}_{uuid4()}.{month}.csv"
+        month_filepath = f"{directory}/{month_file}"
+        df.to_csv(month_filepath, index=False, header=True)
+        monthly_files.append(
+            {"filename": month_file, "filepath": month_filepath, "report_type": report_type, "start_date": start_date}
+        )
+    return monthly_files
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -74,30 +79,30 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    daily_file_names = []
+    monthly_file_names = []
 
-    daily_files = divide_csv_daily(filepath, filename)
-    for daily_file in daily_files:
+    monthly_files = divide_csv_monthly(filepath, filename)
+    for monthly_file in monthly_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
             account,
             Provider.PROVIDER_OCI,
             provider_uuid,
-            start_date,
+            monthly_file.get("start_date"),
             Config.CSV_DATA_TYPE,
-            report_type=daily_file.get("report_type"),
+            report_type=monthly_file.get("report_type"),
         )
         copy_local_report_file_to_s3_bucket(
             tracing_id,
             s3_csv_path,
-            daily_file.get("filepath"),
-            daily_file.get("filename"),
+            monthly_file.get("filepath"),
+            monthly_file.get("filename"),
             manifest_id,
-            start_date,
+            monthly_file.get("start_date"),
             context,
         )
-        daily_file_names.append(daily_file.get("filepath"))
-    return daily_file_names
+        monthly_file_names.append(monthly_file.get("filepath"))
+    return monthly_file_names
 
 
 class OCIReportDownloaderError(Exception):
@@ -356,14 +361,13 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             self.update_last_reports("cost", key, manifest_id)
 
-        file_names = create_daily_archives(
+        file_names = create_monthly_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
             key,
             full_local_path,
             manifest_id,
-            start_date,
             self.context,
         )
 
