@@ -32,7 +32,7 @@ bonfire deploy \
     --set-image-tag ${IMAGE}=${IMAGE_TAG} \
     --namespace ${NAMESPACE} \
     --timeout ${DEPLOY_TIMEOUT} \
-    --optional-deps-method ${OPTIONAL_DEPS_METHOD} \
+    --optional-deps-method hybrid \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
