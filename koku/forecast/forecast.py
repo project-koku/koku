@@ -168,7 +168,7 @@ class Forecast:
                 len(data),
                 self.MINIMUM,
             )
-            return []
+            return [{}, 0, [0]]
 
         dates, costs = zip(*data)
 
@@ -241,16 +241,11 @@ class Forecast:
             return {key: value for key, value in data.items() if (value >= lower_boundary and value <= upper_boundary)}
         return data
 
-    def _key_results_by_date(self, results, check_term="total_cost"):
+    def _key_results_by_date(self, results):
         """Take results formatted by cost type, and return results keyed by date."""
         results_by_date = defaultdict(dict)
         for cost_term in COST_FIELD_NAMES:
             result = results[cost_term]
-            if len(result) != 3:
-                # results are an empty list when self._predict could not predict a result.
-                # this happens when there are too many excluded outliers resulting in too few
-                # data points to predict.
-                continue
             date_results, rsquared, pvalues = result
             for date, res in date_results.items():
                 results_by_date[date][cost_term] = (

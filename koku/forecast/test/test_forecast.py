@@ -334,7 +334,7 @@ class AWSForecastTest(IamTestCase):
                     # forecasting isn't useful with less than the minimum number of data points.
                     with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
                         results = instance.predict()
-                        self.assertEqual(results, [])
+                        self.assertEqual(results, [{}, 0, [0]])
                 else:
                     results = instance.predict()
 
