@@ -189,10 +189,12 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertTrue(hasattr(mock_request, "user"))
         self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 1)
         self.assertEqual(MD.USER_CACHE.currsize, 1)
+        middleware.process_request(mock_request)  # make the same request again and do not see any cache changes
+        self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
         customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
-        self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertIsNotNone(user)
         time.sleep(4)  # Wait for the ttl
         self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 0)
