@@ -56,6 +56,9 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 request_id_header = json.loads(b64decode(request.META.get(self.header)).decode("utf-8"))
             identity_header = request_id_header or settings.DEVELOPMENT_IDENTITY
 
+            if hasattr(settings, "FORCE_HEADER_OVERRIDE") and settings.FORCE_HEADER_OVERRIDE:
+                identity_header = settings.DEVELOPMENT_IDENTITY
+
             user_dict = identity_header.get("identity", {}).get("user")
             user = Mock(
                 spec=User,
