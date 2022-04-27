@@ -34,6 +34,7 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from forecast.forecast import ZERO_RESULT
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
@@ -334,7 +335,7 @@ class AWSForecastTest(IamTestCase):
                     # forecasting isn't useful with less than the minimum number of data points.
                     with self.assertLogs(logger="forecast.forecast", level=logging.WARNING):
                         results = instance.predict()
-                        self.assertEqual(results, [{}, 0, [0]])
+                        self.assertEqual(results, [])
                 else:
                     results = instance.predict()
 
@@ -355,14 +356,14 @@ class AWSForecastTest(IamTestCase):
                     self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
 
     def test_predict_end_of_month(self):
-        """COST-1091: Test that predict() returns empty list on the last day of a month."""
+        """COST-1091: Test that predict() returns ZERO_RESULT on the last day of a month."""
         scenario = [(date(2000, 1, 31), 1.5)]
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
 
         out = instance._predict(scenario)
-        self.assertEqual(out, [])
+        self.assertEqual(out, ZERO_RESULT)
 
     def test_set_access_filter_with_list(self):
         """

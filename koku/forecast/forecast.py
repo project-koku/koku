@@ -36,6 +36,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 COST_FIELD_NAMES = ["total_cost", "infrastructure_cost", "supplementary_cost"]
+ZERO_RESULT = [{}, 0, [0]]
 
 
 class Forecast:
@@ -168,7 +169,7 @@ class Forecast:
                 len(data),
                 self.MINIMUM,
             )
-            return [{}, 0, [0]]
+            return ZERO_RESULT
 
         dates, costs = zip(*data)
 
