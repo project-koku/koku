@@ -3,7 +3,7 @@ set -ex
 
 IMAGE="quay.io/cloudservices/koku"
 APP_NAME="hccm"  # name of app-sre "application" folder this component lives in
-COMPONENT_NAME="hccm"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
+COMPONENT_NAME="koku"  # name of app-sre "resourceTemplate" in deploy.yaml for this component
 COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 IQE_PLUGINS="cost_management"
