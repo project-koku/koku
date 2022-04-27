@@ -30,7 +30,22 @@ SELECT uuid() as uuid,
     cast(region AS varchar(50)),
     resource_ids,
     cast(resource_count AS integer),
-    cast(usage_amount AS decimal(24,9)),
+    cast(CASE
+        WHEN unit = 'BYTES' THEN usage_amount / (
+                cast(day(last_day_of_month(date(usage_start))) as integer)
+            ) *
+            power(2, -30)
+        WHEN unit = 'BYTE_MS' THEN usage_amount / 1000.0 / (
+            86400.0 *
+            cast(extract(day from last_day_of_month(date(usage_start))) as integer)
+            ) *
+            power(2, -30)
+        WHEN unit = 'GB_MS' THEN usage_amount / 1000.0 / (
+            86400.0 *
+            cast(extract(day from last_day_of_month(date(usage_start))) as integer)
+            )
+        ELSE usage_amount
+    END AS decimal(24,9)) AS usage_amount,
     unit,
     cast(currency_code AS varchar(10)),
     cast(cost AS decimal(24,9)),
