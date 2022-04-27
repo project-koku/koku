@@ -31,9 +31,9 @@ bonfire deploy \
     --set-template-ref ${COMPONENT_NAME}=${GIT_COMMIT} \
     --set-image-tag ${IMAGE}=${IMAGE_TAG} \
     --namespace ${NAMESPACE} \
-    --no-single-replicas \
     --timeout ${DEPLOY_TIMEOUT} \
     --optional-deps-method hybrid \
+    --no-single-replicas \
     --set-parameter rbac/MIN_REPLICAS=1 \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
