@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the download task."""
+import copy
 import json
 import logging
 import os
@@ -19,6 +20,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+from cachetools import TTLCache
 from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.utils import IntegrityError
@@ -1201,8 +1203,16 @@ class TestRemoveStaleTenants(MasuTestCase):
         super().setUp()
         request = self.request_context["request"]
         request.path = "/api/v1/tags/aws/"
+        # testing sets ttl to 0. grab a copy of the original cache so that we can override
+        # the cache for these tests and then replace the cache in the middleware
+        # in the tearDown method.
+        self.original_ttl = copy.deepcopy(KokuTenantMiddleware.tenant_cache)
 
-    @override_settings(MIDDLEWARE_TIME_TO_LIVE=900)
+    def tearDown(self):
+        # replace the cache in the middleware with the original for all remaining tests
+        KokuTenantMiddleware.tenant_cache = self.original_ttl
+        return super().tearDown()
+
     def test_remove_stale_tenant(self):
         """Test removal of stale tenants that are older than two weeks"""
         days = 14
@@ -1211,6 +1221,7 @@ class TestRemoveStaleTenants(MasuTestCase):
         with schema_context("public"):
             mock_request = self.request_context["request"]
             middleware = KokuTenantMiddleware()
+            KokuTenantMiddleware.tenant_cache = TTLCache(maxsize=100, ttl=900)
             middleware.get_tenant(Tenant, "localhost", mock_request)
             self.assertNotEqual(KokuTenantMiddleware.tenant_cache.currsize, 0)
             remove_stale_tenants()  # Check that it is not clearing the cache unless removing

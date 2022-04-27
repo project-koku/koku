@@ -46,9 +46,8 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
 
-TIME_TO_LIVE = settings.MIDDLEWARE_TIME_TO_LIVE
 MAX_CACHE_SIZE = 10000
-USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_LIVE)
+USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
 
 LOG = logging.getLogger(__name__)
@@ -142,7 +141,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     tenant_lock = threading.Lock()
 
-    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_LIVE)
+    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     def process_exception(self, request, exception):
         """Raise 424 on InterfaceError."""
@@ -203,7 +202,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     header = RH_IDENTITY_HEADER
     rbac = RbacService()
-    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_LIVE)
+    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     @staticmethod
     def create_customer(account):

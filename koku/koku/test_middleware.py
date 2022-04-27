@@ -261,6 +261,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         )
         self.assertEqual(MD.USER_CACHE.currsize, 1)
 
+    @override_settings(CACHES={"rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
         """Test case for process_request as a non-admin user."""
