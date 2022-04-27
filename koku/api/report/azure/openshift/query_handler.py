@@ -83,7 +83,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
-            if self._report_type in ["costs", "instance_type"] and not self.is_csv_output:
+            if self._report_type not in ["memory", "volume", "cpu"] and not self.is_csv_output:
                 query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
@@ -96,7 +96,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type in ["costs", "instance_type"] and not self.is_csv_output:
+                if (
+                    self._report_type
+                    in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
+                    and not self.is_csv_output
+                ):
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
@@ -152,7 +156,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        if self._report_type in ["costs", "instance_type"] and not self.is_csv_output:
+        if self._report_type not in ["memory", "volume", "cpu"] and not self.is_csv_output:
             query_sum["cost_units"] = self.currency
         else:
             query_sum["cost_units"] = cost_units_value
@@ -170,7 +174,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 
-        if self._report_type in ["costs", "instance_type"] and not self.is_csv_output:
+        if self._report_type not in ["memory", "volume", "cpu"] and not self.is_csv_output:
             self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
 
         return self._format_query_response()
