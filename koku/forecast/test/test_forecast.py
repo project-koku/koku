@@ -233,9 +233,9 @@ class AWSForecastTest(IamTestCase):
             expected.append(
                 {
                     "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + random.random() + n,
+                    "infrastructure_cost": 3 + random.random() + n,
+                    "supplementary_cost": 2 + random.random() + n,
                 }
             )
         mock_qset = MockQuerySet(expected)
