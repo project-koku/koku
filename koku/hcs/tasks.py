@@ -71,7 +71,9 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
         )
         LOG.debug(log_json(tracing_id, stmt))
 
-        collect_hcs_report_data(schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id)
+        collect_hcs_report_data.s(
+            schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id
+        ).apply_async()
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
@@ -90,22 +92,21 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     # drop "-local" from provider name when in development environment
     if "-local" in provider:
         LOG.debug(log_json(tracing_id, "dropping '-local' from provider name"))
-        provider.strip("-local")
+        provider = provider.strip("-local")
+
+    if schema_name and not schema_name.startswith("acct"):
+        schema_name = f"acct{schema_name}"
+
+    if start_date is None:
+        start_date = DateAccessor().today() - datetime.timedelta(days=2)
+
+    if end_date is None:
+        end_date = DateAccessor().today()
+
+    if tracing_id is None:
+        tracing_id = str(uuid.uuid4())
 
     if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
-
-        if schema_name and not schema_name.startswith("acct"):
-            schema_name = f"acct{schema_name}"
-
-        if start_date is None:
-            start_date = DateAccessor().today() - datetime.timedelta(days=2)
-
-        if end_date is None:
-            end_date = DateAccessor().today()
-
-        if tracing_id is None:
-            tracing_id = str(uuid.uuid4())
-
         stmt = (
             f"Running HCS data collection: "
             f"schema_name: {schema_name}, "
