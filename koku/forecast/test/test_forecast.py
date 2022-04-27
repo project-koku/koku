@@ -34,6 +34,7 @@ from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
 from forecast import OCPForecast
 from forecast.forecast import LinearForecastResult
+from forecast.forecast import ZERO_RESULT
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
@@ -233,9 +234,9 @@ class AWSForecastTest(IamTestCase):
             expected.append(
                 {
                     "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
-                    "total_cost": 5 + random.random(),
-                    "infrastructure_cost": 3 + random.random(),
-                    "supplementary_cost": 2 + random.random(),
+                    "total_cost": 5 + random.random() + n,
+                    "infrastructure_cost": 3 + random.random() + n,
+                    "supplementary_cost": 2 + random.random() + n,
                 }
             )
         mock_qset = MockQuerySet(expected)
@@ -355,14 +356,14 @@ class AWSForecastTest(IamTestCase):
                     self.assertEqual(results[-1].get("date"), dh.this_month_end.date())
 
     def test_predict_end_of_month(self):
-        """COST-1091: Test that predict() returns empty list on the last day of a month."""
+        """COST-1091: Test that predict() returns ZERO_RESULT on the last day of a month."""
         scenario = [(date(2000, 1, 31), 1.5)]
 
         params = self.mocked_query_params("?", AWSCostForecastView)
         instance = AWSForecast(params)
 
         out = instance._predict(scenario)
-        self.assertEqual(out, [])
+        self.assertEqual(out, ZERO_RESULT)
 
     def test_set_access_filter_with_list(self):
         """
