@@ -33,6 +33,8 @@ bonfire deploy \
     --namespace ${NAMESPACE} \
     --timeout ${DEPLOY_TIMEOUT} \
     --optional-deps-method hybrid \
+    --no-single-replicas \
+    --set-parameter rbac/MIN_REPLICAS=1 \
     ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
