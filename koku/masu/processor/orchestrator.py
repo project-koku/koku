@@ -47,10 +47,12 @@ class Orchestrator:
             billing_source (String): Individual account to retrieve.
 
         """
-        self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
+        self.billing_source = billing_source
         self.bill_date = bill_date
+        self.provider_uuid = provider_uuid
         self.queue_name = queue_name
+        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -134,7 +136,7 @@ class Orchestrator:
             (Boolean) - Whether we are processing this manifest
         """
         # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
-        if self.queue_name is not None:
+        if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
         else:
