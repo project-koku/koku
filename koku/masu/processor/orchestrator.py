@@ -189,7 +189,11 @@ class Orchestrator:
             report_context["key"] = report_file
             report_context["request_id"] = tracing_id
 
-            if provider_type in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP] or i == last_report_index:
+            if (
+                provider_type
+                in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP, Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]
+                or i == last_report_index
+            ):
                 # This create_table flag is used by the ParquetReportProcessor
                 # to create a Hive/Trino table.
                 # To reduce the number of times we check Trino/Hive tables, we just do this
