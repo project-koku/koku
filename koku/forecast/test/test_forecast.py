@@ -455,6 +455,152 @@ class AWSForecastTest(IamTestCase):
                     self.assertGreaterEqual(inner_val[0]["confidence_min"], 0)
                     self.assertGreaterEqual(inner_val[0]["confidence_max"], 0)
 
+    def test__key_results_by_date(self):
+        table = [
+            {
+                "name": "complete data",
+                "data": {
+                    "total_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                    "infrastructure_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                    "supplementary_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                },
+                "expected": {
+                    datetime(2022, 4, 28).date(): {
+                        "total_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "infrastructure_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "supplementary_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                    },
+                },
+            },
+            {
+                "name": "incomplete data",
+                "data": {
+                    "total_cost": ({}, 0, ["0.00000000", "0.00000000"]),
+                    "infrastructure_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                    "supplementary_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                },
+                "expected": {
+                    datetime(2022, 4, 28).date(): {
+                        "total_cost": (
+                            {"total_cost": 0, "confidence_min": 0, "confidence_max": 0},
+                            {"rsquared": 0},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "infrastructure_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "supplementary_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                    },
+                },
+            },
+            {
+                "name": " more incomplete data",
+                "data": {
+                    "total_cost": ({}, 0, ["0.00000000", "0.00000000"]),
+                    "infrastructure_cost": ({}, 0, ["0.00000000", "0.00000000"]),
+                    "supplementary_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                },
+                "expected": {
+                    datetime(2022, 4, 28).date(): {
+                        "total_cost": (
+                            {"total_cost": 0, "confidence_min": 0, "confidence_max": 0},
+                            {"rsquared": 0},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "infrastructure_cost": (
+                            {"total_cost": 0, "confidence_min": 0, "confidence_max": 0},
+                            {"rsquared": 0},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "supplementary_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                    },
+                },
+            },
+            {
+                "name": "another incomplete data",
+                "data": {
+                    "total_cost": (
+                        {datetime(2022, 4, 28).date(): {"total_cost": 2, "confidence_min": 4, "confidence_max": 6}},
+                        0.99,
+                        ["0.00000000", "0.00000000"],
+                    ),
+                    "infrastructure_cost": ({}, 0, ["0.00000000", "0.00000000"]),
+                    "supplementary_cost": ({}, 0, ["0.00000000", "0.00000000"]),
+                },
+                "expected": {
+                    datetime(2022, 4, 28).date(): {
+                        "total_cost": (
+                            {"total_cost": 2, "confidence_min": 4, "confidence_max": 6},
+                            {"rsquared": 0.99},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "infrastructure_cost": (
+                            {"total_cost": 0, "confidence_min": 0, "confidence_max": 0},
+                            {"rsquared": 0},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                        "supplementary_cost": (
+                            {"total_cost": 0, "confidence_min": 0, "confidence_max": 0},
+                            {"rsquared": 0},
+                            {"pvalues": ["0.00000000", "0.00000000"]},
+                        ),
+                    },
+                },
+            },
+        ]
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params)
+        for test in table:
+            with self.subTest(test=test["name"]):
+                result = instance._key_results_by_date(test["data"])
+                self.assertDictEqual(result, test["expected"])
+
 
 class AzureForecastTest(IamTestCase):
     """Tests the AzureForecast class."""
