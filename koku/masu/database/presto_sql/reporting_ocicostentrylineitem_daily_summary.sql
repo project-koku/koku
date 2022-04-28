@@ -10,7 +10,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
     resource_count,
     usage_amount,
     unit,
-    currency_code,
+    currency,
     cost,
     tags,
     source_uuid,
@@ -47,7 +47,7 @@ SELECT uuid() as uuid,
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
     unit,
-    cast(currency_code AS varchar(10)),
+    cast(currency AS varchar(10)),
     cast(cost AS decimal(24,9)),
     cast(
         map_filter(
@@ -67,7 +67,7 @@ FROM (
         count(DISTINCT c.product_resourceid) as resource_count,
         sum(u.usage_consumedquantity) as usage_amount,
         nullif(u.usage_consumedquantityunits, '') as unit,
-        max(c.cost_currencycode) as currency_code,
+        max(c.cost_currencycode) as currency,
         sum(c.cost_mycost) as cost,
         c.tags as tags
     FROM hive.{{schema | sqlsafe}}.oci_cost_line_items as c

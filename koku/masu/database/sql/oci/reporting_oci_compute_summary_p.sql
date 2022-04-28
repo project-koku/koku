@@ -12,7 +12,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
     resource_count,
     cost,
     markup_cost,
-    currency_code,
+    currency,
     source_uuid
 )
     SELECT uuid_generate_v4() as id,
@@ -22,14 +22,14 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
         CARDINALITY(r.resource_ids) AS resource_count,
         c.cost,
         c.markup_cost,
-        c.currency_code,
+        c.currency,
         c.source_uuid
     FROM (
         -- this group by gets the counts
         SELECT usage_start,
             SUM(cost) AS cost,
             SUM(markup_cost) AS markup_cost,
-            MAX(currency_code) AS currency_code,
+            MAX(currency) AS currency,
             {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date

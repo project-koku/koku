@@ -15,7 +15,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_by_account_p (
     unit,
     cost,
     markup_cost,
-    currency_code,
+    currency,
     source_uuid
 )
     SELECT uuid_generate_v4() as id,
@@ -28,7 +28,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_by_account_p (
         c.unit,
         c.cost,
         c.markup_cost,
-        c.currency_code,
+        c.currency,
         c.source_uuid
     FROM (
         -- this group by gets the counts
@@ -38,7 +38,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_by_account_p (
             MAX(unit) AS unit,
             SUM(cost) AS cost,
             SUM(markup_cost) AS markup_cost,
-            MAX(currency_code) AS currency_code,
+            MAX(currency) AS currency,
             {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date

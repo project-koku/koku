@@ -165,6 +165,8 @@ class ParquetReportProcessor:
     @property
     def create_table(self):
         """Whether to create the Hive/Trino table"""
+        if self.provider_type == Provider.PROVIDER_OCI:
+            return True
         return self._context.get("create_table", False)
 
     @property

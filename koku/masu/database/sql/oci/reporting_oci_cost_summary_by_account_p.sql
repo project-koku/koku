@@ -11,7 +11,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_cost_summary_by_account_p (
     payer_tenant_id,
     cost,
     markup_cost,
-    currency_code,
+    currency,
     source_uuid
 )
     SELECT uuid_generate_v4() as id,
@@ -20,7 +20,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_cost_summary_by_account_p (
         payer_tenant_id,
         sum(cost) as cost,
         sum(markup_cost) as markup_cost,
-        max(currency_code) as currency_code,
+        max(currency) as currency,
         {{source_uuid}}::uuid as source_uuid
     FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
