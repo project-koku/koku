@@ -724,7 +724,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if self._report_type not in ["volume", "cpu", "memory"] and unit_key not in ["cost_units", "usage_units"]:
+            if unit_key not in ["usage_units"]:
                 total_query[unit_key] = self.currency
 
         if counts:

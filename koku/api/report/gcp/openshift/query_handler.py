@@ -139,6 +139,9 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
+        print("\n\n\nself. report table: ")
+        print(self.query_table)
+
         with tenant_context(self.tenant):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", self.currency)

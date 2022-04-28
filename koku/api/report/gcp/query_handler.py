@@ -266,7 +266,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if self._report_type not in ["memory", "volume", "cpu"] and unit_key not in ["cost_unites", "usage_units"]:
+            if unit_key not in ["usage_units"]:
                 total_query[unit_key] = self.currency
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
         return total_query
