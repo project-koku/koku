@@ -6,12 +6,16 @@
 import datetime
 import logging
 import os
+from uuid import uuid4
 
 import oci
+import pandas as pd
+from dateutil import parser
 from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
+from api.provider.models import Provider
 from api.utils import DateHelper
 from koku.settings import OCI_CONFIG
 from masu.config import Config
@@ -19,11 +23,86 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
+from masu.util.aws.common import copy_local_report_file_to_s3_bucket
+from masu.util.common import get_path_prefix
 from providers.oci.provider import OCIProvider
-
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
+
+
+def divide_csv_monthly(file_path, filename):
+    """
+    Split local file into daily content.
+    """
+    monthly_files = []
+    directory = os.path.dirname(file_path)
+
+    try:
+        data_frame = pd.read_csv(file_path)
+    except Exception as error:
+        LOG.error(f"File {file_path} could not be parsed. Reason: {str(error)}")
+        raise error
+
+    report_type = "usage" if "usage" in filename else "cost"
+    unique_days = pd.to_datetime(data_frame["lineItem/intervalUsageStart"]).dt.date.unique()
+    months = list({day.strftime("%Y-%m") for day in unique_days})
+    monthly_data_frames = [
+        {"data_frame": data_frame[data_frame["lineItem/intervalUsageStart"].str.contains(month)], "date": month}
+        for month in months
+    ]
+
+    for daily_data in monthly_data_frames:
+        month = daily_data.get("date")
+        start_date = parser.parse(month + "-01")
+        df = daily_data.get("data_frame")
+        month_file = f"{report_type}_{uuid4()}.{month}.csv"
+        month_filepath = f"{directory}/{month_file}"
+        df.to_csv(month_filepath, index=False, header=True)
+        monthly_files.append(
+            {"filename": month_file, "filepath": month_filepath, "report_type": report_type, "start_date": start_date}
+        )
+    return monthly_files
+
+
+def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, context={}):
+    """
+    Create daily CSVs from incoming report and archive to S3.
+
+    Args:
+        tracing_id (str): The tracing id
+        account (str): The account number
+        provider_uuid (str): The uuid of a provider
+        filename (str): The OCP file name
+        filepath (str): The full path name of the file
+        manifest_id (int): The manifest identifier
+        start_date (Datetime): The start datetime of incoming report
+        context (Dict): Logging context dictionary
+    """
+    monthly_file_names = []
+
+    monthly_files = divide_csv_monthly(filepath, filename)
+    for monthly_file in monthly_files:
+        # Push to S3
+        s3_csv_path = get_path_prefix(
+            account,
+            Provider.PROVIDER_OCI,
+            provider_uuid,
+            monthly_file.get("start_date"),
+            Config.CSV_DATA_TYPE,
+            report_type=monthly_file.get("report_type"),
+        )
+        copy_local_report_file_to_s3_bucket(
+            tracing_id,
+            s3_csv_path,
+            monthly_file.get("filepath"),
+            monthly_file.get("filename"),
+            manifest_id,
+            monthly_file.get("start_date"),
+            context,
+        )
+        monthly_file_names.append(monthly_file.get("filepath"))
+    return monthly_file_names
 
 
 class OCIReportDownloaderError(Exception):
@@ -282,7 +361,17 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         else:
             self.update_last_reports("cost", key, manifest_id)
 
-        return full_local_path, etag, file_creation_date, []
+        file_names = create_monthly_archives(
+            self.tracing_id,
+            self.account,
+            self._provider_uuid,
+            key,
+            full_local_path,
+            manifest_id,
+            self.context,
+        )
+
+        return full_local_path, etag, file_creation_date, file_names
 
     def _get_local_directory_path(self):
         """

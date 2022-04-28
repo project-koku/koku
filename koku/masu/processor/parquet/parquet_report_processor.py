@@ -84,6 +84,7 @@ class ParquetReportProcessor:
         self._provider_type = provider_type
         self._manifest_id = manifest_id
         self._context = context
+        self.start_date = self._context.get("start_date")
         self.presto_table_exists = {}
         self.files_to_remove = []
 
@@ -143,13 +144,19 @@ class ParquetReportProcessor:
         """The start date for processing.
         Used to determine the year/month partitions.
         """
-        start_date = self._context.get("start_date")
-        if isinstance(start_date, datetime.datetime):
-            return start_date.date()
-        elif isinstance(start_date, datetime.date):
-            return start_date
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, new_start_date):
+        if isinstance(new_start_date, datetime.datetime):
+            self._start_date = new_start_date.date()
+            return
+        elif isinstance(new_start_date, datetime.date):
+            self._start_date = new_start_date
+            return
         try:
-            return parser.parse(start_date).date()
+            self._start_date = parser.parse(new_start_date).date()
+            return
         except (ValueError, TypeError):
             msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
             LOG.error(log_json(self.tracing_id, msg, self.error_context))
@@ -376,6 +383,9 @@ class ParquetReportProcessor:
                 LOG.warn(log_json(self.tracing_id, msg, self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
+            if self.provider_type == Provider.PROVIDER_OCI:
+                file_specific_start_date = csv_filename.split(".")[1]
+                self.start_date = file_specific_start_date
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
