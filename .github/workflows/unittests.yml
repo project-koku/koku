@@ -113,6 +113,7 @@ jobs:
           ENABLE_TRINO_SOURCE_TYPE: GCP
           PROMETHEUS_MULTIPROC_DIR: /tmp
           TRINO_DATE_STEP: 31
+          MIDDLEWARE_TIME_TO_LIVE: 0
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml

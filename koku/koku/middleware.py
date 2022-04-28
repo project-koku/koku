@@ -46,9 +46,8 @@ from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
 
 
-TIME_TO_CACHE = 900  # in seconds (15 minutes)
 MAX_CACHE_SIZE = 10000
-USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+USER_CACHE = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
 
 LOG = logging.getLogger(__name__)
@@ -142,7 +141,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
 
     tenant_lock = threading.Lock()
 
-    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+    tenant_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     def process_exception(self, request, exception):
         """Raise 424 on InterfaceError."""
@@ -158,12 +157,9 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         if not is_no_auth(request):
             if hasattr(request, "user") and hasattr(request.user, "username"):
                 username = request.user.username
-                try:
-                    if username not in USER_CACHE:
-                        USER_CACHE[username] = User.objects.get(username=username)
-                        LOG.debug(f"User added to cache: {username}")
-                except User.DoesNotExist:
-                    return HttpResponseUnauthorizedRequest()
+                if username not in USER_CACHE:
+                    USER_CACHE[username] = request.user
+                    LOG.debug(f"User added to cache: {username}")
                 if not request.user.admin and request.user.access is None:
                     LOG.warning("User %s is does not have permissions for Cost Management.", username)
                     # For /user-access we do not want to raise the exception since the API will
@@ -186,9 +182,7 @@ class KokuTenantMiddleware(BaseTenantMiddleware):
         tenant = KokuTenantMiddleware.tenant_cache.get(tenant_username)
         if not tenant:
             if not is_no_auth(request):
-                user = User.objects.get(username=tenant_username)
-                customer = user.customer
-                schema_name = customer.schema_name
+                schema_name = request.user.customer.schema_name
 
             tenant = model.objects.filter(schema_name=schema_name).first()
             if tenant and schema_name != "public":
@@ -208,7 +202,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
 
     header = RH_IDENTITY_HEADER
     rbac = RbacService()
-    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=TIME_TO_CACHE)
+    customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     @staticmethod
     def create_customer(account):
@@ -315,11 +309,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             LOG.info(stmt)
             try:
                 if account not in IdentityHeaderMiddleware.customer_cache:
-                    IdentityHeaderMiddleware.customer_cache[account] = Customer.objects.filter(
-                        account_id=account
-                    ).get()
+                    customer = Customer.objects.filter(account_id=account).get()
+                    IdentityHeaderMiddleware.customer_cache[account] = customer
                     LOG.debug(f"Customer added to cache: {account}")
-                customer = IdentityHeaderMiddleware.customer_cache[account]
+                else:
+                    customer = IdentityHeaderMiddleware.customer_cache[account]
             except Customer.DoesNotExist:
                 customer = IdentityHeaderMiddleware.create_customer(account)
             except OperationalError as err:

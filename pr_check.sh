@@ -61,6 +61,7 @@ function run_smoke_tests() {
         --namespace ${NAMESPACE} \
         ${COMPONENTS_ARG} \
         ${COMPONENTS_RESOURCES_ARG} \
+        --optional-deps-method hybrid \
         --set-parameter rbac/MIN_REPLICAS=1 \
         --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
@@ -68,16 +69,6 @@ function run_smoke_tests() {
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \
-        --set-parameter koku/LISTENER_MIN_REPLICAS=2 \
-        --set-parameter koku/WORKER_DOWNLOAD_MIN_REPLICAS=2 \
-        --set-parameter koku/WORKER_OCP_MIN_REPLICAS=2 \
-        --set-parameter host-inventory/REPLICAS_P1=1 \
-        --set-parameter host-inventory/REPLICAS_PMIN=1 \
-        --set-parameter host-inventory/REPLICAS_SP=1 \
-        --set-parameter host-inventory/REPLICAS_SVC=1 \
-        --set-parameter presto/WORKER_REPLICAS=2 \
-        --set-parameter xjoin-search/NUM_REPLICAS=1 \
-        --set-parameter sources-api/MIN_REPLICAS=1  \
         --no-single-replicas \
         --source=appsre \
         --timeout 600

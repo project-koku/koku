@@ -126,6 +126,8 @@ MIDDLEWARE = [
     PROMETHEUS_AFTER_MIDDLEWARE,
 ]
 
+MIDDLEWARE_TIME_TO_LIVE = ENVIRONMENT.int("MIDDLEWARE_TIME_TO_LIVE", default=900)  # in seconds (default = 15 minutes)
+
 DEVELOPMENT = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 if DEVELOPMENT:
     DEFAULT_IDENTITY = {
@@ -137,6 +139,7 @@ if DEVELOPMENT:
         "entitlements": {"cost_management": {"is_entitled": "True"}},
     }
     DEVELOPMENT_IDENTITY = ENVIRONMENT.json("DEVELOPMENT_IDENTITY", default=DEFAULT_IDENTITY)
+    FORCE_HEADER_OVERRIDE = ENVIRONMENT.bool("FORCE_HEADER_OVERRIDE", default=False)
     MIDDLEWARE.insert(5, "koku.dev_middleware.DevelopmentIdentityHeaderMiddleware")
     MIDDLEWARE.insert(len(MIDDLEWARE) - 1, "django_cprofile_middleware.middleware.ProfilerMiddleware")
     DJANGO_CPROFILE_MIDDLEWARE_REQUIRE_STAFF = False
@@ -199,12 +202,12 @@ if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
             "KEY_FUNCTION": "tenant_schemas.cache.make_key",
             "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
         },
-        "rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
+        "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
     }
 else:
