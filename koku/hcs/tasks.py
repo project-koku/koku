@@ -45,7 +45,11 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :returns None
     """
 
-    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+    if enable_hcs_processing(schema_name) and provider in (
+        Provider.PROVIDER_AWS,
+        Provider.PROVIDER_AZURE,
+        Provider.PROVIDER_GCP,
+    ):
         if schema_name and not schema_name.startswith("acct"):
             schema_name = f"acct{schema_name}"
 
