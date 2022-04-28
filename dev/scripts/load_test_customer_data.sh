@@ -75,7 +75,7 @@ log-info "Calculating dates..."
 if [[ $OS = "Darwin" ]]; then
     START_DATE=${2:-$(date -v '-1m' +'%Y-%m-01')}
 else
-    START_DATE=${2:-$(date --date='last month' + '%Y-%m-01')}
+    START_DATE=${2:-$(date --date='last month' '+%Y-%m-01')}
 fi
 
 END_DATE=${3:-$(date +'%Y-%m-%d')}    # defaults to today
@@ -215,14 +215,12 @@ nise_report(){
 build_aws_data() {
   local _source_name="AWS"
   local _yaml_files=("ocp_on_aws/aws_static_data.yml"
-                     "ocp_on_aws/aws_marketplace_static_data.yml"
                      "ocp_on_aws/ocp_static_data.yml")
 
   local _rendered_yaml_files=("$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml"
-                              "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml"
                               "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml")
 
-  local _download_types=("Test AWS Source" "Test OCP on AWS")
+  local _download_types=("Test OCP on AWS" "Test AWS Source" )
 
   log-info "Rendering ${_source_name} YAML files..."
   render_yaml_files "${_yaml_files[@]}"
@@ -230,7 +228,6 @@ build_aws_data() {
   log-info "Building OpenShift on ${_source_name} report data..."
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_aws/rendered_ocp_static_data.yml" --ocp-cluster-id my-ocp-cluster-1 --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
   nise_report aws --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
-  nise_report aws-marketplace --static-report-file "$YAML_PATH/ocp_on_aws/rendered_aws_marketplace_static_data.yml" --aws-s3-report-name None --aws-s3-bucket-name "$NISE_DATA_PATH/local_providers/aws_local"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."
   cleanup_rendered_files "${_rendered_yaml_files[@]}"
