@@ -192,12 +192,12 @@ class OCIReportDownloaderTest(MasuTestCase):
         expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
         downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name, report=key)
         with patch("masu.external.downloader.oci.oci_report_downloader.open"):
-            # with patch("masu.external.downloader.oci.oci_report_downloader.create_daily_archives"):
-            full_path, etag, date, _ = downloader.download_file(key)
-            mock_makedirs.assert_called()
-            mock_objects.assert_called()
-            self.assertEqual(date, self.today)
-            self.assertEqual(full_path, expected_full_path)
+            with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
+                full_path, etag, date, _ = downloader.download_file(key)
+                mock_makedirs.assert_called()
+                mock_objects.assert_called()
+                self.assertEqual(date, self.today)
+                self.assertEqual(full_path, expected_full_path)
 
     @patch("masu.external.downloader.oci.oci_report_downloader.open")
     def test_download_file_client_error(self, mock_open):

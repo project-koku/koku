@@ -83,7 +83,7 @@ class OCIProviderTestCase(TestCase):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = OCIProvider()
         credentials = "not-required"
-        data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace", "region": "my-region"}
+        data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
         try:
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
@@ -93,22 +93,22 @@ class OCIProviderTestCase(TestCase):
         """Verify that the cost usage source errors correctly with no bucket."""
         provider_interface = OCIProvider()
         credentials = "not-required"
-        data_source = {"bucket": None, "bucket_namespace": "my-namespace", "region": "my-region"}
+        data_source = {"bucket": None, "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
-    def test_cost_usage_source_is_reachable_no_bucket_namespace(self, check_cost_report_access):
+    def test_cost_usage_source_is_reachable_no_bucket_namespace(self):
         """Verify that the cost usage source errors correctly with no bucket namespace."""
         provider_interface = OCIProvider()
         credentials = "not-required"
-        data_source = {"bucket": "my-bueckt", "bucket_namespace": None, "region": "my-region"}
+        data_source = {"bucket": "my-bucket", "bucket_namespace": None, "bucket_region": "my-region"}
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
-    def test_cost_usage_source_is_reachable_no_bucket_region(self, check_cost_report_access):
+    def test_cost_usage_source_is_reachable_no_bucket_region(self):
         """Verify that the cost usage source errors correctly with no bucket region."""
         provider_interface = OCIProvider()
         credentials = "not-required"
-        data_source = {"bucket": "my-bueckt", "bucket_namespace": "my-namespace", "region": None}
+        data_source = {"bucket": "my-buckett", "bucket_namespace": "my-namespace", "bucket_region": None}
         with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
