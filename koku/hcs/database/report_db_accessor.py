@@ -15,12 +15,14 @@ from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
+from reporting.provider.oci.models import PRESTO_LINE_ITEM_DAILY_TABLE as OCI_PRESTO_LINE_ITEM_DAILY_TABLE
 
 LOG = logging.getLogger(__name__)
 
 HCS_TABLE_MAP = {
     Provider.PROVIDER_AWS: AWS_PRESTO_LINE_ITEM_DAILY_TABLE,
     Provider.PROVIDER_AZURE: AZURE_PRESTO_LINE_ITEM_DAILY_TABLE,
+    Provider.PROVIDER_OCI: OCI_PRESTO_LINE_ITEM_DAILY_TABLE,
 }
 
 
