@@ -493,6 +493,8 @@ class TestParquetReportProcessor(MasuTestCase):
         for test in test_matrix:
             if test.get("provider_type") == Provider.PROVIDER_OCP:
                 mock_report_type.return_value = "pod_usage"
+            elif test.get("provider_type") == Provider.PROVIDER_OCI:
+                mock_report_type.return_value = "usage"
             else:
                 mock_report_type.return_value = None
             provider_uuid = test.get("provider_uuid")

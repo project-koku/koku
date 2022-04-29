@@ -4,17 +4,19 @@
 #
 """Test the OCIReportDownloader class."""
 import logging
+import os
 import shutil
+import tempfile
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
 from faker import Faker
-from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
 from masu.external import UNCOMPRESSED
+from masu.external.downloader.oci.oci_report_downloader import create_monthly_archives
 from masu.external.downloader.oci.oci_report_downloader import DATA_DIR
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloaderError
@@ -184,60 +186,57 @@ class OCIReportDownloaderTest(MasuTestCase):
             OCIReportDownloader(FAKE.name(), billing_source)
 
     @patch("masu.external.downloader.oci.oci_report_downloader.os.makedirs")
-    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._oci_client.get_object")
-    def test_download_file_success(self, mock_objects, mock_makedirs):
+    def test_download_file_success(self, mock_makedirs):
         """Assert download_file successful scenario"""
         key = "reports_cost-csv_0001000000603504.csv"
         mock_name = "mock-test-customer-success"
         expected_full_path = f"{DATA_DIR}/{mock_name}/oci/{key}"
         downloader = self.create_oci_downloader_with_mocked_values(customer_name=mock_name, report=key)
         with patch("masu.external.downloader.oci.oci_report_downloader.open"):
-            with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
-                full_path, etag, date, _ = downloader.download_file(key)
-                mock_makedirs.assert_called()
-                mock_objects.assert_called()
-                self.assertEqual(date, self.today)
-                self.assertEqual(full_path, expected_full_path)
+            with patch("masu.external.downloader.oci.oci_report_downloader.os.path.getmtime"):
+                with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
+                    full_path, etag, date, _ = downloader.download_file(key)
+                    mock_makedirs.assert_called()
+                    self.assertEqual(full_path, expected_full_path)
 
     @patch("masu.external.downloader.oci.oci_report_downloader.open")
-    def test_download_file_client_error(self, mock_open):
-        """Test BigQuery client is handled correctly in download file method."""
+    def test_download_file_error(self, mock_open):
+        """Test download error is handled correctly in download file method."""
         key = "reports_cost-csv_0001000000603504.csv"
+        err_msg = "Unknown Error"
         downloader = self.create_oci_downloader_with_mocked_values()
-        err_msg = "OCI Error"
-        with patch("masu.external.downloader.oci.oci_report_downloader.oci") as oci_client:
-            oci_client.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegex(OCIReportDownloaderError, err_msg):
-                downloader.download_file(key)
+        with patch("masu.external.downloader.oci.oci_report_downloader.oci"):
+            with patch("masu.external.downloader.oci.oci_report_downloader.os.path.getmtime"):
+                with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
+                    with self.assertRaises(Exception) as exp:
+                        downloader.download_file(key)
+                        self.assertEqual(exp.message, err_msg)
 
-    # @override_settings(ENABLE_PARQUET_PROCESSING=True)
-    # @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")
-    # def test_create_daily_archives(self, mock_s3):
-    #     """Test that we load daily files to S3."""
-    #     # Use the processor example for data:
-    #     file_path = "./koku/masu/test/data/oci/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-    #     file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-    #     temp_dir = tempfile.gettempdir()
-    #     temp_path = os.path.join(temp_dir, file_name)
-    #     shutil.copy2(file_path, temp_path)
+    @patch("masu.external.downloader.oci.oci_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_monthly_archives(self, mock_s3):
+        """Test that we load daily files to S3."""
+        # Use the processor example for data:
+        file_path = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
+        file_name = "reports_cost-csv_0001000000603747.csv"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+        uuid = uuid4()
 
-    #     expected_daily_files = [
-    #         f"{temp_dir}/202011_2020-11-08.csv",
-    #         f"{temp_dir}/202011_2020-11-09.csv",
-    #         f"{temp_dir}/202011_2020-11-10.csv",
-    #         f"{temp_dir}/202011_2020-11-11.csv",
-    #     ]
+        with patch("masu.external.downloader.oci.oci_report_downloader.uuid.uuid4", return_value=uuid):
+            expected_daily_files = [
+                f"{temp_dir}/cost_{uuid}.2022-04.csv",
+            ]
 
-    #     start_date = DateHelper().this_month_start
-    #     daily_file_names = create_daily_archives(
-    #         "request_id", "account", self.oci_provider_uuid, file_name, temp_path, None, start_date, None
-    #     )
+            daily_file_names = create_monthly_archives(
+                "request_id", "account", self.oci_provider_uuid, file_name, temp_path, None
+            )
 
-    #     mock_s3.assert_called()
-    #     self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+            mock_s3.assert_called()
+            self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
 
-    #     for daily_file in expected_daily_files:
-    #         self.assertTrue(os.path.exists(daily_file))
-    #         os.remove(daily_file)
+            for daily_file in expected_daily_files:
+                self.assertTrue(os.path.exists(daily_file))
+                os.remove(daily_file)
 
-    #     os.remove(temp_path)
+            os.remove(temp_path)

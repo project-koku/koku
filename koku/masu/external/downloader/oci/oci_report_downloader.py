@@ -6,7 +6,7 @@
 import datetime
 import logging
 import os
-from uuid import uuid4
+import uuid
 
 import oci
 import pandas as pd
@@ -56,7 +56,7 @@ def divide_csv_monthly(file_path, filename):
         month = daily_data.get("date")
         start_date = parser.parse(month + "-01")
         df = daily_data.get("data_frame")
-        month_file = f"{report_type}_{uuid4()}.{month}.csv"
+        month_file = f"{report_type}_{uuid.uuid4()}.{month}.csv"
         month_filepath = f"{directory}/{month_file}"
         df.to_csv(month_filepath, index=False, header=True)
         monthly_files.append(
@@ -336,40 +336,49 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             tuple(str, str) with the local filesystem path to file and OCI's etag.
 
         """
-        bucket = self.bucket
-        bucket_namespace = self.namespace
-        etag = key
+        try:
+            bucket = self.bucket
+            bucket_namespace = self.namespace
+            etag = key
 
-        directory_path = self._get_local_directory_path()
-        full_local_path = self._get_local_file_path(directory_path, key)
-        os.makedirs(directory_path, exist_ok=True)
+            directory_path = self._get_local_directory_path()
+            full_local_path = self._get_local_file_path(directory_path, key)
+            os.makedirs(directory_path, exist_ok=True)
 
-        file_creation_date = None
-        msg = f"Returning full_file_path: {full_local_path}"
-        LOG.info(log_json(self.request_id, msg, self.context))
-        msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
-        report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
+            file_creation_date = None
+            msg = f"Returning full_file_path: {full_local_path}"
+            LOG.info(log_json(self.request_id, msg, self.context))
+            msg = f"Downloading {key} to {full_local_path}"
+            LOG.info(log_json(self.tracing_id, msg, self.context))
+            report_file = self._oci_client.get_object(bucket_namespace, bucket, key)
 
-        with open(full_local_path, "wb") as f:
-            for chunk in report_file.data.raw.stream(1024 * 1024, decode_content=False):
-                f.write(chunk)
-            file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_local_path))
+            with open(full_local_path, "wb") as f:
+                for chunk in report_file.data.raw.stream(1024 * 1024, decode_content=False):
+                    f.write(chunk)
+                file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_local_path))
 
-        if "usage" in key:
-            self.update_last_reports("usage", key, manifest_id)
-        else:
-            self.update_last_reports("cost", key, manifest_id)
+            if "usage" in key:
+                self.update_last_reports("usage", key, manifest_id)
+            else:
+                self.update_last_reports("cost", key, manifest_id)
 
-        file_names = create_monthly_archives(
-            self.tracing_id,
-            self.account,
-            self._provider_uuid,
-            key,
-            full_local_path,
-            manifest_id,
-            self.context,
-        )
+            file_names = create_monthly_archives(
+                self.tracing_id,
+                self.account,
+                self._provider_uuid,
+                key,
+                full_local_path,
+                manifest_id,
+                self.context,
+            )
+        except Exception as err:
+            err_msg = (
+                "Could not complete download."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {err.message}"
+            )
+            raise OCIReportDownloaderError(err_msg)
 
         return full_local_path, etag, file_creation_date, file_names
 
