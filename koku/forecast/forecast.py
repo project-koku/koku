@@ -37,6 +37,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 LOG = logging.getLogger(__name__)
 COST_FIELD_NAMES = ["total_cost", "infrastructure_cost", "supplementary_cost"]
 ZERO_RESULT = [{}, 0, [0]]
+DEFAULT_RESULT = {"total_cost": 0, "confidence_min": 0, "confidence_max": 0}
 
 
 class Forecast:
@@ -245,15 +246,20 @@ class Forecast:
     def _key_results_by_date(self, results):
         """Take results formatted by cost type, and return results keyed by date."""
         results_by_date = defaultdict(dict)
+        dates = []
+        for cost_term in COST_FIELD_NAMES:
+            # we need to get the list of dates. Sometimes a dictionary is empty,
+            # so we iterate over the dicts and get the keys and stop after we retrieved
+            # the dates
+            dates = results[cost_term][0].keys()
+            if dates:
+                break
         for cost_term in COST_FIELD_NAMES:
             result = results[cost_term]
             date_results, rsquared, pvalues = result
-            for date, res in date_results.items():
-                results_by_date[date][cost_term] = (
-                    res,
-                    {"rsquared": rsquared},
-                    {"pvalues": pvalues},
-                )
+            for date in dates:
+                res = date_results.get(date, DEFAULT_RESULT)
+                results_by_date[date][cost_term] = (res, {"rsquared": rsquared}, {"pvalues": pvalues})
         return results_by_date
 
     def format_result(self, results):
