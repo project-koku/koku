@@ -74,6 +74,8 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
+        aggregates = self._mapper.report_type_map.get("aggregates")
+        agg_list = [key for key in aggregates]
         total_query = {
             "infra_total": 0,
             "infra_raw": 0,
@@ -103,7 +105,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             }
             base = query_set.get(codes.get(self.provider))
             exchange_rate = self._get_exchange_rate(base)
-            for value in [
+            exchange_list = [
                 "infra_total",
                 "infra_raw",
                 "infra_usage",
@@ -119,13 +121,17 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 "cost_usage",
                 "cost_markup",
                 "cost_credit",
-            ]:
+            ]
+            for value in exchange_list:
                 orig_value = total_query[value]
                 total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
-            for each in ["count", "usage"]:
+            agg_diff = set(agg_list).difference(set(exchange_list))
+            for each in agg_diff:
                 orig_value = total_query.get(each)
                 new_val = query_set.get(each)
-                if new_val is not None:
+                if type(new_val) == str:
+                    total_query[each] = new_val
+                elif new_val is not None:
                     total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
@@ -139,8 +145,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-        print("\n\n\nself. report table: ")
-        print(self.query_table)
 
         with tenant_context(self.tenant):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
