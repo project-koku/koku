@@ -103,6 +103,7 @@ class OrchestratorTest(MasuTestCase):
                 else:
                     self.fail("Unexpected provider")
 
+        # Result is 4 because that matches the number of non OCP sources
         if len(orchestrator._polling_accounts) != 4:
             self.fail("Unexpected number of listener test accounts")
 
@@ -184,7 +185,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 7)
+            self.assertEqual(len(results), 8)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 

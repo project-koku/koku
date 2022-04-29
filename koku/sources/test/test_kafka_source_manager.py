@@ -182,7 +182,7 @@ class ProviderBuilderTest(IamTestCase):
 
         for test in test_matrix:
             with self.subTest(test=test):
-                response = client._build_credentials_auth(test.get("authentication"))
+                response = client._build_credentials_auth(test.get("provider_type"), test.get("authentication"))
                 self.assertEqual(response, test.get("expected_response"))
 
     def test__build_credentials_auth_errors(self):
@@ -208,7 +208,7 @@ class ProviderBuilderTest(IamTestCase):
 
         for test in test_matrix:
             with self.assertRaises(test.get("expected_response")):
-                client._build_credentials_auth(test.get("authentication"))
+                client._build_credentials_auth(test.get("provider_type"), test.get("authentication"))
 
     def test_get_billing_source_for_provider(self):
         """Test to build Koku Provider billing_source json obj."""

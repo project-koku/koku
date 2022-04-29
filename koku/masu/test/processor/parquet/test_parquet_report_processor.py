@@ -473,12 +473,14 @@ class TestParquetReportProcessor(MasuTestCase):
             {
                 "provider_uuid": str(self.oci_provider_uuid),
                 "provider_type": Provider.PROVIDER_OCI,
+                "report_file": "usage.csv",
                 "patch": (OCIReportParquetProcessor, "create_bill"),
                 "daily": False,
             },
             {
                 "provider_uuid": str(self.oci_provider_uuid),
                 "provider_type": Provider.PROVIDER_OCI,
+                "report_file": "usage.csv",
                 "patch": (OCIReportParquetProcessor, "create_bill"),
                 "daily": True,
             },
