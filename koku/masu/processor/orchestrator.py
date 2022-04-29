@@ -142,9 +142,11 @@ class Orchestrator:
         if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
+            HCS_Q = self.queue_name
         else:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            HCS_Q = HCS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -217,7 +219,7 @@ class Orchestrator:
 
         if report_tasks:
             reports_tasks_queued = True
-            hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_QUEUE)
+            hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
             summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
 
             async_id = chord(report_tasks, group(summary_task, hcs_task))()
