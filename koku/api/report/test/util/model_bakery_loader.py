@@ -10,6 +10,7 @@ from datetime import timedelta
 from itertools import cycle
 from itertools import product
 
+from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from django.utils import timezone
 from faker import Faker
@@ -56,6 +57,22 @@ class ModelBakeryDataLoader(DataLoader):
         self.tags = [{"app": "mobile"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
+
+    def get_test_data_dates(self, num_days):
+        """Return a list of tuples with dates for nise data."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
+
+        prev_month_start = self.dh.last_month_start
+        prev_month_end = self.dh.last_month_end
+
+        if (end_date - prev_month_start).days > num_days:
+            prev_month_start = end_date - relativedelta(days=num_days)
+
+        return [
+            (prev_month_start, prev_month_end, self.dh.last_month_start),
+            (start_date, end_date, self.dh.this_month_start),
+        ]
 
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
