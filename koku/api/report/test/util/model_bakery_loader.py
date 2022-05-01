@@ -181,7 +181,7 @@ class ModelBakeryDataLoader(DataLoader):
                 bill = self.create_bill(provider_type, provider, bill_date, payer_account_id=payer_account_id)
                 bills.append(bill)
                 self.create_cost_entry(bill_date, bill)
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(  # Storage data_source
                         "api.report.test.util.aws_daily_summary",
@@ -228,7 +228,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         "api.report.test.util.azure_daily_summary",
@@ -264,7 +264,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i, project in product(range(days), projects):
                     baker.make_recipe(
                         "api.report.test.util.gcp_daily_summary",
@@ -304,7 +304,7 @@ class ModelBakeryDataLoader(DataLoader):
             )
             report_periods.append(report_period)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     infra_raw_cost = random.random() * 100 if on_cloud else None
                     project_infra_raw_cost = infra_raw_cost * random.random() if on_cloud else None
@@ -390,7 +390,7 @@ class ModelBakeryDataLoader(DataLoader):
                 unique_fields["invoice_month"] = bill_date.strftime("%Y%m")
             LOG.info(f"load OCP-on-{provider.type} data for start: {start_date}, end: {end_date}")
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         daily_summary_recipe,
