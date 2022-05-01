@@ -681,6 +681,21 @@ class TestParquetReportProcessor(MasuTestCase):
             expected = partial(ocp_generate_daily_data, report_type=report_type)
             self.assertEqual(daily_data_processor.func, expected.func)
 
+        with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
+            report_type = "usage"
+            mock_report_type.return_value = report_type
+            processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.oci_provider_uuid,
+                provider_type=Provider.PROVIDER_OCI,
+                manifest_id=self.manifest_id,
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            )
+            daily_data_processor = processor.daily_data_processor
+            expected = partial(oci_generate_daily_data, report_type=report_type)
+            self.assertEqual(daily_data_processor.func, expected.func)
+
     @patch.object(ParquetReportProcessor, "create_parquet_table")
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")
     def test_create_daily_parquet(self, mock_write, mock_create_table):

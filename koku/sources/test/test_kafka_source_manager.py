@@ -177,6 +177,11 @@ class ProviderBuilderTest(IamTestCase):
                 "authentication": {"credentials": {"foo": "bar"}},
                 "expected_response": {"credentials": {"foo": "bar"}},
             },
+            {
+                "provider_type": Provider.PROVIDER_OCI,
+                "authentication": {},
+                "expected_response": {},
+            },
         ]
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 

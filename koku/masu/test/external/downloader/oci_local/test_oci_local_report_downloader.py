@@ -95,6 +95,18 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, self.testing_dir)
 
+    def test_download_file_error(self):
+        """Test OCI-Local report download."""
+        key = "reports_cost-csv_0001000000603504.csv"
+        err_msg = "Unknown Error"
+        with patch(
+            "masu.external.downloader.oci_local.oci_local_report_downloader.OCILocalReportDownloader.download_file"
+        ) as downloader:
+            with patch("masu.external.downloader.oci_local.oci_local_report_downloader.os.path.isfile"):
+                with self.assertRaises(Exception) as exp:
+                    downloader.download_file(key)
+                    self.assertEqual(exp.message, err_msg)
+
     def test_get_manifest_for_date(self):
         """Test OCI-local get manifest."""
         expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])

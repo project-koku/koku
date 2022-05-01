@@ -33,6 +33,11 @@ class OCIReportSummaryUpdater(PartitionHandlerMixin):
         self._manifest = manifest
         self._date_accessor = DateAccessor()
 
+    def _get_sql_inputs(self, start_date, end_date):
+        """Get the required inputs for running summary SQL."""
+
+        return start_date, end_date
+
     def update_daily_tables(self, start_date, end_date):
         """Populate the daily tables for reporting.
 
@@ -44,7 +49,6 @@ class OCIReportSummaryUpdater(PartitionHandlerMixin):
             (str, str): A start date and end date.
 
         """
-        start_date, end_date = self._get_sql_inputs(start_date, end_date)
         bills = get_bills_from_provider(
             self._provider.uuid,
             self._schema,
