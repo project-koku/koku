@@ -10,6 +10,7 @@ from datetime import timedelta
 from itertools import cycle
 from itertools import product
 
+from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from django.utils import timezone
 from faker import Faker
@@ -58,6 +59,22 @@ class ModelBakeryDataLoader(DataLoader):
         self.tags = [{"app": "mobile"}] + [{key: self.faker.slug()} for key in self.tag_keys]
         self.tag_test_tag_key = "app"
         self._populate_enabled_tag_key_table()
+
+    def get_test_data_dates(self, num_days):
+        """Return a list of tuples with dates for nise data."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
+
+        prev_month_start = self.dh.last_month_start
+        prev_month_end = self.dh.last_month_end
+
+        if (end_date - prev_month_start).days > num_days:
+            prev_month_start = end_date - relativedelta(days=num_days)
+
+        return [
+            (prev_month_start, prev_month_end, self.dh.last_month_start),
+            (start_date, end_date, self.dh.this_month_start),
+        ]
 
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
@@ -183,7 +200,7 @@ class ModelBakeryDataLoader(DataLoader):
                 bill = self.create_bill(provider_type, provider, bill_date, payer_account_id=payer_account_id)
                 bills.append(bill)
                 self.create_cost_entry(bill_date, bill)
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(  # Storage data_source
                         "api.report.test.util.aws_daily_summary",
@@ -230,7 +247,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         "api.report.test.util.azure_daily_summary",
@@ -266,7 +283,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i, project in product(range(days), projects):
                     baker.make_recipe(
                         "api.report.test.util.gcp_daily_summary",
@@ -306,7 +323,7 @@ class ModelBakeryDataLoader(DataLoader):
             )
             report_periods.append(report_period)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     infra_raw_cost = random.random() * 100 if on_cloud else None
                     project_infra_raw_cost = infra_raw_cost * random.random() if on_cloud else None
@@ -392,7 +409,7 @@ class ModelBakeryDataLoader(DataLoader):
                 unique_fields["invoice_month"] = bill_date.strftime("%Y%m")
             LOG.info(f"load OCP-on-{provider.type} data for start: {start_date}, end: {end_date}")
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         daily_summary_recipe,
