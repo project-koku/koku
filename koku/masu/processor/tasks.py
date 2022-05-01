@@ -661,7 +661,7 @@ def refresh_materialized_views(  # noqa: C901
     schema_name,
     provider_type,
     manifest_id=None,
-    provider_uuid=None,
+    provider_uuid="",
     synchronous=False,
     queue_name=None,
     tracing_id=None,
