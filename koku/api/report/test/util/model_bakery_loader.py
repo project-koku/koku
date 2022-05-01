@@ -43,6 +43,7 @@ BILL_MODELS = {
     Provider.PROVIDER_GCP_LOCAL: "GCPCostEntryBill",
     Provider.PROVIDER_OCP: "OCPUsageReportPeriod",
     Provider.PROVIDER_OCI_LOCAL: "OCICostEntryBill",
+    Provider.PROVIDER_OCI: "OCICostEntryBill",
 }
 LOG = logging.getLogger(__name__)
 

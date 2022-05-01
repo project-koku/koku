@@ -280,8 +280,8 @@ OCI_INSTANCE_IDS = (
     [None],
     ["ocid1.instance.oc1.uk-london-1.anwgiljtcf22xzacqqiueuntvcjnqkbep26cg24lpnu5tpekmi2sdif2vpma"],
 ) + ([None],) * 5
-OCI_INSTANCE_COUNTS = (0, 1, 1) + (0,) * 5
-OCI_UNITS_OF_MEASURE = ("Hrs",) * 3 + (None,) * 3 + ("GB-Mo",) * 3
+OCI_INSTANCE_COUNTS = (1, 1) + (0,) * 5
+OCI_UNITS_OF_MEASURE = ("BYTES",) + (None,) * 3 + ("BYTE_MS",) + (None,) * 2
 OCI_CONSTANTS = SameLengthDict(
     {
         "service_names": OCI_SERVICE_NAMES,
