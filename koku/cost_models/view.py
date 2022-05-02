@@ -51,7 +51,6 @@ class CostModelsFilter(FilterSet):
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
-        self.validate_currency(self, qs, name, values)
         lookup = "__".join([name, "icontains"])
         value_list = values.split(",")
         queries = [Q(**{lookup: val}) for val in value_list]
