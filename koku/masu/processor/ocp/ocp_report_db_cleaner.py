@@ -76,7 +76,7 @@ class OCPReportDBCleaner:
                 all_report_periods.sort()
                 LOG.info(
                     f"Removing all data related to report_period_ids: {all_report_periods}; "
-                    f"cluster_ids: {sorted(all_cluster_ids)}; starting periods {sorted(all_period_starts)}"
+                    f"cluster_ids: {all_cluster_ids}; starting periods {all_period_starts}"
                 )
 
                 if not simulate:
@@ -119,7 +119,7 @@ class OCPReportDBCleaner:
             all_report_periods.sort()
             LOG.info(
                 f"Removing all data related to "
-                f"cluster_ids: {sorted(all_cluster_ids)}; starting periods {sorted(all_period_starts)}"
+                f"cluster_ids: {all_cluster_ids}; starting periods {all_period_starts}"
             )
 
             if not simulate:
