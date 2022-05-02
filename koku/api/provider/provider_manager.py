@@ -171,51 +171,75 @@ class ProviderManager:
             months.append(month.billing_period_start_datetime)
         data_updated_date = self.model.data_updated_timestamp
         data_updated_date = data_updated_date.strftime(DATE_TIME_FORMAT) if data_updated_date else data_updated_date
-        provider_stats = {"data_updated_date": data_updated_date}
-
+        provider_stats = {"data_updated_date": data_updated_date, "ocp_on_cloud_data_updated_date": None}
         for month in sorted(months, reverse=True):
             stats_key = str(month.date())
-            provider_stats[stats_key] = []
+            provider_stats[stats_key] = {}
+            provider_stats[stats_key]["manifests"] = []
             month_stats = []
             stats_query = CostUsageReportManifest.objects.filter(
                 provider=self.model, billing_period_start_datetime=month
             ).order_by("manifest_creation_datetime")
 
+            if self.model.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+                clusters = Provider.objects.filter(infrastructure__infrastructure_provider_id=self.model.uuid).all()
+                report_periods = OCPUsageReportPeriod.objects.filter(
+                    provider__in=clusters, report_period_start=month
+                ).all()
+                ocp_on_cloud_updates = []
+                with tenant_context(tenant):
+                    for rp in report_periods:
+                        updated_date_str = (
+                            rp.ocp_on_cloud_updated_datetime.strftime(DATE_TIME_FORMAT)
+                            if rp.ocp_on_cloud_updated_datetime
+                            else ""
+                        )
+                        ocp_on_cloud_updates.append(
+                            {"ocp_source_uuid": str(rp.provider_id), "ocp_on_cloud_updated_datetime": updated_date_str}
+                        )
+                        if (
+                            provider_stats["ocp_on_cloud_data_updated_date"] is None
+                            or updated_date_str > provider_stats["ocp_on_cloud_data_updated_date"]
+                        ):
+                            provider_stats["ocp_on_cloud_data_updated_date"] = updated_date_str
+                provider_stats[stats_key]["ocp_on_cloud"] = ocp_on_cloud_updates
+
             for provider_manifest in stats_query.reverse()[:3]:
-                status = {}
-                report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
-                status["assembly_id"] = provider_manifest.assembly_id
-                status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
+                month_stats.append(self.generate_manifest_status(provider_manifest))
 
-                num_processed_files = CostUsageReportStatus.objects.filter(
-                    manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
-                ).count()
-                status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
-
-                last_process_start_date = None
-                last_process_complete_date = None
-                last_manifest_complete_datetime = None
-                if provider_manifest.manifest_completed_datetime:
-                    last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(
-                        DATE_TIME_FORMAT
-                    )
-                if provider_manifest.manifest_modified_datetime:
-                    manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(
-                        DATE_TIME_FORMAT
-                    )
-                if report_status and report_status.last_started_datetime:
-                    last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
-                if report_status and report_status.last_completed_datetime:
-                    last_process_complete_date = report_status.last_completed_datetime.strftime(DATE_TIME_FORMAT)
-                status["last_process_start_date"] = last_process_start_date
-                status["last_process_complete_date"] = last_process_complete_date
-                status["last_manifest_complete_date"] = last_manifest_complete_datetime
-                status["manifest_modified_datetime"] = manifest_modified_datetime
-                month_stats.append(status)
-
-            provider_stats[stats_key] = month_stats
+            provider_stats[stats_key]["manifests"] = month_stats
 
         return provider_stats
+
+    def generate_manifest_status(self, provider_manifest):
+        """Write status for a specific manifest."""
+        status = {}
+        report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
+        status["assembly_id"] = provider_manifest.assembly_id
+        status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
+
+        num_processed_files = CostUsageReportStatus.objects.filter(
+            manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
+        ).count()
+        status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
+
+        last_process_start_date = None
+        last_process_complete_date = None
+        last_manifest_complete_datetime = None
+        if provider_manifest.manifest_completed_datetime:
+            last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(DATE_TIME_FORMAT)
+        if provider_manifest.manifest_modified_datetime:
+            manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.last_started_datetime:
+            last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.last_completed_datetime:
+            last_process_complete_date = report_status.last_completed_datetime.strftime(DATE_TIME_FORMAT)
+        status["last_process_start_date"] = last_process_start_date
+        status["last_process_complete_date"] = last_process_complete_date
+        status["last_manifest_complete_date"] = last_manifest_complete_datetime
+        status["manifest_modified_datetime"] = manifest_modified_datetime
+
+        return status
 
     def get_cost_models(self, tenant):
         """Get the cost models associated with this provider."""

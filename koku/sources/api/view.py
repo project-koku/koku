@@ -29,8 +29,6 @@ from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
 from api.common.permissions import RESOURCE_TYPE_MAP
-from api.iam.models import Tenant
-from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -282,8 +280,6 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
-        account_id = request.user.customer.account_id
-        schema_name = create_schema_name(account_id)
         source = self.get_object()
         stats = {}
         try:
@@ -292,6 +288,5 @@ class SourcesViewSet(*MIXIN_LIST):
             stats["provider_linked"] = False
         else:
             stats["provider_linked"] = True
-            tenant = Tenant.objects.get(schema_name=schema_name)
-            stats.update(manager.provider_statistics(tenant))
+            stats.update(manager.provider_statistics(request.tenant))
         return Response(stats)
