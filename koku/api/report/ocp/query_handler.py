@@ -320,7 +320,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
-
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 # the no node issue is happening here
