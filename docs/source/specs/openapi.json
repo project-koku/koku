@@ -5274,6 +5274,9 @@
           "description": {
             "type": "string"
           },
+          "currency": {
+            "type": "string"
+          },
           "source_type": {
             "type": "string"
           },
