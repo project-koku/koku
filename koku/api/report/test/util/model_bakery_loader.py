@@ -473,7 +473,7 @@ class ModelBakeryDataLoader(DataLoader):
     def load_oci_data(self, linked_openshift_provider=None):
         """Load OCI data for tests."""
         bills = []
-        provider_type = (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL)
+        provider_type = Provider.PROVIDER_OCI_LOCAL
         pay_id = self.faker.uuid4()
         credentials = {"tenant": pay_id}
         billing_source = {
