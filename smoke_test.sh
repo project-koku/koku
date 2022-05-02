@@ -24,6 +24,9 @@ export BONFIRE_NS_REQUESTER="${JOB_NAME}-${BUILD_NUMBER}"
 export NAMESPACE=$(bonfire namespace reserve --duration 6h)
 SMOKE_NAMESPACE=$NAMESPACE
 
+oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
+oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
+
 AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -d)
 AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
 GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
