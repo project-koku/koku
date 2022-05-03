@@ -329,6 +329,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNotNone(period.summary_data_creation_datetime)
         self.assertGreater(period.summary_data_updated_datetime, self.today)
 
+    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_volume_label_summary_table")
+    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_pod_label_summary_table")
     @patch(
         "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor."
         "update_line_item_daily_summary_with_enabled_tags"
@@ -353,6 +355,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary,
         mock_node_daily,
         mock_udt_lids_tags,
+        mock_pod_labels,
+        mock_volume_labels,
     ):
         """Test that summary tables are run for a full month when no report period is found."""
         self.manifest.num_processed_files = self.manifest.num_total_files
@@ -380,3 +384,5 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_sum.assert_called()
         mock_storage_summary.assert_called()
         mock_udt_lids_tags.assert_called()
+        mock_pod_labels.assert_called()
+        mock_volume_labels.assert_called()

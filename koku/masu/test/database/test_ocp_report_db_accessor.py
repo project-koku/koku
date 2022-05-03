@@ -7,6 +7,7 @@ import random
 import string
 import uuid
 from collections import defaultdict
+from datetime import datetime
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -2923,3 +2924,28 @@ select * from eek where val1 in {{report_period_id}} ;
         # Confirms that the error log would be logged on last attempt
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_max_min_timestamp_from_parquet(self, mock_query):
+        """Get the max and min timestamps for parquet data given a date range"""
+        start_date, end_date = datetime(2022, 3, 1), datetime(2022, 3, 30)
+        table = [
+            {
+                "name": "valid-dates",
+                "return": ["2022-04-01", "2022-04-30"],
+                "expected": (datetime(2022, 4, 1), datetime(2022, 4, 30)),
+            },
+            {"name": "none-dates", "return": [None, None], "expected": (start_date, end_date)},
+            {
+                "name": "none-start-date",
+                "return": [None, "2022-04-30"],
+                "expected": (start_date, datetime(2022, 4, 30)),
+            },
+            {"name": "none-end-date", "return": ["2022-04-01", None], "expected": (datetime(2022, 4, 1), end_date)},
+        ]
+
+        for test in table:
+            with self.subTest(test=test["name"]):
+                mock_query.return_value = [test["return"]]  # returned value is a list of a list
+                result = self.accessor.get_max_min_timestamp_from_parquet(uuid.uuid4(), start_date, end_date)
+                self.assertEqual(result, test["expected"])

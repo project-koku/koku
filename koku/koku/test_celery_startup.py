@@ -1,8 +1,12 @@
 """Tests for celery startup."""
+from unittest.mock import Mock
+from unittest.mock import patch
+
 from koku.celery import init_worker
 from masu.test import MasuTestCase
 
 
+@patch("koku.feature_flags.UNLEASH_CLIENT.initialize_client", Mock())
 class TestCeleryStartup(MasuTestCase):
     """Test cases for Celery tasks."""
 
