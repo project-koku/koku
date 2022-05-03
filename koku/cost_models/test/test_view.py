@@ -213,6 +213,25 @@ class CostModelViewTests(IamTestCase):
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
+        url = "%s?currency=USD" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get("data")
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["currency"], "USD")
+
+        url = "%s?currency=JPY" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get("data")
+        self.assertEqual(len(results), 0)
+
+        url = "%s?currency=FAKE" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_read_cost_model_invalid(self):
         """Test that reading an invalid cost_model returns an error."""
         url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
