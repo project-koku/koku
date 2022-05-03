@@ -47,10 +47,12 @@ class Orchestrator:
             billing_source (String): Individual account to retrieve.
 
         """
-        self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
+        self.billing_source = billing_source
         self.bill_date = bill_date
+        self.provider_uuid = provider_uuid
         self.queue_name = queue_name
+        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -134,7 +136,7 @@ class Orchestrator:
             (Boolean) - Whether we are processing this manifest
         """
         # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
-        if self.queue_name is not None:
+        if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
         else:
@@ -187,7 +189,7 @@ class Orchestrator:
             report_context["key"] = report_file
             report_context["request_id"] = tracing_id
 
-            if provider_type == Provider.PROVIDER_OCP or i == last_report_index:
+            if provider_type in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP] or i == last_report_index:
                 # This create_table flag is used by the ParquetReportProcessor
                 # to create a Hive/Trino table.
                 # To reduce the number of times we check Trino/Hive tables, we just do this

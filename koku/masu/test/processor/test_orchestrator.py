@@ -6,6 +6,7 @@
 import logging
 import random
 from unittest.mock import patch
+from uuid import uuid4
 
 import faker
 
@@ -321,8 +322,9 @@ class OrchestratorTest(MasuTestCase):
     def test_start_manifest_processing_priority_queue(self, mock_download_manifest, mock_task, mock_inspect):
         """Test start_manifest_processing using priority queue."""
         test_queues = [
-            {"name": "qe-account", "queue-name": "priority", "expected": "priority"},
-            {"name": "qe-account", "queue-name": None, "expected": "summary"},
+            {"name": "qe-account", "provider_uuid": str(uuid4()), "queue-name": "priority", "expected": "priority"},
+            {"name": "qe-account", "provider_uuid": None, "queue-name": "priority", "expected": "summary"},
+            {"name": "qe-account", "provider_uuid": str(uuid4()), "queue-name": None, "expected": "summary"},
         ]
         mock_manifest = {
             "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
@@ -330,7 +332,7 @@ class OrchestratorTest(MasuTestCase):
         for test in test_queues:
             with self.subTest(test=test.get("name")):
                 mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
-                orchestrator = Orchestrator(queue_name=test.get("queue-name"))
+                orchestrator = Orchestrator(provider_uuid=test.get("provider_uuid"), queue_name=test.get("queue-name"))
                 account = self.mock_accounts[0]
                 orchestrator.start_manifest_processing(
                     account.get("customer_name"),

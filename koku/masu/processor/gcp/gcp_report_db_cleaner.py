@@ -72,7 +72,7 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -120,7 +120,7 @@ class GCPReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)

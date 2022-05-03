@@ -68,7 +68,7 @@ class KokuTenantMiddlewareTest(IamTestCase):
 
     def test_get_tenant_user_not_found(self):
         """Test that a 401 is returned."""
-        mock_user = Mock(username="mockuser")
+        mock_user = Mock(spec=["not-username"])
         mock_request = Mock(path="/api/v1/tags/aws/", user=mock_user)
         middleware = KokuTenantMiddleware()
         result = middleware.process_request(mock_request)
@@ -189,10 +189,12 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         self.assertTrue(hasattr(mock_request, "user"))
         self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 1)
         self.assertEqual(MD.USER_CACHE.currsize, 1)
+        middleware.process_request(mock_request)  # make the same request again and do not see any cache changes
+        self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 1)
+        self.assertEqual(MD.USER_CACHE.currsize, 1)
         customer = Customer.objects.get(account_id=self.customer.account_id)
         self.assertIsNotNone(customer)
         user = User.objects.get(username=self.user_data["username"])
-        self.assertEqual(MD.USER_CACHE.currsize, 1)
         self.assertIsNotNone(user)
         time.sleep(4)  # Wait for the ttl
         self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 0)
@@ -261,6 +263,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         )
         self.assertEqual(MD.USER_CACHE.currsize, 1)
 
+    @override_settings(CACHES={"rbac": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}})
     @patch("koku.rbac.RbacService.get_access_for_user")
     def test_process_non_admin(self, get_access_mock):
         """Test case for process_request as a non-admin user."""

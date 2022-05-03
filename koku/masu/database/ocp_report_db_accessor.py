@@ -449,7 +449,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return db_results
 
-    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):
+    def get_ocp_infrastructure_map_trino(self, start_date, end_date, **kwargs):  # noqa: C901
         """Get the OCP on infrastructure map.
 
         Args:
@@ -467,13 +467,25 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         azure_provider_uuid = kwargs.get("azure_provider_uuid")
         gcp_provider_uuid = kwargs.get("gcp_provider_uuid")
 
+        check_aws = False
+        check_azure = False
+        check_gcp = False
+
         if not self.table_exists_trino(PRESTO_LINE_ITEM_TABLE_DAILY_MAP.get("pod_usage")):
             return {}
-        if aws_provider_uuid and not self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE):
-            return {}
-        if azure_provider_uuid and not self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE):
-            return {}
-        if gcp_provider_uuid and not self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE):
+        if aws_provider_uuid or ocp_provider_uuid:
+            check_aws = self.table_exists_trino(AWS_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if aws_provider_uuid and not check_aws:
+                return {}
+        if azure_provider_uuid or ocp_provider_uuid:
+            check_azure = self.table_exists_trino(AZURE_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if azure_provider_uuid and not check_azure:
+                return {}
+        if gcp_provider_uuid or ocp_provider_uuid:
+            check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
+            if gcp_provider_uuid and not check_gcp:
+                return {}
+        if not any([check_aws, check_azure, check_gcp]):
             return {}
 
         if isinstance(start_date, str):
@@ -491,6 +503,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "ocp_provider_uuid": ocp_provider_uuid,
             "azure_provider_uuid": azure_provider_uuid,
             "gcp_provider_uuid": gcp_provider_uuid,
+            "check_aws": check_aws,
+            "check_azure": check_azure,
+            "check_gcp": check_gcp,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         results = self._execute_presto_raw_sql_query(
@@ -734,15 +749,19 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "days": days_str,
         }
 
-        LOG.info("PRESTO OCP: Connect")
+        LOG.info("TRINO OCP: Connect")
         presto_conn = kpdb.connect(schema=self.schema)
         try:
-            LOG.info("PRESTO OCP: executing SQL buffer for OCP usage processing")
+            LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
             kpdb.executescript(
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
-            LOG.error(f"PRESTO OCP ERROR : {e}")
+            LOG.warning(
+                f"TRINO OCP ERROR : {e}"
+                + os.linesep
+                + "File : masu/database/presto_sql/reporting_ocpusagelineitem_daily_summary.sql"
+            )
             try:
                 presto_conn.rollback()
             except RuntimeError:
@@ -751,10 +770,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 pass
             raise e
         else:
-            LOG.info("PRESTO OCP: Commit actions")
+            LOG.info("TRINO OCP: Commit actions")
             presto_conn.commit()
         finally:
-            LOG.info("PRESTO OCP: Close connection")
+            LOG.info("TRINO OCP: Close connection")
             presto_conn.close()
 
     def get_cost_summary_for_clusterid(self, cluster_identifier):
@@ -2434,7 +2453,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         """
 
         timestamps = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_max_min_timestamp_from_parquet")
-        max, min = timestamps[0]
-        min = min if min else start_date
-        max = max if max else end_date
-        return parse(max), parse(min)
+        minim, maxim = timestamps[0]
+        minim = parse(minim) if minim else start_date
+        maxim = parse(maxim) if maxim else end_date
+        return minim, maxim
