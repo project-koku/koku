@@ -147,6 +147,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
 
+        LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
+
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
@@ -259,6 +264,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
 
+        LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
+
     def update_gcp_summary_tables(self, openshift_provider_uuid, gcp_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on GCP."""
         if isinstance(start_date, str):
@@ -360,3 +370,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 ocp_accessor.populate_ui_summary_tables(
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
+        LOG.info("Updating ocp_on_cloud_updated_datetime on OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
