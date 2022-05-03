@@ -36,6 +36,16 @@ CACHE_PREFIXES = (
 )
 
 
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+        }
+    }
+)
 class KokuCacheTest(IamTestCase):
     """Test the cache functionality."""
 
