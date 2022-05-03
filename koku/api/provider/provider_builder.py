@@ -50,8 +50,7 @@ class ProviderBuilder:
         return db_dict
 
     def _build_credentials_auth(self, provider_type, authentication):
-        provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        if provider_type in [Provider.PROVIDER_OCI or Provider.PROVIDER_OCI_LOCAL]:
+        if provider_type == Provider.PROVIDER_OCI or provider_type == Provider.PROVIDER_OCI_LOCAL:
             auth = {}
         else:
             credentials = authentication.get("credentials")
