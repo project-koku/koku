@@ -50,18 +50,6 @@ class TestOCIUtils(MasuTestCase):
         self.csv_file_path = f"{local_dir}/{self.csv_file_name}"
         shutil.copy2(test_report, self.csv_file_path)
 
-    def test_month_date_range(self):
-        """Test month_date_range returns correct month range."""
-        today = datetime.now()
-        out = utils.month_date_range(today)
-
-        start_month = today.replace(day=1, second=1, microsecond=1)
-        end_month = start_month + relativedelta(months=+1)
-        timeformat = "%Y%m%d"
-        expected_string = f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
-
-        self.assertEqual(out, expected_string)
-
     def test_get_bill_ids_from_provider(self):
         """Test that bill IDs are returned for an OCI provider."""
         with schema_context(self.schema):
@@ -176,109 +164,84 @@ class TestOCIUtils(MasuTestCase):
         self.assertIn(column_two, columns)
         self.assertIn(column_three.replace("-", "_"), columns)
         self.assertNotIn(column_four, columns)
-        self.assertIn("resourcetags", columns)
+        self.assertIn("tags", columns)
         for column in PRESTO_REQUIRED_COLUMNS:
             self.assertIn(column.replace("-", "_").replace("/", "_").replace(":", "_").lower(), columns)
 
-    def test_oci_generate_daily_data(self):
+    def test_oci_generate_daily_data_usage(self):
         """Test that we aggregate data at a daily level."""
         usageamount = random.randint(1, 10)
-        cost = random.randint(1, 10)
         data = [
             {
-                "lineItem/referenceNo": "id1",
-                "lineItem/tenantId": "my-tenant",
-                "lineItem/intervalUsageStart": datetime(2021, 6, 7, 11, 24, 0),
-                "lineItem/intervalUsageEnd": datetime(2021, 6, 7, 11, 24, 0),
-                "product/service": "service",
-                "product/resource": "resource",
-                "product/compartmentId": "compart_id",
-                "product/compartmentName": "compart_name",
-                "product/region": "my-region",
-                "product/availabilityDomain": "my-domain",
-                "product/resourceId": "id4",
-                "usage/consumedQuantity": usageamount,
-                "usage/billedQuantity": "3",
-                "usage/billedQuantityOverage": "0",
-                "usage/consumedQuantityUnits": "BYTES",
-                "usage/consumedQuantityMeasure": "BYTES",
-                "cost/subscriptionId": "subscript_id",
-                "cost/productSku": "sku",
-                "product/Description": "storage",
-                "cost/unitPrice": "10",
-                "cost/unitPriceOverage": "10",
-                "cost/myCost": cost,
-                "cost/myCostOverage": "0",
-                "cost/currencyCode": "USD",
-                "cost/billingUnitReadable": "",
-                "cost/skuUnitDescription": "unitdescription",
-                "cost/overageFlag": "",
-                "lineItem/isCorrection": "",
-                "lineItem/backreferenceNo": "",
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 7, 11, 24, 0),
+                "lineitem_intervalusageend": datetime(2021, 6, 7, 11, 24, 0),
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_consumedquantity": usageamount,
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptionid": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
                 "tags": "",
             },
             {
-                "lineItem/referenceNo": "id1",
-                "lineItem/tenantId": "my-tenant",
-                "lineItem/intervalUsageStart": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
-                "lineItem/intervalUsageEnd": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
-                "product/service": "service",
-                "product/resource": "resource",
-                "product/compartmentId": "compart_id",
-                "product/compartmentName": "compart_name",
-                "product/region": "my-region",
-                "product/availabilityDomain": "my-domain",
-                "product/resourceId": "id4",
-                "usage/consumedQuantity": usageamount,
-                "usage/billedQuantity": "3",
-                "usage/billedQuantityOverage": "0",
-                "usage/consumedQuantityUnits": "BYTES",
-                "usage/consumedQuantityMeasure": "BYTES",
-                "cost/subscriptionId": "subscript_id",
-                "cost/productSku": "sku",
-                "product/Description": "storage",
-                "cost/unitPrice": "10",
-                "cost/unitPriceOverage": "10",
-                "cost/myCost": cost,
-                "cost/myCostOverage": "0",
-                "cost/currencyCode": "USD",
-                "cost/billingUnitReadable": "",
-                "cost/skuUnitDescription": "unitdescription",
-                "cost/overageFlag": "",
-                "lineItem/isCorrection": "",
-                "lineItem/backreferenceNo": "",
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
+                "lineitem_intervalusageend": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_consumedquantity": usageamount,
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptiond": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
                 "tags": "",
             },
             {
-                "lineItem/referenceNo": "id1",
-                "lineItem/tenantId": "my-tenant",
-                "lineItem/intervalUsageStart": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
-                "lineItem/intervalUsageEnd": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
-                "product/service": "service",
-                "product/resource": "resource",
-                "product/compartmentId": "compart_id",
-                "product/compartmentName": "compart_name",
-                "product/region": "my-region",
-                "product/availabilityDomain": "my-domain",
-                "product/resourceId": "id4",
-                "usage/consumedQuantity": usageamount,
-                "usage/billedQuantity": "3",
-                "usage/billedQuantityOverage": "0",
-                "usage/consumedQuantityUnits": "BYTES",
-                "usage/consumedQuantityMeasure": "BYTES",
-                "cost/subscriptionId": "subscript_id",
-                "cost/productSku": "sku",
-                "product/Description": "storage",
-                "cost/unitPrice": "10",
-                "cost/unitPriceOverage": "10",
-                "cost/myCost": cost,
-                "cost/myCostOverage": "0",
-                "cost/currencyCode": "USD",
-                "cost/billingUnitReadable": "",
-                "cost/skuUnitDescription": "unitdescription",
-                "cost/overageFlag": "",
-                "lineItem/isCorrection": "",
-                "lineItem/backreferenceNo": "",
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
+                "lineitem_intervalusageend": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_consumedquantity": usageamount,
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptionid": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
                 "tags": "",
             },
         ]
@@ -287,17 +250,129 @@ class TestOCIUtils(MasuTestCase):
 
         daily_df = utils.oci_generate_daily_data(df)
 
-        first_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-07"]
-        second_day = daily_df[daily_df["lineitem_usagestartdate"] == "2021-06-08"]
+        first_day = daily_df[daily_df["lineitem_intervalusagestart"] == "2021-06-07"]
+        second_day = daily_df[daily_df["lineitem_intervalusagestart"] == "2021-06-08"]
 
         # Assert that there is only 1 record per day
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
 
-        self.assertTrue((first_day["usage_usagequantity"] == usageamount * 2).bool())
+        self.assertTrue((first_day["usage_consumedquantity"] == usageamount * 2).bool())
+
+        self.assertTrue((second_day["usage_consumedquantity"] == usageamount).bool())
+
+    def test_oci_generate_daily_data_cost(self):
+        """Test that we aggregate data at a daily level."""
+        cost = random.randint(1, 10)
+        data = [
+            {
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 7, 11, 24, 0),
+                "lineitem_intervalusageend": datetime(2021, 6, 7, 11, 24, 0),
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptionid": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "cost_unitprice": "10",
+                "cost_unitpriceoverage": "10",
+                "cost_mycost": cost,
+                "cost_mycostoverage": "0",
+                "cost_currencycode": "USD",
+                "cost_billingunitreadable": "",
+                "cost_skuunitdescription": "unitdescription",
+                "cost_overageflag": "",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
+                "tags": "",
+            },
+            {
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
+                "lineitem_intervalusageend": datetime(2021, 6, 7, 12, 24, 0),  # different hour, same day
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptiond": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "cost_unitprice": "10",
+                "cost_unitpriceoverage": "10",
+                "cost_mycost": cost,
+                "cost_mycostoverage": "0",
+                "cost_currencycode": "USD",
+                "cost_billingunitreadable": "",
+                "cost_skuunitdescription": "unitdescription",
+                "cost_overageflag": "",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
+                "tags": "",
+            },
+            {
+                "lineitem_referenceno": "id1",
+                "lineitem_tenantid": "my-tenant",
+                "lineitem_intervalusagestart": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
+                "lineitem_intervalusageend": datetime(2021, 6, 8, 12, 24, 0),  # different hour, same day
+                "product_service": "service",
+                "product_resource": "resource",
+                "product_compartmentid": "compart_id",
+                "product_compartmentname": "compart_name",
+                "product_region": "my-region",
+                "product_availabilitydomain": "my-domain",
+                "product_resourceid": "id4",
+                "usage_billedquantity": "3",
+                "usage_billedquantityoverage": "0",
+                "usage_consumedquantityunits": "BYTES",
+                "usage_consumedquantitymeasure": "BYTES",
+                "cost_subscriptionid": "subscript_id",
+                "cost_productsku": "sku",
+                "product_description": "storage",
+                "cost_unitprice": "10",
+                "cost_unitpriceoverage": "10",
+                "cost_mycost": cost,
+                "cost_mycostoverage": "0",
+                "cost_currencycode": "USD",
+                "cost_billingunitreadable": "",
+                "cost_skuunitdescription": "unitdescription",
+                "cost_overageflag": "",
+                "lineitem_iscorrection": "",
+                "lineitem_backreferenceno": "",
+                "tags": "",
+            },
+        ]
+
+        df = pd.DataFrame(data)
+
+        daily_df = utils.oci_generate_daily_data(df)
+
+        first_day = daily_df[daily_df["lineitem_intervalusagestart"] == "2021-06-07"]
+        second_day = daily_df[daily_df["lineitem_intervalusagestart"] == "2021-06-08"]
+
+        # Assert that there is only 1 record per day
+        self.assertEqual(first_day.shape[0], 1)
+        self.assertEqual(second_day.shape[0], 1)
+
         self.assertTrue((first_day["cost_mycost"] == cost * 2).bool())
 
-        self.assertTrue((second_day["usage_usagequantity"] == usageamount).bool())
         self.assertTrue((second_day["cost_mycost"] == cost).bool())
 
     def test_oci_post_processor_empty_tags(self):
@@ -314,7 +389,7 @@ class TestOCIUtils(MasuTestCase):
             processed_data_frame, df_tag_keys = processed_data_frame
             self.assertIsInstance(df_tag_keys, set)
 
-        self.assertFalse(processed_data_frame["resourcetags"].isna().values.any())
+        self.assertFalse(processed_data_frame["tags"].isna().values.any())
 
     def test_detect_type(self):
         "Test that we detect the correct report type from csv"

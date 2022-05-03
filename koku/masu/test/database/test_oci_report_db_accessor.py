@@ -215,39 +215,3 @@ class OCIReportDBAccessorTest(MasuTestCase):
             bill_id = self.accessor._get_db_obj_query(table_name).filter(billing_period_start=bill_start).first().id
             bills = self.accessor.get_cost_entry_bills_by_date(bill_start)
             self.assertEqual(bill_id, bills[0].id)
-
-    def test_get_cost_entry_query_for_billid(self):
-        """Test that gets a cost entry query given a bill id."""
-        table_name = "reporting_ocicostentrybill"
-        with schema_context(self.schema):
-            # Verify that the line items for the test bill_id are returned
-            bill_id = self.accessor._get_db_obj_query(table_name).first().id
-
-            cost_entry_query = self.accessor.get_cost_entry_query_for_billid(bill_id)
-            self.assertEqual(cost_entry_query.first().bill_id, bill_id)
-
-            # Verify that no line items are returned for a missing bill_id
-            wrong_bill_id = bill_id + 5
-            cost_entry_query = self.accessor.get_cost_entry_query_for_billid(wrong_bill_id)
-            self.assertEqual(cost_entry_query.count(), 0)
-
-    def test_get_cost_entries(self):
-        """Test that a dict of cost entries are returned."""
-        table_name = "reporting_ocicostentry"
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(table_name)
-            count = query.count()
-            first_entry = query.first()
-            cost_entries = self.accessor.get_cost_entries()
-            self.assertIsInstance(cost_entries, dict)
-            self.assertEqual(len(cost_entries.keys()), count)
-            self.assertIn(first_entry.id, cost_entries.values())
-
-    def test_mark_bill_as_finalized(self):
-        """Test that test_mark_bill_as_finalized sets finalized_datetime field."""
-        bill = self.creator.create_cost_entry_bill(provider_uuid=self.oci_provider.uuid)
-        with schema_context(self.schema):
-            self.assertIsNone(bill.finalized_datetime)
-            self.accessor.mark_bill_as_finalized(bill.id)
-            bill.refresh_from_db()
-            self.assertIsNotNone(bill.finalized_datetime)

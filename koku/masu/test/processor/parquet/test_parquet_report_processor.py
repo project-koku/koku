@@ -693,8 +693,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
             )
             daily_data_processor = processor.daily_data_processor
-            expected = partial(oci_generate_daily_data, report_type=report_type)
-            self.assertEqual(daily_data_processor.func, expected.func)
+            self.assertEqual(daily_data_processor, oci_generate_daily_data)
 
     @patch.object(ParquetReportProcessor, "create_parquet_table")
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")

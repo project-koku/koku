@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("api", "0055_install_pg_stat_statements"),
-        ("reporting", "0252_alter_ocpusagelineitemdailysummary_monthly_cost_type"),
+        ("reporting", "0253_ocpusagereportperiod_ocp_on_cloud_updated_datetime"),
     ]
 
     operations = [
