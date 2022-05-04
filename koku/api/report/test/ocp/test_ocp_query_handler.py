@@ -227,7 +227,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         daily_capacity = defaultdict(Decimal)
         total_capacity = Decimal(0)
@@ -236,10 +235,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
         annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
         cap_key = list(annotations.keys())[0]
 
-        q_table = handler._mapper.provider_map.get("tables").get("query")
-        query = q_table.objects.filter(query_filter)
-
         with tenant_context(self.tenant):
+            q_table = handler._mapper.provider_map.get("tables").get("query")
+            query = q_table.objects.filter(query_filter)
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 date = handler.date_to_string(entry.get("usage_start"))
@@ -248,6 +246,9 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)
 
+        # For some reason we needed to move the execute query down to
+        # avoid an aborted transaction error while running the test.
+        query_data = handler.execute_query()
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
         for entry in query_data.get("data", []):
             date = entry.get("date")
