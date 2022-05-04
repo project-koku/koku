@@ -326,13 +326,41 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.group")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
-    def test_start_manifest_processing_priority_queue(self, mock_download_manifest, mock_task, mock_inspect):
+    def test_start_manifest_processing_priority_queue(
+        self, mock_download_manifest, mock_task, mock_group, mock_inspect
+    ):
         """Test start_manifest_processing using priority queue."""
         test_queues = [
-            {"name": "qe-account", "provider_uuid": str(uuid4()), "queue-name": "priority", "expected": "priority"},
-            {"name": "qe-account", "provider_uuid": None, "queue-name": "priority", "expected": "summary"},
-            {"name": "qe-account", "provider_uuid": str(uuid4()), "queue-name": None, "expected": "summary"},
+            {
+                "name": "qe-account",
+                "provider_uuid": str(uuid4()),
+                "queue-name": "priority",
+                "summary-expected": "priority",
+                "hcs-expected": "priority",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": None,
+                "queue-name": "priority",
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": str(uuid4()),
+                "queue-name": None,
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": None,
+                "queue-name": None,
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
         ]
         mock_manifest = {
             "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
@@ -351,8 +379,11 @@ class OrchestratorTest(MasuTestCase):
                     account.get("provider_uuid"),
                     DateAccessor().get_billing_months(1)[0],
                 )
-                actual_queue = mock_task.call_args.args[1].options.get("queue")
-                self.assertEqual(actual_queue, test.get("expected"))
+                summary_actual_queue = mock_task.call_args.args[0].options.get("queue")
+                hcs_actual_queue = mock_task.call_args.args[1].options.get("queue")
+
+                self.assertEqual(summary_actual_queue, test.get("summary-expected"))
+                self.assertEqual(hcs_actual_queue, test.get("hcs-expected"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")

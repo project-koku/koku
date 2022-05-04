@@ -6,9 +6,12 @@
 import logging
 
 from celery import chord
+from celery import group
 
 from api.common import log_json
 from api.models import Provider
+from hcs.tasks import collect_hcs_report_data_from_manifest
+from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -139,9 +142,11 @@ class Orchestrator:
         if self.queue_name is not None and self.provider_uuid is not None:
             SUMMARY_QUEUE = self.queue_name
             REPORT_QUEUE = self.queue_name
+            HCS_Q = self.queue_name
         else:
             SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
             REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            HCS_Q = HCS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -199,6 +204,7 @@ class Orchestrator:
                 # To reduce the number of times we check Trino/Hive tables, we just do this
                 # on the final file of the set.
                 report_context["create_table"] = True
+
             # add the tracing id to the report context
             # This defaults to the celery queue
             report_tasks.append(
@@ -217,8 +223,12 @@ class Orchestrator:
 
         if report_tasks:
             reports_tasks_queued = True
-            async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
-            LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+            hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+            summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+
+            async_id = chord(report_tasks, group(summary_task, hcs_task))()
+            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+
         return manifest, reports_tasks_queued
 
     def prepare(self):
