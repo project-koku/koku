@@ -4,6 +4,7 @@
 #
 """View for Reports."""
 import logging
+from datetime import datetime
 
 from django.utils.decorators import method_decorator
 from django.utils.translation import ugettext as _
@@ -146,6 +147,13 @@ class ReportView(APIView):
             (Response): The report in a Response object
 
         """
+        # Logging extra info regarding view processing time only when view is AWSCostView
+        _viewstart = datetime.utcnow()
+        _klassname = self.__class__.__name__
+        _log_view_time = _klassname == "AWSCostView"
+        if _log_view_time:
+            LOG.info(f"###### {_klassname}.get() BEGIN {_viewstart} ######")
+
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
 
         try:
@@ -171,4 +179,11 @@ class ReportView(APIView):
         paginator = get_paginator(params.parameters.get("filter", {}), max_rank, request.query_params)
         paginated_result = paginator.paginate_queryset(output, request)
         LOG.debug(f"DATA: {output}")
-        return paginator.get_paginated_response(paginated_result)
+        response = paginator.get_paginated_response(paginated_result)
+
+        _viewend = datetime.utcnow()
+        _duration = _viewend - _viewstart
+        if _log_view_time:
+            LOG.info(f"###### {_klassname}.get()   END {_viewend} ###### (Duration: {_duration.total_seconds()}sec)")
+
+        return response

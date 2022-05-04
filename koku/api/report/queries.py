@@ -10,6 +10,7 @@ import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
+from datetime import datetime
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
@@ -805,8 +806,10 @@ class ReportQueryHandler(QueryHandler):
         date_grouped_data, account_alias_map = self.date_group_data(data_list)
         if ranks:
             padded_data = OrderedDict()
+            _zfstart = datetime.utcnow()
             for date in date_grouped_data:
                 padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
+            LOG.info(f"_zerofill_ranks() method total time: {(datetime.utcnow() - _zfstart).total_seconds()}")
         else:
             padded_data = date_grouped_data
 
@@ -821,30 +824,25 @@ class ReportQueryHandler(QueryHandler):
     def _zerofill_ranks(self, data, ranks, account_alias_map):
         """Ensure the data set has at least one entry from every ranked category."""
         rank_field = self._get_group_by()[0]
+        missing = set(ranks) - {item[rank_field] for item in data}
 
-        data_ranks = [item[rank_field] for item in data]
-        missing = list(set(ranks) - set(data_ranks))
+        fd = data[0]  # first data
+        aam = account_alias_map
+        data.extend(
+            {
+                k: m
+                if k == rank_field
+                else fd.get(k)
+                if k == "date"
+                else aam.get(m, m)
+                if k == "account_alias" and rank_field == "account"
+                else type(v)()
+                for k, v in fd.items()
+            }
+            for m in missing
+        )  # noqa
 
-        row_defaults = {
-            "str": "",
-            "int": 0,
-            "float": 0.0,
-            "dict": {},
-            "list": [],
-            "Decimal": Decimal(0),
-            "NoneType": None,
-        }
-        empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
-        missed_data = []
-        for missed in missing:
-            ranked_empty_row = copy.deepcopy(empty_row)
-            ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0].get("date")
-            if rank_field == "account":
-                ranked_empty_row["account_alias"] = account_alias_map.get(missed, missed)
-            missed_data.append(ranked_empty_row)
-        new_data = data + missed_data
-        return new_data
+        return data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
