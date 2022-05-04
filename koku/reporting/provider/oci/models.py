@@ -189,11 +189,10 @@ class OCIEnabledTagKeys(models.Model):
     class Meta:
         """Meta for OCIEnabledTagKeys."""
 
-        indexes = [models.Index(fields=["key", "enabled"], name="oci_enabled_key_index")]
         db_table = "reporting_ocienabledtagkeys"
 
-    key = models.CharField(max_length=253, primary_key=True)
-    enabled = models.BooleanField(default=True)
+    id = models.BigAutoField(primary_key=True)
+    key = models.CharField(max_length=253, unique=True)
 
 
 class OCICostSummaryP(models.Model):

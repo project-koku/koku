@@ -136,20 +136,20 @@ class OCIReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
-    # def test_populate_enabled_tag_keys(self):
-    #     """Test that enabled tag keys are populated."""
-    #     dh = DateHelper()
-    #     start_date = dh.this_month_start.date()
-    #     end_date = dh.this_month_end.date()
+    def test_populate_enabled_tag_keys(self):
+        """Test that enabled tag keys are populated."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
 
-    #     bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
-    #     with schema_context(self.schema):
-    #         OCITagsSummary.objects.all().delete()
-    #         OCIEnabledTagKeys.objects.all().delete()
-    #         bill_ids = [bill.id for bill in bills]
-    #         self.assertEqual(OCIEnabledTagKeys.objects.count(), 0)
-    #         self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
-    #         self.assertNotEqual(OCIEnabledTagKeys.objects.count(), 0)
+        bills = self.accessor.bills_for_provider_uuid(self.oci_provider_uuid, start_date)
+        with schema_context(self.schema):
+            OCITagsSummary.objects.all().delete()
+            OCIEnabledTagKeys.objects.all().delete()
+            bill_ids = [bill.id for bill in bills]
+            self.assertEqual(OCIEnabledTagKeys.objects.count(), 0)
+            self.accessor.populate_enabled_tag_keys(start_date, end_date, bill_ids)
+            self.assertNotEqual(OCIEnabledTagKeys.objects.count(), 0)
 
     def test_update_line_item_daily_summary_with_enabled_tags(self):
         """Test that we filter the daily summary table's tags with only enabled tags."""
