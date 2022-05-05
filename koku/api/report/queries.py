@@ -99,8 +99,6 @@ class ReportQueryHandler(QueryHandler):
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
         self.currency = parameters.parameters.get("currency")
-        # if not self.currency:
-        #     self.currency = KOKU_DEFAULT_CURRENCY
 
         self.query_filter = self._get_filter()
 

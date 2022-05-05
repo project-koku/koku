@@ -96,11 +96,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if (
-                    self._report_type
-                    in ["costs", "costs_by_project", "storage", "storage_by_project", "instance_type"]
-                    and not self.is_csv_output
-                ):
+                if not self.is_csv_output:
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
