@@ -46,15 +46,11 @@ def _is_grouped_by_key(group_by, key):
 
 def is_grouped_by_tag(parameters):
     """Determine if grouped by tag."""
-    # group_by = list(parameters.parameters.get("group_by", {}).keys())
-    # return [key for key in group_by if "tag" in key]
     return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "tag")
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    # group_by = list(parameters.parameters.get("group_by", {}).keys())
-    # return [key for key in group_by if "project" in key]
     return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "project")
 
 
@@ -871,12 +867,10 @@ class ReportQueryHandler(QueryHandler):
         rank_field = self._get_group_by()[0]
         _range = self._limit + self._offset
         other_sums = dict.fromkeys(self._mapper.sum_columns, 0)
-        # other_sums = {column: 0 for column in self._mapper.sum_columns}
 
         for data in entry:
             if other is None:
                 other = data.copy()
-                # other = copy.deepcopy(data)
 
             if ranks:
                 rank = ranks.index(self.check_missing_rank_value(data.get(rank_field))) + 1
@@ -885,20 +879,15 @@ class ReportQueryHandler(QueryHandler):
                 rank = data.get("rank", 1)
 
             if self._offset < rank <= _range:
-                # if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
                     other_sums[column] += data.get(column) or 0
-                    # other_sums[column] += data.get(column) if data.get(column) else 0
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
             others_label = "Other" if num_others == 1 else "Others"
-
-            # if num_others == 1:
-            #     others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
