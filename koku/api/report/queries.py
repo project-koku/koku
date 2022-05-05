@@ -815,20 +815,20 @@ class ReportQueryHandler(QueryHandler):
         date_grouped_data, account_alias_map = self.date_group_data(data_list)
         if ranks:
             padded_data = OrderedDict()
-            _zfstart = datetime.utcnow()
+            _op_start = datetime.utcnow()
             for date in date_grouped_data:
                 padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
-            LOG.info(f"_zerofill_ranks() method total time: {(datetime.utcnow() - _zfstart).total_seconds()}")
+            LOG.info(f"### _zerofill_ranks() method total time: {(datetime.utcnow() - _op_start).total_seconds()}sec")
         else:
             padded_data = date_grouped_data
 
         rank_limited_data = OrderedDict()
         is_offset = "offset" in self.parameters.get("filter", {})
-        _rank_summ_start = datetime.utcnow()
+        _op_start = datetime.utcnow()
         for date in padded_data:
             ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
             rank_limited_data[date] = ranked_list
-        LOG.info(f"_perform_rank_summation total time : {(datetime.utcnow() - _rank_summ_start).total_seconds()}sec")
+        LOG.info(f"### _perform_rank_summation total time : {(datetime.utcnow() - _op_start).total_seconds()}sec")
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
