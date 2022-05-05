@@ -87,24 +87,6 @@ class OCICostEntryBill(models.Model):
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
 
 
-class OCICostEntry(models.Model):
-    """A Cost Entry for an OCI Cost Usage Report.
-
-    A cost entry covers a specific time interval (i.e. 1 hour).
-
-    """
-
-    class Meta:
-        """Meta for OCICostEntry."""
-
-        indexes = [models.Index(fields=["interval_start"], name="oci_interval_start_idx")]
-
-    interval_start = models.DateTimeField(null=False)
-    interval_end = models.DateTimeField(null=False)
-
-    bill = models.ForeignKey("OCICostEntryBill", on_delete=models.CASCADE)
-
-
 class OCICostEntryLineItemDailySummary(models.Model):
     """A daily aggregation of line items.
 

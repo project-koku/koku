@@ -15,7 +15,6 @@ from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
-from koku.database import get_model
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
@@ -201,7 +200,6 @@ class OCIReportDBAccessorTest(MasuTestCase):
 
     def test_table_properties(self):
         self.assertEqual(self.accessor.line_item_daily_summary_table, OCICostEntryLineItemDailySummary)
-        self.assertEqual(self.accessor.cost_entry_table, get_model("OCICostEntry"))
 
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, OCI_CUR_TABLE_MAP)

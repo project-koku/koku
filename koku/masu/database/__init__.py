@@ -65,7 +65,6 @@ GCP_REPORT_TABLE_MAP = {
 }
 
 OCI_CUR_TABLE_MAP = {
-    "cost_entry": "reporting_ocicostentry",
     "bill": "reporting_ocicostentrybill",
     "line_item_daily_summary": "reporting_ocicostentrylineitem_daily_summary",
     "tags_summary": "reporting_ocitags_summary",

@@ -17,7 +17,6 @@ from masu.config import Config
 from masu.database import OCI_CUR_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
-from reporting.provider.oci.models import OCICostEntry
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
@@ -43,10 +42,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     @property
     def line_item_daily_summary_table(self):
         return OCICostEntryLineItemDailySummary
-
-    @property
-    def cost_entry_table(self):
-        return OCICostEntry
 
     def get_cost_entry_bills(self):
         """Get all cost entry bill objects."""
@@ -101,22 +96,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             base_query = self._get_db_obj_query(table_name)
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
-
-    def get_cost_entry_query_for_billid(self, bill_id):
-        """Get the OCI cost entry data for a given bill query."""
-        table_name = OCICostEntry
-        with schema_context(self.schema):
-            base_query = self._get_db_obj_query(table_name)
-            line_item_query = base_query.filter(bill_id=bill_id)
-            return line_item_query
-
-    def get_cost_entries(self):
-        """Make a mapping of cost entries by start time."""
-        table_name = OCICostEntry
-        with schema_context(self.schema):
-            cost_entries = self._get_db_obj_query(table_name).all()
-
-            return {(ce.bill_id, ce.interval_start.strftime(self._datetime_format)): ce.id for ce in cost_entries}
 
     def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
         """Populate the daily aggregate of line items table.

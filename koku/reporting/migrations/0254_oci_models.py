@@ -74,14 +74,6 @@ class Migration(migrations.Migration):
             reverse_sql="select 1",
         ),
         migrations.CreateModel(
-            name="OCICostEntry",
-            fields=[
-                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("interval_start", models.DateTimeField()),
-                ("interval_end", models.DateTimeField()),
-            ],
-        ),
-        migrations.CreateModel(
             name="OCICostEntryBill",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
@@ -394,11 +386,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="api.provider"),
         ),
         migrations.AddField(
-            model_name="ocicostentry",
-            name="bill",
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="reporting.ocicostentrybill"),
-        ),
-        migrations.AddField(
             model_name="ocicomputesummaryp",
             name="source_uuid",
             field=models.ForeignKey(
@@ -481,9 +468,6 @@ class Migration(migrations.Migration):
         migrations.AlterUniqueTogether(
             name="ocicostentrybill",
             unique_together={("bill_type", "payer_tenant_id", "billing_period_start", "provider")},
-        ),
-        migrations.AddIndex(
-            model_name="ocicostentry", index=models.Index(fields=["interval_start"], name="oci_interval_start_idx")
         ),
         migrations.AddIndex(
             model_name="ocicomputesummaryp", index=models.Index(fields=["usage_start"], name="ocicompsumm_usage_start")
