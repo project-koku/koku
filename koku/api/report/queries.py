@@ -724,16 +724,14 @@ class ReportQueryHandler(QueryHandler):
         """
         if rank_value:
             return rank_value
-        # group_by_value = self._get_group_by()
+
         check_tag_group_by = is_grouped_by_tag(self.parameters)
         if check_tag_group_by:
-            # tag_value = check_tag_group_by[0].split(":")[1]
-            # rank_value = f"no-{tag_value}"
             tag = check_tag_group_by[0]
             rank_value = f"no-{tag[tag.index(':') + 1:]}"
         else:
             rank_value = f"no-{self._get_group_by()[0]}"
-            # rank_value = f"no-{group_by_value[0]}"
+
         return rank_value
 
     def _group_by_ranks(self, query, data):  # noqa: C901
