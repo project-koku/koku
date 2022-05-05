@@ -14,7 +14,7 @@ from koku.database import unset_pg_extended_mode
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("api", "0055_install_pg_stat_statements"),
+        ("api", "0056_reapply_clone_schema_func"),
         ("reporting", "0253_ocpusagereportperiod_ocp_on_cloud_updated_datetime"),
     ]
 
