@@ -148,10 +148,10 @@ class ReportView(APIView):
 
         """
         # Logging extra info regarding view processing time only when view is AWSCostView
-        _viewstart = datetime.utcnow()
         _klassname = self.__class__.__name__
         _log_view_time = _klassname == "AWSCostView"
         if _log_view_time:
+            _viewstart = datetime.utcnow()
             LOG.info(f"###### {_klassname}.get() BEGIN {_viewstart} ######")
 
         LOG.debug(f"API: {request.path} USER: {request.user.username}")
@@ -181,9 +181,9 @@ class ReportView(APIView):
         LOG.debug(f"DATA: {output}")
         response = paginator.get_paginated_response(paginated_result)
 
-        _viewend = datetime.utcnow()
-        _duration = _viewend - _viewstart
         if _log_view_time:
+            _viewend = datetime.utcnow()
+            _duration = _viewend - _viewstart
             LOG.info(f"###### {_klassname}.get()   END {_viewend} ###### (Duration: {_duration.total_seconds()}sec)")
 
         return response

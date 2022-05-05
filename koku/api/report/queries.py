@@ -825,22 +825,24 @@ class ReportQueryHandler(QueryHandler):
         """Ensure the data set has at least one entry from every ranked category."""
         rank_field = self._get_group_by()[0]
         missing = set(ranks) - {item[rank_field] for item in data}
-        fd = data[0]  # first data record
-        fd_date = data[0].get("date")  # first data record date field
 
-        data.extend(
-            {
-                k: m
-                if k == rank_field
-                else fd_date
-                if k == "date"
-                else account_alias_map.get(m, m)
-                if k == "account_alias" and rank_field == "account"
-                else type(v)()
-                for k, v in fd.items()
-            }
-            for m in missing
-        )  # noqa
+        if missing:
+            fd = data[0]  # first data record
+            fd_date = data[0].get("date")  # first data record date field
+
+            data.extend(
+                {
+                    k: m
+                    if k == rank_field
+                    else fd_date
+                    if k == "date"
+                    else account_alias_map.get(m, m)
+                    if k == "account_alias" and rank_field == "account"
+                    else type(v)()
+                    for k, v in fd.items()
+                }
+                for m in missing
+            )  # noqa
 
         return data
 
