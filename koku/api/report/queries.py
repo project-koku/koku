@@ -10,6 +10,7 @@ import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
+from datetime import datetime
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
@@ -39,16 +40,22 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
+def _is_grouped_by_key(group_by, key):
+    return [k for k in group_by if k.startswith(key)]
+
+
 def is_grouped_by_tag(parameters):
     """Determine if grouped by tag."""
-    group_by = list(parameters.parameters.get("group_by", {}).keys())
-    return [key for key in group_by if "tag" in key]
+    # group_by = list(parameters.parameters.get("group_by", {}).keys())
+    # return [key for key in group_by if "tag" in key]
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "tag")
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    group_by = list(parameters.parameters.get("group_by", {}).keys())
-    return [key for key in group_by if "project" in key]
+    # group_by = list(parameters.parameters.get("group_by", {}).keys())
+    # return [key for key in group_by if "project" in key]
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "project")
 
 
 def check_if_valid_date_str(date_str):
@@ -721,13 +728,16 @@ class ReportQueryHandler(QueryHandler):
         """
         if rank_value:
             return rank_value
-        group_by_value = self._get_group_by()
+        # group_by_value = self._get_group_by()
         check_tag_group_by = is_grouped_by_tag(self.parameters)
         if check_tag_group_by:
-            tag_value = check_tag_group_by[0].split(":")[1]
-            rank_value = f"no-{tag_value}"
+            # tag_value = check_tag_group_by[0].split(":")[1]
+            # rank_value = f"no-{tag_value}"
+            tag = check_tag_group_by[0]
+            rank_value = f"no-{tag[tag.index(':') + 1:]}"
         else:
-            rank_value = f"no-{group_by_value[0]}"
+            rank_value = f"no-{self._get_group_by()[0]}"
+            # rank_value = f"no-{group_by_value[0]}"
         return rank_value
 
     def _group_by_ranks(self, query, data):  # noqa: C901
@@ -812,9 +822,11 @@ class ReportQueryHandler(QueryHandler):
 
         rank_limited_data = OrderedDict()
         is_offset = "offset" in self.parameters.get("filter", {})
+        _rank_summ_start = datetime.utcnow()
         for date in padded_data:
             ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
             rank_limited_data[date] = ranked_list
+        LOG.info(f"_perform_rank_summation total time : {(datetime.utcnow() - _rank_summ_start).total_seconds()}sec")
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
@@ -857,33 +869,37 @@ class ReportQueryHandler(QueryHandler):
         other = None
         ranked_list = []
         others_list = []
-        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        rank_field = self._get_group_by()[0]
+        _range = self._limit + self._offset
+        other_sums = dict.fromkeys(self._mapper.sum_columns, 0)
+        # other_sums = {column: 0 for column in self._mapper.sum_columns}
 
         for data in entry:
             if other is None:
-                other = copy.deepcopy(data)
+                other = data.copy()
+                # other = copy.deepcopy(data)
 
             if ranks:
-                ranked_value = data.get(self._get_group_by()[0])
-                ranked_value = self.check_missing_rank_value(ranked_value)
-                rank = ranks.index(ranked_value) + 1
+                rank = ranks.index(self.check_missing_rank_value(data.get(rank_field))) + 1
                 data["rank"] = rank
             else:
                 rank = data.get("rank", 1)
 
-            if rank > self._offset and rank <= self._limit + self._offset:
+            if self._offset < rank <= _range:
+                # if rank > self._offset and rank <= self._limit + self._offset:
                 ranked_list.append(data)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) if data.get(column) else 0
+                    other_sums[column] += data.get(column) or 0
+                    # other_sums[column] += data.get(column) if data.get(column) else 0
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = "Others"
+            others_label = "Other" if num_others == 1 else "Others"
 
-            if num_others == 1:
-                others_label = "Other"
+            # if num_others == 1:
+            #     others_label = "Other"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
@@ -897,18 +913,18 @@ class ReportQueryHandler(QueryHandler):
 
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
-                clusters_list = []
-                source_uuids_list = []
+                clusters_list = set()
+                source_uuids_list = set()
                 for entry in others_list:
-                    clusters_list.extend(entry.get("clusters", []))
-                    source_uuids_list.extend(entry.get("source_uuid", []))
-                other["clusters"] = list(set(clusters_list))
-                other["source_uuid"] = list(set(source_uuids_list))
-                exclusions = []
+                    clusters_list.update(entry.get("clusters", []))
+                    source_uuids_list.update(entry.get("source_uuid", []))
+                other["clusters"] = list(clusters_list)
+                other["source_uuid"] = list(source_uuids_list)
+                exclusions = ()
             else:
                 # delete these labels from the Others category if we're not
                 # grouping by cluster.
-                exclusions = ["cluster", "cluster_alias"]
+                exclusions = ("cluster", "cluster_alias")
 
             for exclude in exclusions:
                 if exclude in other:
