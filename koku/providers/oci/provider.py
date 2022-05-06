@@ -4,7 +4,6 @@
 #
 """Oracel cloud infrastructure provider implementation to be used by Koku."""
 import logging
-import os
 
 import oci
 from oci.exceptions import ClientError
@@ -15,47 +14,35 @@ from ..provider_errors import ProviderErrors
 from ..provider_interface import ProviderInterface
 from api.common import error_obj
 from api.models import Provider
+from koku.settings import OCI_CONFIG
 from masu.config import Config
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def _check_cost_report_access(customer_tenancy):
+def _check_cost_report_access(bucket, namespace, region):
     """Check for provider cost and usage report access."""
-    # CUR bucket is made from customers tenancy name
-    reporting_bucket = customer_tenancy
-
-    # The Object Storage namespace used for the reports is bling; the bucket name is the tenancy OCID.
-    reporting_namespace = "bling"
-
-    # Download all usage and cost files."" will downlaod both usage and cost files.
+    # List all cost and usage reports.
     prefix_file = ""
 
     # Get the list of reports
     # https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clienvironmentvariables.htm!!!
-    config = {
-        "user": os.environ["OCI_CLI_USER"],
-        "key_file": os.environ["OCI_CLI_KEY_FILE"],
-        "fingerprint": os.environ["OCI_CLI_FINGERPRINT"],
-        "tenancy": os.environ["OCI_CLI_TENANCY"],
-        "region": "uk-london-1",
-    }
+    config = OCI_CONFIG
+    config["region"] = region
 
     object_storage = oci.object_storage.ObjectStorageClient(config)
     try:
-        oci.pagination.list_call_get_all_results(
-            object_storage.list_objects, reporting_namespace, reporting_bucket, prefix=prefix_file
-        )
+        oci.pagination.list_call_get_all_results(object_storage.list_objects, namespace, bucket, prefix=prefix_file)
 
     except (ClientError, OciConnectionError) as oci_error:
         key = ProviderErrors.OCI_NO_REPORT_FOUND
-        message = f"Unable to obtain cost and usage reports with tenant/bucket: {customer_tenancy}."
+        message = f"Unable to obtain cost and usage reports with: {bucket, namespace, region}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
     # return a auth friendly format
-    return config, customer_tenancy
+    return config, namespace, bucket, region
 
 
 class OCIProvider(ProviderInterface):
@@ -65,16 +52,28 @@ class OCIProvider(ProviderInterface):
         """Return name of the provider."""
         return Provider.PROVIDER_OCI
 
-    def cost_usage_source_is_reachable(self, credentials, _):
-        """Verify that the tenant bucket exists and is reachable."""
+    def cost_usage_source_is_reachable(self, _, data_source):
+        """Verify that the bucket exists and is reachable."""
 
-        tenancy = credentials.get("tenant")
-        if not tenancy or tenancy.isspace():
-            key = ProviderErrors.OCI_MISSING_TENANCY
-            message = ProviderErrors.OCI_MISSING_TENANCY_MESSAGE
+        storage_resource_name = data_source.get("bucket")
+        if not storage_resource_name or storage_resource_name.isspace():
+            key = ProviderErrors.OCI_BUCKET_MISSING
+            message = ProviderErrors.OCI_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
 
-        _check_cost_report_access(tenancy)
+        bucket_namespace = data_source.get("bucket_namespace")
+        if not bucket_namespace or bucket_namespace.isspace():
+            key = ProviderErrors.OCI_BUCKET_NAMESPACE_MISSING
+            message = ProviderErrors.OCI_BUCKET_NAMESPACE_MISSING_MESSAGE
+            raise serializers.ValidationError(error_obj(key, message))
+
+        bucket_region = data_source.get("bucket_region")
+        if not bucket_region or bucket_region.isspace():
+            key = ProviderErrors.OCI_BUCKET_REGION_MISSING
+            message = ProviderErrors.OCI_BUCKET_REGION_MISSING_MESSAGE
+            raise serializers.ValidationError(error_obj(key, message))
+
+        _check_cost_report_access(bucket=storage_resource_name, namespace=bucket_namespace, region=bucket_region)
 
         return True
 
