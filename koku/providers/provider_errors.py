@@ -33,8 +33,10 @@ class ProviderErrors:
 
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
 
-    OCI_NO_REPORT_FOUND = "authentication.tenant.noreportfound"
-    OCI_MISSING_TENANCY = "authentication.tenant.missing"
+    OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
+    OCI_BUCKET_MISSING = "billing_source.bucket.missing"
+    OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
+    OCI_BUCKET_REGION_MISSING = "billing_source.bucket_region.missing"
 
     # MESSAGES
     INVALID_SOURCE_TYPE_MESSAGE = "The given source type is not supported."
@@ -103,4 +105,15 @@ class ProviderErrors:
         "Edit your Azure source and verify the subscription ID."
     )
     AZURE_GENERAL_CLIENT_ERROR_MESSAGE = "Azure client configuration error."
-    OCI_MISSING_TENANCY_MESSAGE = "Tenant is a required parameter for OCI and must not be blank."
+    OCI_BUCKET_MISSING_MESSAGE = (
+        "Cost management requires an OCI bucket to store cost and usage reports. "
+        "Edit your OCI source to include the name of your OCI bucket."
+    )
+    OCI_BUCKET_NAMESPACE_MISSING_MESSAGE = (
+        "Cost management requires the namespace for the OCI bucket storing cost and usage reports. "
+        "Edit your OCI source to include the namespace of your OCI bucket."
+    )
+    OCI_BUCKET_REGION_MISSING_MESSAGE = (
+        "Cost management requires the region for the OCI bucket storing cost and usage reports. "
+        "Edit your OCI source to include the region of your OCI bucket."
+    )

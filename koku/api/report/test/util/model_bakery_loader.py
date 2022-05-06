@@ -25,6 +25,7 @@ from api.report.test.util.data_loader import DataLoader
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
+from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
@@ -41,6 +42,8 @@ BILL_MODELS = {
     Provider.PROVIDER_GCP: "GCPCostEntryBill",
     Provider.PROVIDER_GCP_LOCAL: "GCPCostEntryBill",
     Provider.PROVIDER_OCP: "OCPUsageReportPeriod",
+    Provider.PROVIDER_OCI_LOCAL: "OCICostEntryBill",
+    Provider.PROVIDER_OCI: "OCICostEntryBill",
 }
 LOG = logging.getLogger(__name__)
 
@@ -78,7 +81,7 @@ class ModelBakeryDataLoader(DataLoader):
         """Insert records for our tag keys."""
         # TODO: COST-444: when transitioning AWS and Azure, these tables need to be uncommented
         # for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys",):
-        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys"):
+        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys"):
             for dikt in self.tags:
                 for key in dikt.keys():
                     with schema_context(self.schema):
@@ -466,3 +469,45 @@ class ModelBakeryDataLoader(DataLoader):
             cls_method(sql_params)
 
         refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
+
+    def load_oci_data(self, linked_openshift_provider=None):
+        """Load OCI data for tests."""
+        bills = []
+        provider_type = Provider.PROVIDER_OCI_LOCAL
+        pay_id = self.faker.uuid4()
+        credentials = {"tenant": pay_id}
+        billing_source = {
+            "data_source": {"bucket": "oci_bucket", "bucket_namespace": "oci_namespace", "region": "my-region"}
+        }
+
+        provider = self.create_provider(
+            provider_type,
+            credentials,
+            billing_source,
+            "test-oci",
+        )
+        for start_date, end_date, bill_date in self.dates:
+            LOG.info(f"load oci data for start: {start_date}, end: {end_date}")
+            self.create_manifest(provider, bill_date)
+            bill = self.create_bill(provider_type, provider, bill_date)
+            bills.append(bill)
+            with schema_context(self.schema):
+                days = (end_date - start_date).days
+                for i in range(days):
+                    baker.make_recipe(
+                        "api.report.test.util.oci_daily_summary",
+                        cost_entry_bill=bill,
+                        payer_tenant_id=pay_id,
+                        usage_start=start_date + timedelta(i),
+                        usage_end=start_date + timedelta(i),
+                        tags=cycle(self.tags),
+                        currency=self.currency,
+                        source_uuid=provider.uuid,
+                        _quantity=len(self.tags),
+                    )
+        bill_ids = [bill.id for bill in bills]
+        with OCIReportDBAccessor(self.schema) as accessor:
+            accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
+            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
+        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
+        return bills

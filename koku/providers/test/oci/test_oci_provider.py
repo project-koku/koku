@@ -82,37 +82,33 @@ class OCIProviderTestCase(TestCase):
     def test_cost_usage_source_is_reachable(self, check_cost_report_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = OCIProvider()
+        credentials = "not-required"
+        data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
         try:
-            credentials = {"tenant": "ocid1.tenancy.oc1..my_tenant"}
-            data_source = None
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
         except Exception:
             self.fail("Unexpected Error")
 
-    def test_cost_usage_source_is_reachable_no_tenant(self):
-        """Verify that the cost usage source errors correctly with no tenant."""
+    def test_cost_usage_source_is_reachable_no_bucket(self):
+        """Verify that the cost usage source errors correctly with no bucket."""
         provider_interface = OCIProvider()
+        credentials = "not-required"
+        data_source = {"bucket": None, "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
         with self.assertRaises(ValidationError):
-            credentials = {"tenant": None}
-            data_source = None
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
 
-    @patch(
-        "providers.oci.provider._check_cost_report_access",
-        return_value=(
-            {
-                "user": FAKE.md5(),
-                "key_file": FAKE.md5(),
-                "fingerprint": FAKE.md5(),
-                "tenancy": FAKE.md5(),
-                "region": FAKE.md5(),
-            }
-        ),
-    )
-    def test_cost_usage_source_is_reachable_no_bucket_access(self, check_cost_report_access):
-        """Verify that the cost usage source bucket is not accessible."""
+    def test_cost_usage_source_is_reachable_no_bucket_namespace(self):
+        """Verify that the cost usage source errors correctly with no bucket namespace."""
         provider_interface = OCIProvider()
+        credentials = "not-required"
+        data_source = {"bucket": "my-bucket", "bucket_namespace": None, "bucket_region": "my-region"}
         with self.assertRaises(ValidationError):
-            credentials = {"tenant": None}
-            data_source = None
+            provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+
+    def test_cost_usage_source_is_reachable_no_bucket_region(self):
+        """Verify that the cost usage source errors correctly with no bucket region."""
+        provider_interface = OCIProvider()
+        credentials = "not-required"
+        data_source = {"bucket": "my-buckett", "bucket_namespace": "my-namespace", "bucket_region": None}
+        with self.assertRaises(ValidationError):
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
