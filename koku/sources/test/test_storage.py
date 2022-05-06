@@ -317,6 +317,38 @@ class SourcesStorageTest(TestCase):
                 ),
                 "expected_response": {},
             },
+            {
+                "provider": MockProvider(
+                    4,
+                    "OCI Provider",
+                    Provider.PROVIDER_OCI,
+                    {},
+                    {
+                        "data_source": {
+                            "bucket": "bucket",
+                            "bucket_namespace": "bucket-namespace",
+                            "bucket_region": "bucket-region",
+                        }
+                    },
+                    "authheader",
+                    4,
+                    False,
+                ),
+                "expected_response": {"operation": "create", "offset": 4},
+            },
+            {
+                "provider": MockProvider(
+                    4,
+                    "OCI Provider",
+                    Provider.PROVIDER_OCI,
+                    {},
+                    {"data_source": {}},
+                    "authheader",
+                    1,
+                    False,
+                ),
+                "expected_response": {},
+            },
         ]
 
         for test in test_matrix:
