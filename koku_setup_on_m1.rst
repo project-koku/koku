@@ -50,7 +50,7 @@ Same as we have a separate terminal running Intel-based programs, we also want t
 
     sudo mv homebrew /usr/local/homebrew
 
-3. Add the following path and alias to the ``.zshrc`` file: ::
+3. Add the following path and alias to the ``.zshrc`` file. *Note*: We are setting an alias ``brow`` (you could name it anything you'd like) to the version of ``homebrew`` that run on Intel-based machines. ::
 
     # need this for x86_64 brew
     export PATH=$HOME/bin:/usr/local/bin:$PATH
