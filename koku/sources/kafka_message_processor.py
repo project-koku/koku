@@ -38,6 +38,8 @@ SOURCES_AZURE_SOURCE_NAME = "azure"
 SOURCES_AZURE_LOCAL_SOURCE_NAME = "azure-local"
 SOURCES_GCP_SOURCE_NAME = "google"
 SOURCES_GCP_LOCAL_SOURCE_NAME = "google-local"
+SOURCES_OCI_SOURCE_NAME = "oracle-cloud-infrastructure"
+SOURCES_OCI_LOCAL_SOURCE_NAME = "oracle-cloud-infrastructure-local"
 
 SOURCE_PROVIDER_MAP = {
     SOURCES_OCP_SOURCE_NAME: Provider.PROVIDER_OCP,
@@ -47,6 +49,8 @@ SOURCE_PROVIDER_MAP = {
     SOURCES_AZURE_LOCAL_SOURCE_NAME: Provider.PROVIDER_AZURE_LOCAL,
     SOURCES_GCP_SOURCE_NAME: Provider.PROVIDER_GCP,
     SOURCES_GCP_LOCAL_SOURCE_NAME: Provider.PROVIDER_GCP_LOCAL,
+    SOURCES_OCI_SOURCE_NAME: Provider.PROVIDER_OCI,
+    SOURCES_OCI_LOCAL_SOURCE_NAME: Provider.PROVIDER_OCI_LOCAL,
 }
 
 
@@ -150,6 +154,11 @@ class KafkaMessageProcessor:
 
         if not source_type:
             LOG.info(f"[save_credentials] source_type not found for source_id: {self.source_id}")
+            return
+
+        if source_type == Provider.PROVIDER_OCI or source_type == Provider.PROVIDER_OCI_LOCAL:
+            # OCI sources do not have authentication, so skip running thru this function
+            LOG.info("[save_credentials] skipping for OCI source")
             return
 
         sources_network = self.get_sources_client()
