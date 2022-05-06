@@ -188,7 +188,7 @@ class GCPReportProcessor(ReportProcessorBase):
         table_name = GCPCostEntryBill
         dh = DateHelper()
         invoice_month = row["invoice.month"]
-        start_time = dh.gcp_invoice_month_start(invoice_month)
+        start_time = dh.invoice_month_start(invoice_month)
         report_date_range = utils.month_date_range(start_time)
         start_date, end_date = report_date_range.split("-")
 

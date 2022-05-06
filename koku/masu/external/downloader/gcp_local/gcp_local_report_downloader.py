@@ -148,7 +148,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if not etag:
             return {}
         dh = DateHelper()
-        start_date = dh.gcp_invoice_month_start(str(invoice_month))
+        start_date = dh.invoice_month_start(str(invoice_month))
         end_date = self.file_mapping[invoice_month][etag]["end"]
         file_names = [self.file_mapping[invoice_month][etag]["filename"]]
         manifest_data = {

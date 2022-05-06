@@ -86,6 +86,7 @@ class AwsS3SyncerTestWithData(MasuTestCase):
             self.ocp_on_gcp_ocp_provider,
             self.azure_provider,
             self.gcp_provider,
+            self.oci_provider,
         ]
         expected_filter_calls = []
 

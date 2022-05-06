@@ -58,6 +58,7 @@ class OrchestratorTest(MasuTestCase):
         self.azure_data_source = self.azure_provider.billing_source.data_source
         self.gcp_credentials = self.gcp_provider.authentication.credentials
         self.gcp_data_source = self.gcp_provider.billing_source.data_source
+        self.oci_data_source = self.oci_provider.billing_source.data_source
         self.ocp_credentials = [name[0] for name in Provider.objects.values_list("authentication__credentials")]
         self.ocp_data_source = {}
         self.mock_accounts = [
@@ -96,10 +97,14 @@ class OrchestratorTest(MasuTestCase):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                    self.assertEqual(account.get("data_source"), self.oci_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
 
-        if len(orchestrator._polling_accounts) != 3:
+        # Result is 4 because that matches the number of non OCP sources
+        if len(orchestrator._polling_accounts) != 4:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
@@ -115,6 +120,9 @@ class OrchestratorTest(MasuTestCase):
                 elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                    self.assertEqual(account.get("data_source"), self.oci_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
@@ -177,7 +185,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 7)
+            self.assertEqual(len(results), 8)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 
