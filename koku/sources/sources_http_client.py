@@ -34,7 +34,7 @@ AUTH_TYPES = {
     Provider.PROVIDER_AWS: "arn",
     Provider.PROVIDER_AZURE: "tenant_id_client_id_client_secret",
     Provider.PROVIDER_GCP: "project_id_service_account_json",
-    Provider.PROVIDER_OCI: "tenant",
+    Provider.PROVIDER_OCI: "ocid",
 }
 ENDPOINT_APPLICATIONS = "applications"
 ENDPOINT_APPLICATION_TYPES = "application_types"
