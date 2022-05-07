@@ -2678,6 +2678,16 @@ objects:
   kind: Secret
   metadata:
     name: koku-gcp
+- apiVersion: v1
+  data:
+    oci-credentials: ${OCI_CREDENTIALS_EPH}
+  kind: Secret
+  metadata:
+    name: koku-oci
+  stringData:
+    oci-cli-fingerprint: ${OCI_CLI_FIGERPRINT_EPH}
+    oci-cli-tenancy: ${OCI_CLI_TENANCY_EPH}
+    oci-cli-user: ${OCI_CLI_USER_EPH}
 parameters:
 - name: ENV_NAME
   required: true
@@ -2945,6 +2955,22 @@ parameters:
   name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: OCI Credentials (Ephemeral)
+  name: OCI_CREDENTIALS_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: OCI user (Ephemeral)
+  name: OCI_CLI_USER_EPH
+  required: true
+  value: insert-string-value
+- displayName: OCI user fingerprint (Ephemeral)
+  name: OCI_CLI_FIGERPRINT_EPH
+  required: true
+  value: insert-string-value
+- displayName: OCI tenancy (Ephemeral)
+  name: OCI_CLI_TENANCY_EPH
+  required: true
+  value: insert-string-value
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true
