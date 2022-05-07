@@ -54,6 +54,7 @@ bonfire deploy \
     --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
     --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
     --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
+    ${COMPONENTS_ARG} \
     ${COMPONENTS_RESOURCES_ARG} \
     ${EXTRA_DEPLOY_ARGS}
 set +x

@@ -140,6 +140,8 @@
           cpu: ${LISTENER_CPU_REQUEST}
           memory: ${LISTENER_MEMORY_REQUEST}
       volumeMounts:
+      - name: koku-listener-data
+        mountPath: /var/tmp/masu/
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
@@ -150,6 +152,8 @@
         mountPath: ${TMP_DIR}
       volumes:
       - name: tmp-data
+        emptyDir: {}
+      - name: koku-listener-data
         emptyDir: {}
       - name: gcp-credentials
         secret:
