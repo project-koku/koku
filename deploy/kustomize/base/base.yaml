@@ -121,7 +121,7 @@ objects:
   metadata:
     name: koku-oci
   data:
-    gcp-credentials: "${OCI_CREDENTIALS_EPH}"
+    oci-credentials: "${OCI_CREDENTIALS_EPH}"
 
 parameters:
 - name: ENV_NAME

@@ -2680,7 +2680,7 @@ objects:
     name: koku-gcp
 - apiVersion: v1
   data:
-    gcp-credentials: ${OCI_CREDENTIALS_EPH}
+    oci-credentials: ${OCI_CREDENTIALS_EPH}
   kind: Secret
   metadata:
     name: koku-oci
