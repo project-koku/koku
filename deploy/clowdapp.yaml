@@ -165,6 +165,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -176,6 +179,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -306,24 +315,29 @@ objects:
             cpu: ${LISTENER_CPU_REQUEST}
             memory: ${LISTENER_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-listener-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-listener-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -466,6 +480,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -477,6 +494,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -623,6 +646,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -634,6 +660,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: false
@@ -769,6 +801,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -780,6 +815,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -917,6 +958,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -928,6 +972,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1091,24 +1141,29 @@ objects:
             cpu: ${WORKER_CELERY_CPU_REQUEST}
             memory: ${WORKER_CELERY_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1274,24 +1329,29 @@ objects:
             cpu: ${WORKER_COST_MODEL_CPU_REQUEST}
             memory: ${WORKER_COST_MODEL_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1455,24 +1515,29 @@ objects:
             cpu: ${WORKER_DOWNLOAD_CPU_REQUEST}
             memory: ${WORKER_DOWNLOAD_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1638,24 +1703,29 @@ objects:
             cpu: ${WORKER_OCP_CPU_REQUEST}
             memory: ${WORKER_OCP_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1819,24 +1889,29 @@ objects:
             cpu: ${WORKER_PRIORITY_CPU_REQUEST}
             memory: ${WORKER_PRIORITY_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2002,24 +2077,29 @@ objects:
             cpu: ${WORKER_REFRESH_CPU_REQUEST}
             memory: ${WORKER_REFRESH_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2185,24 +2265,29 @@ objects:
             cpu: ${WORKER_SUMMARY_CPU_REQUEST}
             memory: ${WORKER_SUMMARY_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2368,24 +2453,29 @@ objects:
             cpu: ${WORKER_HCS_CPU_REQUEST}
             memory: ${WORKER_HCS_MEMORY_REQUEST}
         volumeMounts:
-        - mountPath: /var/tmp/masu/
-          name: koku-worker-data
         - mountPath: /etc/gcp
           name: gcp-credentials
+          readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
           readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
         - emptyDir: {}
           name: tmp-data
-        - emptyDir: {}
-          name: koku-worker-data
         - name: gcp-credentials
           secret:
             items:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
