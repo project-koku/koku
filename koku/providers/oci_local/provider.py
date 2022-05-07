@@ -22,11 +22,11 @@ class OCILocalProvider(OCIProvider):
         """Return name of the provider."""
         return Provider.PROVIDER_OCI_LOCAL
 
-    def cost_usage_source_is_reachable(self, credentials, _):
+    def cost_usage_source_is_reachable(self, _, data_source):
         """Verify that the cost usage source exists and is reachable."""
-        tenancy = credentials.get("tenant")
-        if not tenancy or tenancy.isspace():
-            key = ProviderErrors.OCI_MISSING_TENANCY
-            message = ProviderErrors.OCI_MISSING_TENANCY_MESSAGE
+        local_dir = data_source.get("bucket")
+        if not local_dir:
+            key = ProviderErrors.OCI_BUCKET_MISSING
+            message = ProviderErrors.OCI_BUCKET_MISSING_MESSAGE
             raise serializers.ValidationError(error_obj(key, message))
         return True

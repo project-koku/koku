@@ -529,6 +529,12 @@ DELETE
         setattr(schema_editor, "o_delete_model", schema_editor.delete_model)
         setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
 
+    # Make sure that the models are re-loaded here
+    # so that we have the most up-to-date data at this point
+    with DB_MODELS_LOCK:
+        DB_MODELS.clear()
+        _load_db_models()
+
 
 def set_pg_extended_mode(apps, schema_editor):
     set_pg_extended_schema_editor(schema_editor)
