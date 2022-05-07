@@ -2678,12 +2678,6 @@ objects:
   kind: Secret
   metadata:
     name: koku-gcp
-- apiVersion: v1
-  data:
-    oci-credentials: ${OCI_CREDENTIALS_EPH}
-  kind: Secret
-  metadata:
-    name: koku-oci
 parameters:
 - name: ENV_NAME
   required: true
@@ -2949,10 +2943,6 @@ parameters:
   value: insert-string-value
 - displayName: GCP Credentials (Ephemeral)
   name: GCP_CREDENTIALS_EPH
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- displayName: OCI Credentials (Ephemeral)
-  name: OCI_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: Minimum replicas

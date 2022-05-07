@@ -116,12 +116,6 @@ objects:
     name: koku-gcp
   data:
     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
-- apiVersion: v1
-  kind: Secret # For ephemeral/local environment only
-  metadata:
-    name: koku-oci
-  data:
-    oci-credentials: "${OCI_CREDENTIALS_EPH}"
 
 parameters:
 - name: ENV_NAME
@@ -403,9 +397,5 @@ parameters:
   value: insert-string-value
 - name: GCP_CREDENTIALS_EPH
   displayName: GCP Credentials (Ephemeral)
-  required: true
-  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
-- name: OCI_CREDENTIALS_EPH
-  displayName: OCI Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
