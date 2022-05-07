@@ -3026,11 +3026,11 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 512Mi
+  value: 350Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
-  value: 1Gi
+  value: 700Mi
 - displayName: CPU Request
   name: MASU_CPU_REQUEST
   required: true
