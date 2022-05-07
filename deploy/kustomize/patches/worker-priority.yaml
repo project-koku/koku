@@ -128,11 +128,20 @@
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS

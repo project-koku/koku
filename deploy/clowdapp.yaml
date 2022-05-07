@@ -117,11 +117,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -277,11 +286,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -439,11 +457,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -625,11 +652,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -760,11 +796,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -917,11 +962,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1103,11 +1157,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1291,11 +1354,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1477,11 +1549,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1665,11 +1746,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1851,11 +1941,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2039,11 +2138,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2227,11 +2335,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2415,11 +2532,20 @@ objects:
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_CLI_USER
-          value: ${OCI_CLI_USER}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
         - name: OCI_CLI_FINGERPRINT
-          value: ${OCI_CLI_FINGERPRINT}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
         - name: OCI_CLI_TENANCY
-          value: ${OCI_CLI_TENANCY}
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2552,6 +2678,12 @@ objects:
   kind: Secret
   metadata:
     name: koku-gcp
+- apiVersion: v1
+  data:
+    gcp-credentials: ${OCI_CREDENTIALS_EPH}
+  kind: Secret
+  metadata:
+    name: koku-oci
 parameters:
 - name: ENV_NAME
   required: true
@@ -2578,6 +2710,9 @@ parameters:
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
+- description: OCI Credentials Location
+  name: OCI_CLI_KEY_FILE
+  value: /etc/oci/oci-credentials.pem
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
   required: true
@@ -2814,6 +2949,10 @@ parameters:
   value: insert-string-value
 - displayName: GCP Credentials (Ephemeral)
   name: GCP_CREDENTIALS_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: OCI Credentials (Ephemeral)
+  name: OCI_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
 - displayName: Minimum replicas
