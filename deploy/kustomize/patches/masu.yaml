@@ -107,21 +107,21 @@
           path: ${API_PATH_PREFIX}/v1/status/?liveness
           port: private
           scheme: HTTP
-        initialDelaySeconds: 40
-        periodSeconds: 30
+        initialDelaySeconds: 30
+        periodSeconds: 20
         successThreshold: 1
-        failureThreshold: 10
-        timeoutSeconds: 20
+        failureThreshold: 5
+        timeoutSeconds: 10
       readinessProbe:
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
             port: private
             scheme: HTTP
           initialDelaySeconds: 40
-          periodSeconds: 30
+          periodSeconds: 20
           successThreshold: 1
-          failureThreshold: 10
-          timeoutSeconds: 20
+          failureThreshold: 5
+          timeoutSeconds: 15
       resources:
         limits:
           cpu: ${MASU_CPU_LIMIT}
