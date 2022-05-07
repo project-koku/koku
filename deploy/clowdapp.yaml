@@ -9,7 +9,7 @@ objects:
     name: koku
   spec:
     database:
-      dbResourceSize: xlarge
+      dbResourceSize: large
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
     dependencies:
