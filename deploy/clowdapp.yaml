@@ -120,7 +120,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -270,7 +271,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -426,7 +428,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -602,7 +605,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -727,7 +731,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -874,7 +879,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1050,7 +1056,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1232,7 +1239,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1412,7 +1420,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1594,7 +1603,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1774,7 +1784,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -1956,7 +1967,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2138,7 +2150,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
@@ -2320,7 +2333,8 @@ objects:
           value: ${OCI_CLI_USER}
         - name: OCI_CLI_FINGERPRINT
           value: ${OCI_CLI_FINGERPRINT}
-        - value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
         - name: OCI_CLI_KEY_FILE
           value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
