@@ -406,25 +406,25 @@ objects:
           value: ${QE_SCHEMA}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
-          failureThreshold: 5
+          failureThreshold: 10
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
             port: private
             scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
+          initialDelaySeconds: 40
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 10
+          timeoutSeconds: 20
         readinessProbe:
-          failureThreshold: 5
+          failureThreshold: 10
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
             port: private
             scheme: HTTP
-          initialDelaySeconds: 30
-          periodSeconds: 20
+          initialDelaySeconds: 40
+          periodSeconds: 30
           successThreshold: 1
-          timeoutSeconds: 10
+          timeoutSeconds: 20
         resources:
           limits:
             cpu: ${MASU_CPU_LIMIT}
