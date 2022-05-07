@@ -102,6 +102,16 @@
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          value: ${OCI_CLI_USER}
+        - name: OCI_CLI_FINGERPRINT
+          value: ${OCI_CLI_FINGERPRINT}
+        - value: OCI_CLI_TENANCY
+          value: ${OCI_CLI_TENANCY}
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: 'true'
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness

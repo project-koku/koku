@@ -5,7 +5,7 @@
 """Oracel cloud infrastructure provider implementation to be used by Koku."""
 import logging
 
-import oci
+from oci import object_storage as storage_client
 from oci.exceptions import ClientError
 from requests.exceptions import ConnectionError as OciConnectionError
 from rest_framework import serializers
@@ -31,9 +31,9 @@ def _check_cost_report_access(bucket, namespace, region):
     config = OCI_CONFIG
     config["region"] = region
 
-    object_storage = oci.object_storage.ObjectStorageClient(config)
+    object_storage = storage_client.ObjectStorageClient(config)
     try:
-        oci.pagination.list_call_get_all_results(object_storage.list_objects, namespace, bucket, prefix=prefix_file)
+        object_storage.list_objects(namespace, bucket, prefix=prefix_file)
 
     except (ClientError, OciConnectionError) as oci_error:
         key = ProviderErrors.OCI_NO_REPORT_FOUND
