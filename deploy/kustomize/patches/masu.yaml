@@ -117,11 +117,11 @@
           path: ${API_PATH_PREFIX}/v1/status/?liveness
           port: private
           scheme: HTTP
-        initialDelaySeconds: 30
+        initialDelaySeconds: 45
         periodSeconds: 20
         successThreshold: 1
         failureThreshold: 5
-        timeoutSeconds: 10
+        timeoutSeconds: 15
       readinessProbe:
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
