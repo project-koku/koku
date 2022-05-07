@@ -33,7 +33,7 @@ class OCIProviderTestCase(TestCase):
         error = error_obj(test_key, test_message)
         self.assertEqual(error, expected)
 
-    @patch("providers.oci.provider.oci")
+    @patch("providers.oci.provider.storage_client")
     @patch(
         "providers.oci.provider._check_cost_report_access",
         return_value=(
