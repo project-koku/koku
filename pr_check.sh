@@ -45,15 +45,10 @@ function run_smoke_tests() {
 
     oc get secret/koku-aws -o json -n ephemeral-base | jq -r '.data' > aws-creds.json
     oc get secret/koku-gcp -o json -n ephemeral-base | jq -r '.data' > gcp-creds.json
-    oc get secret/koku-oci -o json -n ephemeral-base | jq -r '.data' > oci-creds.json
 
     AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -d)
     AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
     GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
-    OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-    OCI_CLI_USER_EPH=$(jq -r '."oci_cli_user"' < oci-creds.json | base64 -d)
-    OCI_CLI_FIGERPRINT_EPH=$(jq -r '."oci_cli_fingerprint"' < oci-creds.json | base64 -d)
-    OCI_CLI_TENANCY_EPH=$(jq -r '."oci_cli_tenancy"' < oci-creds.json | base64 -d)
 
     # This sets the image tag for the migrations Job to be the current koku image tag
     DBM_IMAGE_TAG=${IMAGE_TAG}
@@ -71,10 +66,6 @@ function run_smoke_tests() {
         --set-parameter koku/AWS_ACCESS_KEY_ID_EPH=${AWS_ACCESS_KEY_ID_EPH} \
         --set-parameter koku/AWS_SECRET_ACCESS_KEY_EPH=${AWS_SECRET_ACCESS_KEY_EPH} \
         --set-parameter koku/GCP_CREDENTIALS_EPH=${GCP_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CREDENTIALS_EPH=${OCI_CREDENTIALS_EPH} \
-        --set-parameter koku/OCI_CLI_USER_EPH=${OCI_CLI_USER_EPH} \
-        --set-parameter koku/OCI_CLI_FINGERPRINT_EPH=${OCI_CLI_FINGERPRINT_EPH} \
-        --set-parameter koku/OCI_CLI_TENANCY_EPH=${OCI_CLI_TENANCY_EPH} \
         --set-parameter koku/ENABLE_PARQUET_PROCESSING=${ENABLE_PARQUET_PROCESSING} \
         --set-parameter koku/DBM_IMAGE_TAG=${DBM_IMAGE_TAG} \
         --set-parameter koku/DBM_INVOCATION=${DBM_INVOCATION} \

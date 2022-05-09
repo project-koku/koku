@@ -115,25 +115,6 @@
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
-        - name: OCI_CLI_USER
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-user
-              name: koku-oci
-        - name: OCI_CLI_FINGERPRINT
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-fingerprint
-              name: koku-oci
-        - name: OCI_CLI_TENANCY
-          valueFrom:
-            secretKeyRef:
-              key: oci-cli-tenancy
-              name: koku-oci
-        - name: OCI_CLI_KEY_FILE
-          value: ${OCI_CLI_KEY_FILE}
-        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
-          value: 'true'
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
@@ -165,9 +146,6 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
-      - name: oci-credentials
-        mountPath: /etc/oci
-        readOnly: true
       - name: tmp-data
         mountPath: ${TMP_DIR}
       volumes:
@@ -179,12 +157,6 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
-      - name: oci-credentials
-        secret:
-          secretName: koku-oci
-          items:
-            - key: oci-credentials
-              path: oci-credentials.pem
 
 - op: add
   path: /parameters/-
