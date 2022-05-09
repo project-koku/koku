@@ -195,6 +195,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
             provider_uuid=self.gcp_provider_uuid,
             provider_type=Provider.PROVIDER_GCP,
             manifest_id=self.manifest_id,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertEqual(report_processor.ocp_on_cloud_data_processor, gcp_match_openshift_resources_and_labels)
 

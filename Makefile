@@ -59,6 +59,7 @@ help:
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
 	@echo "  clear-trino                           Remove stale files/subdirectories from the trino data directory."
+	@echo "  clear-cache                           Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -178,6 +179,9 @@ clear-testing:
 
 clear-trino:
 	$(PREFIX) rm -fr ./.trino/
+
+clear-cache:
+	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"

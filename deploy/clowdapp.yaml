@@ -9,6 +9,7 @@ objects:
     name: koku
   spec:
     database:
+      dbResourceSize: medium
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
     dependencies:
@@ -410,10 +411,10 @@ objects:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
             port: private
             scheme: HTTP
-          initialDelaySeconds: 30
+          initialDelaySeconds: 45
           periodSeconds: 20
           successThreshold: 1
-          timeoutSeconds: 10
+          timeoutSeconds: 15
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -2640,11 +2641,11 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 512Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1Gi
 - displayName: CPU Request
   name: MASU_CPU_REQUEST
   required: true

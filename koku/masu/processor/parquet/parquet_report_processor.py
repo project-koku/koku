@@ -22,6 +22,7 @@ from masu.processor import enable_trino_processing
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
+from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.util.aws.common import aws_generate_daily_data
 from masu.util.aws.common import aws_post_processor
@@ -37,12 +38,17 @@ from masu.util.common import get_path_prefix
 from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
 from masu.util.gcp.common import get_column_converters as gcp_column_converters
-from masu.util.ocp.common import detect_type
+from masu.util.oci.common import detect_type as oci_detect_type
+from masu.util.oci.common import get_column_converters as oci_column_converters
+from masu.util.oci.common import oci_generate_daily_data
+from masu.util.oci.common import oci_post_processor
+from masu.util.ocp.common import detect_type as ocp_detect_type
 from masu.util.ocp.common import get_column_converters as ocp_column_converters
 from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
@@ -59,6 +65,7 @@ COLUMN_CONVERTERS = {
     Provider.PROVIDER_AZURE: azure_column_converters,
     Provider.PROVIDER_GCP: gcp_column_converters,
     Provider.PROVIDER_OCP: ocp_column_converters,
+    Provider.PROVIDER_OCI: oci_column_converters,
 }
 
 
@@ -77,6 +84,7 @@ class ParquetReportProcessor:
         self._provider_type = provider_type
         self._manifest_id = manifest_id
         self._context = context
+        self.start_date = self._context.get("start_date")
         self.presto_table_exists = {}
         self.files_to_remove = []
 
@@ -136,13 +144,19 @@ class ParquetReportProcessor:
         """The start date for processing.
         Used to determine the year/month partitions.
         """
-        start_date = self._context.get("start_date")
-        if isinstance(start_date, datetime.datetime):
-            return start_date.date()
-        elif isinstance(start_date, datetime.date):
-            return start_date
+        return self._start_date
+
+    @start_date.setter
+    def start_date(self, new_start_date):
+        if isinstance(new_start_date, datetime.datetime):
+            self._start_date = new_start_date.date()
+            return
+        elif isinstance(new_start_date, datetime.date):
+            self._start_date = new_start_date
+            return
         try:
-            return parser.parse(start_date).date()
+            self._start_date = parser.parse(new_start_date).date()
+            return
         except (ValueError, TypeError):
             msg = "Parquet processing is enabled, but the start_date was not a valid date string ISO 8601 format."
             LOG.error(log_json(self.tracing_id, msg, self.error_context))
@@ -168,10 +182,15 @@ class ParquetReportProcessor:
 
     @property
     def report_type(self):
-        """Report type for OpenShift, else None."""
+        """Report type for OpenShift and OCI else None."""
         if self.provider_type == Provider.PROVIDER_OCP:
             for file_name in self.file_list:
-                report_type, _ = detect_type(file_name)
+                report_type, _ = ocp_detect_type(file_name)
+                if report_type:
+                    return report_type
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            for file_name in self.file_list:
+                report_type = oci_detect_type(file_name)
                 if report_type:
                     return report_type
         return None
@@ -186,6 +205,8 @@ class ParquetReportProcessor:
             post_processor = azure_post_processor
         elif self.provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
             post_processor = gcp_post_processor
+        elif self.provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
+            post_processor = oci_post_processor
         return post_processor
 
     @property
@@ -200,6 +221,8 @@ class ParquetReportProcessor:
             daily_data_processor = gcp_generate_daily_data
         if self.provider_type == Provider.PROVIDER_OCP:
             daily_data_processor = partial(ocp_generate_daily_data, report_type=self.report_type)
+        if self.provider_type == Provider.PROVIDER_OCI:
+            daily_data_processor = oci_generate_daily_data
 
         return daily_data_processor
 
@@ -268,6 +291,8 @@ class ParquetReportProcessor:
             return AzureEnabledTagKeys
         elif self.provider_type == Provider.PROVIDER_GCP:
             return GCPEnabledTagKeys
+        elif self.provider_type == Provider.PROVIDER_OCI:
+            return OCIEnabledTagKeys
         return None
 
     def _get_column_converters(self):
@@ -295,6 +320,10 @@ class ParquetReportProcessor:
         elif self.provider_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             processor = GCPReportParquetProcessor(
                 self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file
+            )
+        elif self.provider_type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+            processor = OCIReportParquetProcessor(
+                self.manifest_id, self.account, s3_hive_table_path, self.provider_uuid, parquet_file, self.report_type
             )
         if processor is None:
             msg = f"There is no ReportParquetProcessor for provider type {self.provider_type}"
@@ -332,6 +361,8 @@ class ParquetReportProcessor:
             Provider.PROVIDER_OCP,
             Provider.PROVIDER_GCP,
             Provider.PROVIDER_GCP_LOCAL,
+            Provider.PROVIDER_OCI,
+            Provider.PROVIDER_OCI_LOCAL,
         ):
             remove_files_not_in_set_from_s3_bucket(
                 self.tracing_id, self.parquet_path_s3, self.manifest_id, self.error_context
@@ -352,6 +383,9 @@ class ParquetReportProcessor:
                 LOG.warn(log_json(self.tracing_id, msg, self.error_context))
                 failed_conversion.append(csv_filename)
                 continue
+            if self.provider_type == Provider.PROVIDER_OCI:
+                file_specific_start_date = csv_filename.split(".")[1]
+                self.start_date = file_specific_start_date
             parquet_base_filename, daily_frame, success = self.convert_csv_to_parquet(csv_filename)
             daily_data_frames.extend(daily_frame)
             if self.provider_type not in (Provider.PROVIDER_AZURE):
@@ -416,7 +450,6 @@ class ParquetReportProcessor:
                             LOG.info(f"Total unique keys for file {len(unique_keys)}")
                     if self.daily_data_processor is not None:
                         daily_data_frames.append(self.daily_data_processor(data_frame))
-
                     success = self._write_parquet_to_file(parquet_file, parquet_filename, data_frame)
                     if not success:
                         return parquet_base_filename, daily_data_frames, False
@@ -454,7 +487,7 @@ class ParquetReportProcessor:
         """Determine the s3 path based off of the invoice month."""
         invoice_month = gcp_file_name.split("_")[0]
         dh = DateHelper()
-        start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+        start_of_invoice = dh.invoice_month_start(invoice_month)
         if file_type == DAILY_FILE_TYPE:
             report_type = self.report_type
             if report_type is None:

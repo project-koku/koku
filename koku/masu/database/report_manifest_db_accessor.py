@@ -206,3 +206,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         manifests = CostUsageReportManifest.objects.filter(**filters).all()
         max_export = manifests.aggregate(Max("export_time"))
         return max_export.get("export_time__max")
+
+    def get_last_reports_for_manifests(self, provider_uuid, bill_date):
+        """Return the last reports downloaded for manifests given provider."""
+        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        manifests = CostUsageReportManifest.objects.filter(**filters).all()
+        last_reports = manifests.aggregate("last_reports")
+        return last_reports
