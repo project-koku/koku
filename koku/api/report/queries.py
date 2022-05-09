@@ -16,6 +16,7 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
+from pprint import pformat
 from urllib.parse import quote_plus
 
 import ciso8601
@@ -724,7 +725,17 @@ class ReportQueryHandler(QueryHandler):
                     dictionary[key] = new_values
         return data
 
-    def format_for_ui_recursive(self, groupby, out_data, org_unit_applied=False, level=-1, org_id=None, org_type=None):
+    def format_for_ui_recursive(
+        self,
+        groupby,
+        out_data,
+        org_unit_applied=False,
+        level=-1,
+        org_id=None,
+        org_type=None,
+        order_mapping={},
+        order_numbers={},
+    ):
         """Format the data for the UI."""
         level += 1
         overall = []
@@ -740,7 +751,11 @@ class ReportQueryHandler(QueryHandler):
                     # org_applied = False
                     # if "org_entitie" in groupby:
                     #     org_applied = True
-                    new_values = self.aggregate_currency_codes_ui(value)
+                    new_values, order_mapping, order_numbers = self.aggregate_currency_codes_ui(
+                        value, order_mapping, order_numbers
+                    )
+                    LOG.info(f"order_mapping: {pformat(order_mapping)}")
+                    LOG.info(f"order_numbers: {pformat(order_numbers)}")
                     new_value.append(new_values)
                 return new_value
             else:
@@ -754,7 +769,13 @@ class ReportQueryHandler(QueryHandler):
                     org_id = value.get("id")
                     org_type = value.get("type")
                     value[group + "s"] = self.format_for_ui_recursive(
-                        groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
+                        groupby,
+                        new_out_data,
+                        level=level,
+                        org_id=org_id,
+                        org_type=org_type,
+                        order_mapping=order_mapping,
+                        order_numbers=order_numbers,
                     )
                     overall.append(value)
         return overall
@@ -775,7 +796,7 @@ class ReportQueryHandler(QueryHandler):
                 codes[Provider.PROVIDER_OCP] = "source_uuids"
         return codes
 
-    def aggregate_currency_codes_ui(self, out_data):
+    def aggregate_currency_codes_ui(self, out_data, order_mapping, order_numbers):
         """Aggregate currency code info for UI."""
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
@@ -788,7 +809,7 @@ class ReportQueryHandler(QueryHandler):
             currencys = out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currencys
         else:
-            total_query, new_codes = self.aggregate_currency_codes(currency_codes)
+            total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
@@ -799,7 +820,17 @@ class ReportQueryHandler(QueryHandler):
                 currency_list.append(cur_dictionary)
             out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currency_list
-        return out_data
+            group_by_key = meta_data.get("group_by_key")
+            date = meta_data.get("date")
+            group_by = out_data.get(group_by_key)
+            if group_by_key:
+                if order_mapping.get(date):
+                    dict_to_update = order_mapping[date]
+                    dict_to_update[group_by] = out_data
+                else:
+                    order_mapping[date] = {group_by: out_data}
+            order_numbers.update(meta_data.get("order_numbers", {}))
+        return out_data, order_mapping, order_numbers
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
         """Aggregate and format the data after currency."""

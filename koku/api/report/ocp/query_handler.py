@@ -23,6 +23,8 @@ from api.report.queries import ReportQueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
 
+# from pprint import pformat
+
 LOG = logging.getLogger(__name__)
 
 
@@ -130,6 +132,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
+        # TODO: Could we simplfy this by using an odered dictionary.
         total_query = {
             "infra_total": 0,
             "infra_raw": 0,
@@ -179,8 +182,25 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     total_query[each] = orig_value + Decimal(new_val or 0)
         return total_query
 
-    def aggregate_currency_codes(self, currency_codes):  # noqa: C901
+    def _find_identity_key(self):
+        """
+        Finds the best identify key for order by
+        """
+        # If there is no group by then it is sorted by day
+        group_by = None
+        order_by = None
+        groupby = self._get_group_by()
+        if groupby:
+            group_by = groupby[0]
+        if self.order:
+            order_by = self.order[0]
+        return group_by, order_by
+
+    def aggregate_currency_codes(self, currency_codes, order_numbers=dict(), order_map=dict()):  # noqa: C901
         """Aggregate and format the unconverted after currency."""
+        meta_data = {}
+        group_by, order_by = self._find_identity_key()
+        meta_data["group_by_key"] = group_by
         total_results = {
             "date": None,
             "source_uuid": [],
@@ -216,6 +236,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             exchange_rate = self._get_exchange_rate(currency)
             ui_dikts = {"total": total_results}
             for unconverted in unconverted_values:
+                groupby_key_value = unconverted.get(group_by)
+                date = unconverted.get("date")
+                meta_data["date"] = date
                 currencys_values = currencys.get(currency)
                 ui_dikts["currencys"] = currencys_values
                 initial_currency_ingest = False
@@ -257,8 +280,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                     volume_usage = {"value": 0, "units": None}
                                     ui_view_dikt[key] = copy.deepcopy(volume_usage)
                                 total_query_val = ui_view_dikt.get(key).get("value")
-                                ui_view_dikt[key]["value"] = Decimal(check_val.get("value")) + Decimal(total_query_val)
+                                order_value = Decimal(check_val.get("value")) + Decimal(total_query_val)
+                                ui_view_dikt[key]["value"] = order_value
                                 ui_view_dikt[key]["units"] = check_val.get("units")
+                                if key in order_by and groupby_key_value:
+                                    if order_numbers.get(date):
+                                        dict_to_update = order_numbers[date]
+                                        dict_to_update[groupby_key_value] = order_value
+                                    else:
+                                        order_numbers[date] = {groupby_key_value: order_value}
                         elif key == "delta_percent":
                             current_delta = unconverted.get("delta_value", 0)
                             percentage = unconverted.get("delta_percent", None)
@@ -284,7 +314,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 if initial_currency_ingest:
                     currencys[currency] = ui_dikts["currencys"]
         if total_results.get("delta_value") and overall_previous_total:
-            if not "__" in self._delta:
+            if "__" not in self._delta:
                 total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
             else:
                 delta_dikt = {}
@@ -292,8 +322,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 for each in deltas:
                     value = total_results.get(each, {}).get("value", 0)
                     delta_dikt[each] = value
-                total_results["delta_percent"] = (delta_dikt[deltas[0]] / delta_dikt[deltas[1]] * 100)
-        return total_results, currencys
+                total_results["delta_percent"] = delta_dikt[deltas[0]] / delta_dikt[deltas[1]] * 100
+        meta_data["order_numbers"] = order_numbers
+        return total_results, currencys, meta_data
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
