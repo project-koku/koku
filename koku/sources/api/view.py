@@ -133,7 +133,7 @@ class SourcesViewSet(*MIXIN_LIST):
         """Get excluded source types by access."""
         excludes = []
         keep = []
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return excludes
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):

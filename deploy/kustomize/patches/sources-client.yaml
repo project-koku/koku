@@ -97,6 +97,8 @@
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: 'true'
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness
