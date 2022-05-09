@@ -240,3 +240,12 @@ class OCIReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
 
             os.remove(temp_path)
+
+    @patch("masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._get_oci_client")
+    def test_get_oci_client(self, mock_oci_client):
+        """Assert oci client is created"""
+        region = "test-region"
+        downloader = self.create_oci_downloader_with_mocked_values()
+        with patch("masu.external.downloader.oci.oci_report_downloader.object_storage"):
+            downloader._get_oci_client(region)
+            mock_oci_client.assert_called()

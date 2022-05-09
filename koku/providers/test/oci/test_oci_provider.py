@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the OCIProvider implementation for the Koku interface."""
-from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -47,22 +46,12 @@ class OCIProviderTestCase(TestCase):
             FAKE.md5(),
         ),
     )
-    def test_check_cost_report_access(self, mock_oci_client, check_cost_report_access):
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient.list_objects")
+    def test_check_cost_report_access(self, mock_list_objects, mock_check_cost_report_access, mock_oci_client):
         """Test_check_cost_report_access success."""
-        oci_client = Mock()
-        oci_client.data.objects = {
-            "archival_state": None,
-            "etag": None,
-            "md5": None,
-            "name": "reports/cost-csv/0001000000539138.csv.gz",
-            "size": None,
-            "storage_tier": None,
-            "time_created": None,
-            "time_modified": None,
-        }
-        mock_oci_client.return_value = oci_client
         try:
-            check_cost_report_access(FAKE.md5())
+            mock_check_cost_report_access(FAKE.md5())
+            mock_check_cost_report_access.assert_called()
         except Exception as exc:
             self.fail(exc)
 
