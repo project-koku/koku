@@ -32,28 +32,14 @@ class OCIProviderTestCase(TestCase):
         error = error_obj(test_key, test_message)
         self.assertEqual(error, expected)
 
-    @patch("providers.oci.provider.storage_client")
-    @patch(
-        "providers.oci.provider._check_cost_report_access",
-        return_value=(
-            {
-                "user": FAKE.md5(),
-                "key_file": FAKE.md5(),
-                "fingerprint": FAKE.md5(),
-                "tenancy": FAKE.md5(),
-                "region": FAKE.md5(),
-            },
-            FAKE.md5(),
-        ),
-    )
-    @patch("providers.oci.provider.storage_client.ObjectStorageClient.list_objects")
-    def test_check_cost_report_access(self, mock_list_objects, mock_check_cost_report_access, mock_oci_client):
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient")
+    def test_check_cost_report_access(self, mock_storage_client):
         """Test_check_cost_report_access success."""
-        try:
-            mock_check_cost_report_access(FAKE.md5())
-            mock_check_cost_report_access.assert_called()
-        except Exception as exc:
-            self.fail(exc)
+        mock_storage_client.list_objects = {}
+        provider_interface = OCIProvider()
+        data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
+        provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
+        mock_storage_client.assert_called()
 
     @patch(
         "providers.oci.provider._check_cost_report_access",
@@ -75,6 +61,7 @@ class OCIProviderTestCase(TestCase):
         data_source = {"bucket": "my-bucket", "bucket_namespace": "my-namespace", "bucket_region": "my-region"}
         try:
             provider_interface.cost_usage_source_is_reachable(credentials, data_source)
+            check_cost_report_access.assert_called()
         except Exception:
             self.fail("Unexpected Error")
 
