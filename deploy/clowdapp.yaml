@@ -116,6 +116,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -257,6 +259,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -404,6 +408,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -571,6 +577,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -687,6 +695,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -825,6 +835,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -992,6 +1004,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1165,6 +1179,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1336,6 +1352,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1509,6 +1527,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1680,6 +1700,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1853,6 +1875,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2026,6 +2050,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2199,6 +2225,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
