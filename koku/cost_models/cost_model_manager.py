@@ -47,6 +47,9 @@ class CostModelManager:
     def create(self, **data):
         """Create cost model and optionally associate to providers."""
         cost_model_data = copy.deepcopy(data)
+        if data["rates"]:
+            print("NEED VALIDATE")
+            self.validate_rates(cost_model_data)
 
         provider_uuids = cost_model_data.pop("provider_uuids", [])
         self._model = CostModel.objects.create(**cost_model_data)
@@ -129,3 +132,21 @@ class CostModelManager:
         providers_qs_list = Provider.objects.filter(uuid__in=provider_uuids)
         provider_names_uuids = [{"uuid": str(provider.uuid), "name": provider.name} for provider in providers_qs_list]
         return provider_names_uuids
+
+    def validate_rates(self, data):
+        for rates in data["rates"]:
+            print("RATE: ", rates)
+            for rate in rates:
+                if rate == "tag_rates":
+                    for metric in rates[rate]:
+                        print("METRIC: ", metric)
+                        # for tag in metric['tag_values']:
+                        #     print("UNITS :", tag['unit'])
+                elif rate == "tiered_rates":
+                    for metric in rates[rate]:
+                        print(metric["usage"]["unit"])
+                        if metric["unit"] != data["currency"]:
+                            print(metric["unit"], "NOT EQUAL", data["currency"])
+                            metric["unit"] = data["currency"]
+                            metric["usage"]["unit"] = data["currency"]
+                            print(metric["unit"], "EQUAL", data["currency"])
