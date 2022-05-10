@@ -36,12 +36,8 @@ def _check_cost_report_access(bucket, namespace, region):
         object_storage = storage_client.ObjectStorageClient(config)
         object_storage.list_objects(namespace, bucket, prefix=prefix_file)
     except (ClientError, ServiceError, OciConnectionError) as oci_error:
-        if ServiceError:
-            key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
-            message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
-        else:
-            key = ProviderErrors.OCI_NO_REPORT_FOUND
-            message = f"Unable to obtain cost and usage reports with: {bucket, namespace, region}."
+        key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
+        message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
