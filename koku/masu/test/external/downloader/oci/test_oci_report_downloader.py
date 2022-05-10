@@ -205,7 +205,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         key = "reports_cost-csv_0001000000603504.csv"
         err_msg = "Unknown Error"
         downloader = self.create_oci_downloader_with_mocked_values()
-        with patch("masu.external.downloader.oci.oci_report_downloader.oci"):
+        with patch("masu.external.downloader.oci.oci_report_downloader.object_storage"):
             with patch("masu.external.downloader.oci.oci_report_downloader.os.path.getmtime"):
                 with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
                     with self.assertRaises(Exception) as exp:
@@ -240,3 +240,13 @@ class OCIReportDownloaderTest(MasuTestCase):
                 os.remove(daily_file)
 
             os.remove(temp_path)
+
+    @patch(
+        "masu.external.downloader.oci.oci_report_downloader.object_storage.ObjectStorageClient",
+        return_value=MagicMock(),
+    )
+    def test_get_oci_client(self, _):
+        """Test to verify OCI downloader is initialized."""
+        downloader = self.create_oci_downloader_with_mocked_values()
+        client = downloader._get_oci_client("region")
+        self.assertIsNotNone(client)
