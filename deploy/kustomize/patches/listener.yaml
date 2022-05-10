@@ -93,6 +93,8 @@
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: 'true'
       livenessProbe:
         httpGet:
           path: /livez

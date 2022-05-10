@@ -17,6 +17,7 @@ objects:
     # Creates a database if local mode, or uses RDS in production
     database:
       # Must specify both a name and a major postgres version
+      dbResourceSize: medium
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
 
