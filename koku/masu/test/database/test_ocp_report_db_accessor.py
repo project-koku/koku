@@ -2949,3 +2949,5 @@ select * from eek where val1 in {{report_period_id}} ;
                 mock_query.return_value = [test["return"]]  # returned value is a list of a list
                 result = self.accessor.get_max_min_timestamp_from_parquet(uuid.uuid4(), start_date, end_date)
                 self.assertEqual(result, test["expected"])
+                self.assertTrue(hasattr(result[0], "date"))
+                self.assertTrue(hasattr(result[1], "date"))
