@@ -144,7 +144,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         parquet_end_date = self.dh.today.replace(tzinfo=None)
         mock_get_timestamps.return_value = (parquet_start_date, parquet_end_date)
 
-        result_start, result_end = self.updater._check_parquet_date_range(start_date, end_date)
+        result_start, _ = self.updater._check_parquet_date_range(start_date, end_date)
         self.assertNotEqual(start_date, result_start)
         self.assertEqual(parquet_start_date.date(), result_start)
 
