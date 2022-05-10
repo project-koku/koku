@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the OCIProvider implementation for the Koku interface."""
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -13,7 +14,17 @@ from rest_framework.exceptions import ValidationError
 from providers.oci.provider import error_obj
 from providers.oci.provider import OCIProvider
 
+# from oci.exceptions import ClientError
+# from oci.exceptions import ServiceError
+
 FAKE = Faker()
+
+
+def mock_oci_exception(**kwargs):
+    """Raise oci exception for testing."""
+    # msg = "OCI authentication error"
+    # headers = {"opc-request-id": "1"}
+    raise Exception("Boom")
 
 
 class OCIProviderTestCase(TestCase):
@@ -40,6 +51,19 @@ class OCIProviderTestCase(TestCase):
         data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
         provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
         mock_storage_client.assert_called()
+
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient")
+    def test_check_cost_report_access_service_error(self, mock_storage_client):
+        """Test_check_cost_report_access error."""
+        oci_client = MagicMock()
+        oci_client.list_objects.side_effect = mock_oci_exception
+        mock_storage_client.return_value = oci_client
+        # mock_storage_client.list_objects.side_effect = mock_oci_exception
+        provider_interface = OCIProvider()
+        data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
+        with self.assertRaises(ValidationError):
+            # mock_oci_exception()
+            provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
 
     @patch(
         "providers.oci.provider._check_cost_report_access",
