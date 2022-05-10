@@ -119,11 +119,11 @@
             path: ${API_PATH_PREFIX}/v1/status/
             port: private
             scheme: HTTP
-          initialDelaySeconds: 40
+          initialDelaySeconds: 30
           periodSeconds: 20
           successThreshold: 1
           failureThreshold: 5
-          timeoutSeconds: 15
+          timeoutSeconds: 10
       resources:
         limits:
           cpu: ${MASU_CPU_LIMIT}
