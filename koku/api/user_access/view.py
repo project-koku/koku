@@ -70,7 +70,7 @@ class UIFeatureAccess:
 class AWSUserAccess(UIFeatureAccess):
     """Access to AWS UI Features."""
 
-    access_keys = ["aws.account"]
+    access_keys = ["aws.account", "aws.organizational_unit"]
 
 
 class OCPUserAccess(UIFeatureAccess):
