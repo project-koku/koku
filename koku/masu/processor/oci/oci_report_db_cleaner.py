@@ -10,7 +10,6 @@ from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
-from koku.database import get_model
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.provider.oci.models import UI_SUMMARY_TABLES
@@ -87,7 +86,6 @@ class OCIReportDBCleaner:
                 accessor.line_item_daily_summary_table._meta.db_table,
             ]
             table_names.extend(UI_SUMMARY_TABLES)
-            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             removed_items = []
@@ -119,8 +117,5 @@ class OCIReportDBCleaner:
                 all_period_starts.add(str(bill.billing_period_start))
 
             LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
-
-            if not simulate:
-                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
         return removed_items
