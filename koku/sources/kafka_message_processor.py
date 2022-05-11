@@ -159,7 +159,7 @@ class KafkaMessageProcessor:
         if source_type == Provider.PROVIDER_OCI or source_type == Provider.PROVIDER_OCI_LOCAL:
             # OCI sources do not have authentication, so skip running thru this function
             LOG.info("[save_credentials] skipping for OCI source")
-            return {}
+            return True
 
         sources_network = self.get_sources_client()
 
