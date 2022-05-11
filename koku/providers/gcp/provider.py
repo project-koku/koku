@@ -63,10 +63,12 @@ class GCPProvider(ProviderInterface):
                     source_filter.update(billing_source={"data_source": data_source})
 
                     provider_uuid = source_filter.first().koku_uuid
-                    provider_billing_source = Provider.objects.filter(uuid=provider_uuid).first().billing_source
-                    if provider_billing_source.data_source != data_source:
-                        provider_billing_source.data_source = data_source
-                        provider_billing_source.save()
+                    provider = Provider.objects.filter(uuid=provider_uuid).first()
+                    if provider:
+                        provider_billing_source = provider.billing_source
+                        if provider_billing_source and provider_billing_source.data_source != data_source:
+                            provider_billing_source.data_source = data_source
+                            provider_billing_source.save()
 
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")

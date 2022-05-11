@@ -1,6 +1,7 @@
 """Test GCP Provider."""
 import copy
 from unittest.mock import MagicMock
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -11,6 +12,8 @@ from google.cloud.exceptions import NotFound
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
+from api.provider.models import ProviderAuthentication
+from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
@@ -184,6 +187,7 @@ class GCPProviderTestCase(TestCase):
         credentials = {"project_id": "test_project"}
         test_dataset_table_id = "test_table_id"
         data_source = {"dataset": "test_dataset"}
+        provider_uuid = FAKE.uuid4()
 
         gcp_source = {
             "source_id": source_id,
@@ -195,8 +199,23 @@ class GCPProviderTestCase(TestCase):
             "auth_header": "fakeauthheader",
             "account_id": "acct10001",
             "offset": 12,
+            "koku_uuid": provider_uuid,
         }
-        provider = Sources(**gcp_source)
+        Sources(**gcp_source).save()
+
+        auth = ProviderAuthentication(**{"credentials": credentials})
+        auth.save()
+        billing = ProviderBillingSource(**{"data_source": data_source})
+        billing.save()
+        gcp_provider = {
+            "uuid": provider_uuid,
+            "name": "Provider GCP",
+            "type": "GCP",
+            "authentication": auth,
+            "billing_source": billing,
+        }
+
+        provider = Provider(**gcp_provider)
         provider.save()
 
         provider = GCPProvider()
@@ -206,7 +225,10 @@ class GCPProviderTestCase(TestCase):
 
         db_obj = Sources.objects.get(source_id=source_id)
 
+        provider_data_source = Provider.objects.get(uuid=provider_uuid).billing_source.data_source
+
         self.assertEqual(db_obj.billing_source, {"data_source": updated_data_source})
+        self.assertEqual(provider_data_source, updated_data_source)
 
         gcp2_source_id = 14
         gcp2_dataset_table_id = "test_table_id_2"
@@ -223,8 +245,7 @@ class GCPProviderTestCase(TestCase):
             "account_id": "acct10001",
             "offset": 12,
         }
-        provider_2 = Sources(**gcp_source2)
-        provider_2.save()
+        Sources(**gcp_source2).save()
 
         updated_data_source_2 = copy.deepcopy(data_source_2)
         updated_data_source_2["table_id"] = gcp2_dataset_table_id
@@ -264,3 +285,31 @@ class GCPProviderTestCase(TestCase):
         provider = GCPProvider()
         with self.assertRaises(ValidationError):
             provider.cost_usage_source_is_reachable(credentials_param, billing_source_param)
+
+    @patch("providers.gcp.provider.bigquery")
+    def test_get_table_id(self, mock_bigquery):
+        """Test that we process tables properly."""
+        table_one = Mock()
+        table_one.full_table_id = "project:dataset:gcp_billing_export_resource_123"
+        table_two = Mock()
+        table_two.full_table_id = "project:dataset:gcp_billing_export_123"
+        table_three = Mock()
+        table_three.full_table_id = "project:dataset:gcp_some_other_table"
+
+        tables = [table_one, table_two]
+        mock_bigquery.Client.return_value.list_tables.return_value = tables
+
+        result = GCPProvider().get_table_id("dataset")
+        self.assertEqual(result, "gcp_billing_export_resource_123")
+
+        tables = [table_two, table_three]
+        mock_bigquery.reset_mock()
+        mock_bigquery.Client.return_value.list_tables.return_value = tables
+        result = GCPProvider().get_table_id("dataset")
+        self.assertEqual(result, "gcp_billing_export_123")
+
+        tables = [table_three]
+        mock_bigquery.reset_mock()
+        mock_bigquery.Client.return_value.list_tables.return_value = tables
+        result = GCPProvider().get_table_id("dataset")
+        self.assertIsNone(result)
