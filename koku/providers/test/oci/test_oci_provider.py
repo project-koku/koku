@@ -8,12 +8,32 @@ from unittest.mock import patch
 from django.test import TestCase
 from django.utils.translation import ugettext as _
 from faker import Faker
+from oci.exceptions import ClientError
+from oci.exceptions import ServiceError
 from rest_framework.exceptions import ValidationError
 
 from providers.oci.provider import error_obj
 from providers.oci.provider import OCIProvider
 
 FAKE = Faker()
+
+
+class mock_OCI_exception:
+    def __init__(self, **kwargs):
+        pass
+
+    def list_objects(self, namespace=None, bucket=None, prefix=None):
+        msg = "OCI authentication error"
+        headers = {"opc-request-id": "1"}
+        raise ServiceError(code="code", headers=headers, message=msg, status="400")
+
+
+class mock_OCI_exception_client:
+    def __init__(self, **kwargs):
+        pass
+
+    def list_objects(self, namespace=None, bucket=None, prefix=None):
+        raise ClientError
 
 
 class OCIProviderTestCase(TestCase):
@@ -40,6 +60,24 @@ class OCIProviderTestCase(TestCase):
         data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
         provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
         mock_storage_client.assert_called()
+
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient")
+    def test_check_cost_report_access_service_error(self, mock_storage_client):
+        """Test_check_cost_report_access error."""
+        mock_storage_client.return_value = mock_OCI_exception
+        provider_interface = OCIProvider()
+        data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
+
+    @patch("providers.oci.provider.storage_client.ObjectStorageClient")
+    def test_check_cost_report_access_client_error(self, mock_storage_client):
+        """Test_check_cost_report_access error."""
+        mock_storage_client.return_value = mock_OCI_exception_client
+        provider_interface = OCIProvider()
+        data_source = {"bucket": "bucket", "bucket_namespace": "namespace", "bucket_region": "region"}
+        with self.assertRaises(ValidationError):
+            provider_interface.cost_usage_source_is_reachable(FAKE.md5(), data_source)
 
     @patch(
         "providers.oci.provider._check_cost_report_access",
