@@ -39,7 +39,7 @@ def _calculate_subtotals(data, cost, infra, sup):
         if isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):
-                    if "values" in item.keys():
+                    if "values" in item.keys() and item["values"]:
                         value = item["values"][0]
                         cost.append(value["cost"]["total"]["value"])
                         infra.append(value["infrastructure"]["total"]["value"])
@@ -227,9 +227,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
         handler = OCPReportQueryHandler(query_params)
 
         daily_capacity = defaultdict(Decimal)
+        daily_caplist = defaultdict(list)
         total_capacity = Decimal(0)
         query_filter = handler.query_filter
-        query_group_by = ["usage_start", "cluster_id"]
+        query_group_by = ["usage_start", "cluster_id", "source_uuid"]
         annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
         cap_key = list(annotations.keys())[0]
 
@@ -240,6 +241,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
             for entry in cap_data:
                 date = handler.date_to_string(entry.get("usage_start"))
                 daily_capacity[date] += entry.get(cap_key, 0)
+                daily_caplist[date] += [entry.get(cap_key, 0)]
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)
