@@ -124,7 +124,7 @@ objects:
     oci-credentials: "${OCI_CREDENTIALS_EPH}"
   stringData:
     oci-cli-user: "${OCI_CLI_USER_EPH}"
-    oci-cli-fingerprint: "${OCI_CLI_FIGERPRINT_EPH}"
+    oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
     oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
 
 parameters:
@@ -417,7 +417,7 @@ parameters:
   displayName: OCI user (Ephemeral)
   required: true
   value: insert-string-value
-- name: OCI_CLI_FIGERPRINT_EPH
+- name: OCI_CLI_FINGERPRINT_EPH
   displayName: OCI user fingerprint (Ephemeral)
   required: true
   value: insert-string-value

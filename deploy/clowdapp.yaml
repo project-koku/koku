@@ -2721,7 +2721,7 @@ objects:
   metadata:
     name: koku-oci
   stringData:
-    oci-cli-fingerprint: ${OCI_CLI_FIGERPRINT_EPH}
+    oci-cli-fingerprint: ${OCI_CLI_FINGERPRINT_EPH}
     oci-cli-tenancy: ${OCI_CLI_TENANCY_EPH}
     oci-cli-user: ${OCI_CLI_USER_EPH}
 parameters:
@@ -3000,7 +3000,7 @@ parameters:
   required: true
   value: insert-string-value
 - displayName: OCI user fingerprint (Ephemeral)
-  name: OCI_CLI_FIGERPRINT_EPH
+  name: OCI_CLI_FINGERPRINT_EPH
   required: true
   value: insert-string-value
 - displayName: OCI tenancy (Ephemeral)
