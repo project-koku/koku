@@ -388,7 +388,7 @@ class KafkaMessageProcessorTest(IamTestCase):
         processor = KafkaMessageProcessor(msg, event, COST_MGMT_APP_TYPE_ID)
         with patch("sources.storage.get_source_type", return_value=provider):
             result = processor.save_credentials()
-            self.assertEqual(result, {})
+            self.assertEqual(result, True)
 
     def test_save_credentials(self):
         """Test save credentials calls add_provider_sources_auth_info."""
