@@ -32,9 +32,9 @@ AWS_ACCESS_KEY_ID_EPH=$(jq -r '."aws-access-key-id"' < aws-creds.json | base64 -
 AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | base64 -d)
 GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
 OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
-OCI_CLI_USER_EPH=$(jq -r '."oci_cli_user"' < oci-creds.json | base64 -d)
-OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci_cli_fingerprint"' < oci-creds.json | base64 -d)
-OCI_CLI_TENANCY_EPH=$(jq -r '."oci_cli_tenancy"' < oci-creds.json | base64 -d)
+OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
+OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
+OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
 
 bonfire deploy \
     ${APP_NAME} \
