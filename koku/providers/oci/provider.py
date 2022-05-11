@@ -7,6 +7,7 @@ import logging
 
 from oci import object_storage as storage_client
 from oci.exceptions import ClientError
+from oci.exceptions import ServiceError
 from requests.exceptions import ConnectionError as OciConnectionError
 from rest_framework import serializers
 
@@ -31,13 +32,12 @@ def _check_cost_report_access(bucket, namespace, region):
     config = OCI_CONFIG
     config["region"] = region
 
-    object_storage = storage_client.ObjectStorageClient(config)
     try:
+        object_storage = storage_client.ObjectStorageClient(config)
         object_storage.list_objects(namespace, bucket, prefix=prefix_file)
-
-    except (ClientError, OciConnectionError) as oci_error:
-        key = ProviderErrors.OCI_NO_REPORT_FOUND
-        message = f"Unable to obtain cost and usage reports with: {bucket, namespace, region}."
+    except (ClientError, ServiceError, OciConnectionError) as oci_error:
+        key = ProviderErrors.OCI_REGION_NOT_SUPPORTED
+        message = f"Unable to authenticate OCI, Cost Mgmt is likely not subscribed to {region}."
         LOG.warn(msg=message, exc_info=oci_error)
         raise serializers.ValidationError(error_obj(key, message))
 
