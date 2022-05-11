@@ -450,3 +450,66 @@ class OCPCloudParquetReportSummaryUpdaterTest(MasuTestCase):
             self.ocpaws_provider_uuid, self.aws_test_provider_uuid, str(start_date), str(end_date)
         )
         mock_ocp_on_aws.assert_not_called()
+
+    def test_update_aws_summary_tables_no_report_period(self):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        with ProviderDBAccessor(self.aws_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        with patch(
+            "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+            return_value="goo-goo-cluster",
+        ):
+            updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+            with self.assertLogs("masu.processor.ocp.ocp_cloud_parquet_summary_updater", level="INFO") as _logger:
+                updater.update_aws_summary_tables(
+                    self.ocpaws_provider_uuid, self.aws_test_provider_uuid, start_date, end_date
+                )
+                found_it = False
+                for log_line in _logger.output:
+                    found_it = "No report period for AWS provider" in log_line
+                    if found_it:
+                        break
+                self.assertTrue(found_it)
+
+    def test_update_azure_summary_tables_no_report_period(self):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        with ProviderDBAccessor(self.azure_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        with patch(
+            "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+            return_value="goo-goo-cluster",
+        ):
+            updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+            with self.assertLogs("masu.processor.ocp.ocp_cloud_parquet_summary_updater", level="INFO") as _logger:
+                updater.update_azure_summary_tables(
+                    self.ocpazure_provider_uuid, self.azure_test_provider_uuid, start_date, end_date
+                )
+                found_it = False
+                for log_line in _logger.output:
+                    found_it = "No report period for Azure provider" in log_line
+                    if found_it:
+                        break
+                self.assertTrue(found_it)
+
+    def test_update_gcp_summary_tables_no_report_period(self):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        with ProviderDBAccessor(self.gcp_provider_uuid) as provider_accessor:
+            provider = provider_accessor.get_provider()
+        with patch(
+            "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.get_cluster_for_provider",
+            return_value="goo-goo-cluster",
+        ):
+            updater = OCPCloudParquetReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+            with self.assertLogs("masu.processor.ocp.ocp_cloud_parquet_summary_updater", level="INFO") as _logger:
+                updater.update_gcp_summary_tables(
+                    self.ocpgcp_provider_uuid, self.gcp_test_provider_uuid, start_date, end_date
+                )
+                found_it = False
+                for log_line in _logger.output:
+                    found_it = "No report period for GCP provider" in log_line
+                    if found_it:
+                        break
+                self.assertTrue(found_it)

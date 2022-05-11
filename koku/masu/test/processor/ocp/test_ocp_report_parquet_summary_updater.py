@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from tenant_schemas.utils import schema_context
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
@@ -61,6 +62,9 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportParquetSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater.check_cluster_infrastructure"  # noqa: E501
+    )
+    @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
     )
     @patch(
@@ -81,7 +85,14 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "OCPReportDBAccessor.populate_line_item_daily_summary_table_presto"
     )
     def test_update_summary_tables(
-        self, mock_sum, mock_tag_sum, mock_vol_tag_sum, mock_delete, mock_cluster_populate, mock_date_check
+        self,
+        mock_sum,
+        mock_tag_sum,
+        mock_vol_tag_sum,
+        mock_delete,
+        mock_cluster_populate,
+        mock_date_check,
+        mock_infra_check,
     ):
         """Test that summary tables are run for a full month when no report period is found."""
         start_date = self.dh.today
@@ -105,6 +116,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()
         mock_date_check.assert_called()
+        mock_infra_check.assert_called()
 
     def test_update_daily_tables(self):
         start_date = self.dh.today
@@ -132,6 +144,26 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         parquet_end_date = self.dh.today.replace(tzinfo=None)
         mock_get_timestamps.return_value = (parquet_start_date, parquet_end_date)
 
-        result_start, result_end = self.updater._check_parquet_date_range(start_date, end_date)
+        result_start, _ = self.updater._check_parquet_date_range(start_date, end_date)
         self.assertNotEqual(start_date, result_start)
         self.assertEqual(parquet_start_date.date(), result_start)
+
+    # @patch("masu.processor.ocp.ocp_report_parquet_summary_updater.OCPCloudUpdaterBase.OCPReportDBAccessor.get_ocp_infrastructure_map_trino")
+    def test_check_cluster_infrastructure(self):
+        """Check that we correctly associate a cluster with infrastructure provider."""
+        start_date = self.dh.this_month_start.date()
+        end_date = self.dh.this_month_end.date()
+
+        new_ocp_provider = Provider(name="new_test_ocp", type=Provider.PROVIDER_OCP)
+        new_ocp_provider.save()
+
+        # mock_trino.return_value = {str(new_ocp_provider.uuid): (self.aws_provider_uuid, Provider.PROVIDER_AWS_LOCAL)}
+        with patch.object(OCPReportDBAccessor, "get_ocp_infrastructure_map_trino") as mock_trino:
+            mock_trino.return_value = {
+                str(new_ocp_provider.uuid): (self.aws_provider_uuid, Provider.PROVIDER_AWS_LOCAL)
+            }
+            updater = OCPReportParquetSummaryUpdater(self.schema, new_ocp_provider, self.manifest)
+            updater.check_cluster_infrastructure(start_date, end_date)
+
+        result = Provider.objects.get(uuid=new_ocp_provider.uuid).infrastructure.infrastructure_provider_id
+        self.assertEqual(result, self.aws_provider.uuid)

@@ -515,15 +515,46 @@ class ProviderManagerTest(IamTestCase):
                 value_data = value
                 self.assertIsInstance(parser.parse(value_data), date)
                 continue
+            elif key == "ocp_on_cloud_data_updated_date":
+                if value:
+                    self.assertIsInstance(parser.parse(value_data), date)
+                continue
             key_date_obj = parser.parse(key)
-            value_data = value.pop()
+            manifests = value.get("manifests")
+            for manifest in manifests:
+                self.assertIsNotNone(manifest.get("assembly_id"))
+                self.assertIsNotNone(manifest.get("files_processed"))
+                self.assertEqual(manifest.get("billing_period_start"), key_date_obj.date())
+                self.assertGreater(parser.parse(manifest.get("last_process_start_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("last_process_complete_date")), key_date_obj)
+                self.assertGreater(parser.parse(manifest.get("last_manifest_complete_date")), key_date_obj)
 
-            self.assertIsNotNone(value_data.get("assembly_id"))
-            self.assertIsNotNone(value_data.get("files_processed"))
-            self.assertEqual(value_data.get("billing_period_start"), key_date_obj.date())
-            self.assertGreater(parser.parse(value_data.get("last_process_start_date")), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get("last_process_complete_date")), key_date_obj)
-            self.assertGreater(parser.parse(value_data.get("last_manifest_complete_date")), key_date_obj)
+    def test_provider_statistics_ocp_on_cloud(self):
+        """Test that the provider statistics method returns report stats."""
+        provider_uuid = ProviderInfrastructureMap.objects.first().infrastructure_provider_id
+        provider = Provider.objects.filter(uuid=provider_uuid).first()
+
+        self.assertIsNotNone(provider)
+
+        provider_uuid = provider.uuid
+        manager = ProviderManager(provider_uuid)
+        stats = manager.provider_statistics(self.tenant)
+
+        self.assertIn(str(self.dh.this_month_start.date()), stats.keys())
+        self.assertIn(str(self.dh.last_month_start.date()), stats.keys())
+
+        for key, value in stats.items():
+            if key == "data_updated_date":
+                value_data = value
+                self.assertIsInstance(parser.parse(value_data), date)
+                continue
+            elif key == "ocp_on_cloud_data_updated_date":
+                self.assertIsInstance(parser.parse(value_data), date)
+                continue
+            ocp_on_cloud = value.get("ocp_on_cloud")
+            for record in ocp_on_cloud:
+                self.assertIsNotNone(record.get("ocp_source_uuid"))
+                self.assertIsNotNone(record.get("ocp_on_cloud_updated_datetime"))
 
     def test_provider_statistics_no_report_data(self):
         """Test that the provider statistics method returns no report stats with no report data."""
@@ -543,7 +574,7 @@ class ProviderManagerTest(IamTestCase):
         manager = ProviderManager(provider_uuid)
 
         stats = manager.provider_statistics(self.tenant)
-        self.assertEqual(stats, {"data_updated_date": None})
+        self.assertEqual(stats, {"data_updated_date": None, "ocp_on_cloud_data_updated_date": None})
 
     def test_ocp_on_aws_infrastructure_type(self):
         """Test that the provider infrastructure returns AWS when running on AWS."""

@@ -72,7 +72,7 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -106,7 +106,7 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions

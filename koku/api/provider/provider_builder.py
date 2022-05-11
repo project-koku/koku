@@ -49,12 +49,15 @@ class ProviderBuilder:
             db_dict = {}
         return db_dict
 
-    def _build_credentials_auth(self, authentication):
-        credentials = authentication.get("credentials")
-        if credentials and isinstance(credentials, dict):
-            auth = {"credentials": credentials}
+    def _build_credentials_auth(self, provider_type, authentication):
+        if provider_type == Provider.PROVIDER_OCI or provider_type == Provider.PROVIDER_OCI_LOCAL:
+            auth = {}
         else:
-            raise ProviderBuilderError("Missing credentials")
+            credentials = authentication.get("credentials")
+            if credentials and isinstance(credentials, dict):
+                auth = {"credentials": credentials}
+            else:
+                raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _build_provider_data_source(self, billing_source):
@@ -68,7 +71,7 @@ class ProviderBuilder:
     def get_billing_source_for_provider(self, provider_type, billing_source):
         """Build billing source json data for provider type."""
         provider_type = Provider.PROVIDER_CASE_MAPPING.get(provider_type.lower())
-        if provider_type in [Provider.PROVIDER_OCP, Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
+        if provider_type == Provider.PROVIDER_OCP:
             return {}
         else:
             return self._build_provider_data_source(billing_source)
@@ -121,7 +124,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self._build_credentials_auth(source.authentication),
+            "authentication": self._build_credentials_auth(provider_type, source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         if source.source_uuid:
@@ -148,7 +151,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self._build_credentials_auth(source.authentication),
+            "authentication": self._build_credentials_auth(provider_type, source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
             "paused": source.paused,
         }

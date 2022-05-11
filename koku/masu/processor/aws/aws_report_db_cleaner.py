@@ -77,8 +77,8 @@ class AWSReportDBCleaner:
                     all_period_start.add(str(bill.billing_period_start))
 
                 LOG.info(
-                    f"Deleting data related to billing account ids {sorted(all_account_ids)} "
-                    f"for billing periods starting {sorted(all_period_start)}"
+                    f"Deleting data related to billing account ids {all_account_ids} "
+                    f"for billing periods starting {all_period_start}"
                 )
                 if not simulate:
                     cascade_delete(bill_objects.query.model, bill_objects)
@@ -131,8 +131,8 @@ class AWSReportDBCleaner:
                 cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
             LOG.info(
-                f"Deleting data related to billing account ids {sorted(all_account_ids)} "
-                f"for billing periods starting {sorted(all_period_start)}"
+                f"Deleting data related to billing account ids {all_account_ids} "
+                f"for billing periods starting {all_period_start}"
             )
 
         return removed_items

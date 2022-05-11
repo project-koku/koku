@@ -20,6 +20,8 @@ from masu.processor.azure.azure_report_parquet_summary_updater import AzureRepor
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
 from masu.processor.gcp.gcp_report_parquet_summary_updater import GCPReportParquetSummaryUpdater
 from masu.processor.gcp.gcp_report_summary_updater import GCPReportSummaryUpdater
+from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
+from masu.processor.oci.oci_report_summary_updater import OCIReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_parquet_summary_updater import OCPCloudParquetReportSummaryUpdater
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.processor.ocp.ocp_report_parquet_summary_updater import OCPReportParquetSummaryUpdater
@@ -112,6 +114,8 @@ class ReportSummaryUpdater:
             report_summary_updater = OCPReportParquetSummaryUpdater if self.trino_enabled else OCPReportSummaryUpdater
         elif self._provider.type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             report_summary_updater = GCPReportParquetSummaryUpdater if self.trino_enabled else GCPReportSummaryUpdater
+        elif self._provider.type in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+            report_summary_updater = OCIReportParquetSummaryUpdater if self.trino_enabled else OCIReportSummaryUpdater
         else:
             return (None, None)
 

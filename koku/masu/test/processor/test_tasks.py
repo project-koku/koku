@@ -19,6 +19,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import faker
+from cachetools import TTLCache
 from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.utils import IntegrityError
@@ -1202,6 +1203,7 @@ class TestRemoveStaleTenants(MasuTestCase):
         request = self.request_context["request"]
         request.path = "/api/v1/tags/aws/"
 
+    @patch("koku.middleware.KokuTenantMiddleware.tenant_cache", TTLCache(5, 10))
     def test_remove_stale_tenant(self):
         """Test removal of stale tenants that are older than two weeks"""
         days = 14
