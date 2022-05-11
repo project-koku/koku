@@ -78,7 +78,6 @@ COPY . .
 # create the koku user
 RUN \
     adduser koku -u ${USER_ID} -g 0 && \
-    chown -R ${USER_ID}:${USER_ID} ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp && \
     chmod ug+rw ${APP_ROOT} ${APP_HOME} ${APP_HOME}/static /tmp
 USER koku
 
