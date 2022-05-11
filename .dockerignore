@@ -13,3 +13,7 @@
 **/*test*
 **/__pycache__
 **/*.log
+
+# remove any static files
+koku/static/**
+!koku/static/README
