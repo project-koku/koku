@@ -33,7 +33,7 @@ AWS_SECRET_ACCESS_KEY_EPH=$(jq -r '."aws-secret-access-key"' < aws-creds.json | 
 GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
 OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
 OCI_CLI_USER_EPH=$(jq -r '."oci_cli_user"' < oci-creds.json | base64 -d)
-OCI_CLI_FIGERPRINT_EPH=$(jq -r '."oci_cli_fingerprint"' < oci-creds.json | base64 -d)
+OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci_cli_fingerprint"' < oci-creds.json | base64 -d)
 OCI_CLI_TENANCY_EPH=$(jq -r '."oci_cli_tenancy"' < oci-creds.json | base64 -d)
 
 bonfire deploy \
