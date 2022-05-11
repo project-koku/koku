@@ -32,6 +32,7 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
+from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
@@ -153,6 +154,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "credits",
             "invoice.month",
             "cost_type",
+            "resource.name",
+            "resource.global_name",
         ]
         self.table_name = ".".join(
             [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
@@ -345,6 +348,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
             for col in columns_list
         ]
+        # Swap out resource columns wit NULLs when we are processing
+        # a non-resource-level BigQuery table
+        columns_list = [
+            f"NULL as {col.replace('.', '_')}"
+            if col in ("resource.name", "resource.global_name")
+            and RESOURCE_LEVEL_EXPORT_NAME not in self.data_source.get("table_id")
+            else col
+            for col in columns_list
+        ]
+        # columns_list = self.modify_query_select_for_resource_columns(columns_list)
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
