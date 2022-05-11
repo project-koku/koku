@@ -26,6 +26,9 @@ REQUIRED_IAM_PERMISSIONS = [
     "bigquery.tables.get",
 ]
 
+RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
+NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
+
 
 class GCPProvider(ProviderInterface):
     """GCP provider."""
@@ -37,11 +40,17 @@ class GCPProvider(ProviderInterface):
     def get_table_id(self, data_set):
         """Get the billing table from a dataset in the format projectID.dataset"""
         client = bigquery.Client()
+        full_table_id = None
         for table in client.list_tables(data_set):
-            if "gcp_billing_export" in table.full_table_id:
+            if RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
                 full_table_id = table.full_table_id.replace(":", ".")
-                _, _, table_id = full_table_id.split(".")
-                return table_id
+                # Break because we prefer the resource-level report.
+                break
+            elif NON_RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
+                full_table_id = table.full_table_id.replace(":", ".")
+        if full_table_id:
+            _, _, table_id = full_table_id.split(".")
+            return table_id
         return None
 
     def update_source_data_source(self, credentials, data_source):
@@ -52,6 +61,13 @@ class GCPProvider(ProviderInterface):
                 if source.billing_source.get("data_source", {}).get("dataset") == data_source.get("dataset"):
                     source_filter = Sources.objects.filter(source_id=source.source_id)
                     source_filter.update(billing_source={"data_source": data_source})
+
+                    provider_uuid = source_filter.first().koku_uuid
+                    provider_billing_source = Provider.objects.filter(uuid=provider_uuid).first().billing_source
+                    if provider_billing_source.data_source != data_source:
+                        provider_billing_source.data_source = data_source
+                        provider_billing_source.save()
+
         except Sources.DoesNotExist:
             LOG.info("Source not found, unable to update data source.")
 
