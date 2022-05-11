@@ -105,6 +105,7 @@ class Orchestrator:
         """
         with ProviderDBAccessor(provider_uuid=provider_uuid) as provider_accessor:
             reports_processed = provider_accessor.get_setup_complete()
+            provider_type = provider_accessor.get_type()
 
         if self.bill_date:
             return [DateAccessor().get_billing_month_start(self.bill_date)]
@@ -112,7 +113,12 @@ class Orchestrator:
         if Config.INGEST_OVERRIDE or not reports_processed:
             number_of_months = Config.INITIAL_INGEST_NUM_MONTHS
         else:
+            # provider_type = # GET PROVIDER TYPE
             number_of_months = 2
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                number_of_months = 1
+                LOG.info("\n\n\n\n\n")
+                LOG.info(f"number_of_months: {number_of_months}")
 
         return sorted(DateAccessor().get_billing_months(number_of_months), reverse=True)
 
