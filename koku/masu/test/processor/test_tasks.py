@@ -50,11 +50,11 @@ from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
+from masu.processor.tasks import mark_manifest_complete
+from masu.processor.tasks import MARK_MANIFEST_COMPLETE_QUEUE
 from masu.processor.tasks import normalize_table_options
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import refresh_materialized_views
-from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import remove_stale_tenants
 from masu.processor.tasks import summarize_reports
@@ -492,8 +492,7 @@ class TestRemoveExpiredDataTasks(MasuTestCase):
     """Test cases for Processor Celery tasks."""
 
     @patch.object(ExpiredDataRemover, "remove")
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
-    def test_remove_expired_data(self, fake_view, fake_remover):
+    def test_remove_expired_data(self, fake_remover):
         """Test task."""
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         fake_remover.return_value = expected_results
@@ -533,11 +532,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
     def test_update_summary_tables_ocp(
-        self, mock_cost_model, mock_charge_info, mock_view, mock_chain, mock_task_cost_model, mock_cache
+        self, mock_cost_model, mock_charge_info, mock_chain, mock_task_cost_model, mock_cache
     ):
         """Test that the summary table task runs."""
         infrastructure_rates = {
@@ -633,9 +631,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             update_cost_model_costs.s(
                 self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
             ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
-            | refresh_materialized_views.si(
+            | mark_manifest_complete.si(
                 self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
-            ).set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE)
+            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
 
     @patch("masu.processor.tasks.update_summary_tables")
@@ -897,7 +895,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
@@ -908,7 +906,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock,
         mock_release,
         mock_update_cost,
-        mock_refresh,
+        mock_complete,
         mock_chain,
         mock_daily,
         mock_summary,
@@ -938,7 +936,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
@@ -949,7 +947,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock,
         mock_release,
         mock_update_cost,
-        mock_refresh,
+        mock_complete,
         mock_chain,
         mock_daily,
         mock_summary,
@@ -973,7 +971,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
@@ -984,7 +982,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock,
         mock_release,
         mock_update_cost,
-        mock_refresh,
+        mock_complete,
         mock_chain,
         mock_daily,
         mock_summary,
@@ -1009,7 +1007,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_daily_tables")
     @patch("masu.processor.tasks.chain")
-    @patch("masu.processor.tasks.refresh_materialized_views")
+    @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.update_cost_model_costs")
     @patch("masu.processor.tasks.WorkerCache.release_single_task")
     @patch("masu.processor.tasks.WorkerCache.lock_single_task")
@@ -1020,7 +1018,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_lock,
         mock_release,
         mock_update_cost,
-        mock_refresh,
+        mock_complete,
         mock_chain,
         mock_daily,
         mock_summary,
@@ -1097,45 +1095,6 @@ class TestWorkerCacheThrottling(MasuTestCase):
         with self.assertRaises(ReportProcessorError):
             update_cost_model_costs(self.schema, self.aws_provider_uuid, expected_start_date, expected_end_date)
             self.assertFalse(self.single_task_is_running(task_name, cache_args))
-
-    @patch("masu.processor.tasks.refresh_materialized_views.s")
-    @patch("masu.processor.tasks.WorkerCache.release_single_task")
-    @patch("masu.processor.tasks.WorkerCache.lock_single_task")
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
-    def test_refresh_materialized_views_throttled(self, mock_inspect, mock_lock, mock_release, mock_delay):
-        """Test that refresh materialized views runs with cache lock."""
-        mock_inspect.reserved.return_value = {"celery@kokuworker": []}
-        mock_lock.side_effect = self.lock_single_task
-
-        task_name = "masu.processor.tasks.refresh_materialized_views"
-        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
-
-        manifest_dict = {
-            "assembly_id": "12345",
-            "billing_period_start_datetime": DateHelper().today,
-            "num_total_files": 2,
-            "provider_uuid": self.aws_provider_uuid,
-        }
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.add(**manifest_dict)
-            manifest.save()
-
-        refresh_materialized_views(
-            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
-        )
-        mock_delay.assert_not_called()
-        refresh_materialized_views(
-            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
-        )
-        refresh_materialized_views(
-            self.schema, Provider.PROVIDER_AWS, manifest_id=manifest.id, provider_uuid=self.aws_provider_uuid
-        )
-        mock_delay.assert_called()
-        self.assertTrue(self.single_task_is_running(task_name, cache_args))
-        # Let the cache entry expire
-        time.sleep(3)
-        self.assertFalse(self.single_task_is_running(task_name, cache_args))
 
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_openshift_on_cloud_summary_tables")
     @patch("masu.processor.tasks.update_openshift_on_cloud.s")
