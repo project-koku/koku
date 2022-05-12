@@ -80,14 +80,12 @@ def copy_reports_to_bucket(
     last_reports,
 ):
     # Iterate through cost reports list and copy them to new bucket
-    # Get todays datetime
-    today = datetime.datetime.now()
     # Start from current month
-    start_from = today.replace(day=1)
+    start_from = datetime.date.today().replace(day=1)
 
     if report_list.data.objects != []:
         for report in report_list.data.objects:
-            if report.time_created.date() > start_from.date():
+            if report.time_created.date() > start_from:
                 try:
                     copy_object_details = oci.object_storage.models.CopyObjectDetails(
                         destination_bucket=bucket,
