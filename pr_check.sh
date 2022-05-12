@@ -60,7 +60,6 @@ function run_smoke_tests() {
 
     bonfire deploy \
         ${APP_NAME} \
-        sources \
         --ref-env insights-production \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \
