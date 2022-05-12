@@ -5,7 +5,6 @@
 """View for update_cost_model_costs endpoint."""
 import logging
 
-from celery import chain
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -15,11 +14,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import QUEUE_LIST
-from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs as cost_task
 
 LOG = logging.getLogger(__name__)
@@ -48,17 +45,11 @@ def update_cost_model_costs(request):
         errmsg = f"'queue' must be one of {QUEUE_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    try:
-        provider = Provider.objects.get(uuid=provider_uuid)
-    except Provider.DoesNotExist:
-        return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-
     LOG.info("Calling update_cost_model_costs async task.")
-    async_result = chain(
-        cost_task.s(schema_name, provider_uuid, start_date, end_date, queue_name=queue_name).set(queue=queue_name),
-        refresh_materialized_views.si(
-            schema_name, provider.type, provider_uuid=provider_uuid, queue_name=queue_name
-        ).set(queue=queue_name),
-    ).apply_async()
+    async_result = (
+        cost_task.s(schema_name, provider_uuid, start_date, end_date, queue_name=queue_name)
+        .set(queue=queue_name)
+        .apply_async()
+    )
 
     return Response({"Update Cost Model Cost Task ID": str(async_result)})
