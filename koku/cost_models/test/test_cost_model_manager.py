@@ -266,7 +266,6 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            # with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
@@ -276,7 +275,6 @@ class CostModelManagerTest(IamTestCase):
             # simulates deleting a cost_model
             manager.update_provider_uuids(provider_uuids=[])
             mock_update.s.return_value.set.return_value.apply_async.assert_called()
-            # mock_update.s(self.schema_name, provider_uuid, start_date, end_date).set().apply_async().assert_called(),
 
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
     def test_deleting_cost_model_not_triggers_tasks(self, mock_update):
