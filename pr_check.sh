@@ -8,7 +8,7 @@ IMAGE="quay.io/cloudservices/koku"
 IMAGE_TAG=$(git rev-parse --short=7 HEAD)
 DBM_IMAGE=${IMAGE}
 DBM_INVOCATION=$(printf "%02d" $(((RANDOM%100))))
-COMPONENTS="hive-metastore koku presto"  # specific components to deploy (optional, default: all)
+COMPONENTS="hive-metastore koku presto sources-api-go"  # specific components to deploy (optional, default: all)
 COMPONENTS_W_RESOURCES="hive-metastore koku presto"  # components which should preserve resource settings (optional, default: none)
 
 ENABLE_PARQUET_PROCESSING="true"
@@ -60,6 +60,7 @@ function run_smoke_tests() {
 
     bonfire deploy \
         ${APP_NAME} \
+        sources \
         --ref-env insights-production \
         --set-template-ref ${APP_NAME}/${COMPONENT_NAME}=${ghprbActualCommit} \
         --set-image-tag ${IMAGE}=${IMAGE_TAG} \

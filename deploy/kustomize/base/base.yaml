@@ -39,6 +39,7 @@ objects:
     dependencies:
     - ingress
     - rbac
+    - sources-api
     - sources-api-go
 
     optionalDependencies: []
