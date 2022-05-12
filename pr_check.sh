@@ -52,7 +52,7 @@ function run_smoke_tests() {
     GCP_CREDENTIALS_EPH=$(jq -r '."gcp-credentials"' < gcp-creds.json)
     OCI_CREDENTIALS_EPH=$(jq -r '."oci-credentials"' < oci-creds.json)
     OCI_CLI_USER_EPH=$(jq -r '."oci-cli-user"' < oci-creds.json | base64 -d)
-    OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-ci-fingerprint"' < oci-creds.json | base64 -d)
+    OCI_CLI_FINGERPRINT_EPH=$(jq -r '."oci-cli-fingerprint"' < oci-creds.json | base64 -d)
     OCI_CLI_TENANCY_EPH=$(jq -r '."oci-cli-tenancy"' < oci-creds.json | base64 -d)
 
     # This sets the image tag for the migrations Job to be the current koku image tag
