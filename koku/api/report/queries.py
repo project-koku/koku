@@ -519,6 +519,8 @@ class ReportQueryHandler(QueryHandler):
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
+            if type(key) == list:
+                key = "Others"
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
                 if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
@@ -534,6 +536,7 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped + datapoint
             else:
                 out_data[key] = grouped
+
         return out_data
 
     def _apply_group_null_label(self, data, groupby=None):
@@ -733,6 +736,7 @@ class ReportQueryHandler(QueryHandler):
         level=-1,
         org_id=None,
         org_type=None,
+        extra_deltas=None,
         order_mapping={},
         order_numbers={},
     ):
@@ -752,7 +756,7 @@ class ReportQueryHandler(QueryHandler):
                     # if "org_entitie" in groupby:
                     #     org_applied = True
                     new_values, order_mapping, order_numbers = self.aggregate_currency_codes_ui(
-                        value, order_mapping, order_numbers
+                        value, extra_deltas, order_mapping, order_numbers
                     )
                     LOG.info(f"order_mapping: {pformat(order_mapping)}")
                     LOG.info(f"order_numbers: {pformat(order_numbers)}")
@@ -796,7 +800,7 @@ class ReportQueryHandler(QueryHandler):
                 codes[Provider.PROVIDER_OCP] = "source_uuids"
         return codes
 
-    def aggregate_currency_codes_ui(self, out_data, order_mapping, order_numbers):
+    def aggregate_currency_codes_ui(self, out_data, extra_deltas, order_mapping, order_numbers):
         """Aggregate currency code info for UI."""
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
@@ -809,7 +813,10 @@ class ReportQueryHandler(QueryHandler):
             currencys = out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currencys
         else:
-            total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
+            if self.provider == Provider.PROVIDER_OCP:
+                otal_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes, extra_deltas)
+            else:
+                otal_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
@@ -1345,8 +1352,12 @@ class ReportQueryHandler(QueryHandler):
             key = tuple(row[key] for key in delta_group_by)
             try:
                 previous_total = previous_dict.get(json_dumps(key)) or 0
+                if previous_total != 0:
+                    previous_dict.pop(json_dumps(key))
             except TypeError:
                 previous_total = previous_dict.get(json_dumps(str(key))) or 0
+                if previous_total != 0:
+                    previous_dict.pop(json_dumps(str(key)))
             current_total = row.get(self._delta) or 0
             row["delta_value"] = current_total - previous_total
             row["delta_percent"] = self._percent_delta(current_total, previous_total)
@@ -1363,11 +1374,17 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
+        dates_to_keep = {}
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]
+            dates_copy = copy.deepcopy(dates)
             prev_total_filters = self._get_previous_totals_filter(dates)
             if prev_total_filters:
                 prev_total_sum = previous_query.filter(prev_total_filters).aggregate(value=delta_field)
+            for key in previous_dict.keys():
+                for date in set(dates_copy):
+                    if date in key:
+                        dates_to_keep[date] = previous_dict.get(key)
 
         prev_total_sum = Decimal(prev_total_sum.get("value") or 0)
 
@@ -1381,4 +1398,4 @@ class ReportQueryHandler(QueryHandler):
             query_data = sorted(
                 list(query_data), key=lambda x: (x.get("delta_value", 0), x.get("delta_percent", 0)), reverse=reverse
             )
-        return query_data
+        return query_data, dates_to_keep

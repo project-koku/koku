@@ -795,7 +795,6 @@ class OCPReportViewTest(IamTestCase):
                     )
                 )
             )
-
         current_totals = {total.get("date"): total.get("total") for total in current_totals}
         prev_totals = {
             date_to_string(string_to_date(total.get("date")) + date_delta): total.get("total")
@@ -810,16 +809,14 @@ class OCPReportViewTest(IamTestCase):
         delta = data.get("meta", {}).get("delta", {}).get("value")
         self.assertNotEqual(delta, Decimal(0))
         self.assertEqual(round(delta, 9), round(expected_delta, 9))
-        # self.assertAlmostEqual(delta, expected_delta, 1)
         for item in data.get("data"):
             date = item.get("date")
-            expected_delta = current_totals.get(date, 0) - prev_totals.get(date, 0)
+            expected_delta = round(current_totals.get(date, 0), 14) - round(prev_totals.get(date, 0), 14)
             values = item.get("values", [])
             delta_value = 0
             if values:
                 delta_value = values[0].get("delta_value", 0)
             self.assertAlmostEqual(delta_value, expected_delta, 11)
-            # self.assertAlmostEqual(delta_value, expected_delta, 1)
 
     def test_execute_query_ocp_costs_with_invalid_delta(self, mocked_exchange_rates, mock_base_currency):
         """Test that bad deltas don't work for costs."""

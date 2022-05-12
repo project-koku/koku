@@ -631,7 +631,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     query_order_by[-1] = "rank"
 
             if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
+                query_data, _ = self.add_deltas(query_data, query_sum)
 
             order_date = None
             for i, param in enumerate(query_order_by):

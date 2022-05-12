@@ -145,7 +145,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         query_sum = self.initialize_totals()
         data = []
 
-
         with tenant_context(self.tenant):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", self.currency)
@@ -174,7 +173,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
+                query_data, _ = self.add_deltas(query_data, query_sum)
 
             order_date = None
             for i, param in enumerate(query_order_by):
