@@ -391,6 +391,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 # enter
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
+                # if self.query_table == OCPUsageLineItemDailySummary:
+                #     groups.remove("source_uuid")
+                # else:
+                #     groups.remove("source_uuid_id")
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
         sum_init = {"cost_units": self.currency}

@@ -518,6 +518,8 @@ class ReportQueryHandler(QueryHandler):
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
+            if type(key) == list:
+                key = "Others"
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
                 if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):

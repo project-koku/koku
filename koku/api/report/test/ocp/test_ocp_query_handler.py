@@ -83,6 +83,33 @@ class OCPReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
 
+    def _compare_query_results(self, group_by):
+        """Helper function to return the query results in comparable format."""
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
+        url = base_url + sub_url
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        the_sum = handler.query_sum
+        data = query_data["data"][0]
+        result_cost, result_infra, result_sup = _calculate_subtotals(data, [], [], [])
+        test_dict = {
+            "cost": {
+                "expected": the_sum.get("cost", {}).get("total", {}).get("value"),
+                "result": sum(result_cost),
+            },
+            "infra": {
+                "expected": the_sum.get("infrastructure", {}).get("total", {}).get("value"),
+                "result": sum(result_infra),
+            },
+            "sup": {
+                "expected": the_sum.get("supplementary", {}).get("total", {}).get("value"),
+                "result": sum(result_sup),
+            },
+        }
+        return test_dict
+
     def test_execute_sum_query(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
         url = "?"
@@ -581,47 +608,77 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
                         self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
 
-    def test_subtotals_add_up_to_total(self, mocked_exchange_rates):
+    def test_subtotals_add_up_to_total_pcn(self, mocked_exchange_rates):
         """Test the apply_group_by handles different grouping scenerios."""
-        group_by_list = [
-            ("project", "cluster", "node"),
-            ("project", "node", "cluster"),
-            ("cluster", "project", "node"),
-            ("cluster", "node", "project"),
-            ("node", "cluster", "project"),
-            ("node", "project", "cluster"),
-        ]
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        group_by = ("project", "cluster", "node")
         tolerance = 1
-        for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
-            url = base_url + sub_url
-            query_params = self.mocked_query_params(url, OCPCpuView)
-            handler = OCPReportQueryHandler(query_params)
-            query_data = handler.execute_query()
-            the_sum = handler.query_sum
-            data = query_data["data"][0]
-            result_cost, result_infra, result_sup = _calculate_subtotals(data, [], [], [])
-            test_dict = {
-                "cost": {
-                    "expected": the_sum.get("cost", {}).get("total", {}).get("value"),
-                    "result": sum(result_cost),
-                },
-                "infra": {
-                    "expected": the_sum.get("infrastructure", {}).get("total", {}).get("value"),
-                    "result": sum(result_infra),
-                },
-                "sup": {
-                    "expected": the_sum.get("supplementary", {}).get("total", {}).get("value"),
-                    "result": sum(result_sup),
-                },
-            }
-            for _, data in test_dict.items():
-                expected = data["expected"]
-                result = data["result"]
-                self.assertIsNotNone(expected)
-                self.assertIsNotNone(result)
-                self.assertLessEqual(abs(expected - result), tolerance)
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_cpn(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("cluster", "project", "node")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_pnc(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("project", "node", "cluster")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_cnp(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("cluster", "node", "project")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_ncp(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("node", "cluster", "project")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_npc(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("node", "project", "cluster")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
 
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
     def test_source_uuid_mapping(self, mocked_exchange_rates, mocked_base_currency):  # noqa: C901
