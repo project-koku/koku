@@ -1,3 +1,7 @@
+#
+# Copyright 2022 Red Hat Inc.
+# SPDX-License-Identifier: Apache-2.0
+#
 ##########################################################################################
 # Script to collect cost/usage reports from OCI and replicate them to another bucket
 #
@@ -14,6 +18,7 @@
 # namespace: Object Storage Namespace
 # filename: Name of json file to store last report downloaded default hre is fine
 ##########################################################################################
+import datetime
 import io
 import json
 import logging
@@ -57,7 +62,7 @@ def fetch_reports_file(object_storage, namespace, bucket, filename):
 def get_report_list(object_storage, reporting_namespace, reporting_bucket, prefix, last_file):
     # Create a list of cost reports
     report_list = object_storage.list_objects(
-        reporting_namespace, reporting_bucket, prefix=prefix, start_after=last_file
+        reporting_namespace, reporting_bucket, prefix=prefix, start_after=last_file, fields="timeCreated"
     )
     logging.getLogger().info("Fetching list of cost csv files")
     return report_list
@@ -75,23 +80,29 @@ def copy_reports_to_bucket(
     last_reports,
 ):
     # Iterate through cost reports list and copy them to new bucket
+    # Get todays datetime
+    today = datetime.datetime.now()
+    # Start from current month
+    start_from = today.replace(day=1)
+
     if report_list.data.objects != []:
         for report in report_list.data.objects:
-            try:
-                copy_object_details = oci.object_storage.models.CopyObjectDetails(
-                    destination_bucket=bucket,
-                    destination_namespace=namespace,
-                    destination_object_name=report.name,
-                    destination_region=region,
-                    source_object_name=report.name,
-                )
-                object_storage.copy_object(
-                    namespace_name=reporting_namespace,
-                    bucket_name=reporting_bucket,
-                    copy_object_details=copy_object_details,
-                )
-            except (Exception, ValueError) as ex:
-                logging.getLogger().info(f"Failed to copy {report.name} to bucket: {bucket}. " + str(ex))
+            if report.time_created.date() > start_from.date():
+                try:
+                    copy_object_details = oci.object_storage.models.CopyObjectDetails(
+                        destination_bucket=bucket,
+                        destination_namespace=namespace,
+                        destination_object_name=report.name,
+                        destination_region=region,
+                        source_object_name=report.name,
+                    )
+                    object_storage.copy_object(
+                        namespace_name=reporting_namespace,
+                        bucket_name=reporting_bucket,
+                        copy_object_details=copy_object_details,
+                    )
+                except (Exception, ValueError) as ex:
+                    logging.getLogger().info(f"Failed to copy {report.name} to bucket: {bucket}. " + str(ex))
         last_reports[report_type] = report.name
     else:
         logging.getLogger().info(f"No new {report_type} reports to copy to bucket: {bucket}.")
