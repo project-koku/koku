@@ -658,6 +658,17 @@ def mark_manifest_complete(  # noqa: C901
     tracing_id=None,
 ):
     """Mark a manifest and provider as complete"""
+    stmt = (
+        f"mark_manifest_complete called with args: "
+        f" schema_name: {schema_name}, "
+        f" provider_type: {provider_type}, "
+        f" provider_uuid: {provider_uuid}, "
+        f" manifest_id: {manifest_id}, "
+        f" synchronous: {synchronous}, "
+        f" queue_name: {queue_name}, "
+        f" tracing_id: {tracing_id}"
+    )
+    LOG.info(log_json(tracing_id, stmt))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     if manifest_id:
