@@ -221,7 +221,7 @@ class GCPProviderTestCase(TestCase):
         provider = GCPProvider()
         updated_data_source = copy.deepcopy(data_source)
         updated_data_source["table_id"] = test_dataset_table_id
-        provider.update_source_data_source(credentials, updated_data_source)
+        provider.update_source_data_source(updated_data_source)
 
         db_obj = Sources.objects.get(source_id=source_id)
 
@@ -250,7 +250,7 @@ class GCPProviderTestCase(TestCase):
         updated_data_source_2 = copy.deepcopy(data_source_2)
         updated_data_source_2["table_id"] = gcp2_dataset_table_id
 
-        GCPProvider().update_source_data_source(credentials, updated_data_source_2)
+        GCPProvider().update_source_data_source(updated_data_source_2)
 
         db_obj_2 = Sources.objects.get(source_id=gcp2_source_id)
         self.assertEqual(Sources.objects.get(source_id=source_id).billing_source, {"data_source": updated_data_source})
