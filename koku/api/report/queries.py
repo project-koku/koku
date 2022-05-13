@@ -917,6 +917,38 @@ class ReportQueryHandler(QueryHandler):
                         total_query[key] = new_val
         return total_query, {}
 
+    def find_key_order(self, key_map):
+        """
+        orders the key
+        """
+        import operator
+
+        sort_by_number = operator.itemgetter(1)
+        expected_key_order = sorted(key_map.items(), key=sort_by_number, reverse=True)
+        key_list = [key[0] for key in expected_key_order]
+        return key_list
+
+    def build_reordered(self, data, key_order, key_map, group_key):
+        """
+        Builds reordered data.
+        data: list of dictionaries
+        key_order: List with order the keys should be in
+        key_map: dictionary that is mapping of data
+        """
+        if isinstance(data, list):
+            if data and isinstance(data[0], dict):
+                if "currencys" in data[0].keys() and group_key in data[0].keys():
+                    new_data = []
+                    for key in key_order:
+                        new_data.append(key_map.get(key))
+                    return new_data
+            for value in data:
+                return self.build_reordered(value, key_order, key_map)
+        elif isinstance(data, dict):
+            for dikt_key, dikt_value in data.items():
+                data[dikt_key] = self.build_reordered(dikt_value, key_order, key_map)
+        return data
+
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
         tag_prefix = self._mapper.tag_column + "__"
