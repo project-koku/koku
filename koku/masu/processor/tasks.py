@@ -634,6 +634,8 @@ def update_cost_model_costs(
         updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
+        if provider_uuid:
+            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
