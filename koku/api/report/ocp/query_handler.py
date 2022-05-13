@@ -334,7 +334,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         if date and extra_deltas and date in extra_deltas.keys():
             total_results["delta_value"] = total_results.get("delta_value") - extra_deltas.get(date, 0)
         meta_data["order_numbers"] = order_numbers
-        return total_results, currencys
+        return total_results, currencys, meta_data
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.

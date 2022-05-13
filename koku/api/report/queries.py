@@ -814,9 +814,9 @@ class ReportQueryHandler(QueryHandler):
             out_data["currencys"] = currencys
         else:
             if self.provider == Provider.PROVIDER_OCP:
-                otal_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes, extra_deltas)
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes, extra_deltas)
             else:
-                otal_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
@@ -915,7 +915,7 @@ class ReportQueryHandler(QueryHandler):
                         if base_val and not isinstance(base_val, str):
                             new_val = list(filter(None, (base_val + new_val)))
                         total_query[key] = new_val
-        return total_query
+        return total_query, {}
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
