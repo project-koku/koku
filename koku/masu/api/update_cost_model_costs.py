@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.provider.models import Provider
 from api.utils import DateHelper
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import QUEUE_LIST
@@ -44,6 +45,11 @@ def update_cost_model_costs(request):
     if queue_name not in QUEUE_LIST:
         errmsg = f"'queue' must be one of {QUEUE_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        Provider.objects.get(uuid=provider_uuid)
+    except Provider.DoesNotExist:
+        return Response({"Error": "Provider does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
     LOG.info("Calling update_cost_model_costs async task.")
     async_result = (

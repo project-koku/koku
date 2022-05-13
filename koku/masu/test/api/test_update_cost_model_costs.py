@@ -4,6 +4,7 @@
 #
 """Test the update_cost_model_costs endpoint view."""
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -17,7 +18,7 @@ class UpdateCostModelCostTest(MasuTestCase):
     """Test Cases for the update_cost_model_costs endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs(self, mock_update, _):
         """Test the GET report_data endpoint."""
         params = {"schema": self.schema, "provider_uuid": self.ocp_provider_uuid}
@@ -27,10 +28,10 @@ class UpdateCostModelCostTest(MasuTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.assert_called()
+        mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_with_dates(self, mock_update, _):
         """Test the GET report_data endpoint."""
         params = {
@@ -46,7 +47,7 @@ class UpdateCostModelCostTest(MasuTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
-        mock_update.assert_called()
+        mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.update_cost_model_costs.cost_task")
@@ -54,7 +55,7 @@ class UpdateCostModelCostTest(MasuTestCase):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {"provider_uuid": self.ocp_provider_uuid}
         expected_key = "Error"
-        expected_message = "provider_uuid and schema_name are required parameters."
+        expected_message = "provider_uuid and schema are required parameters."
 
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
@@ -89,7 +90,7 @@ class UpdateCostModelCostTest(MasuTestCase):
         """Test GET report_data endpoint returns a 400 for missing schema."""
         params = {"schema": self.schema}
         expected_key = "Error"
-        expected_message = "provider_uuid and schema_name are required parameters."
+        expected_message = "provider_uuid and schema are required parameters."
 
         response = self.client.get(reverse("update_cost_model_costs"), params)
         body = response.json()
@@ -99,10 +100,10 @@ class UpdateCostModelCostTest(MasuTestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
-    @patch("masu.api.update_cost_model_costs.update_cost_model_costs")
+    @patch("masu.api.update_cost_model_costs.cost_task")
     def test_get_update_cost_model_costs_with_non_existant_provider(self, mock_update, _):
         """Test the GET report_data endpoint."""
-        params = {"schema": self.schema, "provider_uuid": self.ocp_provider_uuid}
+        params = {"schema": self.schema, "provider_uuid": uuid4()}
         expected_key = "Error"
         expected_message = "Provider does not exist."
 
