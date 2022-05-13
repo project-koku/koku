@@ -39,7 +39,7 @@ def update_cost_model_costs(request):
     queue_name = params.get("queue") or PRIORITY_QUEUE
 
     if provider_uuid is None or schema_name is None:
-        errmsg = "provider_uuid and schema_name are required parameters."
+        errmsg = "provider_uuid and schema are required parameters."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
     if queue_name not in QUEUE_LIST:
         errmsg = f"'queue' must be one of {QUEUE_LIST}."
