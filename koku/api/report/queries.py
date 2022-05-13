@@ -5,6 +5,7 @@
 """Query Handling for Reports."""
 import copy
 import logging
+import operator
 import random
 import re
 import string
@@ -758,8 +759,10 @@ class ReportQueryHandler(QueryHandler):
                     new_values, order_mapping, order_numbers = self.aggregate_currency_codes_ui(
                         value, extra_deltas, order_mapping, order_numbers
                     )
-                    LOG.info(f"order_mapping: {pformat(order_mapping)}")
+                    # LOG.info(f"order_mapping: {pformat(order_mapping)}")
                     LOG.info(f"order_numbers: {pformat(order_numbers)}")
+                    key_order = self.find_key_order(order_numbers)
+                    LOG.info(f"key_order: {pformat(key_order)}")
                     new_value.append(new_values)
                 return new_value
             else:
@@ -917,16 +920,17 @@ class ReportQueryHandler(QueryHandler):
                         total_query[key] = new_val
         return total_query, {}
 
-    def find_key_order(self, key_map):
+    def find_key_order(self, order_numbers):
         """
         orders the key
         """
-        import operator
-
-        sort_by_number = operator.itemgetter(1)
-        expected_key_order = sorted(key_map.items(), key=sort_by_number, reverse=True)
-        key_list = [key[0] for key in expected_key_order]
-        return key_list
+        ordered_dict = dict()
+        for date_key, values in order_numbers.items():
+            sort_by_number = operator.itemgetter(1)
+            expected_key_order = sorted(values.items(), key=sort_by_number, reverse=True)
+            key_list = [key[0] for key in expected_key_order]
+            ordered_dict[date_key] = key_list
+        return ordered_dict
 
     def build_reordered(self, data, key_order, key_map, group_key):
         """
