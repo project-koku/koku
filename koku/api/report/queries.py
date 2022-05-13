@@ -805,7 +805,7 @@ class ReportQueryHandler(QueryHandler):
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
-            total_query = self.aggregate_currency_codes(currency_codes)
+            total_query, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
