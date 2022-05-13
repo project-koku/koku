@@ -126,7 +126,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         for sub_org_name, sub_org_data in sub_orgs_data.items():
             new_list = []
             for each_dict in sub_org_data:
-                check = self.format_for_ui_recursive(group_by, [each_dict])
+                check, _, _ = self.format_for_ui_recursive(group_by, [each_dict])
                 new_list += check
             new_data[sub_org_name] = new_list
         return new_data

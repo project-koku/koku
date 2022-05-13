@@ -128,7 +128,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         groupby = self._get_group_by()
 
         if not is_csv_output:
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+            self.query_data, _, _ = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
 

@@ -443,7 +443,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
         self.query_data = data
         if not is_csv_output:
             groupby = self._get_group_by()
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data, extra_deltas=extra_deltas)
+            self.query_data, order_mapping, order_numbers = self.format_for_ui_recursive(
+                groupby,
+                self.query_data,
+                extra_deltas=extra_deltas)
+            # LOG.info(f"order_numbers: {order_numbers}")
+            key_order_dict = self.find_key_order(order_numbers)
+            # LOG.info(f"key_order_dict: {key_order_dict}")
+            # LOG.info(pformat(self.query_data))
+            # LOG.info(f"groupby: {groupby}")
+            data = self.build_reordered(self.query_data, key_order_dict, order_mapping, groupby[0])
+            # LOG.info(pformat(data))
         self.query_sum = ordered_total
 
         return self._format_query_response()

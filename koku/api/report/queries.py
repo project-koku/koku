@@ -17,7 +17,6 @@ from decimal import InvalidOperation
 from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
-from pprint import pformat
 from urllib.parse import quote_plus
 
 import ciso8601
@@ -42,6 +41,8 @@ from reporting.provider.azure.openshift.models import OCPAzureCostSummaryP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.openshift.models import OCPGCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
+
+# from pprint import pformat
 
 LOG = logging.getLogger(__name__)
 
@@ -760,11 +761,13 @@ class ReportQueryHandler(QueryHandler):
                         value, extra_deltas, order_mapping, order_numbers
                     )
                     # LOG.info(f"order_mapping: {pformat(order_mapping)}")
-                    LOG.info(f"order_numbers: {pformat(order_numbers)}")
-                    key_order = self.find_key_order(order_numbers)
-                    LOG.info(f"key_order: {pformat(key_order)}")
+                    # TODO: I have built the order_mapping here using new values?
+                    # LOG.info(new_values)
                     new_value.append(new_values)
-                return new_value
+                # LOG.info(f"order_numbers: {pformat(order_numbers)}")
+                # key_order = self.find_key_order(order_numbers)
+                # LOG.info(f"key_order: {pformat(key_order)}")
+                return new_value, order_mapping, order_numbers
             else:
                 group = groupby[level]
                 if group.startswith("tags"):
@@ -775,7 +778,7 @@ class ReportQueryHandler(QueryHandler):
                     new_out_data = value.get(group + "s")
                     org_id = value.get("id")
                     org_type = value.get("type")
-                    value[group + "s"] = self.format_for_ui_recursive(
+                    value_return, order_mapping, order_numbers = self.format_for_ui_recursive(
                         groupby,
                         new_out_data,
                         level=level,
@@ -784,8 +787,9 @@ class ReportQueryHandler(QueryHandler):
                         order_mapping=order_mapping,
                         order_numbers=order_numbers,
                     )
+                    value[group + "s"] = value_return
                     overall.append(value)
-        return overall
+        return overall, order_mapping, order_numbers
 
     def get_codes(self):
         codes = {
@@ -932,7 +936,7 @@ class ReportQueryHandler(QueryHandler):
             ordered_dict[date_key] = key_list
         return ordered_dict
 
-    def build_reordered(self, data, key_order, key_map, group_key):
+    def build_reordered(self, data, key_order_mapping, key_map, group_key, date=None):
         """
         Builds reordered data.
         data: list of dictionaries
@@ -943,14 +947,21 @@ class ReportQueryHandler(QueryHandler):
             if data and isinstance(data[0], dict):
                 if "currencys" in data[0].keys() and group_key in data[0].keys():
                     new_data = []
+                    # LOG.info(f"date: {date}")
+                    # LOG.info(f"key_order_mapping: {key_order_mapping}")
+                    key_order = key_order_mapping.get(date)
+                    # LOG.info(f"key_order: {key_order}")
                     for key in key_order:
-                        new_data.append(key_map.get(key))
+                        new_data.append(key_map.get(date, {}).get(key))
                     return new_data
             for value in data:
-                return self.build_reordered(value, key_order, key_map)
+                return self.build_reordered(value, key_order_mapping, key_map, group_key, date)
         elif isinstance(data, dict):
+            # LOG.info(pformat(data))
             for dikt_key, dikt_value in data.items():
-                data[dikt_key] = self.build_reordered(dikt_value, key_order, key_map)
+                if "date":
+                    date = data.get("date")
+                data[dikt_key] = self.build_reordered(dikt_value, key_order_mapping, key_map, group_key, date)
         return data
 
     def _transform_data(self, groups, group_index, data):
