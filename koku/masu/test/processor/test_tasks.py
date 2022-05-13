@@ -68,6 +68,7 @@ from masu.processor.worker_cache import create_single_task_cache_key
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
 from masu.test.external.downloader.aws import fake_arn
+from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
 
 
@@ -872,6 +873,44 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 end_date,
                 synchronous=True,
             )
+
+
+class TestMarkManifestCompleteTask(MasuTestCase):
+    """Test cases for Processor summary table Celery tasks."""
+
+    def test_mark_manifest_complete(self):
+        """Test that we mark a manifest complete."""
+        provider = self.ocp_provider
+        initial_update_time = provider.data_updated_timestamp
+        start = DateHelper().this_month_start
+        manifest = CostUsageReportManifest(
+            **{
+                "assembly_id": "1",
+                "provider_id": str(provider.uuid),
+                "billing_period_start_datetime": start,
+                "num_total_files": 1,
+            }
+        )
+        manifest.save()
+        mark_manifest_complete(
+            self.schema, provider.type, manifest_id=manifest.id, provider_uuid=str(provider.uuid), tracing_id=1
+        )
+
+        provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
+        manifest = CostUsageReportManifest.objects.filter(id=manifest.id).first()
+        self.assertGreater(provider.data_updated_timestamp, initial_update_time)
+        self.assertIsNotNone(manifest.manifest_completed_datetime)
+
+    def test_mark_manifest_complete_no_manifest(self):
+        """Test that we mark a manifest complete."""
+        provider = self.ocp_provider
+        initial_update_time = provider.data_updated_timestamp
+        mark_manifest_complete(
+            self.schema, provider.type, manifest_id=None, provider_uuid=str(provider.uuid), tracing_id=1
+        )
+
+        provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
+        self.assertGreater(provider.data_updated_timestamp, initial_update_time)
 
 
 @override_settings(HOSTNAME="kokuworker")
