@@ -742,7 +742,7 @@ class ReportQueryHandler(QueryHandler):
         rank_orders = []
 
         rank_annotations = {}
-        if "delta" in self.order:
+        if ("delta" in self.order) or ("-delta" in self.order):
             if "__" in self._delta:
                 a, b = self._delta.split("__")
                 rank_annotations = {a: self.report_annotations[a], b: self.report_annotations[b]}
@@ -766,10 +766,10 @@ class ReportQueryHandler(QueryHandler):
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
-
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
         rank_by_total = Window(expression=Rank(), order_by=rank_orders)
+
         if rank_annotations:
             ranks = (
                 query.annotate(**self.annotations)
