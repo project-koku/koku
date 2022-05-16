@@ -8,10 +8,10 @@ import logging
 import os
 import uuid
 
-import oci
 import pandas as pd
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
+from oci import object_storage
 from rest_framework.exceptions import ValidationError
 
 from api.common import log_json
@@ -154,7 +154,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Grab oci config credentials
         config = OCI_CONFIG
         config["region"] = region
-        oci_objects_client = oci.object_storage.ObjectStorageClient(config)
+        oci_objects_client = object_storage.ObjectStorageClient(config)
 
         return oci_objects_client
 

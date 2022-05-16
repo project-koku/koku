@@ -53,7 +53,6 @@ help:
 	@echo "--- General Commands ---"
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
-	@echo "  html                                  create html documentation for the project"
 	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
@@ -168,9 +167,6 @@ help:
 clean:
 	git clean -fdx -e .idea/ -e *env/ -e .env
 
-html:
-	@cd docs; $(MAKE) html
-
 lint:
 	pre-commit run --all-files
 
@@ -236,7 +232,6 @@ reset-db-statistics:
 
 requirements:
 	pipenv lock
-	pipenv lock -r > docs/rtd_requirements.txt
 	python dev/scripts/create_manifest.py
 
 manifest:

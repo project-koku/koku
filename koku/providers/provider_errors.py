@@ -34,6 +34,7 @@ class ProviderErrors:
     GCP_INCORRECT_IAM_PERMISSIONS = "gcp.iam.permissions"
 
     OCI_NO_REPORT_FOUND = "billing_source.bucket.noreportfound"
+    OCI_REGION_NOT_SUPPORTED = "billing_source.bucket_region.notsupported"
     OCI_BUCKET_MISSING = "billing_source.bucket.missing"
     OCI_BUCKET_NAMESPACE_MISSING = "billing_source.bucket_namespace.missing"
     OCI_BUCKET_REGION_MISSING = "billing_source.bucket_region.missing"

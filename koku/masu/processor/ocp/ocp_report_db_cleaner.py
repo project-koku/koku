@@ -10,7 +10,6 @@ from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
-from koku.database import get_model
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -104,7 +103,6 @@ class OCPReportDBCleaner:
                 accessor._table_map["line_item_daily_summary"]
             ]
             table_names.extend(UI_SUMMARY_TABLES)
-            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             # Iterate over the remainder as they could involve much larger amounts of data
@@ -137,8 +135,5 @@ class OCPReportDBCleaner:
                     )
                 )
                 LOG.info(f"Deleted {del_count} table partitions")
-
-            if not simulate:
-                cascade_delete(all_usage_periods.query.model, all_usage_periods, skip_relations=table_models)
 
         return removed_items
