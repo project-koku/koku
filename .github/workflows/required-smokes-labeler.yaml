@@ -1,4 +1,4 @@
-name: Smoke Test traffic light
+name: Smoke Tests Required Labeler
 
 on:
   pull_request:
@@ -17,7 +17,7 @@ jobs:
 
       - name: get Docker image files
         id: docker-files
-        run: .github/scripts/dockerignore_files.sh >> docker-files.txt
+        run: .github/scripts/files_require_smokes.sh >> docker-files.txt
 
       - name: add other required files
         id: add-files
