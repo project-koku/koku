@@ -31,6 +31,10 @@
       "description": "Operations about HCS report data"
     },
     {
+      "name": "HCS Report Finalization",
+      "description": "Operations about HCS report finalization"
+    },
+    {
       "name": "Update Cost Model Cost",
       "description": "Operations about updating cost model costs"
     },
@@ -276,7 +280,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Data summary task has been queued",
+            "description": "HCS report task has been queued",
             "content": {
               "application/json": {
                 "schema": {
@@ -288,6 +292,40 @@
         },
         "tags": [
           "HCS Report Data"
+        ]
+      }
+    },
+    "/hcs_report_finalization/": {
+      "get": {
+        "operationId": "getHCSReportFinalization",
+        "description": "Finalize HCS report data.",
+        "parameters": [
+          {
+            "name": "tracing_id",
+            "in": "query",
+            "description": "The tracing UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HCS Finalization task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HCS Report Finalization"
         ]
       }
     },
