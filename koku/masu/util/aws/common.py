@@ -430,6 +430,7 @@ def aws_generate_daily_data(data_frame):
         [
             "lineitem_resourceid",
             pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "bill_payeraccountid",
             "lineitem_usageaccountid",
             "lineitem_legalentity",
             "bill_billingentity",
@@ -455,6 +456,8 @@ def aws_generate_daily_data(data_frame):
             "pricing_publicondemandcost": ["sum"],
             "pricing_publicondemandrate": ["max"],
             "savingsplan_savingsplaneffectivecost": ["sum"],
+            "product_productname": ["max"],
+            "bill_invoiceid": ["max"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)

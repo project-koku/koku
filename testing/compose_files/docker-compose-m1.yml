@@ -3,8 +3,9 @@ version: '3'
 services:
   koku-base:
     image: koku_base
+    platform: linux/amd64
     build:
-      context: .
+      context: ./../..
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
@@ -70,12 +71,12 @@ services:
       - 8000:8000
       - 8001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './run_server.sh:/koku/run_server.sh'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
+      - './../../run_server.sh:/koku/run_server.sh'
+      - './../../testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -133,12 +134,12 @@ services:
       - 5042:8000
       - 5001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './run_server.sh:/koku/run_server.sh'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
+      - './../../run_server.sh:/koku/run_server.sh'
+      - './../../testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -146,7 +147,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
+    entrypoint: ['celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -207,35 +208,36 @@ services:
     ports:
       - 6001-6020:9000
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './testing:/testing'
-      - './testing/local_providers/azure_local:/tmp/local_container'
-      - './testing/local_providers/oci_local:/tmp/oci_local'
-      - './testing/local_providers/aws_local:/tmp/local_bucket'
-      - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
-      - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
-      - './testing/local_providers/aws_local_2:/tmp/local_bucket_2'
-      - './testing/local_providers/aws_local_3:/tmp/local_bucket_3'
-      - './testing/local_providers/aws_local_4:/tmp/local_bucket_4'
-      - './testing/local_providers/aws_local_5:/tmp/local_bucket_5'
-      - './testing/local_providers/insights_local:/var/tmp/masu/insights_local'
-      - './testing/local_providers/gcp_local/:/tmp/gcp_local_bucket'
-      - './testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0'
-      - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
-      - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
-      - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
+      - './../../testing:/testing'
+      - './../../testing/local_providers/azure_local:/tmp/local_container'
+      - './../../testing/local_providers/oci_local:/tmp/oci_local'
+      - './../../testing/local_providers/aws_local:/tmp/local_bucket'
+      - './../../testing/local_providers/aws_local_0:/tmp/local_bucket_0'
+      - './../../testing/local_providers/aws_local_1:/tmp/local_bucket_1'
+      - './../../testing/local_providers/aws_local_2:/tmp/local_bucket_2'
+      - './../../testing/local_providers/aws_local_3:/tmp/local_bucket_3'
+      - './../../testing/local_providers/aws_local_4:/tmp/local_bucket_4'
+      - './../../testing/local_providers/aws_local_5:/tmp/local_bucket_5'
+      - './../../testing/local_providers/insights_local:/var/tmp/masu/insights_local'
+      - './../../testing/local_providers/gcp_local/:/tmp/gcp_local_bucket'
+      - './../../testing/local_providers/gcp_local_0/:/tmp/gcp_local_bucket_0'
+      - './../../testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
+      - './../../testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
+      - './../../testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
+      - './../../testing/auth_files/:/testing/auth_files/'
     depends_on:
         - koku-base
 
   koku-listener:
     container_name: koku_listener
     image: koku_base
+    platform: linux/amd64
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'listener']
+    entrypoint: ['python', 'koku/manage.py', 'listener']
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
       - DATABASE_SERVICE_NAME=POSTGRES_SQL
@@ -279,10 +281,10 @@ services:
     ports:
       - 7001-7020:9000
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
     depends_on:
       - koku-base
 
@@ -291,7 +293,7 @@ services:
     image: koku_base
     restart: on-failure:25
     working_dir: /koku/
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./koku', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'python', 'koku/manage.py', 'sources']
+    entrypoint: ['python', 'koku/manage.py', 'sources']
     environment:
       - DJANGO_READ_DOT_ENV_FILE=True
       - SOURCES=True
@@ -337,11 +339,11 @@ services:
       - 4000:8000
       - 4001:9000
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
-      - './testing/auth_files/:/testing/auth_files/'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
+      - './../../testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -376,10 +378,10 @@ services:
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
     volumes:
-      - './koku:/koku/koku'
-      - './.unleash:/koku/.unleash'
-      - './db_functions:/koku/db_functions'
-      - './scripts:/koku/scripts'
+      - './../../koku:/koku/koku'
+      - './../../.unleash:/koku/.unleash'
+      - './../../db_functions:/koku/db_functions'
+      - './../../scripts:/koku/scripts'
     depends_on:
         - koku-base
 
@@ -396,8 +398,8 @@ services:
     ports:
       - 15432:5432
     volumes:
-      - ./pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
-      - ./pg_init:/docker-entrypoint-initdb.d
+      - ./../../pg_data:/var/lib/${DATABASE_DATA_DIR-postgresql}/data
+      - ./../../pg_init:/docker-entrypoint-initdb.d
     command:
       # This command give more precise control over the parameter settings
       # Included are loading the pg_stat_statements lib
@@ -485,7 +487,7 @@ services:
   grafana:
     container_name: koku_grafana
     build:
-        context: grafana
+        context: ./../../grafana
         dockerfile: Dockerfile-grafana
     ports:
       - 3001:3000
@@ -519,6 +521,6 @@ services:
     ports:
       - 4242:4242
     volumes:
-      - './.unleash:/.unleash'
+      - './../../.unleash:/.unleash'
     depends_on:
       - db
