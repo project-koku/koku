@@ -19,15 +19,15 @@ jobs:
 
       - name: get Docker image files
         id: docker-files
-        run: echo "::set-output name=required-files::$(.github/scripts/dockerignore_files.sh)"
+        run: bash .github/scripts/dockerignore_files.sh >> docker-files.txt
 
-      - run: echo ${{ steps.docker-files.outputs.required-files }}
+      - run: cat docker-files.txt
 
       - name: Get changed files
         id: changed-files
         uses: tj-actions/changed-files@v13
         with:
-          files: ${{ steps.docker-files.outputs.required-files }}
+          files_from_source_file: docker-files.txt
 
       - id: check-files
         run: |
