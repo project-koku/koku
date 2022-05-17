@@ -19,6 +19,12 @@ from masu.external.date_accessor import DateAccessor
 LOG = logging.getLogger(__name__)
 
 HCS_QUEUE = "hcs"
+HCS_EXCEPTED_PROVIDERS = (
+    Provider.PROVIDER_AWS,
+    Provider.PROVIDER_AWS_LOCAL,
+    Provider.PROVIDER_AZURE,
+    Provider.PROVIDER_AZURE_LOCAL,
+)
 
 # any additional queues should be added to this list
 QUEUE_LIST = [HCS_QUEUE]
@@ -77,7 +83,9 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
-def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=None, end_date=None, tracing_id=None):
+def collect_hcs_report_data(
+    schema_name, provider, provider_uuid, start_date=None, end_date=None, tracing_id=None, finalize=False
+):
     """Update Hybrid Committed Spend report.
     :param provider:        (str) The provider type
     :param provider_uuid:   (str) The provider type
@@ -85,6 +93,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     :param end_date:        The date to end on (default: Today)
     :param schema_name:     (Str) db schema name
     :param tracing_id:      (uuid) for log tracing
+    :param finalize:        (boolean) If True run report finalization process for previous month(default: False)
 
     :returns None
     """
@@ -106,7 +115,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if enable_hcs_processing(schema_name) and provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AZURE):
+    if enable_hcs_processing(schema_name) and provider in HCS_EXCEPTED_PROVIDERS:
         stmt = (
             f"Running HCS data collection: "
             f"schema_name: {schema_name}, "
@@ -116,7 +125,7 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
         )
         LOG.info(log_json(tracing_id, stmt))
         reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
-        reporter.generate_report(start_date, end_date)
+        reporter.generate_report(start_date, end_date, finalize)
 
     else:
         stmt = (
@@ -127,3 +136,44 @@ def collect_hcs_report_data(schema_name, provider, provider_uuid, start_date=Non
             f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))
+
+
+@celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
+def collect_hcs_report_finalization(tracing_id=None):
+    if tracing_id is None:
+        tracing_id = str(uuid.uuid4())
+
+    today = DateAccessor().today()
+
+    for excepted_provider in HCS_EXCEPTED_PROVIDERS:
+        LOG.debug(log_json(tracing_id, f"excepted_provider: {excepted_provider}"))
+
+        providers = Provider.objects.filter(type=excepted_provider).all()
+
+        for provider in providers:
+            schema_name = provider.customer.schema_name
+            provider_uuid = provider.customer.uuid
+            end_date_prev_month = today.replace(day=1) - datetime.timedelta(days=1)
+            start_date_prev_month = today.replace(day=1) - datetime.timedelta(days=end_date_prev_month.day)
+
+            stmt = (
+                f"Finalizing: "
+                f"Schema-name: {schema_name}, "
+                f"provider: {provider}, "
+                f"provider_uuid: {provider_uuid}, "
+                f"dates {start_date_prev_month} - {end_date_prev_month}"
+            )
+            LOG.info(log_json(tracing_id, stmt))
+
+            LOG.info(
+                log_json(tracing_id, f"starting report finalization: {start_date_prev_month} - {end_date_prev_month}")
+            )
+            collect_hcs_report_data.s(
+                schema_name,
+                excepted_provider,
+                provider_uuid,
+                start_date_prev_month,
+                end_date_prev_month,
+                tracing_id,
+                True,
+            ).apply_async()
