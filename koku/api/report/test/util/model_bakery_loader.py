@@ -27,7 +27,6 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.oci_report_db_accessor import OCIReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 from reporting.models import AWSAccountAlias
@@ -473,8 +472,6 @@ class ModelBakeryDataLoader(DataLoader):
             cls_method = getattr(accessor, ui_update_method)
             cls_method(sql_params)
 
-        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
-
     def load_oci_data(self, linked_openshift_provider=None):
         """Load OCI data for tests."""
         bills = []
@@ -514,5 +511,4 @@ class ModelBakeryDataLoader(DataLoader):
         with OCIReportDBAccessor(self.schema) as accessor:
             accessor.populate_tags_summary_table(bill_ids, self.first_start_date, self.last_end_date)
             accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
-        refresh_materialized_views(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
         return bills
