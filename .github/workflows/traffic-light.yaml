@@ -7,10 +7,8 @@ on:
       - main
 
 jobs:
-  traffic-light:
+  setup:
     runs-on: ubuntu-20.04
-    # outputs:
-    #   run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -31,8 +29,24 @@ jobs:
 
       - id: check-files
         run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
             echo "::set-output name=run-tests::true"
           fi
+    outputs:
+      run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
 
-      # - run: echo ${{ github.event.pull_request.head.repo.full_name }}
+  traffic-light:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Setting smokes-required label"
+        uses: actions/github-script@v3
+        if: ${{ needs.setup.outputs.run-tests == 'true' }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'smokes-required' ]
+            })
