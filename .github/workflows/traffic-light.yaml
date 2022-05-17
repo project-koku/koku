@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  setup:
+  traffic-light-setup:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -39,14 +39,14 @@ jobs:
             echo "::set-output name=run-tests::true"
           fi
     outputs:
-      run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
+      run-tests: ${{ steps.check-files.outputs.run-tests }}
 
   traffic-light:
     runs-on: ubuntu-20.04
     steps:
       - name: "Setting smokes-required label"
         uses: actions/github-script@v3
-        if: ${{ needs.setup.outputs.run-tests == 'true' }}
+        if: ${{ needs.traffic-light-setup.outputs.run-tests == 'true' }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
