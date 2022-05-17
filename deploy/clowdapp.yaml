@@ -2958,3 +2958,7 @@ parameters:
   name: WORKER_HCS_WORKER_QUEUE
   required: true
   value: hcs
+- displayName: Report Finalization Day Of Month
+  name: HCS_FINALIZATION_DAY_OF_MONTH
+  required: true
+  value: 15
