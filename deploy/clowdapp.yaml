@@ -1,4 +1,3 @@
-# testing a change
 apiVersion: template.openshift.io/v1
 kind: Template
 metadata:
