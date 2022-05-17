@@ -19,6 +19,12 @@ jobs:
         id: docker-files
         run: .github/scripts/dockerignore_files.sh >> docker-files.txt
 
+      - name: add other required files
+        id: add-files
+        run: |
+          echo Dockerfile >> docker-files.txt;
+          echo deploy/clowdapp.yaml >> docker-files.txt;
+
       - run: cat docker-files.txt
 
       - name: Get changed files
