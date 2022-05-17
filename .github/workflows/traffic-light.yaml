@@ -9,6 +9,8 @@ on:
 jobs:
   traffic-light-setup:
     runs-on: ubuntu-20.04
+    outputs:
+      run-tests: ${{ steps.check-files.outputs.run-tests }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -38,8 +40,6 @@ jobs:
           if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
             echo "::set-output name=run-tests::true"
           fi
-    outputs:
-      run-tests: ${{ steps.check-files.outputs.run-tests }}
 
   traffic-light:
     runs-on: ubuntu-20.04
