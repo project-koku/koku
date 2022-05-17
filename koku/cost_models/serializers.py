@@ -488,6 +488,10 @@ class CostModelSerializer(serializers.Serializer):
         validated_rates = []
         tag_rates = []
         for rate in rates:
+            print("RATE: ", rate)
+            # if rate != currency:
+            #     err_msg = f"Rate units must match currency in a cost model: {rate} does not equal {self.currency}."
+            #     raise serializers.ValidationError(err_msg)
             serializer = RateSerializer(data=rate)
             serializer.is_valid(raise_exception=True)
             validated_rates.append(serializer.validated_data)
