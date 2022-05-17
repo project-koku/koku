@@ -42,6 +42,7 @@ jobs:
           fi
 
   traffic-light:
+    needs: traffic-light-setup
     runs-on: ubuntu-20.04
     steps:
       - name: "Setting smokes-required label"
