@@ -358,10 +358,15 @@ class ModelBakeryDataLoader(DataLoader):
             accessor.update_line_item_daily_summary_with_enabled_tags(
                 self.first_start_date, self.last_end_date, report_period_ids
             )
-            accessor.populate_ui_summary_tables(self.first_start_date, self.last_end_date, provider.uuid)
-        update_cost_model_costs(
-            self.schema, provider.uuid, self.first_start_date, self.last_end_date, tracing_id="12345", synchronous=True
-        )
+            update_cost_model_costs(
+                self.schema,
+                provider.uuid,
+                self.first_start_date,
+                self.last_end_date,
+                tracing_id="12345",
+                synchronous=True,
+            )
+            accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
         return provider, report_periods
 
     def load_openshift_on_cloud_data(self, provider_type, cluster_id, bills, report_periods):
