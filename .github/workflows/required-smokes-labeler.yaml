@@ -43,6 +43,7 @@ jobs:
       - name: "Setting smokes-required label"
         uses: actions/github-script@v3
         if: ${{ steps.check-files.outputs.run-tests == 'true' }}
+        continue-on-error: true
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
