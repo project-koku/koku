@@ -52,6 +52,12 @@ jobs:
               repo: context.repo.repo,
               labels: [ 'smokes-required' ]
             })
+            github.issues.removeLabel({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'ok-to-skip-smokes'
+            })
 
       - name: "Remove smokes-required label"
         uses: actions/github-script@v3
@@ -65,4 +71,10 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               name: 'smokes-required'
+            })
+            github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'ok-to-skip-smokes' ]
             })
