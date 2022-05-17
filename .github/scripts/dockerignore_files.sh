@@ -6,7 +6,7 @@ cat <<EOF > Dockerfile.build-context
 FROM busybox
 COPY . /build-context
 WORKDIR /build-context
-CMD find .
+CMD find . -type f -mtime -14 | sed 's|^./||'
 EOF
 
 docker build -q -f Dockerfile.build-context -t build-context .
