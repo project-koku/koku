@@ -25,9 +25,28 @@ class OCIReportQueryHandler(ReportQueryHandler):
 
     provider = Provider.PROVIDER_OCI
 
-    # TODO !!
-    network_services = {"Network"}
-    database_services = {"DB"}
+    network_services = {
+        "Virtual Cloud Networks",
+        "Networking Gateways",
+        "Load Balancers",
+        "Site-to-Site VPN",
+        "Client-to-Site VPN",
+        "FastConnect",
+        "Customer-Premises Equipment",
+        "DNS Management",
+    }
+    database_services = {
+        "Autonomous Database",
+        "Autonomous Data Warehouse",
+        "Autonomous Transaction Processing",
+        "Autonomous JSON Database",
+        "Exadata Database Service",
+        "Database Cloud Service",
+        "Autonomous Database on Exadata",
+        "MySQL HeatWave",
+        "NoSQL",
+        "Search Service with OpenSearch",
+    }
 
     def __init__(self, parameters):
         """Establish OCI report query handler.
