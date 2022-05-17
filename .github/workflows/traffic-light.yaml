@@ -19,7 +19,7 @@ jobs:
 
       - name: get Docker image files
         id: docker-files
-        run: bash .github/scripts/dockerignore_files.sh >> docker-files.txt
+        run: .github/scripts/dockerignore_files.sh >> docker-files.txt
 
       - run: cat docker-files.txt
 
