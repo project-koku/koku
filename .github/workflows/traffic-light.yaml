@@ -7,10 +7,8 @@ on:
       - main
 
 jobs:
-  traffic-light-setup:
+  smokes-labeler:
     runs-on: ubuntu-20.04
-    outputs:
-      run-tests: ${{ steps.check-files.outputs.run-tests }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -24,6 +22,7 @@ jobs:
       - name: add other required files
         id: add-files
         run: |
+          echo .dockerignore >> docker-files.txt;
           echo Dockerfile >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
 
@@ -41,17 +40,26 @@ jobs:
             echo "::set-output name=run-tests::true"
           fi
 
-  traffic-light:
-    needs: traffic-light-setup
-    runs-on: ubuntu-20.04
-    steps:
       - name: "Setting smokes-required label"
         uses: actions/github-script@v3
-        if: ${{ needs.traffic-light-setup.outputs.run-tests == 'true' }}
+        if: ${{ steps.check-files.outputs.run-tests == 'true' }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [ 'smokes-required' ]
+            })
+
+      - name: "Remove smokes-required label"
+        uses: actions/github-script@v3
+        if: ${{ steps.check-files.outputs.run-tests != 'true' }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.removeLabel({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
