@@ -1,0 +1,38 @@
+name: Smoke Test traffic light
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  traffic-light:
+    runs-on: ubuntu-20.04
+    # outputs:
+    #   run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: get Docker image files
+        id: docker-files
+        run: echo "::set-output name=required-files::$(.github/scripts/dockerignore_files.sh)"
+
+      - run: echo ${{ steps.docker-files.outputs.required-files }}
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v13
+        with:
+          files: ${{ steps.docker-files.outputs.required-files }}
+
+      - id: check-files
+        run: |
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
+            echo "::set-output name=run-tests::true"
+          fi
+
+      # - run: echo ${{ github.event.pull_request.head.repo.full_name }}
