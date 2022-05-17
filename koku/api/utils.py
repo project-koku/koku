@@ -339,14 +339,14 @@ class DateHelper:
         rel_month_delta = relativedelta(months=month_seek)
         return self.month_end(dt + rel_month_delta)
 
-    def gcp_invoice_month_start(self, date_str):
-        """Find the beginning of the month for gcp invoice month.
+    def invoice_month_start(self, date_str):
+        """Find the beginning of the month for invoice month.
 
-        GCP invoice month format is {year}{month}.
+        Invoice month format is {year}{month}.
         Ex. 202011
 
         Args:
-            date_str: GCP invoice month format
+            date_str: invoice month format
 
         Returns:
             (datetime.datetime)
@@ -354,8 +354,8 @@ class DateHelper:
         if not isinstance(date_str, str):
             date_str = str(date_str)
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
-        gcp_month_start = self.month_start(date_obj)
-        return gcp_month_start
+        month_start = self.month_start(date_obj)
+        return month_start
 
     def gcp_find_invoice_months_in_date_range(self, start, end):
         """Finds all the invoice months in a given date range.

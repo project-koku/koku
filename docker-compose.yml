@@ -64,6 +64,7 @@ services:
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - QE_SCHEMA=${QE_SCHEMA}
     ports:
       - 8000:8000
@@ -127,6 +128,7 @@ services:
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
     ports:
       - 5042:8000
       - 5001:9000
@@ -201,6 +203,7 @@ services:
       - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
     ports:
       - 6001-6020:9000
     volumes:
@@ -210,6 +213,7 @@ services:
       - './scripts:/koku/scripts'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/oci_local:/tmp/oci_local'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
       - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
       - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
@@ -324,6 +328,11 @@ services:
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
     ports:
       - 4000:8000
       - 4001:9000
@@ -332,6 +341,7 @@ services:
       - './.unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 

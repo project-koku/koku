@@ -9,6 +9,7 @@ objects:
     name: koku
   spec:
     database:
+      dbResourceSize: medium
       name: ${DATABASE_NAME}
       version: ${{DATABASE_VERSION}}
     dependencies:
@@ -115,6 +116,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -256,6 +259,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -403,6 +408,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -410,10 +417,10 @@ objects:
             path: ${API_PATH_PREFIX}/v1/status/?liveness
             port: private
             scheme: HTTP
-          initialDelaySeconds: 30
+          initialDelaySeconds: 45
           periodSeconds: 20
           successThreshold: 1
-          timeoutSeconds: 10
+          timeoutSeconds: 15
         readinessProbe:
           failureThreshold: 5
           httpGet:
@@ -570,6 +577,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -686,6 +695,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -824,6 +835,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -991,6 +1004,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1164,6 +1179,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1335,6 +1352,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1508,6 +1527,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1679,6 +1700,8 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1852,6 +1875,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2025,6 +2050,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2198,6 +2225,8 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: "true"
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2640,11 +2669,11 @@ parameters:
 - displayName: Memory Request
   name: MASU_MEMORY_REQUEST
   required: true
-  value: 256Mi
+  value: 350Mi
 - displayName: Memory Limit
   name: MASU_MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 700Mi
 - displayName: CPU Request
   name: MASU_CPU_REQUEST
   required: true

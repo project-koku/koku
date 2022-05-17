@@ -71,6 +71,8 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
         Provider.PROVIDER_IBM: POLL_INGEST,
         Provider.PROVIDER_IBM_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_OCI: POLL_INGEST,
+        Provider.PROVIDER_OCI_LOCAL: POLL_INGEST,
         Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)

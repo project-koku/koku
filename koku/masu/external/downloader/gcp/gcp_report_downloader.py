@@ -77,7 +77,7 @@ def create_daily_archives(
                 {"data_frame": invoice_data[invoice_data.partition_date.str.contains(cur_day)], "date": cur_day}
                 for cur_day in days
             ]
-            start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+            start_of_invoice = dh.invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
