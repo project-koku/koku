@@ -118,6 +118,7 @@ function run_test_filter_expression {
 }
 
 function make_failed_results_xml() {
+mkdir $WORKSPACE/artifacts
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
@@ -129,6 +130,7 @@ EOF
 }
 
 function make_skipped_xml() {
+mkdir $WORKSPACE/artifacts
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuite id="pr_check" name="PR Check" tests="1" failures="0">
