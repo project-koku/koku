@@ -182,7 +182,7 @@ if [[ $exit_code == 0 ]]; then
     fi
 fi
 
-cp $LABELS_DIR/github_labels.txt $ARTIFACTS_DIR/github_labels.txt
+# cp $LABELS_DIR/github_labels.txt $ARTIFACTS_DIR/github_labels.txt
 
 if [[ $exit_code > 0 ]]; then
     echo "PR check failed"
