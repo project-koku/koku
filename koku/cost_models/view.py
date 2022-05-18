@@ -37,7 +37,7 @@ class CostModelsFilter(FilterSet):
     name = CharFilter(field_name="name", method="list_contain_filter")
     uuid = UUIDFilter(field_name="uuid")
     source_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
-    description = CharFilter(field_name="description", lookup_expr="icontains")
+    description = CharFilter(field_name="description", method="list_contain_filter")
     source_type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
     currency = CharListFilter(field_name="currency", method="currency_filter")
 
