@@ -210,6 +210,7 @@ class Provider(models.Model):
             super().delete()
 
     def _get_normalized_type(self):
+        """Normalize the provider type: Return lowercase type name w/o '-local'"""
         _normalized_type = getattr(self, "_normalized_type", None)
         if _normalized_type is None:
             _type = self.type.lower()
@@ -219,6 +220,8 @@ class Provider(models.Model):
     def _get_sub_target_values(self, target_info, target_values):
         sub_target = get_model(target_info["table_name"])
         filters = {f"{target_info['column_name']}__in": target_values}
+        # This is potentially dnagerous if the sub-target is a partitioned table
+        # Care must be taken when calling this method
         sub_target_pk = [f.name for f in sub_target._meta.fields if f.primary_key][0]
         values = [r[sub_target_pk] for r in sub_target.objects.filter(**filters).values(sub_target_pk)]
         return values
@@ -231,6 +234,10 @@ class Provider(models.Model):
         if target_values is None:
             target_values = [self.pk]
         _normalized_type = self._get_normalized_type()
+        # If one of the targets is in this tuple, then we must recursively call _cascade_delete
+        # because this is a second level of indirection to get to data:
+        # Provider ---> <branch-table> ---> x...
+        # Make sure that any table(s) in the public schema are first.
         _cascade_branch_tables = (
             "reporting_common_costusagereportmanifest",
             f"reporting_{_normalized_type}costentrybill",
@@ -248,6 +255,7 @@ class Provider(models.Model):
                 self._set_infrastructure_id_null()
 
             if target_info["table_name"] in _cascade_branch_tables:
+                # Keep the slice up-tp-date with the number of public schema table names in _cascade_branch_tables
                 public_schema = (
                     self.customer.schema_name if target_info["table_name"] in _cascade_branch_tables[1:] else "public"
                 )
@@ -264,6 +272,10 @@ class Provider(models.Model):
             self._delete_from_target(target_info, target_values)
 
     def _set_infrastructure_id_null(self):
+        # Because infrastructure is tied to a provider and the infrastructure_id
+        # can be shared among other providers, we must set the api_provider.infrastructure_id to null
+        # for the infrastructure_id targeted for delete that is shared across other providers.
+        # That is a confusing sentence to describe a circular relation between tables.
         _sql = f"""
 update public.api_provider p
    set infrastructure_id = %s
@@ -281,6 +293,8 @@ update public.api_provider p
             cur.execute(_sql, params)
 
     def _get_linked_table_names(self, normalized_type, target_table, public_schema):
+        """Given a table name and schema name and type,
+        find the other tables that are related by foreign keys"""
         with transaction.get_connection().cursor() as cur:
             link_table_sql = """
 select ftn.nspname as "table_schema",
@@ -349,6 +363,7 @@ select ftn.nspname as "table_schema",
         return link_tables
 
     def _delete_from_target(self, target_info, target_values=None):
+        """Generates and executes a simple delete statement"""
         if target_values is None:
             target_values = [self.uuid]
 
