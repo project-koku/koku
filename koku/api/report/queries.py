@@ -957,7 +957,7 @@ class ReportQueryHandler(QueryHandler):
                         new_data.append(key_map.get(date, {}).get(key))
                     return new_data
             for value in data:
-                return self.build_reordered(value, key_order_mapping, key_map, group_key, date)
+                return [self.build_reordered(value, key_order_mapping, key_map, group_key, date)]
         elif isinstance(data, dict):
             # LOG.info(pformat(data))
             for dikt_key, dikt_value in data.items():
