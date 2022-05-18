@@ -19,14 +19,6 @@ from api.common.permissions.openshift_all_access import OpenshiftAllAccessPermis
 from api.iam.models import User
 from api.provider.models import Provider
 
-PERMISSIONS = {
-    Provider.PROVIDER_AWS: AwsAccessPermission(),
-    Provider.PROVIDER_AZURE: AzureAccessPermission(),
-    Provider.PROVIDER_OCP: OpenShiftAccessPermission(),
-    Provider.PROVIDER_GCP: GcpAccessPermission(),
-    Provider.PROVIDER_IBM: IbmAccessPermission(),
-    Provider.OCP_ALL: OpenshiftAllAccessPermission(),
-}
 RESOURCE_TYPE_PERMS = {
     AwsAccessPermission.resource_type: {"provider": Provider.PROVIDER_AWS, "permission": AwsAccessPermission()},
     AWSOUAccessPermission.resource_type: {"provider": Provider.PROVIDER_AWS, "permission": AWSOUAccessPermission()},
