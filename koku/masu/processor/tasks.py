@@ -23,7 +23,6 @@ from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
 from koku import celery_app
-from koku.cache import invalidate_view_cache_for_tenant_and_source_type
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -55,7 +54,7 @@ DEFAULT = "celery"
 GET_REPORT_FILES_QUEUE = "download"
 OCP_QUEUE = "ocp"
 PRIORITY_QUEUE = "priority"
-REFRESH_MATERIALIZED_VIEWS_QUEUE = "refresh"
+MARK_MANIFEST_COMPLETE_QUEUE = "priority"
 REMOVE_EXPIRED_DATA_QUEUE = "summary"
 SUMMARIZE_REPORTS_QUEUE = "summary"
 UPDATE_COST_MODEL_COSTS_QUEUE = "cost_model"
@@ -67,7 +66,7 @@ QUEUE_LIST = [
     GET_REPORT_FILES_QUEUE,
     OCP_QUEUE,
     PRIORITY_QUEUE,
-    REFRESH_MATERIALIZED_VIEWS_QUEUE,
+    MARK_MANIFEST_COMPLETE_QUEUE,
     REMOVE_EXPIRED_DATA_QUEUE,
     SUMMARIZE_REPORTS_QUEUE,
     UPDATE_COST_MODEL_COSTS_QUEUE,
@@ -262,9 +261,6 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
     )
     LOG.info(stmt)
     _remove_expired_data(schema_name, provider, simulate, provider_uuid)
-    refresh_materialized_views.s(schema_name, provider, provider_uuid=provider_uuid).apply_async(
-        queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
-    )
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
@@ -402,11 +398,6 @@ def update_summary_tables(  # noqa: C901
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
         raise ex
-    if not provider_uuid:
-        refresh_materialized_views.s(
-            schema_name, provider, manifest_id=manifest_id, queue_name=queue_name, tracing_id=tracing_id
-        ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
-        return
 
     if enable_trino_processing(provider_uuid, provider, schema_name) and provider in (
         Provider.PROVIDER_AWS,
@@ -455,17 +446,17 @@ def update_summary_tables(  # noqa: C901
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
-        ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | refresh_materialized_views.si(
+        ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
         ).set(
-            queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE
+            queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
     else:
         stmt = f"update_cost_model_costs skipped. schema_name: {schema_name}, provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
-        linked_tasks = refresh_materialized_views.s(
+        linked_tasks = mark_manifest_complete.s(
             schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
-        ).set(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
+        ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
 
     chain(linked_tasks).apply_async()
 
@@ -643,6 +634,8 @@ def update_cost_model_costs(
         updater = CostModelCostUpdater(schema_name, provider_uuid, tracing_id)
         if updater:
             updater.update_cost_model_costs(start_date, end_date)
+        if provider_uuid:
+            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
     except Exception as ex:
         if not synchronous:
             worker_cache.release_single_task(task_name, cache_args)
@@ -654,10 +647,10 @@ def update_cost_model_costs(
 
 # fmt: off
 @celery_app.task(  # noqa: C901
-    name="masu.processor.tasks.refresh_materialized_views", queue=REFRESH_MATERIALIZED_VIEWS_QUEUE
+    name="masu.processor.tasks.mark_manifest_complete", queue=MARK_MANIFEST_COMPLETE_QUEUE
 )
 # fmt: on
-def refresh_materialized_views(  # noqa: C901
+def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
     manifest_id=None,
@@ -666,50 +659,25 @@ def refresh_materialized_views(  # noqa: C901
     queue_name=None,
     tracing_id=None,
 ):
-    """Refresh the database's materialized views for reporting."""
-    task_name = "masu.processor.tasks.refresh_materialized_views"
-    cache_args = [schema_name, provider_type, provider_uuid]
-    if not synchronous:
-        worker_cache = WorkerCache()
-        if worker_cache.single_task_is_running(task_name, cache_args):
-            msg = f"Task {task_name} already running for {cache_args}. Requeuing."
-            LOG.info(log_json(tracing_id, msg))
-            refresh_materialized_views.s(
-                schema_name,
-                provider_type,
-                manifest_id=manifest_id,
-                provider_uuid=provider_uuid,
-                synchronous=synchronous,
-                queue_name=queue_name,
-                tracing_id=tracing_id,
-            ).apply_async(queue=queue_name or REFRESH_MATERIALIZED_VIEWS_QUEUE)
-            return
-        worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
-    materialized_views = ()
-    try:
-        with schema_context(schema_name):
-            for view in materialized_views:
-                table_name = view._meta.db_table
-                with connection.cursor() as cursor:
-                    cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {table_name}")
-                    LOG.info(log_json(tracing_id, f"Refreshed {table_name}."))
-
-        invalidate_view_cache_for_tenant_and_source_type(schema_name, provider_type)
-
-        if provider_uuid:
-            ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-        if manifest_id:
-            # Processing for this monifest should be complete after this step
-            with ReportManifestDBAccessor() as manifest_accessor:
-                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-                manifest_accessor.mark_manifest_as_completed(manifest)
-    except Exception as ex:
-        if not synchronous:
-            worker_cache.release_single_task(task_name, cache_args)
-        raise ex
-
-    if not synchronous:
-        worker_cache.release_single_task(task_name, cache_args)
+    """Mark a manifest and provider as complete"""
+    stmt = (
+        f"mark_manifest_complete called with args: "
+        f" schema_name: {schema_name}, "
+        f" provider_type: {provider_type}, "
+        f" provider_uuid: {provider_uuid}, "
+        f" manifest_id: {manifest_id}, "
+        f" synchronous: {synchronous}, "
+        f" queue_name: {queue_name}, "
+        f" tracing_id: {tracing_id}"
+    )
+    LOG.info(log_json(tracing_id, stmt))
+    if provider_uuid:
+        ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
+    if manifest_id:
+        # Processing for this monifest should be complete after this step
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+            manifest_accessor.mark_manifest_as_completed(manifest)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
