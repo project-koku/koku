@@ -16,7 +16,7 @@ from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
-from koku.database import cascade_delete
+from koku.database import get_model
 
 LOG = logging.getLogger(__name__)
 
@@ -197,11 +197,166 @@ class Provider(models.Model):
             using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
-                cascade_delete(self.__class__, self.__class__.objects.filter(pk=self.pk))
+                self._cascade_delete()
+                self._delete_from_target(
+                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                    target_values=[self.pk],
+                )
+                LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
-            LOG.warning("Cannot customer link cannot be found! Using ORM delete!")
+            LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
+
+    def _get_normalized_type(self):
+        _normalized_type = getattr(self, "_normalized_type", None)
+        if _normalized_type is None:
+            _type = self.type.lower()
+            _normalized_type = self._normalized_type = _type if "-local" not in _type else _type[: _type.index("-")]
+        return _normalized_type
+
+    def _get_sub_target_values(self, target_info, target_values):
+        sub_target = get_model(target_info["table_name"])
+        filters = {f"{target_info['column_name']}__in": target_values}
+        sub_target_pk = [f.name for f in sub_target._meta.fields if f.primary_key][0]
+        values = [r[sub_target_pk] for r in sub_target.objects.filter(**filters).values(sub_target_pk)]
+        return values
+
+    def _cascade_delete(self, target_table=None, target_values=None, public_schema="public", seen=None):
+        if seen is None:
+            seen = {"public", "api_providerinfrastructuremap", self.pk}
+        if target_table is None:
+            target_table = self._meta.db_table
+        if target_values is None:
+            target_values = [self.pk]
+        _normalized_type = self._get_normalized_type()
+        _cascade_branch_tables = (
+            f"reporting_{_normalized_type}costentrybill",
+            "reporting_common_costusagereportmanifest",
+        )
+
+        for target_info in self._get_linked_table_names(_normalized_type, target_table, public_schema):
+            _target_vals = tuple(target_info[k] for k in sorted(target_info))
+            if _target_vals in seen:
+                continue
+
+            seen.add(_target_vals)
+            if target_info["table_name"] == "api_providerinfrastructuremap":
+                self._set_infrastructure_id_null()
+
+            if target_info["table_name"] in _cascade_branch_tables:
+                public_schema = self.customer.schema_name if "costentrybill" in target_info["table_name"] else "public"
+                LOG.info(f"DELETE CASCADE BRANCH TO {target_info['table_name']}")
+                self._cascade_delete(
+                    target_table=target_info["table_name"],
+                    target_values=self._get_sub_target_values(target_info, target_values),
+                    public_schema=public_schema,
+                    seen=seen,
+                )
+                LOG.info(f"DELETE CASCADE BRANCH COPLETE")
+            else:
+                public_schema = "public"
+            self._delete_from_target(target_info, target_values)
+
+    def _set_infrastructure_id_null(self):
+        _sql = f"""
+update public.api_provider p
+   set infrastructure_id = %s
+  from public.api_providerinfrastructuremap m
+ where m.infrastructure_provider_id = %s::uuid
+   and p.infrastructure_id = m.id
+;
+"""
+        LOG.info(
+            "Setting the infrastructure_id to null for any provider "
+            + "records that link to the target infrastructure map records"
+        )
+        params = (None, self.pk)
+        with transaction.get_connection().cursor() as cur:
+            cur.execute(_sql, params)
+
+    def _get_linked_table_names(self, normalized_type, target_table, public_schema):
+        with transaction.get_connection().cursor() as cur:
+            link_table_sql = """
+select ftn.nspname as "table_schema",
+       ft.relname as "table_name",
+       fc.attname as "column_name"
+  from pg_class t
+  join pg_constraint con
+    on con.confrelid = t.oid
+  join pg_attribute fc
+    on fc.attrelid = con.conrelid
+   and fc.attnum = any(con.conkey::int[])
+  join pg_class ft
+    on ft.oid = con.conrelid
+  join pg_namespace tn
+    on tn.oid = t.relnamespace
+  join pg_namespace ftn
+    on ftn.oid = ft.relnamespace
+ where t.relname = %(target_table)s
+   and tn.nspname = %(public_schema)s
+   and con.contype = %(fk_constraint)s
+   and ftn.nspname in (%(public_schema)s, %(search_schema)s)
+   and ft.relkind = any(%(relkind)s)
+   and not ft.relispartition
+   and (
+         ft.relname ~ %(type_fregex)s or
+         ft.relname ~ %(ocptype_fregex)s or
+         ft.relname ~ %(rpt_common_fregex)s or
+         ft.relname ~ %(api_fregex)s
+       )
+ order
+    by case when ft.relname ~ %(ui_table_sregex)s then %(ui_table_sval)s
+            when ft.relname ~ %(ocp_type_sregex)s then %(ocp_type_sval)s
+            when ft.relname ~ %(daily_summ_sregex)s then %(daily_summ_sval)s
+            when ft.relname ~ %(api_sregex)s then %(api_sval)s
+            else %(default_sval)s
+       end::int,
+       ft.relname
+;
+"""
+            params = {
+                "relkind": ["p", "r"],
+                "fk_constraint": "f",
+                "target_table": target_table,
+                "public_schema": public_schema,
+                "search_schema": self.customer.schema_name,
+                "type_fregex": f"_{normalized_type}",
+                "ocptype_fregex": f"_ocp({normalized_type}|all)",
+                "rpt_common_fregex": "^reporting_common_",
+                "api_fregex": "^api_",
+                "ui_table_sregex": f"^reporting_{normalized_type}_",
+                "ui_table_sval": 1,
+                "ocp_type_sregex": f"^reporting_ocp({normalized_type}|all)",
+                "ocp_type_sval": 2,
+                "daily_summ_sregex": "_daily_summary",
+                "daily_summ_sval": 3,
+                "api_sregex": "^api_",
+                "api_sval": 10,
+                "default_sval": 5,
+            }
+            rendered_sql = cur.mogrify(link_table_sql, params).decode("utf-8")
+            LOG.debug(rendered_sql)
+            cur.execute(rendered_sql)
+            cols = tuple(d[0] for d in cur.description)
+            link_tables = [dict(zip(cols, rec)) for rec in cur]
+
+        return link_tables
+
+    def _delete_from_target(self, target_info, target_values=None):
+        if target_values is None:
+            target_values = [self.uuid]
+
+        qual_table_name = f'''"{target_info['table_schema']}"."{target_info["table_name"]}"'''
+        _sql = f"""
+delete
+  from {qual_table_name}
+ where "{target_info["column_name"]}" = any(%s)
+;
+"""
+        with transaction.get_connection().cursor() as cur:
+            cur.execute(_sql, (target_values,))
+            LOG.info(f"Deleted {cur.rowcount} recurds from {qual_table_name}")
 
 
 class Sources(RunTextFieldValidators, models.Model):
