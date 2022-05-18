@@ -391,7 +391,7 @@ LOGGING = {
         },
     },
     "loggers": {
-        "gunicorn": {
+        "gunicorn.error": {
             "handlers": LOGGING_HANDLERS,
             "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG"),
         },
