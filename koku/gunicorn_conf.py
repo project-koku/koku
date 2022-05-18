@@ -35,6 +35,8 @@ gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
 if gunicorn_threads:
     threads = cpu_resources * 2 + 1
 
+print_config = True
+
 
 # Server Hooks
 def on_starting(server):
