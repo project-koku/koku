@@ -1050,6 +1050,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_order_by_delta(self):
         """Test that the order_by delta with pagination does not error."""
+        # also fix in instance type code
         limit = 5
         offset = 0
         url = reverse("reports-openshift-aws-instance-type")
@@ -1058,7 +1059,6 @@ class OCPAWSReportViewTest(IamTestCase):
             {
                 "filter[limit]": limit,
                 "filter[offset]": offset,
-                "group_by[region]": "*",
                 "order_by[delta]": "asc",
                 "delta": "usage",
             },
