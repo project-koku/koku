@@ -16,6 +16,12 @@ from api.report.gcp.openshift.serializers import OCPGCPQueryParamSerializer
 
 FAKE = Faker()
 
+URL_LIST = [
+    "/api/cost-management/v1/reports/gcp/instance-types/",
+    "/api/cost-management/v1/reports/gcp/costs/",
+    "/api/cost-management/v1/reports/gcp/storage/",
+]
+
 
 class OCPGCPFilterSerializerTest(TestCase):
     """Tests for the filter serializer."""
@@ -205,33 +211,48 @@ class OCPGCPOrderBySerializerTest(TestCase):
     def test_order_by_project(self):
         """Test order by project."""
         order_params = {"project": "asc"}
-        serializer = OCPGCPOrderBySerializer(data=order_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPOrderBySerializer(data=order_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_order_by_cluster(self):
         """Test order by cluster."""
         order_params = {"cluster": "asc"}
-        serializer = OCPGCPOrderBySerializer(data=order_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPOrderBySerializer(data=order_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_order_by_node(self):
         """Test order by node."""
         order_params = {"node": "asc"}
-        serializer = OCPGCPOrderBySerializer(data=order_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPOrderBySerializer(data=order_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_parse_order_by_params_success(self):
         """Test parse of a order_by param successfully."""
         order_params = {"cost": "asc"}
-        serializer = OCPGCPOrderBySerializer(data=order_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPOrderBySerializer(data=order_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_order_by_params_invalid_fields(self):
         """Test parse of order_by params for invalid fields."""
         order_params = {"region": "asc", "invalid": "param"}
-        serializer = OCPGCPOrderBySerializer(data=order_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPOrderBySerializer(data=order_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
 
 class OCPGCPQueryParamSerializerTest(TestCase):
@@ -248,8 +269,11 @@ class OCPGCPQueryParamSerializerTest(TestCase):
                 "region": [FAKE.uuid4()],
             },
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
         """Test parse of a query params successfully."""
@@ -264,8 +288,11 @@ class OCPGCPQueryParamSerializerTest(TestCase):
             },
             "units": "byte",
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
@@ -279,9 +306,12 @@ class OCPGCPQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_nested_fields(self):
         """Test parse of query params for invalid nested_fields."""
@@ -294,37 +324,52 @@ class OCPGCPQueryParamSerializerTest(TestCase):
                 "region": [FAKE.uuid4()],
             },
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_parse_units(self):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_tag_keys_dynamic_field_validation_success(self):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
@@ -359,15 +404,21 @@ class OCPGCPQueryParamSerializerTest(TestCase):
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service] fails without a matching group-by."""
         query_params = {"order_by": {"service": "asc"}}
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_order_by_request(self):
         """Test parse of charge query params for invalid fields."""
@@ -378,9 +429,11 @@ class OCPGCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_order_by_usage(self):
         """Test parse of charge query params for invalid fields."""
@@ -391,6 +444,9 @@ class OCPGCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = OCPGCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)

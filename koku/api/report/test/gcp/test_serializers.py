@@ -16,6 +16,12 @@ from api.report.gcp.serializers import GCPQueryParamSerializer
 
 FAKE = Faker()
 
+URL_LIST = [
+    "/api/cost-management/v1/reports/gcp/instance-types/",
+    "/api/cost-management/v1/reports/gcp/costs/",
+    "/api/cost-management/v1/reports/gcp/storage/",
+]
+
 
 class GCPFilterSerializerTest(TestCase):
     """Tests for the filter serializer."""
@@ -196,8 +202,10 @@ class GCPQueryParamSerializerTest(TestCase):
                 "account": [FAKE.uuid4()],
             },
         }
-        serializer = GCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
@@ -211,9 +219,11 @@ class GCPQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_nested_fields(self):
         """Test parse of query params for invalid nested_fields."""
@@ -226,37 +236,51 @@ class GCPQueryParamSerializerTest(TestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_parse_units(self):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
-        serializer = GCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_tag_keys_dynamic_field_validation_success(self):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_valid_deltas(self):
         """Test successful handling of valid delta for cost requests."""
@@ -290,15 +314,21 @@ class GCPQueryParamSerializerTest(TestCase):
     def test_order_by_service_with_groupby(self):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
-        serializer = GCPQueryParamSerializer(data=query_params)
-        self.assertTrue(serializer.is_valid())
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_order_by_request(self):
         """Test parse of charge query params for invalid fields."""
@@ -309,9 +339,12 @@ class GCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
 
     def test_query_params_invalid_order_by_usage(self):
         """Test parse of charge query params for invalid fields."""
@@ -322,6 +355,9 @@ class GCPQueryParamSerializerTest(TestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        serializer = GCPQueryParamSerializer(data=query_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+
+        for url in URL_LIST:
+            req = Mock(path=url)
+            serializer = GCPQueryParamSerializer(data=query_params, context={"request": req})
+            with self.assertRaises(serializers.ValidationError):
+                serializer.is_valid(raise_exception=True)
