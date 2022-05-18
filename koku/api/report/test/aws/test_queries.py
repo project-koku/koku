@@ -236,7 +236,7 @@ class AWSReportQueryTest(IamTestCase):
     def test_get_group_by_with_limit_and_no_group_by_params(self):
         """Test the _get_group_by method with limit params."""
         expected = ["instance_type"]
-        url = "?filter[limit]=1&group_by[instance_type]=*"
+        url = "?filter[limit]=1&group_by[account]=*"
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
         handler = AWSReportQueryHandler(query_params)
         group_by = handler._get_group_by()

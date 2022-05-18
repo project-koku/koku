@@ -563,7 +563,7 @@ class AWSReportViewTest(IamTestCase):
     def test_order_by_delta(self):
         """Test that the order_by delta with pagination does not error."""
         qs_list = [
-            "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage&group_by[region]=*",
+            "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage",
             "?order_by[delta]=asc&delta=usage",
         ]
         for qs in qs_list:
@@ -596,7 +596,7 @@ class AWSReportViewTest(IamTestCase):
 
     def test_others_count(self):
         """Test that the others count works with a small limit."""
-        qs_list = ["?filter[limit]=1&group_by[region]=*"]
+        qs_list = ["?filter[limit]=1"]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
