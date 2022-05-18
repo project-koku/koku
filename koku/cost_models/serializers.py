@@ -485,13 +485,10 @@ class CostModelSerializer(serializers.Serializer):
 
     def validate_rates(self, rates):
         """Run validation for rates."""
+        print("ACCESSED")
         validated_rates = []
         tag_rates = []
         for rate in rates:
-            print("RATE: ", rate)
-            # if rate != currency:
-            #     err_msg = f"Rate units must match currency in a cost model: {rate} does not equal {self.currency}."
-            #     raise serializers.ValidationError(err_msg)
             serializer = RateSerializer(data=rate)
             serializer.is_valid(raise_exception=True)
             validated_rates.append(serializer.validated_data)
@@ -502,12 +499,36 @@ class CostModelSerializer(serializers.Serializer):
         return validated_rates
 
     def validate_distribution(self, distribution):
+        print("ACCESSED")
         """Run validation for distribution choice."""
         distrib_choice_list = [choice[0] for choice in metric_constants.DISTRIBUTION_CHOICES]
         if distribution not in distrib_choice_list:
             error_msg = f"{distribution} is an invaild distribution type"
             raise serializers.ValidationError(error_msg)
         return distribution
+
+    def validate_currency(self, value):
+        """Validate incoming currency value based on path."""
+        print("BEING ACCESSED")
+        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
+        if value not in valid_currency:
+            error = {"currency": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
+
+    def validate_rates_currency(self, data):
+        """Validate incoming currency and rates all match."""
+        print("THIS IS BEING ACCESSED")
+        rates = data.get("rates")
+        currency = data.get("currency")
+        err_msg = "Rate units must match currency provided in a cost model."
+        for rate in rates:
+            if rate.get("tiered_rates"):
+                tiered_rates = rate.get("tiered_rates")[0]
+                if (tiered_rates.get("unit") or tiered_rates.get("usage").get("unit")) != currency:
+                    raise serializers.ValidationError(err_msg)
+            elif rate.get("tag_rates"):
+                print("RATE: ", rate.get("tag_rates"))
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
@@ -570,12 +591,3 @@ class CostModelSerializer(serializers.Serializer):
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal
-
-    def validate_currency(self, value):
-        """Validate incoming currency value based on path."""
-
-        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
-        if value not in valid_currency:
-            error = {"currency": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value
