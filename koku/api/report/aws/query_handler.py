@@ -148,7 +148,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         group_by = self._get_group_by()
         if "account" not in group_by:
             group_by = ["account"] + group_by
-        query_data = self.format_for_ui_recursive(group_by, query_data)
+        query_data, _, _ = self.format_for_ui_recursive(group_by, query_data)
         query_data_results = self.format_sub_orgs(query_data_results)
         for each_day in query_data:
             accounts = each_day.get("accounts", [])
@@ -348,7 +348,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # reset to the original query filters
         groupby = self._get_group_by()
         if not self.is_csv_output and not org_unit_applied:
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
+            self.query_data, _, _ = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
 

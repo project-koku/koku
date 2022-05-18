@@ -943,6 +943,8 @@ class ReportQueryHandler(QueryHandler):
         key_order: List with order the keys should be in
         key_map: dictionary that is mapping of data
         """
+        if not key_order_mapping or not key_map:
+            return data
         if isinstance(data, list):
             if data and isinstance(data[0], dict):
                 if "currencys" in data[0].keys() and group_key in data[0].keys():

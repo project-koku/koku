@@ -452,7 +452,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # LOG.info(f"key_order_dict: {key_order_dict}")
             # LOG.info(pformat(self.query_data))
             # LOG.info(f"groupby: {groupby}")
-            data = self.build_reordered(self.query_data, key_order_dict, order_mapping, groupby[0])
+            if groupby:
+                data = self.build_reordered(self.query_data, key_order_dict, order_mapping, groupby[0])
+                self.query_data = data
             # LOG.info(pformat(data))
         self.query_sum = ordered_total
 
