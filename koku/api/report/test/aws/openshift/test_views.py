@@ -1055,8 +1055,17 @@ class OCPAWSReportViewTest(IamTestCase):
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
         params_list = [
-            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc", "delta": "usage"},
-            {"order_by[delta]": "asc", "delta": "usage"},
+            {
+                "filter[limit]": limit,
+                "filter[offset]": offset,
+                "group_by[region]": "*",
+                "order_by[delta]": "asc",
+                "delta": "usage",
+            },
+            {
+                "order_by[delta]": "asc",
+                "delta": "usage",
+            },
         ]
 
         for params in params_list:

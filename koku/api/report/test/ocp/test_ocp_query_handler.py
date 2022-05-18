@@ -365,7 +365,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_add_current_month_deltas_no_previous_data_w_query_data(self):
         """Test that current month deltas are calculated with no previous data for field two."""
-        url = "?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1"
+        url = "?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[project]=*"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
         handler._delta = "usage__foo"

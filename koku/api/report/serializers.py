@@ -326,7 +326,7 @@ class ParamSerializer(BaseSerializer):
         time_scope_value = data.get("filter", {}).get("time_scope_value")
         time_scope_units = data.get("filter", {}).get("time_scope_units")
         filter_limit = data.get("filter", {}).get("limit")
-        filter_offset = data.get("filter", {}.get("offset"))
+        filter_offset = data.get("filter", {}).get("offset")
 
         if (start_date or end_date) and (time_scope_value or time_scope_units):
             error = {
