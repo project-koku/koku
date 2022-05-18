@@ -373,6 +373,10 @@ if CW_AWS_ACCESS_KEY_ID:
         else:
             print("CloudWatch not configured.")
 
+
+gunicorn_logger = logging.getLogger("gunicorn.error")
+LOGGING_HANDLERS.extend(gunicorn_logger.handlers)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
