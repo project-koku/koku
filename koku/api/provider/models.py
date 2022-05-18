@@ -197,11 +197,12 @@ class Provider(models.Model):
             using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
-                self._cascade_delete()
-                self._delete_from_target(
-                    {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                    target_values=[self.pk],
-                )
+                with transaction.atomic():
+                    self._cascade_delete()
+                    self._delete_from_target(
+                        {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                        target_values=[self.pk],
+                    )
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
         else:
@@ -231,8 +232,10 @@ class Provider(models.Model):
             target_values = [self.pk]
         _normalized_type = self._get_normalized_type()
         _cascade_branch_tables = (
-            f"reporting_{_normalized_type}costentrybill",
             "reporting_common_costusagereportmanifest",
+            f"reporting_{_normalized_type}costentrybill",
+            f"reporting_{_normalized_type}meter",
+            f"reporting_{_normalized_type}usagereportperiod",
         )
 
         for target_info in self._get_linked_table_names(_normalized_type, target_table, public_schema):
@@ -245,7 +248,9 @@ class Provider(models.Model):
                 self._set_infrastructure_id_null()
 
             if target_info["table_name"] in _cascade_branch_tables:
-                public_schema = self.customer.schema_name if "costentrybill" in target_info["table_name"] else "public"
+                public_schema = (
+                    self.customer.schema_name if target_info["table_name"] in _cascade_branch_tables[1:] else "public"
+                )
                 LOG.info(f"DELETE CASCADE BRANCH TO {target_info['table_name']}")
                 self._cascade_delete(
                     target_table=target_info["table_name"],
