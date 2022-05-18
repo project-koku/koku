@@ -393,7 +393,7 @@ LOGGING = {
     "loggers": {
         "gunicorn": {
             "handlers": LOGGING_HANDLERS,
-            "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="INFO"),
+            "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG"),
         },
         "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
