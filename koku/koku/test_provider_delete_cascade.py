@@ -15,6 +15,7 @@ from api.provider.models import Provider
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryBill
+from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
@@ -39,7 +40,7 @@ class TestProviderDeleteSQL(IamTestCase):
         cls._customer = c
 
     def test_aws_provider_delete(self):
-        """Test aws provider delete cascade"""
+        """Test AWS provider delete cascade"""
         c = self._customer
         # Add some bogus providers
         paws = Provider(
@@ -77,7 +78,7 @@ class TestProviderDeleteSQL(IamTestCase):
         self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
 
     def test_azure_provider_delete(self):
-        """Test azure provider delete cascade"""
+        """Test Azure provider delete cascade"""
         c = self._customer
         # Add some bogus providers
         pazure = Provider(
@@ -114,7 +115,7 @@ class TestProviderDeleteSQL(IamTestCase):
         self.assertEqual(Provider.objects.filter(pk=pazure.pk).count(), 0)
 
     def test_gcp_provider_delete(self):
-        """Test gcp provider delete cascade"""
+        """Test GCP provider delete cascade"""
         c = self._customer
         # Add some bogus providers
         pgcp = Provider(
@@ -147,7 +148,7 @@ class TestProviderDeleteSQL(IamTestCase):
         self.assertEqual(Provider.objects.filter(pk=pgcp.pk).count(), 0)
 
     def test_ocp_provider_delete(self):
-        """Test ocp provider delete cascade"""
+        """Test OCP provider delete cascade"""
         c = self._customer
         # Add some bogus providers
         pocp = Provider(
@@ -180,3 +181,41 @@ class TestProviderDeleteSQL(IamTestCase):
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
 
         self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
+
+    def test_oci_provider_delete(self):
+        """Test OCI provider delete cascade"""
+        c = self._customer
+        # Add some bogus providers
+        poci = Provider(
+            uuid=uuid.uuid4(),
+            name="eek_oci_provider_3",
+            type=Provider.PROVIDER_OCI,
+            setup_complete=False,
+            active=True,
+            customer=c,
+        )
+        poci.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        ociceb = OCICostEntryBill(
+            billing_resource="546315338435",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=poci,
+        )
+        with schema_context(c.schema_name):
+            ociceb.save()
+
+        expected = "reporting_ocicostentrybill"
+        expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            poci.delete()
+            _log_output = "\n".join(_logger.output)
+            self.assertIn(expected, _log_output)
+            self.assertIn(expected2, _log_output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(OCICostEntryBill.objects.filter(pk=ociceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=poci.pk).count(), 0)
