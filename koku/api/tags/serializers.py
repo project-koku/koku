@@ -17,6 +17,7 @@ OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
 AWS_FILTER_OP_FIELDS = ["account"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 GCP_FILTER_OP_FIELDS = ["account", "gcp_project"]
+OCI_FILTER_OP_FIELDS = ["payer_tenant_id"]
 
 
 class FilterSerializer(serializers.Serializer):
@@ -160,6 +161,18 @@ class OCPGCPFilterSerializer(GCPFilterSerializer, OCPFilterSerializer):
         """Initialize the GCPFilterSerializer."""
         super().__init__(*args, **kwargs)
         add_operator_specified_fields(self.fields, GCP_FILTER_OP_FIELDS + OCP_FILTER_OP_FIELDS)
+
+
+class OCIFilterSerializer(FilterSerializer):
+    """Serializer for handling tag query parameter filter."""
+
+    payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
+    enabled = serializers.BooleanField(default=True, required=False)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the OCIFilterSerializer."""
+        super().__init__(*args, **kwargs)
+        add_operator_specified_fields(self.fields, OCI_FILTER_OP_FIELDS)
 
 
 class TagsQueryParamSerializer(ParamSerializer):
@@ -310,3 +323,23 @@ class OCPGCPTagsQueryParamSerializer(GCPTagsQueryParamSerializer, OCPTagsQueryPa
     """Serializer for handling OCP-on-GCP tag query parameters."""
 
     filter = OCPGCPFilterSerializer(required=False)
+
+
+class OCITagsQueryParamSerializer(TagsQueryParamSerializer):
+    """Serializer for handling OCI tag query parameters."""
+
+    filter = OCIFilterSerializer(required=False)
+
+    def validate_filter(self, value):
+        """Validate incoming filter data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter field inputs are invalid
+
+        """
+        validate_field(self, "filter", OCIFilterSerializer, value)
+        return value

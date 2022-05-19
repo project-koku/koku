@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """OCI views."""
-from api.common.permissions.oci_access import OciAccessPermission
+from api.common.permissions.oci_access import OCIAccessPermission
 from api.models import Provider
 from api.report.oci.query_handler import OCIReportQueryHandler
 from api.report.oci.serializers import OCIQueryParamSerializer
@@ -14,7 +14,7 @@ from reporting.provider.oci.models import OCITagsSummary
 class OCIView(ReportView):
     """OCI Base View."""
 
-    permission_classes = [OciAccessPermission]
+    permission_classes = [OCIAccessPermission]
     provider = Provider.PROVIDER_OCI
     serializer = OCIQueryParamSerializer
     query_handler = OCIReportQueryHandler

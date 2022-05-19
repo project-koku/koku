@@ -44,17 +44,10 @@ class OCIProviderMap(ProviderMap):
         self._mapping = [
             {
                 "provider": Provider.PROVIDER_OCI,
-                "annotations": {
-                    "account": "payer_tenant_id",
-                },
-                "group_by_annotations": {
-                    "account": {"tenant": "payer_tenant_id"},
-                    "service": {"service": "product_service"},
-                },  # Annotations that should happen depending on group_by values
-                # This is to make sure that the date range generator uses usage_start for >= and <= comparisions
+                "annotations": {},
                 "end_date": "usage_start",
                 "filters": {
-                    "account": {
+                    "payer_tenant_id": {
                         "field": "payer_tenant_id",
                         "operation": "icontains",
                         "composition_key": "account_filter",
@@ -63,7 +56,7 @@ class OCIProviderMap(ProviderMap):
                     "region": {"field": "region", "operation": "icontains"},
                     "instance_type": {"field": "instance_type", "operation": "icontains"},
                 },
-                "group_by_options": ["service", "account", "region"],
+                "group_by_options": ["service", "payer_tenant_id", "region"],
                 "tag_column": "tags",
                 "report_type": {
                     "costs": {
@@ -325,33 +318,33 @@ class OCIProviderMap(ProviderMap):
         self.views = {
             "costs": {
                 "default": OCICostSummaryP,
-                ("account",): OCICostSummaryByAccountP,
+                ("payer_tenant_id",): OCICostSummaryByAccountP,
                 ("region",): OCICostSummaryByRegionP,
-                ("account", "region"): OCICostSummaryByRegionP,
+                ("payer_tenant_id", "region"): OCICostSummaryByRegionP,
                 ("service",): OCICostSummaryByServiceP,
-                ("account", "service"): OCICostSummaryByServiceP,
+                ("payer_tenant_id", "service"): OCICostSummaryByServiceP,
             },
             "instance_type": {
                 "default": OCIComputeSummaryP,
-                ("account",): OCIComputeSummaryByAccountP,
+                ("payer_tenant_id",): OCIComputeSummaryByAccountP,
                 ("instance_type",): OCIComputeSummaryP,
-                ("account", "instance_type"): OCIComputeSummaryByAccountP,
+                ("payer_tenant_id", "instance_type"): OCIComputeSummaryByAccountP,
             },
             "storage": {
                 "default": OCIStorageSummaryP,
-                ("account",): OCIStorageSummaryByAccountP,
+                ("payer_tenant_id",): OCIStorageSummaryByAccountP,
             },
             "database": {
                 "default": OCIDatabaseSummaryP,
                 ("service",): OCIDatabaseSummaryP,
-                ("account", "service"): OCIDatabaseSummaryP,
-                ("account",): OCIDatabaseSummaryP,
+                ("payer_tenant_id", "service"): OCIDatabaseSummaryP,
+                ("payer_tenant_id",): OCIDatabaseSummaryP,
             },
             "network": {
                 "default": OCINetworkSummaryP,
                 ("service",): OCINetworkSummaryP,
-                ("account", "service"): OCINetworkSummaryP,
-                ("account",): OCINetworkSummaryP,
+                ("payer_tenant_id", "service"): OCINetworkSummaryP,
+                ("payer_tenant_id",): OCINetworkSummaryP,
             },
         }
         super().__init__(provider, report_type)

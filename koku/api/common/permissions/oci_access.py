@@ -6,7 +6,7 @@
 from rest_framework import permissions
 
 
-class GcpAccessPermission(permissions.BasePermission):
+class OCIAccessPermission(permissions.BasePermission):
     """Determines if a user can view OCI data."""
 
     resource_type = "oci.tenant"
@@ -29,7 +29,7 @@ class GcpAccessPermission(permissions.BasePermission):
         return False
 
 
-class GcpProjectPermission(GcpAccessPermission):
+class OCIProjectPermission(OCIAccessPermission):
     """Determines if a user can view OCI data."""
 
     resource_type = "oci.project"

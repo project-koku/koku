@@ -27,7 +27,6 @@ class OCIGroupBySerializer(GroupSerializer):
         "product_service",
     )
 
-    # account field will accept both account number and account alias.
     payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
     instance_type = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
@@ -37,9 +36,11 @@ class OCIGroupBySerializer(GroupSerializer):
 class OCIOrderBySerializer(OrderSerializer):
     """Serializer for handling query parameter order_by."""
 
-    _opfields = ("usage_amount", "region", "product_service", "date")
+    _opfields = ("payer_tenant_id", "usage_amount", "instance_type", "region", "product_service", "date")
 
+    payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
     usage_amount = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
+    instance_type = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     region = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     product_service = serializers.ChoiceField(choices=OrderSerializer.ORDER_CHOICES, required=False)
     date = serializers.DateField(required=False)
@@ -48,9 +49,10 @@ class OCIOrderBySerializer(OrderSerializer):
 class OCIFilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    _opfields = ("payer_tenant_id", "product_service", "region")
+    _opfields = ("payer_tenant_id", "instance_type", "product_service", "region")
 
     payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
+    instance_type = StringOrListField(child=serializers.CharField(), required=False)
     product_service = StringOrListField(child=serializers.CharField(), required=False)
     region = StringOrListField(child=serializers.CharField(), required=False)
 
