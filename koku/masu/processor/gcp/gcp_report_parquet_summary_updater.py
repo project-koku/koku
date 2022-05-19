@@ -18,8 +18,6 @@ from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
-# from masu.util.common import determine_if_full_summary_update_needed
-
 LOG = logging.getLogger(__name__)
 
 
