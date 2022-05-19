@@ -101,26 +101,27 @@ At this point, you should be able to follow the steps in `Koku's original develo
 Developing with Docker
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Alternatively, if you want to run the project in Docker environment, you can follow the same process in `Koku's README`_ only with the following changes in `docker-compose.yml`_ file:
+Alternatively, if you want to run the project in Docker environment, follow the below steps:
 
-1. Under ``koku-base`` service, specify the ``platform`` that the container should be built on: ::
+1. Set `compose_file` in your `.env` file to point to `compose-file-m1.yml` file specially created for M1 Mac: ::
 
-    ..
-    services:
-        koku-base:
-            image: koku_base
-            platform: linux/amd64
-    ..
+    compose_file='testing/compose_files/docker-compose-m1.yml'
 
-2. In the ``entrypoints`` list under ``koku-worker`` service, remove the items starting from ``watchdog`` up until ``celery`` (NOT including ``celery``). At the time of creating this documentation, ``watchdog`` package is not supported on M1: ::
+2. `compose-file-m1.yml` removes the use of `watchdog` package as at the time of creating this documentation, `watchdog` package is not supported on M1.
+   Instead, we use a VSCode extension to run a `bash script`_ on Save in order to re-build docker containers.
+   From VSCode Extensions, install `emeraldwalk.RunOnSave` and add the following to `settings.json`. More on `Run on Save`_: ::
 
-    ..
-    koku-worker:
-        hostname: koku-worker-1
-        image: koku_base
-        working_dir: /koku/koku
-        entrypoint: ['watchmedo', 'auto-restart', .., 'celery', '-A' ..]
-    ..
+    {
+        ...
+        "emeraldwalk.runonsave": {
+            "commands": [
+                {
+                    "cmd": "bash <path-to-project>/koku/dev/scripts/m1_refresher.sh"
+                }
+            ]
+        }
+    }
+
 
 References
 ----------
@@ -133,3 +134,5 @@ References
 .. _`Koku's original development`: https://github.com/project-koku/koku/blob/main/README.rst#development
 .. _`Koku's README`: https://github.com/project-koku/koku/blob/main/README.rst
 .. _`docker-compose.yml`: https://github.com/project-koku/koku/blob/main/docker-compose.yml
+.. _`Run on Save`: https://betterprogramming.pub/automatically-execute-bash-commands-on-save-in-vs-code-7a3100449f63
+.. _`bash script`: https://github.com/project-koku/koku/tree/main/dev/scripts/m1_refresher.sh

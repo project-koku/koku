@@ -106,7 +106,7 @@ class ProviderModelTest(MasuTestCase):
         }
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
