@@ -55,23 +55,19 @@ class GCPProvider(ProviderInterface):
 
     def update_source_data_source(self, data_source):
         """Update data_source."""
-        try:
-            source_query = Sources.objects.filter(billing_source__data_source__dataset=data_source.get("dataset"))
-            for source in source_query:
-                if source.billing_source.get("data_source") != data_source:
-                    source.billing_source = {"data_source": data_source}
-                    source.save()
+        source_query = Sources.objects.filter(billing_source__data_source__dataset=data_source.get("dataset"))
+        for source in source_query:
+            if source.billing_source.get("data_source") != data_source:
+                source.billing_source = {"data_source": data_source}
+                source.save()
 
-                provider_uuid = source.koku_uuid
-                provider = Provider.objects.filter(uuid=provider_uuid).first()
-                if provider:
-                    provider_billing_source = provider.billing_source
-                    if provider_billing_source and provider_billing_source.data_source != data_source:
-                        provider_billing_source.data_source = data_source
-                        provider_billing_source.save()
-
-        except Sources.DoesNotExist:
-            LOG.info("Source not found, unable to update data source.")
+            provider_uuid = source.koku_uuid
+            provider = Provider.objects.filter(uuid=provider_uuid).first()
+            if provider:
+                provider_billing_source = provider.billing_source
+                if provider_billing_source and provider_billing_source.data_source != data_source:
+                    provider_billing_source.data_source = data_source
+                    provider_billing_source.save()
 
     def _format_dataset_id(self, data_source, credentials):
         """Format dataset ID based on input format."""
