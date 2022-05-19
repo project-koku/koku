@@ -6,7 +6,6 @@
 import copy
 import logging
 
-from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
@@ -65,29 +64,23 @@ class OCIReportQueryHandler(ReportQueryHandler):
         self._limit = parameters.get_filter("limit")
         self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
-        # We need to overwrite the pack keys here to include the credit
-        # dictionary in the endpoint returns.
         oci_pack_keys = {
             "infra_raw": {"key": "raw", "group": "infrastructure"},
             "infra_markup": {"key": "markup", "group": "infrastructure"},
             "infra_usage": {"key": "usage", "group": "infrastructure"},
-            "infra_credit": {"key": "credit", "group": "infrastructure"},
             "infra_total": {"key": "total", "group": "infrastructure"},
             "sup_raw": {"key": "raw", "group": "supplementary"},
             "sup_markup": {"key": "markup", "group": "supplementary"},
             "sup_usage": {"key": "usage", "group": "supplementary"},
-            "sup_credit": {"key": "credit", "group": "supplementary"},
             "sup_total": {"key": "total", "group": "supplementary"},
             "cost_raw": {"key": "raw", "group": "cost"},
             "cost_markup": {"key": "markup", "group": "cost"},
             "cost_usage": {"key": "usage", "group": "cost"},
-            "cost_credit": {"key": "credit", "group": "cost"},
             "cost_total": {"key": "total", "group": "cost"},
         }
         oci_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
         oci_pack_definitions["cost_groups"]["keys"] = oci_pack_keys
 
-        # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         self._mapper.PACK_DEFINITIONS = oci_pack_definitions
 
@@ -110,11 +103,6 @@ class OCIReportQueryHandler(ReportQueryHandler):
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
-        group_by_fields = self._mapper.provider_map.get("group_by_annotations")
-        for group_key in self._get_group_by():
-            if group_by_fields.get(group_key):
-                for q_param, db_field in group_by_fields[group_key].items():
-                    annotations[q_param] = Concat(db_field, Value(""))
         return annotations
 
     def _format_query_response(self):
@@ -181,9 +169,6 @@ class OCIReportQueryHandler(ReportQueryHandler):
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
-            for alias_key, alias_value in self.group_by_alias.items():
-                if alias_key in query_group_by:
-                    annotations[f"{alias_key}_alias"] = F(alias_value)
             query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 

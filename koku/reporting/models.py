@@ -106,6 +106,7 @@ from reporting.provider.gcp.openshift.models import OCPGCPDatabaseSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPNetworkSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPStorageSummaryP
 from reporting.provider.gcp.openshift.models import OCPGCPTagsSummary
+from reporting.provider.oci.models import OCIComputeSummaryByAccountP
 from reporting.provider.oci.models import OCIComputeSummaryP
 from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.oci.models import OCICostEntryLineItemDailySummary
@@ -114,6 +115,7 @@ from reporting.provider.oci.models import OCICostSummaryByServiceP
 from reporting.provider.oci.models import OCICostSummaryP
 from reporting.provider.oci.models import OCIDatabaseSummaryP
 from reporting.provider.oci.models import OCINetworkSummaryP
+from reporting.provider.oci.models import OCIStorageSummaryByAccountP
 from reporting.provider.oci.models import OCIStorageSummaryP
 from reporting.provider.oci.models import OCITagsSummary
 from reporting.provider.ocp.costs.models import CostSummary

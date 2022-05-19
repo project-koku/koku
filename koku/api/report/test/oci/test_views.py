@@ -28,7 +28,7 @@ class OCIReportViewTest(IamTestCase):
         super().setUp()
 
         self.report = {
-            "group_by": {"tenant": ["*"]},
+            "group_by": {"payer_tenant_id": ["*"]},
             "filter": {
                 "resolution": "monthly",
                 "time_scope_value": -1,
@@ -38,58 +38,58 @@ class OCIReportViewTest(IamTestCase):
             "data": [
                 {
                     "date": "2018-07",
-                    "tenant": [
+                    "payer_tenant_ids": [
                         {
-                            "tenant": "00000000-0000-0000-0000-000000000000",
+                            "payer_tenant_id": "00000000-0000-0000-0000-000000000000",
                             "values": [
                                 {
                                     "date": "2018-07",
                                     "units": "GB-Mo",
-                                    "tenant": "00000000-0000-0000-0000-000000000000",
+                                    "payer_tenant_id": "00000000-0000-0000-0000-000000000000",
                                     "total": 1826.74238146924,
                                 }
                             ],
                         },
                         {
-                            "tenant": "11111111-1111-1111-1111-111111111111",
+                            "payer_tenant_id": "11111111-1111-1111-1111-111111111111",
                             "values": [
                                 {
                                     "date": "2018-07",
                                     "units": "GB-Mo",
-                                    "tenant": "11111111-1111-1111-1111-111111111111",
+                                    "payer_tenant_id": "11111111-1111-1111-1111-111111111111",
                                     "total": 1137.74036198065,
                                 }
                             ],
                         },
                         {
-                            "tenant": "22222222-2222-2222-2222-222222222222",
+                            "payer_tenant_id": "22222222-2222-2222-2222-222222222222",
                             "values": [
                                 {
                                     "date": "2018-07",
                                     "units": "GB-Mo",
-                                    "tenant": "22222222-2222-2222-2222-222222222222",
+                                    "payer_tenant_id": "22222222-2222-2222-2222-222222222222",
                                     "total": 1045.80659412797,
                                 }
                             ],
                         },
                         {
-                            "tenant": "33333333-3333-3333-3333-333333333333",
+                            "payer_tenant_id": "33333333-3333-3333-3333-333333333333",
                             "values": [
                                 {
                                     "date": "2018-07",
                                     "units": "GB-Mo",
-                                    "tenant": "33333333-3333-3333-3333-333333333333",
+                                    "payer_tenant_id": "33333333-3333-3333-3333-333333333333",
                                     "total": 807.326470618818,
                                 }
                             ],
                         },
                         {
-                            "tenant": "44444444-4444-4444-4444-444444444444",
+                            "payer_tenant_id": "44444444-4444-4444-4444-444444444444",
                             "values": [
                                 {
                                     "date": "2018-07",
                                     "units": "GB-Mo",
-                                    "tenant": "44444444-4444-4444-4444-444444444444",
+                                    "payer_tenant_id": "44444444-4444-4444-4444-444444444444",
                                     "total": 658.306642830709,
                                 }
                             ],
@@ -134,7 +134,7 @@ class OCIReportViewTest(IamTestCase):
         """Test unit conversion succeeds in OCICostView."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
-            "group_by[tenant]": "*",
+            "group_by[payer_tenant_id]": "*",
             "filter[resolution]": "monthly",
             "filter[time_scope_value]": "-1",
             "filter[time_scope_units]": "month",

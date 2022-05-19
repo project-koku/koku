@@ -4,7 +4,6 @@
 #
 """Test the OCI Provider query handler."""
 import logging
-from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
@@ -12,10 +11,8 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
 
-from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
-from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -29,6 +26,7 @@ from api.tags.oci.queries import OCITagQueryHandler
 from api.tags.oci.view import OCITagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from reporting.models import OCIComputeSummaryByAccountP
 from reporting.models import OCIComputeSummaryP
 from reporting.models import OCICostEntryBill
 from reporting.models import OCICostEntryLineItemDailySummary
@@ -37,6 +35,7 @@ from reporting.models import OCICostSummaryByServiceP
 from reporting.models import OCICostSummaryP
 from reporting.models import OCIDatabaseSummaryP
 from reporting.models import OCINetworkSummaryP
+from reporting.models import OCIStorageSummaryByAccountP
 from reporting.models import OCIStorageSummaryP
 
 LOG = logging.getLogger(__name__)
@@ -299,12 +298,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("tenants")
+            month_data = data_item.get("payer_tenant_ids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 try:
-                    UUID(month_item.get("tenant"), version=4)
+                    UUID(month_item.get("payer_tenant_id"), version=4)
                 except ValueError as exc:
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("values"), list)
@@ -330,12 +329,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("tenants")
+            month_data = data_item.get("payer_tenant_ids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             for month_item in month_data:
                 try:
-                    UUID(month_item.get("tenant"), version=4)
+                    UUID(month_item.get("payer_tenant_id"), version=4)
                 except ValueError as exc:
                     self.fail(exc)
                 self.assertIsInstance(month_item.get("product_services"), list)
@@ -361,12 +360,12 @@ class OCIReportQueryHandlerTest(IamTestCase):
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("tenants")
+            month_data = data_item.get("payer_tenant_ids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             self.assertEqual(len(month_data), 1)
             for month_item in month_data:
-                self.assertIsInstance(month_item.get("tenant"), str)
+                self.assertIsInstance(month_item.get("payer_tenant_id"), str)
                 self.assertIsInstance(month_item.get("values"), list)
 
     def test_execute_query_curr_month_by_tenant_w_order(self):
@@ -390,13 +389,13 @@ class OCIReportQueryHandlerTest(IamTestCase):
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("tenants")
+            month_data = data_item.get("payer_tenant_ids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             self.assertEqual(len(month_data), 1)
             current_total = 0
             for month_item in month_data:
-                self.assertIsInstance(month_item.get("tenant"), str)
+                self.assertIsInstance(month_item.get("payer_tenant_id"), str)
                 self.assertIsInstance(month_item.get("values"), list)
                 data_point_total = month_item.get("values")[0].get("cost", {}).get("total", {}).get("value")
                 self.assertIsNotNone(data_point_total)
@@ -405,7 +404,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_tenant_w_order_by_tenant(self):
         """Test execute_query for current month on monthly breakdown by tenant with asc order."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[tenant]=asc&group_by[payer_tenant_id]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[payer_tenant_id]=asc&group_by[payer_tenant_id]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -424,16 +423,16 @@ class OCIReportQueryHandlerTest(IamTestCase):
         cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
         for data_item in data:
             month_val = data_item.get("date")
-            month_data = data_item.get("tenants")
+            month_data = data_item.get("payer_tenant_ids")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
             self.assertEqual(len(month_data), 1)
             current = "0"
             for month_item in month_data:
-                self.assertIsInstance(month_item.get("tenant"), str)
+                self.assertIsInstance(month_item.get("payer_tenant_id"), str)
                 self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsNotNone(month_item.get("values")[0].get("tenant"))
-                data_point = month_item.get("values")[0].get("tenant")
+                self.assertIsNotNone(month_item.get("values")[0].get("payer_tenant_id"))
+                data_point = month_item.get("values")[0].get("payer_tenant_id")
                 if data_point == "1 Other":
                     continue
                 self.assertLess(current, data_point)
@@ -517,7 +516,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         """Test execute_query for current month on monthly filtered by tenant."""
         with tenant_context(self.tenant):
             tenant = OCICostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start).values(
-                "payer_tenant_ids"
+                "payer_tenant_id"
             )[0]
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[payer_tenant_id]={tenant}"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
@@ -671,123 +670,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
         for data_item in data:
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
-
-    def test_execute_query_w_delta(self):
-        """Test grouped by deltas."""
-        path = reverse("reports-oci-costs")
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[payer_tenant_id]=*&delta=cost"  # noqa: E501
-        query_params = self.mocked_query_params(url, OCICostView, path)
-        handler = OCIReportQueryHandler(query_params)
-        # test the calculations
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-
-        subs = data[0].get("tenants", [{}])
-        if isinstance(self.dh.this_month_start, datetime):
-            v_this_month_start = self.dh.this_month_start.date()
-        else:
-            v_this_month_start = self.dh.this_month_start
-        if isinstance(self.dh.today, datetime):
-            v_today = self.dh.today.date()
-            v_today_last_month = (self.dh.today - relativedelta(months=1)).date()
-        else:
-            v_today = self.dh.today
-            v_today_last_month = self.dh.today = relativedelta(months=1)
-        if isinstance(self.dh.last_month_start, datetime):
-            v_last_month_start = self.dh.last_month_start.date()
-        else:
-            v_last_month_start = self.dh.last_month_start
-
-        for sub in subs:
-            current_total = Decimal(0)
-            prev_total = Decimal(0)
-
-            # fetch the expected sums from the DB.
-            with tenant_context(self.tenant):
-                curr = OCICostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=v_this_month_start,
-                    usage_start__lte=v_today,
-                    tenant=sub.get("payer_tenant_id"),
-                ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
-                current_total = Decimal(curr.get("value"))
-
-                prev = OCICostEntryLineItemDailySummary.objects.filter(
-                    usage_start__gte=v_last_month_start,
-                    usage_start__lte=v_today_last_month,
-                    tenant=sub.get("payer_tenant_id"),
-                ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
-                prev_total = Decimal(prev.get("value", Decimal(0)))
-
-            expected_delta_value = Decimal(current_total - prev_total)
-            expected_delta_percent = Decimal((current_total - prev_total) / prev_total * 100)
-
-            values = sub.get("values", [{}])[0]
-            self.assertIn("delta_value", values)
-            self.assertIn("delta_percent", values)
-            self.assertEqual(values.get("delta_value"), expected_delta_value)
-            self.assertEqual(values.get("delta_percent"), expected_delta_percent)
-
-        current_total = Decimal(0)
-        prev_total = Decimal(0)
-
-        # fetch the expected sums from the DB.
-        with tenant_context(self.tenant):
-            curr = OCICostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.this_month_start, usage_start__lte=self.dh.today
-            ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
-            current_total = Decimal(curr.get("value"))
-
-            prev = OCICostEntryLineItemDailySummary.objects.filter(
-                usage_start__gte=self.dh.last_month_start, usage_start__lte=self.dh.today - relativedelta(months=1)
-            ).aggregate(value=Sum(F("pretax_cost") + F("markup_cost")))
-            prev_total = Decimal(prev.get("value"))
-
-        expected_delta_value = Decimal(current_total - prev_total)
-        expected_delta_percent = Decimal((current_total - prev_total) / prev_total * 100)
-
-        delta = query_output.get("delta")
-        self.assertIsNotNone(delta.get("value"))
-        self.assertIsNotNone(delta.get("percent"))
-        self.assertEqual(delta.get("value"), expected_delta_value)
-        self.assertEqual(delta.get("percent"), expected_delta_percent)
-
-    def test_execute_query_w_delta_no_previous_data(self):
-        """Test deltas with no previous data."""
-        url = "?filter[time_scope_value]=-2&delta=cost"
-        path = reverse("reports-oci-costs")
-        query_params = self.mocked_query_params(url, OCICostView, path)
-        handler = OCIReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        total_cost = query_output.get("total", {}).get("cost", {}).get("total")
-        self.assertIsNotNone(total_cost)
-        delta = query_output.get("delta")
-        self.assertIsNotNone(delta.get("value"))
-        self.assertIsNone(delta.get("percent"))
-        self.assertEqual(delta.get("value"), total_cost.get("value"))
-        self.assertEqual(delta.get("percent"), None)
-
-    def test_execute_query_orderby_delta(self):
-        """Test execute_query with ordering by delta ascending."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[payer_tenant_id]=*&delta=cost"  # noqa: E501
-        path = reverse("reports-oci-costs")
-        query_params = self.mocked_query_params(url, OCICostView, path)
-        handler = OCIReportQueryHandler(query_params)
-        query_output = handler.execute_query()
-        data = query_output.get("data")
-        self.assertIsNotNone(data)
-        cmonth_str = self.dh.this_month_start.strftime("%Y-%m")
-        for data_item in data:
-            month_val = data_item.get("date")
-            month_data = data_item.get("payer_tenant_id")
-            self.assertEqual(month_val, cmonth_str)
-            self.assertIsInstance(month_data, list)
-            for month_item in month_data:
-                self.assertIsInstance(month_item.get("payer_tenant_id"), str)
-                self.assertIsInstance(month_item.get("values"), list)
-                self.assertIsInstance(month_item.get("values")[0].get("delta_value"), Decimal)
 
     def test_calculate_total(self):
         """Test that calculated totals return correctly."""
@@ -1031,7 +913,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             totals = (
                 OCICostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{f"tags__{filter_key}": filter_value})
-                .aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
+                .aggregate(**{ag_key: Sum(F("markup_cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]={filter_value}"  # noqa: E501
@@ -1058,7 +940,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCICostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
@@ -1084,7 +966,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCICostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{ag_key: Sum(F("pretax_cost") + F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("markup_cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
@@ -1108,22 +990,22 @@ class OCIReportQueryHandlerTest(IamTestCase):
             ("?group_by[product_service]=*", OCICostView, OCICostSummaryByServiceP),
             ("?group_by[product_service]=*&group_by[payer_tenant_id]=*", OCICostView, OCICostSummaryByServiceP),
             ("?", OCIInstanceTypeView, OCIComputeSummaryP),
-            ("?group_by[payer_tenant_id]=*", OCIInstanceTypeView, OCIComputeSummaryP),
+            ("?group_by[payer_tenant_id]=*", OCIInstanceTypeView, OCIComputeSummaryByAccountP),
             ("?", OCIStorageView, OCIStorageSummaryP),
-            ("?group_by[payer_tenant_id]=*", OCIStorageView, OCIStorageSummaryP),
-            ("?filter[product_service]=Database,Cosmos%20DB,Cache%20for%20Redis", OCICostView, OCIDatabaseSummaryP),
+            ("?group_by[payer_tenant_id]=*", OCIStorageView, OCIStorageSummaryByAccountP),
+            ("?filter[product_service]=Autonomous Database", OCICostView, OCIDatabaseSummaryP),
             (
-                "?filter[product_service]=Database,Cosmos%20DB,Cache%20for%20Redis&group_by[payer_tenant_id]=*",
+                "?filter[product_service]=Autonomous Database&group_by[payer_tenant_id]=*",
                 OCICostView,
                 OCIDatabaseSummaryP,
             ),
             (
-                "?filter[product_service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway",  # noqa: E501
+                "?filter[product_service]=Networking Gateways",  # noqa: E501
                 OCICostView,
                 OCINetworkSummaryP,
             ),
             (
-                "?filter[product_service]=Virtual%20Network,VPN,DNS,Traffic%20Manager,ExpressRoute,Load%20Balancer,Application%20Gateway&group_by[payer_tenant_id]=*",  # noqa: E501
+                "?filter[product_service]=Networking Gateways&group_by[payer_tenant_id]=*",  # noqa: E501
                 OCICostView,
                 OCINetworkSummaryP,
             ),
