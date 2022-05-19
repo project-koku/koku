@@ -55,11 +55,16 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             sql = sql.decode("utf-8")
 
             sql_params = {
+                "provider_uuid": provider_uuid,
+                "year": date.year,
+                "month": date.strftime("%m"),
                 "date": date,
                 "schema": self.schema,
                 "ebs_acct_num": self._ebs_acct_num,
                 "table": HCS_TABLE_MAP.get(provider),
             }
+            LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
+
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
             data, description = self._execute_presto_raw_sql_query_with_description(
                 self.schema, sql, bind_params=sql_params
