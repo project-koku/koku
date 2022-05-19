@@ -405,6 +405,3 @@ class QueryHandler:
             _filt["operation"] = "contains" if check_field_type == "ArrayField" else "in"
             q_filter = QueryFilter(parameter=access, **_filt)
             filters.add(q_filter)
-
-
-# a comment
