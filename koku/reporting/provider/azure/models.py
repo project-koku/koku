@@ -151,29 +151,6 @@ class AzureMeter(models.Model):
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE, null=True)
 
 
-class AzureCostEntryLineItemDaily(models.Model):
-    """A line item in a cost entry.
-
-    This identifies specific costs and usage of Azure resources.
-
-    """
-
-    class Meta:
-        """Meta for AzureCostEntryLineItemDaily."""
-
-        db_table = "reporting_azurecostentrylineitem_daily"
-
-    id = models.BigAutoField(primary_key=True)
-    cost_entry_bill = models.ForeignKey("AzureCostEntryBill", on_delete=models.CASCADE)
-    cost_entry_product = models.ForeignKey("AzureCostEntryProductService", on_delete=models.SET_NULL, null=True)
-    meter = models.ForeignKey("AzureMeter", on_delete=models.SET_NULL, null=True)
-    subscription_guid = models.TextField(null=False)
-    tags = JSONField(null=True)
-    usage_date = models.DateField(null=False)
-    usage_quantity = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-    pretax_cost = models.DecimalField(max_digits=24, decimal_places=9, null=True)
-
-
 class AzureCostEntryLineItemDailySummary(models.Model):
     """A line item in a cost entry.
 
