@@ -349,7 +349,6 @@ class ParamSerializer(BaseSerializer):
             error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
             raise serializers.ValidationError(error)
 
-        # print(self.context["parameters"])
         if "instance-types" not in self.context["request"].path:
             if (filter_limit or filter_offset) and not data.get("group_by"):
                 error = {"error": "filter[limit] and filter[offset] requires a valid group_by param."}
