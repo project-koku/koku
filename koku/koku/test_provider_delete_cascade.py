@@ -19,8 +19,9 @@ from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
 class TestProviderDeleteSQL(IamTestCase):
-    def test_cascade_delete(self):
-        """Test that cascade_delete can walk relations to delete FK constraint matched records"""
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
         action_ts = datetime.now().replace(tzinfo=UTC)
         # Add a bogus customer
         c = Customer(
@@ -35,6 +36,11 @@ class TestProviderDeleteSQL(IamTestCase):
         t = Tenant(schema_name=c.schema_name)
         t.save()
         t.create_schema()
+        cls._customer = c
+
+    def test_aws_provider_delete(self):
+        """Test aws provider delete cascade"""
+        c = self._customer
         # Add some bogus providers
         paws = Provider(
             uuid=uuid.uuid4(),
@@ -45,6 +51,35 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         paws.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        awsceb = AWSCostEntryBill(
+            billing_resource="6846351687354184651",
+            billing_period_start=period_start,
+            billing_period_end=period_end,
+            provider=paws,
+        )
+        with schema_context(c.schema_name):
+            awsceb.save()
+
+        expected = "reporting_awscostentrybill"
+        expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            paws.delete()
+            _log_output = "\n".join(_logger.output)
+            self.assertIn(expected, _log_output)
+            self.assertIn(expected2, _log_output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=paws.pk).count(), 0)
+
+    def test_azure_provider_delete(self):
+        """Test azure provider delete cascade"""
+        c = self._customer
+        # Add some bogus providers
         pazure = Provider(
             uuid=uuid.uuid4(),
             name="eek_azure_provider_3",
@@ -54,6 +89,34 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         pazure.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        azureceb = AzureCostEntryBill(
+            billing_period_start=period_start, billing_period_end=period_end, provider=pazure
+        )
+        with schema_context(c.schema_name):
+            azureceb.save()
+
+        expected = "reporting_azurecostentrybill"
+        expected2 = "DELETE CASCADE BRANCH TO reporting_azuremeter"
+        expected3 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            pazure.delete()
+            _log_output = "\n".join(_logger.output)
+            self.assertIn(expected, _log_output)
+            self.assertIn(expected2, _log_output)
+            self.assertIn(expected3, _log_output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(AzureCostEntryBill.objects.filter(pk=azureceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=pazure.pk).count(), 0)
+
+    def test_gcp_provider_delete(self):
+        """Test gcp provider delete cascade"""
+        c = self._customer
+        # Add some bogus providers
         pgcp = Provider(
             uuid=uuid.uuid4(),
             name="eek_gcp_provider_3",
@@ -63,6 +126,30 @@ class TestProviderDeleteSQL(IamTestCase):
             customer=c,
         )
         pgcp.save()
+        # Create billing period stuff for each provider
+        period_start = datetime(2020, 1, 1, tzinfo=UTC)
+        period_end = datetime(2020, 2, 1, tzinfo=UTC)
+        gcpceb = GCPCostEntryBill(billing_period_start=period_start, billing_period_end=period_end, provider=pgcp)
+        with schema_context(c.schema_name):
+            gcpceb.save()
+
+        expected = "reporting_gcpcostentrybill"
+        expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            pgcp.delete()
+            _log_output = "\n".join(_logger.output)
+            self.assertIn(expected, _log_output)
+            self.assertIn(expected2, _log_output)
+
+        with schema_context(c.schema_name):
+            self.assertEqual(GCPCostEntryBill.objects.filter(pk=gcpceb.pk).count(), 0)
+
+        self.assertEqual(Provider.objects.filter(pk=pgcp.pk).count(), 0)
+
+    def test_ocp_provider_delete(self):
+        """Test ocp provider delete cascade"""
+        c = self._customer
+        # Add some bogus providers
         pocp = Provider(
             uuid=uuid.uuid4(),
             name="eek_ocp_provider_3",
@@ -75,63 +162,21 @@ class TestProviderDeleteSQL(IamTestCase):
         # Create billing period stuff for each provider
         period_start = datetime(2020, 1, 1, tzinfo=UTC)
         period_end = datetime(2020, 2, 1, tzinfo=UTC)
-        awsceb = AWSCostEntryBill(
-            billing_resource="6846351687354184651",
-            billing_period_start=period_start,
-            billing_period_end=period_end,
-            provider=paws,
-        )
-        azureceb = AzureCostEntryBill(
-            billing_period_start=period_start, billing_period_end=period_end, provider=pazure
-        )
-        gcpceb = GCPCostEntryBill(billing_period_start=period_start, billing_period_end=period_end, provider=pgcp)
         ocpurp = OCPUsageReportPeriod(
             cluster_id="584634154687685", report_period_start=period_start, report_period_end=period_end, provider=pocp
         )
         with schema_context(c.schema_name):
-            awsceb.save()
-            azureceb.save()
-            gcpceb.save()
             ocpurp.save()
-
-        expected = "reporting_awscostentrybill"
-        expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with self.assertLogs("koku.database", level="DEBUG") as _logger:
-            paws.delete()
-            _log_output = "\n".join(_logger.output)
-            self.assertIn(expected, _log_output)
-            self.assertIn(expected2, _log_output)
-
-        expected = "reporting_azurecostentrybill"
-        expected2 = "DELETE CASCADE BRANCH TO reporting_azuremeter"
-        expected3 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with self.assertLogs("koku.database", level="DEBUG") as _logger:
-            pazure.delete()
-            _log_output = "\n".join(_logger.output)
-            self.assertIn(expected, _log_output)
-            self.assertIn(expected2, _log_output)
-            self.assertIn(expected3, _log_output)
-
-        expected = "reporting_gcpcostentrybill"
-        expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with self.assertLogs("koku.database", level="DEBUG") as _logger:
-            pgcp.delete()
-            _log_output = "\n".join(_logger.output)
-            self.assertIn(expected, _log_output)
-            self.assertIn(expected2, _log_output)
 
         expected = "reporting_ocpusagereportperiod"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with self.assertLogs("koku.database", level="DEBUG") as _logger:
+        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
             pocp.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
             self.assertIn(expected2, _log_output)
 
         with schema_context(c.schema_name):
-            self.assertEqual(AWSCostEntryBill.objects.filter(pk=awsceb.pk).count(), 0)
-            self.assertEqual(AzureCostEntryBill.objects.filter(pk=azureceb.pk).count(), 0)
-            self.assertEqual(GCPCostEntryBill.objects.filter(pk=gcpceb.pk).count(), 0)
             self.assertEqual(OCPUsageReportPeriod.objects.filter(pk=ocpurp.pk).count(), 0)
 
-        self.assertEqual(Provider.objects.filter(pk__in=(paws.pk, pazure.pk, pgcp.pk, pocp.pk)).count(), 0)
+        self.assertEqual(Provider.objects.filter(pk=pocp.pk).count(), 0)
