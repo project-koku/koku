@@ -21,26 +21,28 @@ if ENVIRONMENT.bool("CLOWDER_ENABLED", default=False):
     if ENVIRONMENT.bool("MASU", default=False) or ENVIRONMENT.bool("SOURCES", default=False):
         CLOWDER_PORT = LoadedConfig.privatePort
 
-bind = f"0.0.0.0:{CLOWDER_PORT}"
-
-cpu_resources = ENVIRONMENT.int("POD_CPU_LIMIT", default=multiprocessing.cpu_count())
-workers = 1 if SOURCES else cpu_resources * 2 + 1
-
-timeout = ENVIRONMENT.int("TIMEOUT", default=90)
+# Logging (https://docs.gunicorn.org/en/stable/settings.html#logging)
 loglevel = ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG")
-graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=180)
+access_log_format = '%(h)s %(l)s %(u)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
-gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
-
-if gunicorn_threads:
-    threads = cpu_resources * 2 + 1
-
-
+# Security (https://docs.gunicorn.org/en/stable/settings.html?highlight=limit_request_field_size#security)
 # Allow HTTP headers up to this size
 limit_request_field_size = 16380
 
+# Server Socket (https://docs.gunicorn.org/en/stable/settings.html#server-socket)
+bind = f"0.0.0.0:{CLOWDER_PORT}"
 
-# Server Hooks
+# Worker Processes (https://docs.gunicorn.org/en/stable/settings.html#worker-processes)
+cpu_resources = ENVIRONMENT.int("POD_CPU_LIMIT", default=multiprocessing.cpu_count())
+workers = 1 if SOURCES else cpu_resources * 2 + 1
+gunicorn_threads = ENVIRONMENT.bool("GUNICORN_THREADS", default=False)
+if gunicorn_threads:
+    threads = cpu_resources * 2 + 1
+timeout = ENVIRONMENT.int("TIMEOUT", default=90)
+graceful_timeout = ENVIRONMENT.int("GRACEFUL_TIMEOUT", default=180)
+
+
+# Server Hooks (https://docs.gunicorn.org/en/stable/settings.html#server-hooks)
 def on_starting(server):
     """Called just before the main process is initialized."""
     httpd = start_probe_server(BasicProbeServer, server.log)
