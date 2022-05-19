@@ -151,19 +151,27 @@ class TagQueryHandler(QueryHandler):
             delta (Boolean): Construct timeframe for delta
         Returns:
             (Dict): query filter dictionary
-
         """
+
         filters = QueryFilterCollection()
+
         if not self.parameters.get_filter("value"):
             for source in self.data_sources:
                 start_filter, end_filter = self._get_time_based_filters(source, delta)
                 filters.add(query_filter=start_filter)
                 filters.add(query_filter=end_filter)
+        # something here for filter is value
 
         for filter_key in self.SUPPORTED_FILTERS:
             if self.parameters.get_filter("value") and filter_key == "enabled":
                 continue
+
             filter_value = self.parameters.get_filter(filter_key)
+            LOG.debug(f"_get_filter_value:{filter_value}")
+            if self.parameters.get_filter("value") and TagQueryHandler.has_wildcard(filter_value):
+                filter_obj = self.filter_map.get(filter_key)
+                q_filter = QueryFilter(parameter="", **filter_obj)
+                filters.add(q_filter)
             if filter_value is not None and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_value, bool):
@@ -177,6 +185,7 @@ class TagQueryHandler(QueryHandler):
                     for item in filter_value:
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
+
             access = self.parameters.get_access(filter_key)
             filt = self.filter_map.get(filter_key)
             if access and filt:
@@ -185,7 +194,6 @@ class TagQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
 
