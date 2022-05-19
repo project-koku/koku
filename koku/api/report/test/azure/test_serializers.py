@@ -17,9 +17,9 @@ from api.report.azure.serializers import AzureQueryParamSerializer
 FAKE = Faker()
 
 URL_LIST = [
-    "/api/cost-management/v1/reports/gcp/instance-types/",
-    "/api/cost-management/v1/reports/gcp/costs/",
-    "/api/cost-management/v1/reports/gcp/storage/",
+    "/api/cost-management/v1/reports/azure/instance-types/",
+    "/api/cost-management/v1/reports/azure/costs/",
+    "/api/cost-management/v1/reports/azure/storage/",
 ]
 
 
