@@ -134,18 +134,13 @@ class TestHCSTasks(HCSTestCase):
         """Test invalid provider"""
         from hcs.tasks import collect_hcs_report_finalization
 
-        # provider = MagicMock(side_effect=Provider())
-        # provider.return_value = MagicMock(side_effect=Provider.objects.filter(type="AWS"))
-        # provider.customer.uuid.return_value = MagicMock(side_effect=Provider.objects.filter(type="AWS"))
-        # provider.customer.schema_name.return_value = MagicMock(side_effect=Provider.objects.filter(type="AWS"))
-        #
-        # print(f"provider: {provider.return_value}")
-        # print(f"provider_uuid: {provider.customer.uuid.return_value}")
-        # print(f"Schema_name: {provider.customer.schema_name.return_value}")
-        # schema_name = MagicMock(side_effect=provider.customer.schema_name)
-        # order.payments.filter.return_value.order_by.return_value = [Payment()]
+        provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization()
 
-            self.assertIn("Finalizing:", _logs.output[0])
+            self.assertIn("starting report finalization:", _logs.output[0])
+            self.assertIn("schema-name:", _logs.output[0])
+            self.assertIn("provider:", _logs.output[0])
+            self.assertIn("provider_uuid:", _logs.output[0])
+            self.assertIn("dates:", _logs.output[0])

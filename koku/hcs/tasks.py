@@ -157,17 +157,14 @@ def collect_hcs_report_finalization(tracing_id=None):
             start_date_prev_month = today.replace(day=1) - datetime.timedelta(days=end_date_prev_month.day)
 
             stmt = (
-                f"Finalizing: "
-                f"Schema-name: {schema_name}, "
+                f"starting report finalization: "
+                f"schema-name: {schema_name}, "
                 f"provider: {provider}, "
                 f"provider_uuid: {provider_uuid}, "
-                f"dates {start_date_prev_month} - {end_date_prev_month}"
+                f"dates: {start_date_prev_month} - {end_date_prev_month}"
             )
             LOG.info(log_json(tracing_id, stmt))
 
-            LOG.info(
-                log_json(tracing_id, f"starting report finalization: {start_date_prev_month} - {end_date_prev_month}")
-            )
             collect_hcs_report_data.s(
                 schema_name,
                 excepted_provider,
