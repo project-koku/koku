@@ -280,7 +280,7 @@ class SourcesViewTests(IamTestCase):
         expected = []
         for resource_type in RESOURCE_TYPE_MAP.keys():
             expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
-        self.assertEqual(excluded, expected)
+        self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
 
         permissions = {AwsAccessPermission.resource_type: {"read": []}}
         mock_user = Mock(admin=False, access=permissions)
@@ -289,7 +289,7 @@ class SourcesViewTests(IamTestCase):
         expected = []
         for resource_type in RESOURCE_TYPE_MAP.keys():
             expected.extend(RESOURCE_TYPE_MAP.get(resource_type))
-        self.assertEqual(excluded, expected)
+        self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))
 
         permissions = {AwsAccessPermission.resource_type: {"read": ["*"]}}
         mock_user = Mock(admin=False, access=permissions)
@@ -302,4 +302,4 @@ class SourcesViewTests(IamTestCase):
             Provider.PROVIDER_GCP,
             Provider.PROVIDER_GCP_LOCAL,
         ]
-        self.assertEqual(excluded, expected)
+        self.assertEqual(sorted(list(set(excluded))), sorted(list(set(expected))))

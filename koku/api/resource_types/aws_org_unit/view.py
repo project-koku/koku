@@ -20,12 +20,7 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 class AWSOrganizationalUnitView(generics.ListAPIView):
     """API GET list view for AWS organizational units."""
 
-    queryset = (
-        AWSOrganizationalUnit.objects.filter(deleted_timestamp__isnull=True)
-        .annotate(**{"value": F("org_unit_id")})
-        .values("value")
-        .distinct()
-    )
+    queryset = AWSOrganizationalUnit.objects.annotate(**{"value": F("org_unit_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer
     permission_classes = [AWSOUAccessPermission]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
