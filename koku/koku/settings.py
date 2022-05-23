@@ -52,6 +52,9 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
+# Allow org admins to bypass RBAC permission checks
+ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
+
 ALLOWED_HOSTS = ["*"]
 
 

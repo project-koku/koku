@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for GCP Projects."""
+from django.conf import settings
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
@@ -52,7 +53,7 @@ class GCPProjectsView(generics.ListAPIView):
                             .values("value", "project")
                             .distinct()
                         )
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])
