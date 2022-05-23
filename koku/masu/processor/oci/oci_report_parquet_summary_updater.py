@@ -85,7 +85,10 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
             (str, str) A start date and end date.
 
         """
+        LOG.info(f"\n\n start: {start_date}, end: {end_date} \n\n")
         start_date, end_date = self._get_sql_inputs(start_date, end_date)
+
+        LOG.info(f"\n\n start: {start_date}, end: {end_date} \n\n")
 
         with schema_context(self._schema):
             self._handle_partitions(self._schema, UI_SUMMARY_TABLES, start_date, end_date)
@@ -132,5 +135,5 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                     bill.summary_data_creation_datetime = self._date_accessor.today_with_timezone("UTC")
                 bill.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
                 bill.save()
-
+        LOG.info(f"\n\n start: {start_date}, end: {end_date} \n\n")
         return start_date, end_date

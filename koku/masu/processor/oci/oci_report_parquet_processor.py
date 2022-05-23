@@ -64,6 +64,7 @@ class OCIReportParquetProcessor(ReportParquetProcessorBase):
         start_date_utc = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
         end_date_utc = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, tzinfo=pytz.UTC)
 
+        LOG.info(f"\n\n bill: {bill_date} \n\n ")
         sql = f"""
             SELECT DISTINCT lineitem_tenantid
             FROM {self._table_name}
