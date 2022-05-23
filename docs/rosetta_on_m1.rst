@@ -1,21 +1,7 @@
-=====================
-Koku Setup on M1 Mac
-=====================
+Using Rosetta
+=============
 
-About
-=====
-
-This documentation is to guide M1 Mac users on how to successfully install and run Koku on their machines.
-
-Getting Started
-================
-
-This guide mostly makes use of Rosetta in order to get Intel-based programs and packages to run on Mac with Apple silicon processors (M1).
-
-Using Rosetta (2)
------------------
-
-Rosetta 2 enables a Mac with Apple silicon to use apps built for a Mac with an Intel processer. Check out and follow the steps on `how to install Rosetta on your Mac`_.
+Rosetta enables a Mac with Apple silicon to use apps built for a Mac with an Intel processer. Follow the steps on `how to install Rosetta on your Mac`_.
 
 TL;DR: ::
 
@@ -35,10 +21,10 @@ Alternatively, you can create a copy of your default terminal, rename the copy a
 
 `Note`: We will be using this version of the terminal for all the steps that follow.
 
-1. Installing ``brew``
+2. Installing ``brew``
 ----------------------
 
-Same as we have a separate terminal running Intel-based programs, we also want to have a separate ``brew`` version that run Intel-based programs. When you install Homebrew on an Intel Mac, it installs it in the `/usr/local/homebrew` directory.
+We also will want to have a separate ``brew`` version that runs Intel-based programs. When you install Homebrew on an Intel Mac, it installs it in the `/usr/local/homebrew` directory.
 
 1. Create a ``~/Downloads/homebrew`` and download Homebrew tarball and extract it to the ``~/Downloads/homebrew`` directory: ::
 
@@ -93,43 +79,13 @@ And you can use all ``brew`` commands: ::
 
     source ~/.zshrc
 
-4. Development
---------------
-
-At this point, you should be able to follow the steps in `Koku's original development`_ process from `1` through `9`; just make sure you use ``brow`` instead of ``brew`` and ``pip`` instead of ``pip3`` in order to use the versions that we installed above.
-
-Developing with Docker
-^^^^^^^^^^^^^^^^^^^^^^
-
-Alternatively, if you want to run the project in Docker environment, you can follow the same process in `Koku's README`_ only with the following changes in `docker-compose.yml`_ file:
-
-1. Under ``koku-base`` service, specify the ``platform`` that the container should be built on: ::
-
-    ..
-    services:
-        koku-base:
-            image: koku_base
-            platform: linux/amd64
-    ..
-
-2. In the ``entrypoints`` list under ``koku-worker`` service, remove the items starting from ``watchdog`` up until ``celery`` (NOT including ``celery``). At the time of creating this documentation, ``watchdog`` package is not supported on M1: ::
-
-    ..
-    koku-worker:
-        hostname: koku-worker-1
-        image: koku_base
-        working_dir: /koku/koku
-        entrypoint: ['watchmedo', 'auto-restart', .., 'celery', '-A' ..]
-    ..
 
 References
 ----------
+
 - https://medium.com/mkdir-awesome/how-to-install-x86-64-homebrew-packages-on-apple-m1-macbook-54ba295230f
 - https://til.simonwillison.net/macos/running-docker-on-remote-m1
-- https://github.com/jsbroks/coco-annotator/issues/493
 
-.. _`how to install Rosetta on your Mac`: https://support.apple.com/en-us/HT211861
+
 .. _`iTerm2`: https://iterm2.com/
-.. _`Koku's original development`: https://github.com/project-koku/koku/blob/main/README.rst#development
-.. _`Koku's README`: https://github.com/project-koku/koku/blob/main/README.rst
-.. _`docker-compose.yml`: https://github.com/project-koku/koku/blob/main/docker-compose.yml
+.. _`how to install Rosetta on your Mac`: https://support.apple.com/en-us/HT211861

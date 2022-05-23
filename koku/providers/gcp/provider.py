@@ -53,23 +53,21 @@ class GCPProvider(ProviderInterface):
             return table_id
         return None
 
-    def update_source_data_source(self, credentials, data_source):
+    def update_source_data_source(self, data_source):
         """Update data_source."""
-        try:
-            update_query = Sources.objects.filter(authentication={"credentials": credentials})
-            for source in update_query:
-                if source.billing_source.get("data_source", {}).get("dataset") == data_source.get("dataset"):
-                    source_filter = Sources.objects.filter(source_id=source.source_id)
-                    source_filter.update(billing_source={"data_source": data_source})
+        source_query = Sources.objects.filter(billing_source__data_source__dataset=data_source.get("dataset"))
+        for source in source_query:
+            if source.billing_source.get("data_source") != data_source:
+                source.billing_source = {"data_source": data_source}
+                source.save()
 
-                    provider_uuid = source_filter.first().koku_uuid
-                    provider_billing_source = Provider.objects.filter(uuid=provider_uuid).first().billing_source
-                    if provider_billing_source.data_source != data_source:
-                        provider_billing_source.data_source = data_source
-                        provider_billing_source.save()
-
-        except Sources.DoesNotExist:
-            LOG.info("Source not found, unable to update data source.")
+            provider_uuid = source.koku_uuid
+            provider = Provider.objects.filter(uuid=provider_uuid).first()
+            if provider:
+                provider_billing_source = provider.billing_source
+                if provider_billing_source and provider_billing_source.data_source != data_source:
+                    provider_billing_source.data_source = data_source
+                    provider_billing_source.save()
 
     def _format_dataset_id(self, data_source, credentials):
         """Format dataset ID based on input format."""
@@ -86,12 +84,12 @@ class GCPProvider(ProviderInterface):
             bigquery_table_id = self.get_table_id(proj_table)
             if bigquery_table_id:
                 data_source["table_id"] = bigquery_table_id
-                self.update_source_data_source(credentials, data_source)
+                self.update_source_data_source(data_source)
             else:
                 raise SkipStatusPush("Table ID not ready.")
         except NotFound as e:
             data_source.pop("table_id", None)
-            self.update_source_data_source(credentials, data_source)
+            self.update_source_data_source(data_source)
             key = "billing_source.dataset"
             LOG.info(error_obj(key, e.message))
             message = (
