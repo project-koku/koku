@@ -647,13 +647,6 @@ class QueryParamSerializerTest(IamTestCase):
                 serializer = QueryParamSerializer(data=params)
                 self.assertFalse(serializer.is_valid())
 
-    def test_fail_without_group_by(self):
-        """Test fail if filter[limit] and filter[offset] passed without group by."""
-        query_params = {"filter[limit]": "1", "filter[offset]": "1"}
-        serializer = QueryParamSerializer(data=query_params, context=self.alt_request_context)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
 
 class ParamSerializerTest(TestCase):
     """Tests for the handling query parameter parsing serializer."""
@@ -665,4 +658,11 @@ class ParamSerializerTest(TestCase):
         with self.assertRaises(ValidationError):
             serializer = ParamSerializer(data=params)
             self.assertFalse(serializer.is_valid())
+            serializer.is_valid(raise_exception=True)
+
+    def test_fail_without_group_by(self):
+        """Test fail if filter[limit] and filter[offset] passed without group by."""
+        query_params = {"filter[limit]": "1", "filter[offset]": "1"}
+        serializer = ParamSerializer(data=query_params, context={"request": Mock(path=" ")})
+        with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
