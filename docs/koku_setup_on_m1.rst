@@ -103,11 +103,11 @@ Developing with Docker
 
 Alternatively, if you want to run the project in Docker environment, follow the below steps:
 
-1. Set `compose_file` in your `.env` file to point to `compose-file-m1.yml` file specially created for M1 Mac: ::
+1. Set ``compose_file`` in your ``.env`` file to point to docker-compose-m1.yml_ file specially created for M1 Mac: ::
 
     compose_file='testing/compose_files/docker-compose-m1.yml'
 
-2. `compose-file-m1.yml` removes the use of `watchdog` package as at the time of creating this documentation, `watchdog` package is not supported on M1.
+2. docker-compose-m1.yml_ removes the use of ``watchdog`` package as at the time of creating this documentation, `watchdog` package is not supported on M1.
    Instead, we use a VSCode extension to run a `bash script`_ on Save in order to re-build docker containers.
    From VSCode Extensions, install `emeraldwalk.RunOnSave` and add the following to `settings.json`. More on `Run on Save`_: ::
 
@@ -133,6 +133,6 @@ References
 .. _`iTerm2`: https://iterm2.com/
 .. _`Koku's original development`: https://github.com/project-koku/koku/blob/main/README.rst#development
 .. _`Koku's README`: https://github.com/project-koku/koku/blob/main/README.rst
-.. _`docker-compose.yml`: https://github.com/project-koku/koku/blob/main/docker-compose.yml
+.. _`docker-compose-m1.yml`: https://github.com/project-koku/koku/blob/main/testing/compose_files/docker-compose-m1.yml
 .. _`Run on Save`: https://betterprogramming.pub/automatically-execute-bash-commands-on-save-in-vs-code-7a3100449f63
 .. _`bash script`: https://github.com/project-koku/koku/tree/main/dev/scripts/m1_refresher.sh

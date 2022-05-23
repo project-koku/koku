@@ -5,7 +5,7 @@
 !Pipfile
 !Pipfile.lock
 !koku/
-!docs/source/specs/
+!docs/specs/
 !db_functions/
 !scripts/
 
