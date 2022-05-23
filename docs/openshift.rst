@@ -11,8 +11,8 @@ Developing using OpenShift
 
 The recommended development workflow is to develop using the same tools the application uses as its target environment. In this case, Koku is intended for use inside an OpenShift deployment. Therefore, it is recommended that Koku development also use an OpenShift deployment. Developing using OpenShift will align not only the software architecture, but also ensures the developer builds familiarity with the toolchain.
 
-Prerequistes
-============
+Prerequisites
+=============
 
 Developing Koku using the Ephemeral cluster requires access to the cluster. Refer to these docs to `onboard to the ephemeral cluster <https://clouddot.pages.redhat.com/docs/dev/getting-started/ephemeral/onboarding.html>`_.
 
