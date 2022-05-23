@@ -1085,10 +1085,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
         handler = OCIReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        # for element in data:
-        #     if element.get("date") == str(yesterday):
-        #         correctlst = [service.get("product_service") for service in element.get("product_services", [])]
-
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
@@ -1097,11 +1093,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        # correctlst = [service.get("product_service") for service in expected]
-        # for element in data:
-        #     lst = [service.get("product_service") for service in element.get("product_services", [])]
-        #     if lst and correctlst:
-        #         self.assertEqual(correctlst, lst)
         ranking_map = {}
         count = 1
         for service in expected:
