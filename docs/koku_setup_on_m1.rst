@@ -14,7 +14,7 @@ However, as for running Koku on M1 Macs we can follow the general development do
 Development
 -----------
 
-From the current list of packages used by Koku, only ``confluent-kafka`` has no support on M1 Mac, but we can install it through ``brew`` and do a few tweaks.
+From the current list of packages used by Koku, only ``confluent-kafka`` has no support on M1 Mac, but we can install it through ``brew`` with a few modifications.
 
 1. Install ``librdkafka`` through ``brew``: ::
 

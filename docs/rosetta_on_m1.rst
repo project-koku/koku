@@ -1,7 +1,7 @@
 Using Rosetta
 =============
 
-Rosetta enables a Mac with Apple silicon to use apps built for a Mac with an Intel processer. Check out and follow the steps on `how to install Rosetta on your Mac`_.
+Rosetta enables a Mac with Apple silicon to use apps built for a Mac with an Intel processer. Follow the steps on `how to install Rosetta on your Mac`_.
 
 TL;DR: ::
 
@@ -24,7 +24,7 @@ Alternatively, you can create a copy of your default terminal, rename the copy a
 2. Installing ``brew``
 ----------------------
 
-Same as we have a separate terminal running Intel-based programs, we also want to have a separate ``brew`` version that run Intel-based programs. When you install Homebrew on an Intel Mac, it installs it in the `/usr/local/homebrew` directory.
+We also will want to have a separate ``brew`` version that runs Intel-based programs. When you install Homebrew on an Intel Mac, it installs it in the `/usr/local/homebrew` directory.
 
 1. Create a ``~/Downloads/homebrew`` and download Homebrew tarball and extract it to the ``~/Downloads/homebrew`` directory: ::
 
