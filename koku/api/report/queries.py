@@ -928,11 +928,17 @@ class ReportQueryHandler(QueryHandler):
         """
         orders the key
         """
+        pagination_key = "Others"
         ordered_dict = dict()
         for date_key, values in order_numbers.items():
             sort_by_number = operator.itemgetter(1)
             expected_key_order = sorted(values.items(), key=sort_by_number, reverse=True)
             key_list = [key[0] for key in expected_key_order]
+            if pagination_key in key_list:
+                # The "Others" should always be at the end
+                # during pagination.
+                key_list.remove(pagination_key)
+                key_list.append(pagination_key)
             ordered_dict[date_key] = key_list
         return ordered_dict
 

@@ -4,6 +4,7 @@
 #
 """Test the Report views."""
 import datetime
+import logging
 import random
 from decimal import Decimal
 from unittest import skip
@@ -37,6 +38,10 @@ from api.tags.ocp.view import OCPTagView
 from api.utils import DateHelper
 from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
+
+# from pprint import pformat
+
+LOG = logging.getLogger(__name__)
 
 
 @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
