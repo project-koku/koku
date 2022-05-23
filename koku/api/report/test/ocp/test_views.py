@@ -59,7 +59,8 @@ class OCPReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-
+        # self.dh = DateHelper()
+        # self.ten_days_ago = self.dh.n_days_ago(self.dh._now, 9)
         self.report_ocp_cpu = {
             "group_by": {"project": ["*"]},
             "filter": {"resolution": "monthly", "time_scope_value": "-1", "time_scope_units": "month"},
@@ -1042,6 +1043,8 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    # Fails when: tox api.report.test.ocp.test_views.OCPReportViewTest
+    # but passes if you run indivdually.
     def test_execute_query_group_by_node(self, mocked_exchange_rates, mock_base_currency):
         """Test that grouping by node filters data."""
         with tenant_context(self.tenant):
@@ -1389,6 +1392,8 @@ class OCPReportViewTest(IamTestCase):
             if other:
                 self.assertIn("Other", other[0].get("node"))
 
+    # Fails when: tox api.report.test.ocp.test_views.OCPReportViewTest
+    # but passes if you run indivdually.
     def test_execute_query_with_group_by_order_by_and_limit(self, mocked_exchange_rates, mock_base_currency):
         """Test that data is grouped by and limited on order by."""
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
@@ -1410,7 +1415,7 @@ class OCPReportViewTest(IamTestCase):
                 url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-
+                # import pdb; pdb.set_trace()
                 data = response.json()
                 data = data.get("data", [])
                 self.assertTrue(data)
@@ -1430,12 +1435,15 @@ class OCPReportViewTest(IamTestCase):
                         previous_value = node.get("values", [])[0].get(option, {}).get("value")
                         break
                 for entry in nodes:
+                    LOG.info(f"entry: {entry}")
                     if entry.get("node", "") in ("Others", "no-node"):
                         continue
                     if data_key:
                         current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
                     else:
                         current_value = entry.get("values", [])[0].get(option, {}).get("value")
+                    LOG.info(f"current_value: {current_value}")
+                    LOG.info(f"previous_value: {current_value}")
                     self.assertTrue(current_value <= previous_value)
                     previous_value = current_value
 

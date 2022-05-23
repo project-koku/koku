@@ -219,7 +219,7 @@ class ReportQueryHandler(QueryHandler):
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default ({query_table})."
             LOG.warning(msg)
         return query_table
 
