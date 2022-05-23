@@ -72,7 +72,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
             filters = self.this_month_filter
         with tenant_context(self.tenant):
             result = OCICostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
-            LOG.info(f"\n\nfilters:{filters} \n\n reulst: {result} \n\\ aggs: {aggregates}\n\n")
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)
@@ -82,7 +81,6 @@ class OCIReportQueryHandlerTest(IamTestCase):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCIInstanceTypeView)
-        LOG.info(f"\n\n{query_params}\n\n")
         handler = OCIReportQueryHandler(query_params)
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
@@ -1087,9 +1085,9 @@ class OCIReportQueryHandlerTest(IamTestCase):
         handler = OCIReportQueryHandler(query_params)
         query_output = handler.execute_query()
         data = query_output.get("data")
-        for element in data:
-            if element.get("date") == str(yesterday):
-                correctlst = [service.get("product_service") for service in element.get("product_services", [])]
+        # for element in data:
+        #     if element.get("date") == str(yesterday):
+        #         correctlst = [service.get("product_service") for service in element.get("product_services", [])]
 
         cost_annotation = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
@@ -1099,28 +1097,28 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        correctlst = [service.get("product_service") for service in expected]
-        LOG.info(f"\n\n {data} \n\n")
-        for element in data:
-            lst = [service.get("product_service") for service in element.get("product_services", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
-
-        # for project in expected:
-        #     ranking_map[project.get("project")] = count
-        #     count += 1
+        # correctlst = [service.get("product_service") for service in expected]
         # for element in data:
-        #     previous = 0
-        #     for project in element.get("projects"):
-        #         project_name = project.get("project")
-        #         # This if is cause some days may not have same projects.
-        #         # however we want the projects that do match to be in the
-        #         # same order
-        #         if project_name in ranking_map.keys():
-        #             self.assertGreaterEqual(ranking_map[project_name], previous)
-        #             previous = ranking_map[project_name]
-        #             tested = True
-        # self.assertTrue(tested)
+        #     lst = [service.get("product_service") for service in element.get("product_services", [])]
+        #     if lst and correctlst:
+        #         self.assertEqual(correctlst, lst)
+        ranking_map = {}
+        count = 1
+        for service in expected:
+            ranking_map[service.get("product_service")] = count
+            count += 1
+        for element in data:
+            previous = 0
+            for service in element.get("product_services"):
+                service_name = service.get("product_service")
+                # This if is cause some days may not have same services.
+                # however we want the services that do match to be in the
+                # same order
+                if service_name in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[service_name], previous)
+                    previous = ranking_map[service_name]
+                    tested = True
+        self.assertTrue(tested)
 
     def test_oci_date_incorrect_date(self):
         wrong_date = "200BC"
