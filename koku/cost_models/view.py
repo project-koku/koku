@@ -7,6 +7,7 @@ import logging
 from functools import reduce
 from operator import and_
 
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -134,7 +135,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
         """
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
-        if not self.request.user.admin:
+        if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
             read_access_list = self.request.user.access.get("cost_model").get("read")
             if "*" not in read_access_list:
                 try:
