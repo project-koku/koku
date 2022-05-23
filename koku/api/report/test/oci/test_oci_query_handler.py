@@ -72,6 +72,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             filters = self.this_month_filter
         with tenant_context(self.tenant):
             result = OCICostEntryLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+            LOG.info(f"\n\nfilters:{filters} \n\n reulst: {result} \n\\ aggs: {aggregates}\n\n")
             for key in result:
                 if result[key] is None:
                     result[key] = Decimal(0)
@@ -81,6 +82,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCIInstanceTypeView)
+        LOG.info(f"\n\n{query_params}\n\n")
         handler = OCIReportQueryHandler(query_params)
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
@@ -497,7 +499,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
@@ -598,7 +600,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
@@ -633,7 +635,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
@@ -913,7 +915,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             totals = (
                 OCICostEntryLineItemDailySummary.objects.filter(usage_start__gte=self.dh.this_month_start)
                 .filter(**{f"tags__{filter_key}": filter_value})
-                .aggregate(**{ag_key: Sum(F("markup_cost"))})
+                .aggregate(**{ag_key: Sum(F("markup_cost") + F("cost"))})
             )
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]={filter_value}"  # noqa: E501
@@ -940,7 +942,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCICostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{ag_key: Sum(F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("markup_cost") + F("cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[tag:{filter_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
@@ -966,7 +968,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             totals = OCICostEntryLineItemDailySummary.objects.filter(
                 usage_start__gte=self.dh.this_month_start
-            ).aggregate(**{ag_key: Sum(F("markup_cost"))})
+            ).aggregate(**{ag_key: Sum(F("markup_cost") + F("cost"))})
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[tag:{group_by_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
@@ -1098,10 +1100,27 @@ class OCIReportQueryHandlerTest(IamTestCase):
                 .order_by("-cost")
             )
         correctlst = [service.get("product_service") for service in expected]
+        LOG.info(f"\n\n {data} \n\n")
         for element in data:
             lst = [service.get("product_service") for service in element.get("product_services", [])]
             if lst and correctlst:
                 self.assertEqual(correctlst, lst)
+
+        # for project in expected:
+        #     ranking_map[project.get("project")] = count
+        #     count += 1
+        # for element in data:
+        #     previous = 0
+        #     for project in element.get("projects"):
+        #         project_name = project.get("project")
+        #         # This if is cause some days may not have same projects.
+        #         # however we want the projects that do match to be in the
+        #         # same order
+        #         if project_name in ranking_map.keys():
+        #             self.assertGreaterEqual(ranking_map[project_name], previous)
+        #             previous = ranking_map[project_name]
+        #             tested = True
+        # self.assertTrue(tested)
 
     def test_oci_date_incorrect_date(self):
         wrong_date = "200BC"
