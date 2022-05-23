@@ -831,31 +831,29 @@ class ReportQueryHandler(QueryHandler):
         # Using + 1 to start at rank 1, instead of 0
         # rank_list = [(field, rank + 1) for rank, field in enumerate(ranks)]
         rank_data_frame = pd.DataFrame(ranks)
-        if self._report_type == "costs":
+
+        if "costs" in self._report_type:
             rank_data_frame.drop(columns=["cost_total"], inplace=True)
         else:
             rank_data_frame.drop(columns=["usage"], inplace=True)
+
+        # Determine what to get values for in our rank data frame
+        agg_fields = {"cost_units": ["max"]}
         if self.is_aws and rank_field == "account":
-            account_aliases = data_frame.groupby(rank_field).agg({"account_alias": ["max"], "cost_units": ["max"]})
-            columns = account_aliases.columns.droplevel(1)
-            account_aliases.columns = columns
-            account_aliases.reset_index(inplace=True)
-            rank_data_frame = rank_data_frame.merge(account_aliases, on=rank_field)
+            agg_fields.update({"account_alias": ["max"]})
             drop_columns.append("account_alias")
-        # elif rank_field == "cluster":
-        #     import pdb;pdb.set_trace()
-        #     cluster_aliases = data_frame.groupby(rank_field).agg({"cluster_alias": ["max"], "cost_units": ["max"]})
-        #     columns = cluster_aliases.columns.droplevel(1)
-        #     cluster_aliases.columns = columns
-        #     cluster_aliases.reset_index(inplace=True)
-        #     rank_dict_data_frame = rank_dict_data_frame.merge(cluster_aliases, on=rank_field)
-        #     drop_columns.append("cluster_alias")
-        else:
-            cost_units = data_frame.groupby(rank_field).agg({"cost_units": ["max"]})
-            columns = cost_units.columns.droplevel(1)
-            cost_units.columns = columns
-            cost_units.reset_index(inplace=True)
-            rank_data_frame = rank_data_frame.merge(cost_units, on=rank_field)
+        if "costs" not in self._report_type:
+            agg_fields.update({"usage_units": ["max"]})
+            drop_columns.append("usage_units")
+        if self._report_type == "instance_type" and "count" in data_frame.columns:
+            agg_fields.update({"count_units": ["max"]})
+            drop_columns.append("count_units")
+
+        aggs = data_frame.groupby(rank_field).agg(agg_fields)
+        columns = aggs.columns.droplevel(1)
+        aggs.columns = columns
+        aggs.reset_index(inplace=True)
+        rank_data_frame = rank_data_frame.merge(aggs, on=rank_field)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -881,24 +879,7 @@ class ReportQueryHandler(QueryHandler):
             data_frame = pd.concat([data_frame, others_data_frame])
 
         # Replace NaN with 0
-        numeric_columns = [
-            "infra_raw",
-            "infra_usage",
-            "infra_markup",
-            "infra_distributed",
-            "infra_total",
-            "sup_raw",
-            "sup_usage",
-            "sup_markup",
-            "sup_total",
-            "sup_distributed",
-            "cost_raw",
-            "cost_usage",
-            "cost_markup",
-            "cost_distributed",
-            "cost_total",
-            "usage",
-        ]
+        numeric_columns = [col for col in self.report_annotations if "unit" not in col]
         fill_values = {column: 0 for column in numeric_columns}
         data_frame.fillna(value=fill_values, inplace=True)
 
@@ -909,25 +890,18 @@ class ReportQueryHandler(QueryHandler):
         rank_field = group_by[0]
         drop_columns = [rank_field, "rank", "source_uuid"]
         groups = ["date"]
+
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        if "count" not in data_frame.columns:
+            skip_columns.extend(["count", "count_units"])
+
         aggs = {
-            "cost_units": ["max"],
-            "infra_raw": ["sum"],
-            "infra_usage": ["sum"],
-            "infra_markup": ["sum"],
-            "infra_total": ["sum"],
-            "sup_raw": ["sum"],
-            "sup_usage": ["sum"],
-            "sup_markup": ["sum"],
-            "sup_total": ["sum"],
-            "cost_raw": ["sum"],
-            "cost_usage": ["sum"],
-            "cost_markup": ["sum"],
-            "cost_total": ["sum"],
-            "usage": ["sum"],
+            col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
-        # data_frame = data_frame.convert_dtypes()
 
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
+        other_count = len(others_data_frame[rank_field].unique())
+
         source_uuids = list(others_data_frame["source_uuid"].explode().dropna().unique())
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
@@ -941,10 +915,12 @@ class ReportQueryHandler(QueryHandler):
         others_data_frame.reset_index(inplace=True)
 
         # Add back columns
-        other_str = "Others" if len(others_data_frame) > 1 else "Other"
+        other_str = "Others" if other_count > 1 else "Other"
         others_data_frame[rank_field] = other_str
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
+        elif "gcp_project" in group_by:
+            others_data_frame["gcp_project_alias"] = other_str
 
         others_data_frame["rank"] = self._limit + 1
         others_data_frame["source_uuid"] = [source_uuids] * len(others_data_frame)
@@ -952,136 +928,6 @@ class ReportQueryHandler(QueryHandler):
             others_data_frame["clusters"] = [clusters] * len(others_data_frame)
 
         return others_data_frame
-
-        # # for day in days:
-
-        # # rank_days = ranks * len()
-        # # rank_days += "123456"
-        # # new_index = pd.Index(rank_days, name="account")
-        # # new_index = pd.Index(ranks)
-        # t2 = time.time()
-        # LOG.info(f"So far taking {t2-t1}")
-
-        # # data_frame["rank_day"] = rank_days
-        # # rank_day_data_frame = pd.DataFrame(rank_days, columns=["account"])
-        # # data_frame.merge(rank_day_data_frame, how="right", on="account")
-        # # data_frame.set_index("account").reindex(new_index).reset_index()
-        # # data_frame["rank"] = data_frame.apply(lambda row: rank_dict.get(row["account"]), axis=1)
-
-        # date_grouped_data, account_alias_map = self.date_group_data(data_list)
-        # if ranks:
-        #     padded_data = OrderedDict()
-        #     _op_start = datetime.utcnow()
-        #     for date in date_grouped_data:
-        #         padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
-        #     LOG.info(f"### _zerofill_ranks() method total time: {(datetime.utcnow() - _op_start).total_seconds()}sec")
-        # else:
-        #     padded_data = date_grouped_data
-
-        # rank_limited_data = OrderedDict()
-        # is_offset = "offset" in self.parameters.get("filter", {})
-        # _op_start = datetime.utcnow()
-        # for date in padded_data:
-        #     ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
-        #     rank_limited_data[date] = ranked_list
-        # LOG.info(f"### _perform_rank_summation total time : {(datetime.utcnow() - _op_start).total_seconds()}sec")
-        # import pdb;pdb.set_trace()
-        # print("Y")
-        # return self.unpack_date_grouped_data(rank_limited_data)
-
-    def _zerofill_ranks(self, data, ranks, account_alias_map):
-        """Ensure the data set has at least one entry from every ranked category."""
-        rank_field = self._get_group_by()[0]
-        missing = set(ranks) - {item[rank_field] for item in data}
-
-        if missing:
-            fd = data[0]  # first data record
-            fd_date = data[0].get("date")  # first data record date field
-
-            data.extend(
-                {
-                    k: m
-                    if k == rank_field
-                    else fd_date
-                    if k == "date"
-                    else account_alias_map.get(m, m)
-                    if k == "account_alias" and rank_field == "account"
-                    else type(v)()
-                    for k, v in fd.items()
-                }
-                for m in missing
-            )  # noqa
-
-        return data
-
-    def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
-        """Do the rank limiting for _ranked_list().
-
-        Args:
-            entry (dict)
-            is_offset (bool)
-            ranks (list)
-        """
-        other = None
-        ranked_list = []
-        others_list = []
-        rank_field = self._get_group_by()[0]
-        _range = self._limit + self._offset
-        other_sums = dict.fromkeys(self._mapper.sum_columns, 0)
-
-        for data in entry:
-            if other is None:
-                other = data.copy()
-
-            if ranks:
-                rank = ranks.index(self.check_missing_rank_value(data.get(rank_field))) + 1
-                data["rank"] = rank
-            else:
-                rank = data.get("rank", 1)
-
-            if self._offset < rank <= _range:
-                ranked_list.append(data)
-            else:
-                others_list.append(data)
-                for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) or 0
-
-        if other is not None and others_list and not is_offset:
-            num_others = len(others_list)
-            others_label = "Other" if num_others == 1 else "Others"
-
-            other.update(other_sums)
-            other["rank"] = self._limit + 1
-            group_by = self._get_group_by()
-
-            for group in group_by:
-                other[group] = others_label
-
-            if "account" in group_by:
-                other["account_alias"] = others_label
-
-            if "cluster" in group_by:
-                other["cluster_alias"] = others_label
-                clusters_list = set()
-                source_uuids_list = set()
-                for entry in others_list:
-                    clusters_list.update(entry.get("clusters", []))
-                    source_uuids_list.update(entry.get("source_uuid", []))
-                other["clusters"] = list(clusters_list)
-                other["source_uuid"] = list(source_uuids_list)
-                exclusions = ()
-            else:
-                # delete these labels from the Others category if we're not
-                # grouping by cluster.
-                exclusions = ("cluster", "cluster_alias")
-
-            for exclude in exclusions:
-                if exclude in other:
-                    del other[exclude]
-
-            ranked_list.append(other)
-
-        return ranked_list
 
     def date_group_data(self, data_list):
         """Group data by date."""
