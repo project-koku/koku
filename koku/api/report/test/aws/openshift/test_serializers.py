@@ -4,6 +4,7 @@
 #
 """Test the OCP on AWS Report serializers."""
 from unittest import TestCase
+from unittest.mock import Mock
 
 from rest_framework import serializers
 
@@ -212,5 +213,15 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
         """Test that cost type is not allowed."""
         query_params = {"cost_type": "blended_cost"}
         serializer = OCPAWSQueryParamSerializer(data=query_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_fail_without_group_by(self):
+        """Test fail if filter[limit] and filter[offset] passed without group by."""
+        query_params = {"filter[limit]": "1", "filter[offset]": "1"}
+        url = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+
+        req = Mock(path=url)
+        serializer = OCPAWSQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
