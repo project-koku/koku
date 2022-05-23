@@ -404,7 +404,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_curr_month_by_tenant_w_order_by_tenant(self):
         """Test execute_query for current month on monthly breakdown by tenant with asc order."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[payer_tenant_id]=asc&group_by[payer_tenant_id]=*"  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[cost]=asc&group_by[payer_tenant_id]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
         query_output = handler.execute_query()
