@@ -52,6 +52,9 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
+# Allow org admins to bypass RBAC permission checks
+ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
+
 ALLOWED_HOSTS = ["*"]
 
 
@@ -290,7 +293,7 @@ RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/specs")]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]
