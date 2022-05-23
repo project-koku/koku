@@ -160,7 +160,6 @@ class TagQueryHandler(QueryHandler):
                 start_filter, end_filter = self._get_time_based_filters(source, delta)
                 filters.add(query_filter=start_filter)
                 filters.add(query_filter=end_filter)
-        # something here for filter is value
 
         for filter_key in self.SUPPORTED_FILTERS:
             if self.parameters.get_filter("value") and filter_key == "enabled":
@@ -168,7 +167,9 @@ class TagQueryHandler(QueryHandler):
 
             filter_value = self.parameters.get_filter(filter_key)
             LOG.debug(f"_get_filter_value:{filter_value}")
+            # Added to prevent 500 error when filtering value with a wildcard.
             if self.parameters.get_filter("value") and TagQueryHandler.has_wildcard(filter_value):
+                # Adds filter to the query response, however this filter will remove no values.
                 filter_obj = self.filter_map.get(filter_key)
                 q_filter = QueryFilter(parameter="", **filter_obj)
                 filters.add(q_filter)

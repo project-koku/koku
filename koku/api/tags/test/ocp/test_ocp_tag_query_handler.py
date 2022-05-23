@@ -39,8 +39,8 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
-    def test_execute_query_wildcard_query_parameters_on_value(self):
-        """Test that get tag values runs properly with value query."""
+    def test_execute_query_wildcard_value_parameters(self):
+        """Test that get tag values runs properly with value query as wildcard."""
         key = "version"
         value = "*"
         url = f"?filter[value]={value}"
