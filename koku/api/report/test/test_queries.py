@@ -199,7 +199,7 @@ class ReportQueryHandlerTest(IamTestCase):
         """Test setup."""
         self.mock_tag_key = FAKE.word()
         tag_mock = Mock()
-        tag_mock.objects.values.return_value.distinct.return_value = [
+        tag_mock.objects.values_list.return_value.distinct.return_value = [
             {"key": self.mock_tag_key, "values": [FAKE.word(), FAKE.word()]}
         ]
 
