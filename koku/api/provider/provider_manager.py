@@ -23,7 +23,6 @@ from api.utils import DateHelper
 from cost_models.models import CostModelMap
 from koku.database import execute_delete_sql
 from masu.processor import enable_trino_processing
-from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -325,8 +324,3 @@ def provider_post_delete_callback(*args, **kwargs):
         LOG.info("Deleting any archived data")
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
-
-    LOG.info("Refreshing materialized views post-provider-delete uuid=%s.", provider.uuid)
-    refresh_materialized_views(
-        provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
-    )

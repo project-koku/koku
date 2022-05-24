@@ -117,7 +117,8 @@ function run_test_filter_expression {
     fi
 }
 
-function make_results_xml() {
+function make_failed_results_xml() {
+mkdir $WORKSPACE/artifacts
 cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <testsuite id="pr_check" name="PR Check" tests="1" failures="1">
@@ -128,10 +129,20 @@ cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
 EOF
 }
 
+function make_skipped_xml() {
+mkdir $WORKSPACE/artifacts
+cat << EOF > $WORKSPACE/artifacts/junit-pr_check.xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuite id="pr_check" name="PR Check" tests="1" failures="0">
+    <testcase id="pr_check.skipped" name="Skipped">
+    </testcase>
+</testsuite>
+EOF
+}
+
 # check if this commit is out of date with the branch
 latest_commit=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/project-koku/koku/pulls/$ghprbPullId | jq -r '.head.sha')
-if [[ $latest_commit != $ghprbActualCommit ]]
-then
+if [[ $latest_commit != $ghprbActualCommit ]]; then
     exit_code=3
     make_results_xml
     exit $exit_code
@@ -143,10 +154,12 @@ curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos
 
 
 # check if this PR is labeled to build the test image
-if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests'
-then
+if ! check_for_labels 'lgtm|pr-check-build|*smoke-tests|ok-to-skip-smokes'; then
     echo "PR check skipped"
     exit_code=1
+elif check_for_labels 'ok-to-skip-smokes'; then
+    echo "smokes not required"
+    exit_code=-1
 else
     # Install bonfire repo/initialize
     run_test_filter_expression
@@ -161,8 +174,7 @@ fi
 
 if [[ $exit_code == 0 ]]; then
     # check if this PR is labeled to run smoke tests
-    if ! check_for_labels 'lgtm|*smoke-tests'
-    then
+    if ! check_for_labels 'lgtm|*smoke-tests'; then
         echo "PR smoke tests skipped"
         exit_code=2
     else
@@ -172,10 +184,10 @@ if [[ $exit_code == 0 ]]; then
     fi
 fi
 
-cp $LABELS_DIR/github_labels.txt $ARTIFACTS_DIR/github_labels.txt
-
-if [[ $exit_code != 0 ]]
-then
+if [[ $exit_code > 0 ]]; then
     echo "PR check failed"
-    make_results_xml
+    make_failed_results_xml
+elif [[ $exit_code < 0 ]]; then
+    echo "PR check skipped"
+    make_skipped_xml
 fi

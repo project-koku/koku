@@ -253,7 +253,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     def _get_access(self, user):
         """Obtain access for given user from RBAC service."""
         access = None
-        if user.admin:
+        if settings.ENHANCED_ORG_ADMIN and user.admin:
             return access
         access = self.rbac.get_access_for_user(user)
         return access

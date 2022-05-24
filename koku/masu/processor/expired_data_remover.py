@@ -16,6 +16,7 @@ from masu.external.date_accessor import DateAccessor
 from masu.processor.aws.aws_report_db_cleaner import AWSReportDBCleaner
 from masu.processor.azure.azure_report_db_cleaner import AzureReportDBCleaner
 from masu.processor.gcp.gcp_report_db_cleaner import GCPReportDBCleaner
+from masu.processor.oci.oci_report_db_cleaner import OCIReportDBCleaner
 from masu.processor.ocp.ocp_report_db_cleaner import OCPReportDBCleaner
 
 LOG = logging.getLogger(__name__)
@@ -75,15 +76,14 @@ class ExpiredDataRemover:
         """
         if self._provider in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
             return AWSReportDBCleaner(self._schema)
-
         if self._provider in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
             return AzureReportDBCleaner(self._schema)
-
         if self._provider in (Provider.PROVIDER_OCP,):
             return OCPReportDBCleaner(self._schema)
-
         if self._provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
             return GCPReportDBCleaner(self._schema)
+        if self._provider in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+            return OCIReportDBCleaner(self._schema)
 
         return None
 
