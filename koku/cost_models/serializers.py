@@ -496,7 +496,7 @@ class CostModelSerializer(serializers.Serializer):
                     if tiered_rate.get("usage") and tiered_rate.get("usage").get("unit"):
                         if tiered_rate.get("usage").get("unit") != data.get("currency"):
                             raise serializers.ValidationError(err_msg)
-            elif rate and rate.get("tag_rates"):
+            if rate and rate.get("tag_rates"):
                 for tag_rate in rate.get("tag_rates").get("tag_values"):
                     if tag_rate.get("unit") != data.get("currency"):
                         raise serializers.ValidationError(err_msg)

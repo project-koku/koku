@@ -770,14 +770,16 @@ class CostModelSerializerTest(IamTestCase):
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
 
-        self.ocp_data["rates"][0]["tiered_rates"] = [
-            {
-                "unit": "USD",
-                "value": 0.22,
-                "usage": {"usage_start": None, "usage_end": None, "unit": "JPY"},
-                "cost_type": "Infrastructure",
-            }
-        ]
+        self.ocp_data["rates"][0]["tiered_rates"] = format_tag_rate(
+            [
+                {
+                    "unit": "USD",
+                    "value": 0.22,
+                    "usage": {"usage_start": None, "usage_end": None, "unit": "JPY"},
+                    "cost_type": "Infrastructure",
+                }
+            ]
+        )
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
@@ -786,15 +788,11 @@ class CostModelSerializerTest(IamTestCase):
 
     def test_tagged_not_matching_currency(self):
         """Test if tagged rates do not match currency raises a validation error."""
-        self.ocp_data["rates"][0]["tag_rates"] = {
-            "tag_key": "application",
-            "tag_values": [
-                {"unit": "JPY", "value": 0.05, "default": False, "tag_value": "OpenCart", "description": ""},
-            ],
-        }
+        tag_value = {"tag_value": "key_one", "value": 0.2, "unit": "JPY"}
+        self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value])
 
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             with self.assertRaises(serializers.ValidationError):
                 self.assertFalse(serializer.is_valid(raise_exception=True))
 
@@ -830,13 +828,9 @@ class CostModelSerializerTest(IamTestCase):
             self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_valid_tagged_matching_currency(self):
-        self.basic_model["rates"][0]["tag_rates"] = {
-            "tag_key": "application",
-            "tag_values": [
-                {"unit": "USD", "value": 0.05, "default": False, "tag_value": "OpenCart", "description": ""},
-            ],
-        }
-        # self.ocp_data['currency'] = 'USD'
+        tag_value = {"tag_value": "key_one", "value": 0.2, "unit": "USD"}
+        self.basic_model["rates"][0]["tag_rates"] = format_tag_rate(tag_values=[tag_value])
+
         with tenant_context(self.tenant):
-            serializer = CostModelSerializer(data=self.ocp_data, context=self.request_context)
+            serializer = CostModelSerializer(data=self.basic_model, context=self.request_context)
             self.assertTrue(serializer.is_valid(raise_exception=True))
