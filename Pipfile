@@ -57,8 +57,6 @@ oci = "*"
 
 [dev-packages]
 astroid = ">=2.3"
-sphinx-rtd-theme = ">=0.3"
-sphinx = ">=3.0"
 tox = ">=3.0"
 coverage = "<5.0"
 codecov = ">=2.0.17"

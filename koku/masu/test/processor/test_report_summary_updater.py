@@ -19,6 +19,7 @@ from masu.processor.aws.aws_report_parquet_summary_updater import AWSReportParqu
 from masu.processor.aws.aws_report_summary_updater import AWSReportSummaryUpdater
 from masu.processor.azure.azure_report_parquet_summary_updater import AzureReportParquetSummaryUpdater
 from masu.processor.azure.azure_report_summary_updater import AzureReportSummaryUpdater
+from masu.processor.oci.oci_report_parquet_summary_updater import OCIReportParquetSummaryUpdater
 from masu.processor.ocp.ocp_report_summary_updater import OCPReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
@@ -186,10 +187,15 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     def test_azure_parquet_summary_updater(self):
-        """Test that the AWSReportParquetSummaryUpdater is returned."""
+        """Test that the AzureReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
-
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    def test_oci_parquet_summary_updater(self):
+        """Test that the OCIReportParquetSummaryUpdater is returned."""
+        updater = ReportSummaryUpdater(self.schema, self.oci_provider_uuid)
+        self.assertIsInstance(updater._updater, OCIReportParquetSummaryUpdater)
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")

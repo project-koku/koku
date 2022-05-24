@@ -31,7 +31,7 @@ WITH cte_line_items AS (
         coalesce(resourceid, instanceid) as instance_id,
         cast(source as UUID) as source_uuid,
         CASE
-            WHEN split_part(unitofmeasure, ' ', 2) != '' AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines')
+            WHEN regexp_like(split_part(unitofmeasure, ' ', 1), '^\d+(\.\d+)?$') AND NOT (unitofmeasure = '100 Hours' AND metercategory='Virtual Machines') AND NOT split_part(unitofmeasure, ' ', 2) = ''
                 THEN cast(split_part(unitofmeasure, ' ', 1) as INTEGER)
             ELSE 1
             END as multiplier,
@@ -40,7 +40,7 @@ WITH cte_line_items AS (
                 THEN  'Hrs'
             WHEN split_part(unitofmeasure, ' ', 2) = 'GB/Month'
                 THEN  'GB-Mo'
-            WHEN split_part(unitofmeasure, ' ', 2) != ''
+            WHEN split_part(unitofmeasure, ' ', 2) != '' AND split_part(unitofmeasure, ' ', 3) = ''
                 THEN  split_part(unitofmeasure, ' ', 2)
             ELSE unitofmeasure
         END as unit_of_measure

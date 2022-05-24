@@ -140,6 +140,8 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             Provider.PROVIDER_GCP_LOCAL, ocp_on_gcp_cluster_id, gcp_bills, ocp_on_gcp_report_periods
                         )
 
+                        # OCI
+                        bakery_data_loader.load_oci_data()
                         for account in [("10002", "acct10002"), ("12345", "acct12345")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()

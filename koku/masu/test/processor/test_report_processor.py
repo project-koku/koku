@@ -67,6 +67,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_OCP,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertIsNotNone(processor._processor)
 
@@ -136,6 +137,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         processor.process()
         mock_process.assert_not_called()
@@ -216,7 +218,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
-            context={"request_id": 1},
+            context={"start_date": self.start_date, "request_id": 1},
         )
         self.assertIsInstance(processor._processor, ParquetReportProcessor)
 
@@ -232,7 +234,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
-            context={"request_id": 1},
+            context={"start_date": self.start_date, "request_id": 1},
         )
         self.assertIsInstance(processor.ocp_on_cloud_processor, OCPCloudParquetReportProcessor)
 

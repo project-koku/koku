@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS accounts."""
+from django.conf import settings
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
@@ -67,7 +68,7 @@ class AWSAccountView(generics.ListAPIView):
                             .distinct()
                         )
 
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.account", {}).get("read", [])

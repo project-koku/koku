@@ -7,6 +7,7 @@ import logging
 from functools import reduce
 from operator import and_
 
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -37,7 +38,7 @@ class CostModelsFilter(FilterSet):
     name = CharFilter(field_name="name", method="list_contain_filter")
     uuid = UUIDFilter(field_name="uuid")
     source_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
-    description = CharFilter(field_name="description", lookup_expr="icontains")
+    description = CharFilter(field_name="description", method="list_contain_filter")
     source_type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
     currency = CharListFilter(field_name="currency", method="currency_filter")
 
@@ -134,7 +135,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
         """
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
-        if not self.request.user.admin:
+        if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
             read_access_list = self.request.user.access.get("cost_model").get("read")
             if "*" not in read_access_list:
                 try:
