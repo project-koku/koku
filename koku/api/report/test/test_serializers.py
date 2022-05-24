@@ -662,8 +662,8 @@ class ParamSerializerTest(TestCase):
 
     def test_fail_without_group_by(self):
         """Test fail if filter[limit] and filter[offset] passed without group by."""
-        query_params = {"filter[limit]": "1", "filter[offset]": "1"}
+        params = {"filter[limit]": "1", "filter[offset]": "1"}
         with self.assertRaises(ValidationError):
-            serializer = ParamSerializer(data=query_params, context={"request": Mock(path=" ")})
+            serializer = ParamSerializer(data=params)
             self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)
