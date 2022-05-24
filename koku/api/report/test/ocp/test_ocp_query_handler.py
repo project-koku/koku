@@ -654,6 +654,8 @@ class OCPReportQueryHandlerTest(IamTestCase):
             result = data["result"]
             self.assertIsNotNone(expected)
             self.assertIsNotNone(result)
+            LOG.info(expected)
+            LOG.info(result)
             self.assertLessEqual(abs(expected - result), tolerance)
 
     def test_subtotals_add_up_to_total_ncp(self, mocked_exchange_rates):

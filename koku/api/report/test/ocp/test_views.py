@@ -59,8 +59,6 @@ class OCPReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-        # self.dh = DateHelper()
-        # self.ten_days_ago = self.dh.n_days_ago(self.dh._now, 9)
         self.report_ocp_cpu = {
             "group_by": {"project": ["*"]},
             "filter": {"resolution": "monthly", "time_scope_value": "-1", "time_scope_units": "month"},
