@@ -21,7 +21,7 @@ def enable_hcs_processing_mock(schema=True):
 
 
 @patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
-@patch("hcs.daily_report.ReportHCS")
+@patch("hcs.daily_report.ReportHCS.generate_report")
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
@@ -74,7 +74,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, "bogus", self.provider_uuid, start_date)
 
-            self.assertIn("Customer not registered with HCS", _logs.output[0])
+            self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
 
     def test_schema_no_acct_prefix(self, mock_report):
         """Test no start end provided"""
@@ -83,3 +83,47 @@ class TestHCSTasks(HCSTestCase):
         collect_hcs_report_data("10001", self.provider, self.provider_uuid, self.yesterday)
 
         self.assertEqual("acct10001", self.schema)
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    def test_get_report_with_manifest(self, mock_report, rd):
+        """Test invalid provider"""
+        from hcs.tasks import collect_hcs_report_data_from_manifest
+
+        manifests = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.provider,
+                "provider_uuid": self.provider_uuid,
+                "tracing_id": self.provider_uuid,
+            }
+        ]
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_data_from_manifest(manifests)
+
+            self.assertIn("[collect_hcs_report_data_from_manifest]", _logs.output[0])
+            self.assertIn(f"schema_name: {self.schema}", _logs.output[0])
+            self.assertIn(f"provider_type: {self.provider}", _logs.output[0])
+            self.assertIn(f"provider_uuid: {self.provider_uuid}", _logs.output[0])
+            self.assertIn("start:", _logs.output[0])
+            self.assertIn("end:", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    def test_get_report_with_manifest_and_dates(self, mock_report, rd):
+        """Test invalid provider"""
+        from hcs.tasks import collect_hcs_report_data_from_manifest
+
+        manifests = [
+            {
+                "schema_name": self.schema,
+                "provider_type": self.provider,
+                "provider_uuid": self.provider_uuid,
+                "start": self.today.strftime("%Y-%m-%d"),
+                "end": self.yesterday.strftime("%Y-%m-%d"),
+            }
+        ]
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_data_from_manifest(manifests)
+
+            self.assertIn("using start and end dates from the manifest", _logs.output[0])

@@ -132,19 +132,31 @@ class SourcesViewSet(*MIXIN_LIST):
     def get_excludes(request):
         """Get excluded source types by access."""
         excludes = []
-        if request.user.admin:
+        keep = []
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return excludes
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
             for resource_type in RESOURCE_TYPE_MAP.keys():
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
-            return excludes
+            return list(set(excludes))
         for resource_type in RESOURCE_TYPE_MAP.keys():
             access_value = resource_access.get(resource_type)
             if access_value is None:
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
             elif not access_value.get("read", []):
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            else:
+                keep.extend(RESOURCE_TYPE_MAP.get(resource_type))
+
+        excludes = list(set(excludes))
+        keep = list(set(keep))
+
+        for provider in keep:
+            try:
+                excludes.remove(provider)
+            except ValueError:
+                pass
 
         return excludes
 

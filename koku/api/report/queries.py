@@ -10,6 +10,7 @@ import re
 import string
 from collections import defaultdict
 from collections import OrderedDict
+from datetime import datetime
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
@@ -49,16 +50,18 @@ def strip_tag_prefix(tag):
     return tag.replace("tag:", "").replace("and:", "").replace("or:", "")
 
 
+def _is_grouped_by_key(group_by, key):
+    return [k for k in group_by if k.startswith(key)]
+
+
 def is_grouped_by_tag(parameters):
     """Determine if grouped by tag."""
-    group_by = list(parameters.parameters.get("group_by", {}).keys())
-    return [key for key in group_by if "tag" in key]
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "tag")
 
 
 def is_grouped_by_project(parameters):
     """Determine if grouped or filtered by project."""
-    group_by = list(parameters.parameters.get("group_by", {}).keys())
-    return [key for key in group_by if "project" in key]
+    return _is_grouped_by_key(parameters.parameters.get("group_by", {}), "project")
 
 
 def check_if_valid_date_str(date_str):
@@ -1020,13 +1023,14 @@ class ReportQueryHandler(QueryHandler):
         """
         if rank_value:
             return rank_value
-        group_by_value = self._get_group_by()
+
         check_tag_group_by = is_grouped_by_tag(self.parameters)
         if check_tag_group_by:
-            tag_value = check_tag_group_by[0].split(":")[1]
-            rank_value = f"no-{tag_value}"
+            tag = check_tag_group_by[0]
+            rank_value = f"no-{tag[tag.index(':') + 1:]}"
         else:
-            rank_value = f"no-{group_by_value[0]}"
+            rank_value = f"no-{self._get_group_by()[0]}"
+
         return rank_value
 
     def _group_by_ranks(self, query, data):  # noqa: C901
@@ -1105,47 +1109,47 @@ class ReportQueryHandler(QueryHandler):
         date_grouped_data, account_alias_map = self.date_group_data(data_list)
         if ranks:
             padded_data = OrderedDict()
+            _op_start = datetime.utcnow()
             for date in date_grouped_data:
                 padded_data[date] = self._zerofill_ranks(date_grouped_data[date], ranks, account_alias_map)
+            LOG.info(f"### _zerofill_ranks() method total time: {(datetime.utcnow() - _op_start).total_seconds()}sec")
         else:
             padded_data = date_grouped_data
 
         rank_limited_data = OrderedDict()
         is_offset = "offset" in self.parameters.get("filter", {})
+        _op_start = datetime.utcnow()
         for date in padded_data:
             ranked_list = self._perform_rank_summation(padded_data[date], is_offset, ranks)
             rank_limited_data[date] = ranked_list
+        LOG.info(f"### _perform_rank_summation total time : {(datetime.utcnow() - _op_start).total_seconds()}sec")
 
         return self.unpack_date_grouped_data(rank_limited_data)
 
     def _zerofill_ranks(self, data, ranks, account_alias_map):
         """Ensure the data set has at least one entry from every ranked category."""
         rank_field = self._get_group_by()[0]
+        missing = set(ranks) - {item[rank_field] for item in data}
 
-        data_ranks = [item[rank_field] for item in data]
-        missing = list(set(ranks) - set(data_ranks))
+        if missing:
+            fd = data[0]  # first data record
+            fd_date = data[0].get("date")  # first data record date field
 
-        row_defaults = {
-            "str": "",
-            "int": 0,
-            "float": 0.0,
-            "dict": {},
-            "list": [],
-            "Decimal": Decimal(0),
-            "NoneType": None,
-            "UUID": None,
-        }
-        empty_row = {key: row_defaults[str(type(val).__name__)] for key, val in data[0].items()}
-        missed_data = []
-        for missed in missing:
-            ranked_empty_row = copy.deepcopy(empty_row)
-            ranked_empty_row[rank_field] = missed
-            ranked_empty_row["date"] = data[0].get("date")
-            if rank_field == "account":
-                ranked_empty_row["account_alias"] = account_alias_map.get(missed, missed)
-            missed_data.append(ranked_empty_row)
-        new_data = data + missed_data
-        return new_data
+            data.extend(
+                {
+                    k: m
+                    if k == rank_field
+                    else fd_date
+                    if k == "date"
+                    else account_alias_map.get(m, m)
+                    if k == "account_alias" and rank_field == "account"
+                    else type(v)()
+                    for k, v in fd.items()
+                }
+                for m in missing
+            )  # noqa
+
+        return data
 
     def _perform_rank_summation(self, entry, is_offset=False, ranks=[]):  # noqa: C901
         """Do the rank limiting for _ranked_list().
@@ -1158,33 +1162,30 @@ class ReportQueryHandler(QueryHandler):
         other = None
         ranked_list = []
         others_list = []
-        other_sums = {column: 0 for column in self._mapper.sum_columns}
+        rank_field = self._get_group_by()[0]
+        _range = self._limit + self._offset
+        other_sums = dict.fromkeys(self._mapper.sum_columns, 0)
 
         for data in entry:
             if other is None:
-                other = copy.deepcopy(data)
+                other = data.copy()
 
             if ranks:
-                ranked_value = data.get(self._get_group_by()[0])
-                ranked_value = self.check_missing_rank_value(ranked_value)
-                rank = ranks.index(ranked_value) + 1
+                rank = ranks.index(self.check_missing_rank_value(data.get(rank_field))) + 1
                 data["rank"] = rank
             else:
                 rank = data.get("rank", 1)
 
-            if rank > self._offset and rank <= self._limit + self._offset:
+            if self._offset < rank <= _range:
                 ranked_list.append(data)
             else:
                 others_list.append(data)
                 for column in self._mapper.sum_columns:
-                    other_sums[column] += data.get(column) if data.get(column) else 0
+                    other_sums[column] += data.get(column) or 0
 
         if other is not None and others_list and not is_offset:
             num_others = len(others_list)
-            others_label = "Others"
-
-            if num_others == 1:
-                others_label = "Other"
+            others_label = "Other" if num_others == 1 else "Others"
 
             other.update(other_sums)
             other["rank"] = self._limit + 1
@@ -1198,8 +1199,8 @@ class ReportQueryHandler(QueryHandler):
 
             if "cluster" in group_by:
                 other["cluster_alias"] = others_label
-                clusters_list = []
-                source_uuids_list = []
+                clusters_list = set()
+                source_uuids_list = set()
                 for entry in others_list:
                     clusters_list.extend(entry.get("clusters", []))
                     source_uuid = entry.get("source_uuid", [])
@@ -1209,11 +1210,11 @@ class ReportQueryHandler(QueryHandler):
                         source_uuids_list.extend(source_uuid)
                 other["clusters"] = list(set(clusters_list))
                 other["source_uuid"] = list(set(source_uuids_list))
-                exclusions = []
+                exclusions = ()
             else:
                 # delete these labels from the Others category if we're not
                 # grouping by cluster.
-                exclusions = ["cluster", "cluster_alias"]
+                exclusions = ("cluster", "cluster_alias")
 
             for exclude in exclusions:
                 if exclude in other:

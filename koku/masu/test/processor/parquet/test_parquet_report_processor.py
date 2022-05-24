@@ -22,6 +22,7 @@ from masu.config import Config
 from masu.processor.aws.aws_report_parquet_processor import AWSReportParquetProcessor
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor
 from masu.processor.gcp.gcp_report_parquet_processor import GCPReportParquetProcessor
+from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor
 from masu.processor.ocp.ocp_report_parquet_processor import OCPReportParquetProcessor
 from masu.processor.parquet.parquet_report_processor import CSV_EXT
 from masu.processor.parquet.parquet_report_processor import CSV_GZIP_EXT
@@ -35,10 +36,13 @@ from masu.util.azure.common import azure_generate_daily_data
 from masu.util.azure.common import azure_post_processor
 from masu.util.gcp.common import gcp_generate_daily_data
 from masu.util.gcp.common import gcp_post_processor
+from masu.util.oci.common import oci_generate_daily_data
+from masu.util.oci.common import oci_post_processor
 from masu.util.ocp.common import ocp_generate_daily_data
 from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.gcp.models import GCPEnabledTagKeys
+from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.ocp.models import OCPEnabledTagKeys
 
 
@@ -62,6 +66,7 @@ class TestParquetReportProcessor(MasuTestCase):
         self.tracing_id = 1
         self.account_id = self.schema[4:]
         self.manifest_id = 1
+        self.start_date = DateHelper().today
         self.report_name = "koku-1.csv.gz"
         self.report_path = f"/my/{self.test_assembly_id}/{self.report_name}"
         self.report_processor = ParquetReportProcessor(
@@ -84,6 +89,8 @@ class TestParquetReportProcessor(MasuTestCase):
             (Provider.PROVIDER_AZURE_LOCAL, AzureEnabledTagKeys),
             (Provider.PROVIDER_GCP, GCPEnabledTagKeys),
             (Provider.PROVIDER_GCP_LOCAL, GCPEnabledTagKeys),
+            (Provider.PROVIDER_OCI, OCIEnabledTagKeys),
+            (Provider.PROVIDER_OCI_LOCAL, OCIEnabledTagKeys),
             (Provider.PROVIDER_OCP, OCPEnabledTagKeys),
             (Provider.PROVIDER_IBM, None),
             (Provider.PROVIDER_IBM_LOCAL, None),
@@ -95,7 +102,7 @@ class TestParquetReportProcessor(MasuTestCase):
                 provider_uuid="self.aws_provider_uuid",
                 provider_type=provider_type,
                 manifest_id="self.manifest_id",
-                context={},
+                context={"start_date": self.start_date, "tracing_id": "1"},
             )
             self.assertEqual(prp.enabled_tags_model, expected_tag_keys_model)
 
@@ -192,6 +199,11 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_uuid": str(self.gcp_provider_uuid),
                 "provider_type": Provider.PROVIDER_GCP,
                 "expected": gcp_post_processor,
+            },
+            {
+                "provider_uuid": str(self.oci_provider_uuid),
+                "provider_type": Provider.PROVIDER_OCI,
+                "expected": oci_post_processor,
             },
         ]
 
@@ -458,6 +470,20 @@ class TestParquetReportProcessor(MasuTestCase):
                 "provider_type": Provider.PROVIDER_GCP,
                 "patch": (GCPReportParquetProcessor, "create_bill"),
             },
+            {
+                "provider_uuid": str(self.oci_provider_uuid),
+                "provider_type": Provider.PROVIDER_OCI,
+                "report_file": "usage.csv",
+                "patch": (OCIReportParquetProcessor, "create_bill"),
+                "daily": False,
+            },
+            {
+                "provider_uuid": str(self.oci_provider_uuid),
+                "provider_type": Provider.PROVIDER_OCI,
+                "report_file": "usage.csv",
+                "patch": (OCIReportParquetProcessor, "create_bill"),
+                "daily": True,
+            },
         ]
         output_file = "local_path/file.parquet"
 
@@ -467,6 +493,8 @@ class TestParquetReportProcessor(MasuTestCase):
         for test in test_matrix:
             if test.get("provider_type") == Provider.PROVIDER_OCP:
                 mock_report_type.return_value = "pod_usage"
+            elif test.get("provider_type") == Provider.PROVIDER_OCI:
+                mock_report_type.return_value = "usage"
             else:
                 mock_report_type.return_value = None
             provider_uuid = test.get("provider_uuid")
@@ -627,6 +655,17 @@ class TestParquetReportProcessor(MasuTestCase):
         daily_data_processor = processor.daily_data_processor
         self.assertEqual(daily_data_processor, gcp_generate_daily_data)
 
+        processor = ParquetReportProcessor(
+            schema_name=self.schema,
+            report_path=self.report_path,
+            provider_uuid=self.oci_provider_uuid,
+            provider_type=Provider.PROVIDER_OCI_LOCAL,
+            manifest_id=self.manifest_id,
+            context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+        )
+        daily_data_processor = processor.daily_data_processor
+        self.assertEqual(daily_data_processor, oci_generate_daily_data)
+
         with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
             report_type = "pod_usage"
             mock_report_type.return_value = report_type
@@ -641,6 +680,20 @@ class TestParquetReportProcessor(MasuTestCase):
             daily_data_processor = processor.daily_data_processor
             expected = partial(ocp_generate_daily_data, report_type=report_type)
             self.assertEqual(daily_data_processor.func, expected.func)
+
+        with patch.object(ParquetReportProcessor, "report_type", new_callable=PropertyMock) as mock_report_type:
+            report_type = "usage"
+            mock_report_type.return_value = report_type
+            processor = ParquetReportProcessor(
+                schema_name=self.schema,
+                report_path=self.report_path,
+                provider_uuid=self.oci_provider_uuid,
+                provider_type=Provider.PROVIDER_OCI,
+                manifest_id=self.manifest_id,
+                context={"tracing_id": self.tracing_id, "start_date": DateHelper().today, "create_table": True},
+            )
+            daily_data_processor = processor.daily_data_processor
+            self.assertEqual(daily_data_processor, oci_generate_daily_data)
 
     @patch.object(ParquetReportProcessor, "create_parquet_table")
     @patch.object(ParquetReportProcessor, "_write_parquet_to_file")

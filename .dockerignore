@@ -5,7 +5,7 @@
 !Pipfile
 !Pipfile.lock
 !koku/
-!docs/source/specs/
+!docs/specs/
 !db_functions/
 !scripts/
 
@@ -13,3 +13,7 @@
 **/*test*
 **/__pycache__
 **/*.log
+
+# remove any static files
+koku/static/**
+!koku/static/README

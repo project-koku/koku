@@ -8,7 +8,7 @@ import logging
 from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
-from api.models import Provider
+from api.provider.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
@@ -20,6 +20,8 @@ from masu.external.downloader.azure_local.azure_local_report_downloader import A
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.downloader.ibm.ibm_report_downloader import IBMReportDownloader
+from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloader
+from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.downloader.report_downloader_base import ReportDownloaderError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
@@ -85,91 +87,26 @@ class ReportDownloader:
             (Object) : Some object that is a child of CURAccountsInterface
 
         """
-        if self.provider_type == Provider.PROVIDER_AWS:
-            return AWSReportDownloader(
+        downloader_map = {
+            Provider.PROVIDER_AWS: AWSReportDownloader,
+            Provider.PROVIDER_AWS_LOCAL: AWSLocalReportDownloader,
+            Provider.PROVIDER_AZURE: AzureReportDownloader,
+            Provider.PROVIDER_AZURE_LOCAL: AzureLocalReportDownloader,
+            Provider.PROVIDER_GCP: GCPReportDownloader,
+            Provider.PROVIDER_GCP_LOCAL: GCPLocalReportDownloader,
+            Provider.PROVIDER_OCI: OCIReportDownloader,
+            Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
+            Provider.PROVIDER_IBM: IBMReportDownloader,
+            Provider.PROVIDER_OCP: OCPReportDownloader,
+        }
+        if self.provider_type in downloader_map:
+            return downloader_map[self.provider_type](
                 customer_name=self.customer_name,
                 credentials=self.credentials,
                 data_source=self.data_source,
                 report_name=self.report_name,
                 provider_uuid=self.provider_uuid,
                 tracing_id=self.tracing_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_AWS_LOCAL:
-            return AWSLocalReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                tracing_id=self.tracing_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_AZURE:
-            return AzureReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_AZURE_LOCAL:
-            return AzureLocalReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_OCP:
-            return OCPReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_GCP:
-            return GCPReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_GCP_LOCAL:
-            return GCPLocalReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
-                account=self.account,
-                provider_type=self.provider_type,
-            )
-        if self.provider_type == Provider.PROVIDER_IBM:
-            return IBMReportDownloader(
-                customer_name=self.customer_name,
-                credentials=self.credentials,
-                data_source=self.data_source,
-                report_name=self.report_name,
-                provider_uuid=self.provider_uuid,
-                request_id=self.request_id,
                 account=self.account,
                 provider_type=self.provider_type,
             )
