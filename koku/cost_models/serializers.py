@@ -463,6 +463,8 @@ class CostModelSerializer(serializers.Serializer):
             return data
         if data["source_type"] not in self.metric_map.keys():
             raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
+        if data.get("rates"):
+            self.validate_rates_currency(data)
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -487,11 +489,14 @@ class CostModelSerializer(serializers.Serializer):
         """Validate incoming currency and rates all match."""
         err_msg = "Rate units must match currency provided in a cost model."
         for rate in data.get("rates"):
-            if rate.get("tiered_rates"):
-                tiered_rates = rate.get("tiered_rates")[0]
-                if (tiered_rates.get("unit") or tiered_rates.get("usage").get("unit")) != data.get("currency"):
-                    raise serializers.ValidationError(err_msg)
-            elif rate.get("tag_rates"):
+            if rate and rate.get("tiered_rates"):
+                for tiered_rate in rate.get("tiered_rates"):
+                    if tiered_rate.get("unit") != data.get("currency"):
+                        raise serializers.ValidationError(err_msg)
+                    if tiered_rate.get("usage") and tiered_rate.get("usage").get("unit"):
+                        if tiered_rate.get("usage").get("unit") != data.get("currency"):
+                            raise serializers.ValidationError(err_msg)
+            elif rate and rate.get("tag_rates"):
                 for tag_rate in rate.get("tag_rates").get("tag_values"):
                     if tag_rate.get("unit") != data.get("currency"):
                         raise serializers.ValidationError(err_msg)
