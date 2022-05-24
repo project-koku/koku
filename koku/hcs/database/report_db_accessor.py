@@ -54,6 +54,11 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         try:
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
             sql = sql.decode("utf-8")
+            table = HCS_TABLE_MAP.get(provider.strip("-local"))
+
+            if not self.table_exists_trino(table):
+                LOG.info(log_json(tracing_id, f"{table} does not exist, skipping..."))
+                return {}
 
             sql_params = {
                 "provider_uuid": provider_uuid,
@@ -62,8 +67,9 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "date": date,
                 "schema": self.schema,
                 "ebs_acct_num": self._ebs_acct_num,
-                "table": HCS_TABLE_MAP.get(provider.strip("-local")),
+                "table": table,
             }
+
             LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
 
             sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)

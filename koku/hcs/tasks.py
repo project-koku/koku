@@ -50,14 +50,11 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
 
     Returns:
         None
-
     """
     reports = [report for report in reports_to_hcs_summarize if report]
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
-        LOG.debug(f"[collect_hcs_report_data_from_manifest] report: {report}")
-
         start_date = None
         end_date = None
         if report.get("start") and report.get("end"):
@@ -117,7 +114,7 @@ def collect_hcs_report_data(
             f"[collect_hcs_report_data]: "
             f"schema_name: {schema_name}, "
             f"provider_uuid: {provider_uuid}, "
-            f"provider: {provider}, "
+            f"provider_type: {provider}, "
             f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))
@@ -127,8 +124,8 @@ def collect_hcs_report_data(
     else:
         stmt = (
             f"[SKIPPED] HCS report generation: "
-            f"Schema-name: {schema_name}, "
-            f"provider: {provider}, "
+            f"Schema_name: {schema_name}, "
+            f"provider_type: {provider}, "
             f"provider_uuid: {provider_uuid}, "
             f"dates {start_date} - {end_date}"
         )
@@ -156,8 +153,8 @@ def collect_hcs_report_finalization(tracing_id=None):
 
             stmt = (
                 f"[collect_hcs_report_finalization]: "
-                f"schema-name: {schema_name}, "
-                f"provider-type: {provider_type}, "
+                f"schema_name: {schema_name}, "
+                f"provider_type: {provider_type}, "
                 f"provider_uuid: {provider_uuid}, "
                 f"dates: {start_date_prev_month} - {end_date_prev_month}"
             )

@@ -43,7 +43,7 @@ class TestHCSTasks(HCSTestCase):
             end_date = self.today
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid, start_date, end_date)
 
-            self.assertIn("Running HCS data collection", _logs.output[0])
+            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
     def test_get_report_no_start_date(self, mock_report):
         """Test no start or end dates provided"""
@@ -52,7 +52,7 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid)
 
-            self.assertIn("Running HCS data collection", _logs.output[0])
+            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
     def test_get_report_no_end_date(self, mock_report):
         """Test no start end provided"""
@@ -62,7 +62,7 @@ class TestHCSTasks(HCSTestCase):
             start_date = self.yesterday
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid, start_date)
 
-            self.assertIn("Running HCS data collection", _logs.output[0])
+            self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
     def test_get_report_invalid_provider(self, mock_report):
         """Test invalid provider"""
@@ -98,7 +98,7 @@ class TestHCSTasks(HCSTestCase):
             }
         ]
 
-        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data_from_manifest(manifests)
 
             self.assertIn("[collect_hcs_report_data_from_manifest]", _logs.output[0])
@@ -110,7 +110,7 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest_and_dates(self, mock_report, rd):
-        """Test invalid provider"""
+        """Test HCS reports using manifest"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
 
         manifests = [
@@ -125,13 +125,12 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data_from_manifest(manifests)
-
-            self.assertIn("using start and end dates from the manifest", _logs.output[0])
+            self.assertIn("using start and end dates from the manifest for HCS processing", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization(self, mock_report, rd, provider):
-        """Test invalid provider"""
+        """Test hcs finalization"""
         from hcs.tasks import collect_hcs_report_finalization
 
         provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
@@ -139,8 +138,8 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization()
 
-            self.assertIn("starting report finalization:", _logs.output[0])
-            self.assertIn("schema-name:", _logs.output[0])
-            self.assertIn("provider:", _logs.output[0])
+            self.assertIn("[collect_hcs_report_finalization]:", _logs.output[0])
+            self.assertIn("schema_name:", _logs.output[0])
+            self.assertIn("provider_type:", _logs.output[0])
             self.assertIn("provider_uuid:", _logs.output[0])
             self.assertIn("dates:", _logs.output[0])
