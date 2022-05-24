@@ -18,7 +18,7 @@ from koku import settings
 
 def read_api_json():
     """Read the openapi.json file out of the docs dir."""
-    test_filename = os.path.join(settings.BASE_DIR, "..", "docs/source/specs/openapi.json")
+    test_filename = os.path.join(settings.BASE_DIR, "..", "docs/specs/openapi.json")
     return get_json(test_filename)
 
 

@@ -118,6 +118,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -261,6 +263,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -410,6 +414,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -579,6 +585,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -697,6 +705,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -837,6 +847,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1006,6 +1018,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1181,6 +1195,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1354,6 +1370,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1529,6 +1547,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1702,6 +1722,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1877,6 +1899,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2052,6 +2076,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2227,6 +2253,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2614,6 +2642,10 @@ parameters:
   name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- description: Enhanced Org Admin
+  displayName: Enhanced Org Admin
+  name: ENHANCED_ORG_ADMIN
+  value: "False"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

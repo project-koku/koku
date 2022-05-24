@@ -8,6 +8,7 @@ import logging
 from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
+from api.provider.models import Provider
 from masu.database.report_stats_db_accessor import ReportStatsDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.aws.aws_report_downloader import AWSReportDownloader
@@ -87,16 +88,16 @@ class ReportDownloader:
 
         """
         downloader_map = {
-            "AWS": AWSReportDownloader,
-            "AWS-local": AWSLocalReportDownloader,
-            "Azure": AzureReportDownloader,
-            "Azure-local": AzureLocalReportDownloader,
-            "GCP": GCPReportDownloader,
-            "GCP-local": GCPLocalReportDownloader,
-            "OCI": OCIReportDownloader,
-            "OCI-local": OCILocalReportDownloader,
-            "IBM": IBMReportDownloader,
-            "OCP": OCPReportDownloader,
+            Provider.PROVIDER_AWS: AWSReportDownloader,
+            Provider.PROVIDER_AWS_LOCAL: AWSLocalReportDownloader,
+            Provider.PROVIDER_AZURE: AzureReportDownloader,
+            Provider.PROVIDER_AZURE_LOCAL: AzureLocalReportDownloader,
+            Provider.PROVIDER_GCP: GCPReportDownloader,
+            Provider.PROVIDER_GCP_LOCAL: GCPLocalReportDownloader,
+            Provider.PROVIDER_OCI: OCIReportDownloader,
+            Provider.PROVIDER_OCI_LOCAL: OCILocalReportDownloader,
+            Provider.PROVIDER_IBM: IBMReportDownloader,
+            Provider.PROVIDER_OCP: OCPReportDownloader,
         }
         if self.provider_type in downloader_map:
             return downloader_map[self.provider_type](
