@@ -198,6 +198,11 @@ class ReportQueryHandlerTest(IamTestCase):
     def setUp(self):
         """Test setup."""
         self.mock_tag_key = FAKE.word()
+        tag_mock = Mock()
+        tag_mock.objects.values.return_value.distinct.return_value = [
+            {"key": self.mock_tag_key, "values": [FAKE.word(), FAKE.word()]}
+        ]
+
         self.mock_view = Mock(
             spec=ReportView,
             report="mock",
@@ -205,13 +210,7 @@ class ReportQueryHandlerTest(IamTestCase):
             provider="mock",
             serializer=Mock,
             query_handler=Mock,
-            tag_handler=[
-                Mock(
-                    objects=Mock(
-                        values=Mock(return_value=[{"key": self.mock_tag_key, "values": [FAKE.word(), FAKE.word()]}])
-                    )
-                )
-            ],
+            tag_handler=[tag_mock],
         )
 
     def test_init(self):
