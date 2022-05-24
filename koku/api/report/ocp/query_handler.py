@@ -197,9 +197,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         return group_by, order_by
 
     # fmt: off
-    def aggregate_currency_codes(self, currency_codes, extra_deltas, order_numbers=dict(), order_map=dict()):  # noqa: C901, E501
+    def aggregate_currency_codes(self, currency_codes, extra_deltas):  # noqa: C901, E501
         """Aggregate and format the unconverted after currency."""
         # fmt: on
+        order_numbers = {}
         meta_data = {}
         group_by, order_by = self._find_identity_key()
         meta_data["group_by_key"] = group_by
