@@ -25,6 +25,9 @@ from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
+TAG_PREFIX = "tag:"
+AND_TAG_PREFIX = "and:tag:"
+OR_TAG_PREFIX = "or:tag:"
 
 
 class QueryParameters:
@@ -76,12 +79,21 @@ class QueryParameters:
         self.query_handler = caller.query_handler
         self.tag_handler = caller.tag_handler
 
+        try:
+            query_params = parser.parse(self.url_data)
+        except parser.MalformedQueryStringError as e:
+            LOG.info("Invalid query parameter format %s.", self.url_data)
+            error = {"details": "Invalid query parameter format."}
+            raise ValidationError(error) from e
+
+        # implement logic here to prevent us from fetching tags when we are not grouping/filtering by tags
+
         self.tag_keys = []
         if self.report_type != "tags":
             for tag_model in self.tag_handler:
                 self.tag_keys.extend(self._get_tag_keys(tag_model))
 
-        self._validate()  # sets self.parameters
+        self._validate(query_params)  # sets self.parameters
 
         for item in ["filter", "group_by", "order_by", "access"]:
             if item not in self.parameters:
@@ -109,26 +121,34 @@ class QueryParameters:
         return pformat(self.__repr__())
 
     def _get_tag_keys(self, model):
-        """Get a list of tag keys to validate filters."""
+        """Get a set of tag keys to validate filters."""
         with tenant_context(self.tenant):
-            tags = model.objects.values("key").distinct()
-            tag_list = [":".join(["tag", tag.get("key")]) for tag in tags]
-            tag_list.extend([":".join(["and:tag", tag.get("key")]) for tag in tags])
-            tag_list.extend([":".join(["or:tag", tag.get("key")]) for tag in tags])
-        return tag_list
+            tags = model.objects.values_list("key", flat=True).distinct()
+            return set(tags)
+
+    def _strip_tag_prefix(self, value):
+        """Strip the tag prefixes from the value."""
+        if "tag" not in value:
+            return value
+        if value.startswith(TAG_PREFIX):
+            return value[len(TAG_PREFIX) :]  # noqa: E203
+        if value.startswith(AND_TAG_PREFIX):
+            return value[len(AND_TAG_PREFIX) :]  # noqa: E203
+        if value.startswith(OR_TAG_PREFIX):
+            return value[len(OR_TAG_PREFIX) :]  # noqa: E203
 
     def _process_tag_query_params(self, query_params):
         """Reduce the set of tag keys based on those being queried."""
-        tag_key_set = set(self.tag_keys)
         param_tag_keys = set()
         for key, value in query_params.items():
-            if isinstance(value, (dict, list)):
-                for inner_key in value:
-                    if inner_key in tag_key_set:
-                        param_tag_keys.add(inner_key)
-            elif value in tag_key_set:
-                param_tag_keys.add(value)
-            if key in tag_key_set:
+            if not isinstance(value, (dict, list)):
+                value = list(value)
+            for inner_key in value:
+                stripped_key = self._strip_tag_prefix(inner_key)
+                if stripped_key in self.tag_keys:
+                    param_tag_keys.add(inner_key)
+            stripped_key = self._strip_tag_prefix(key)
+            if stripped_key in self.tag_keys:
                 param_tag_keys.add(key)
         return param_tag_keys
 
@@ -303,7 +323,7 @@ class QueryParameters:
             if not resolution:
                 self.set_filter(resolution="daily")
 
-    def _validate(self):
+    def _validate(self, query_params):
         """Validate query parameters.
 
         Raises:
@@ -314,13 +334,6 @@ class QueryParameters:
             (Dict): Dictionary parsed from query params string
 
         """
-        try:
-            query_params = parser.parse(self.url_data)
-        except parser.MalformedQueryStringError:
-            LOG.info("Invalid query parameter format %s.", self.url_data)
-            error = {"details": "Invalid query parameter format."}
-            raise ValidationError(error)
-
         if self.tag_keys:
             self.tag_keys = self._process_tag_query_params(query_params)
             qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
