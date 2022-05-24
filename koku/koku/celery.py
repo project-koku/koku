@@ -215,8 +215,13 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
+# Beat used for HCS report finalization
+app.conf.beat_schedule["finalize_hcs_reports"] = {
+    "task": "hcs.tasks.collect_hcs_report_finalization",
+    "schedule": crontab(0, 0, day_of_month="15"),
+}
 
-# Celery timeout if broker is unavaiable to avoid blocking indefintely
+# Celery timeout if broker is unavailable to avoid blocking indefinitely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
 app.autodiscover_tasks()
