@@ -87,13 +87,11 @@ class QueryParametersTests(TestCase):
         This test is a bit fatter than it needs to be to help show how to mock
         out the Request and View objects.
         """
-
-        def fake_tags():
-            fake_tags = []
-            for _ in range(0, random.randint(2, 10)):
-                fake_tags.append({"key": self.FAKE.word(), "value": self.FAKE.word()})
-            return fake_tags
-
+        tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
+        fake_objects = Mock()
+        fake_objects.objects.values.return_value.distinct.return_value = [
+            {"key": key, "value": self.FAKE.word()} for key in tag_keys
+        ]
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
@@ -105,10 +103,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[
-                Mock(objects=Mock(values=lambda _: fake_tags())),
-                Mock(objects=Mock(values=lambda _: fake_tags())),
-            ],
+            tag_handler=[fake_objects, fake_objects],
         )
         self.assertIsInstance(QueryParameters(fake_request, fake_view), QueryParameters)
 
@@ -647,14 +642,17 @@ class QueryParametersTests(TestCase):
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
-        fake_objects = Mock(values=lambda _: [{"key": key, "value": self.FAKE.word()} for key in tag_keys])
+        fake_objects = Mock()
+        fake_objects.objects.values.return_value.distinct.return_value = [
+            {"key": key, "value": self.FAKE.word()} for key in tag_keys
+        ]
         fake_view = Mock(
             spec=ReportView,
             provider=self.FAKE.word(),
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[Mock(objects=fake_objects)],
+            tag_handler=[fake_objects],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
