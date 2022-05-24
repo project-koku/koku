@@ -375,6 +375,7 @@ class OCPUsagePodLabelSummary(models.Model):
 
         db_table = "reporting_ocpusagepodlabel_summary"
         unique_together = ("key", "report_period", "namespace", "node")
+        indexes = [models.Index(fields=["key"], name="openshift_pod_label_key_idx")]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
@@ -483,6 +484,7 @@ class OCPStorageVolumeLabelSummary(models.Model):
 
         db_table = "reporting_ocpstoragevolumelabel_summary"
         unique_together = ("key", "report_period", "namespace", "node")
+        indexes = [models.Index(fields=["key"], name="openshift_vol_label_key_idx")]
 
     uuid = models.UUIDField(primary_key=True, default=uuid4)
 
