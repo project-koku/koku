@@ -80,7 +80,12 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 csv_handler = CSVFileHandler(self.schema, provider, provider_uuid)
                 csv_handler.write_csv_to_s3(date, data, cols, finalize, tracing_id)
             else:
-                LOG.info(log_json(tracing_id, f"no data found for date: {date}"))
+                LOG.info(
+                    log_json(
+                        tracing_id,
+                        f"no data found for date: {date}, " f"provider: {provider}, provider_uuid: {provider_uuid}",
+                    )
+                )
 
         except FileNotFoundError:
             LOG.error(log_json(tracing_id, f"unable to locate SQL file: {sql_summary_file}"))

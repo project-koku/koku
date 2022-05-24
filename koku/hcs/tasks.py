@@ -149,14 +149,15 @@ def collect_hcs_report_finalization(tracing_id=None):
 
         for provider in providers:
             schema_name = provider.customer.schema_name
-            provider_uuid = provider.customer.uuid
+            provider_uuid = provider.uuid
+            provider_type = provider.type
             end_date_prev_month = today.replace(day=1) - datetime.timedelta(days=1)
             start_date_prev_month = today.replace(day=1) - datetime.timedelta(days=end_date_prev_month.day)
 
             stmt = (
                 f"[collect_hcs_report_finalization]: "
                 f"schema-name: {schema_name}, "
-                f"provider: {provider}, "
+                f"provider-type: {provider_type}, "
                 f"provider_uuid: {provider_uuid}, "
                 f"dates: {start_date_prev_month} - {end_date_prev_month}"
             )
@@ -164,7 +165,7 @@ def collect_hcs_report_finalization(tracing_id=None):
 
             collect_hcs_report_data.s(
                 schema_name,
-                excepted_provider,
+                provider_type,
                 provider_uuid,
                 start_date_prev_month,
                 end_date_prev_month,
