@@ -62,7 +62,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "date": date,
                 "schema": self.schema,
                 "ebs_acct_num": self._ebs_acct_num,
-                "table": HCS_TABLE_MAP.get(provider),
+                "table": HCS_TABLE_MAP.get(provider.strip("-local")),
             }
             LOG.debug(log_json(tracing_id, f"SQL params: {sql_params}"))
 

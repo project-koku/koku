@@ -56,10 +56,12 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
     reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports}]
 
     for report in reports_deduplicated:
+        LOG.debug(f"[collect_hcs_report_data_from_manifest] report: {report}")
+
         start_date = None
         end_date = None
         if report.get("start") and report.get("end"):
-            LOG.info("using start and end dates from the manifest")
+            LOG.info("using start and end dates from the manifest for HCS processing")
             start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
             end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
 
@@ -69,13 +71,14 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
         tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
 
         stmt = (
-            f"[collect_hcs_report_data_from_manifest] schema_name: {schema_name},"
+            f"[collect_hcs_report_data_from_manifest]:"
+            f" schema_name: {schema_name},"
             f"provider_type: {provider_type},"
             f"provider_uuid: {provider_uuid},"
             f"start: {start_date},"
             f"end: {end_date}"
         )
-        LOG.debug(log_json(tracing_id, stmt))
+        LOG.info(log_json(tracing_id, stmt))
 
         collect_hcs_report_data.s(
             schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id
@@ -88,7 +91,7 @@ def collect_hcs_report_data(
 ):
     """Update Hybrid Committed Spend report.
     :param provider:        (str) The provider type
-    :param provider_uuid:   (str) The provider type
+    :param provider_uuid:   (str) The provider unique identification number
     :param start_date:      The date to start populating the table (default: (Today - 2 days))
     :param end_date:        The date to end on (default: Today)
     :param schema_name:     (Str) db schema name
@@ -97,12 +100,6 @@ def collect_hcs_report_data(
 
     :returns None
     """
-
-    # drop "-local" from provider name when in development environment
-    if "-local" in provider:
-        LOG.debug(log_json(tracing_id, "dropping '-local' from provider name"))
-        provider = provider.strip("-local")
-
     if schema_name and not schema_name.startswith("acct"):
         schema_name = f"acct{schema_name}"
 
@@ -117,7 +114,7 @@ def collect_hcs_report_data(
 
     if enable_hcs_processing(schema_name) and provider in HCS_EXCEPTED_PROVIDERS:
         stmt = (
-            f"Running HCS data collection: "
+            f"[collect_hcs_report_data]: "
             f"schema_name: {schema_name}, "
             f"provider_uuid: {provider_uuid}, "
             f"provider: {provider}, "
@@ -157,7 +154,7 @@ def collect_hcs_report_finalization(tracing_id=None):
             start_date_prev_month = today.replace(day=1) - datetime.timedelta(days=end_date_prev_month.day)
 
             stmt = (
-                f"starting report finalization: "
+                f"[collect_hcs_report_finalization]: "
                 f"schema-name: {schema_name}, "
                 f"provider: {provider}, "
                 f"provider_uuid: {provider_uuid}, "
