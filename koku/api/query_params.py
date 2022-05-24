@@ -111,7 +111,7 @@ class QueryParameters:
     def _get_tag_keys(self, model):
         """Get a list of tag keys to validate filters."""
         with tenant_context(self.tenant):
-            tags = model.objects.values("key")
+            tags = model.objects.values("key").distinct()
             tag_list = [":".join(["tag", tag.get("key")]) for tag in tags]
             tag_list.extend([":".join(["and:tag", tag.get("key")]) for tag in tags])
             tag_list.extend([":".join(["or:tag", tag.get("key")]) for tag in tags])
