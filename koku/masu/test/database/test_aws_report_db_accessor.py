@@ -5,6 +5,7 @@
 """Test the AWSReportDBAccessor utility object."""
 import datetime
 import decimal
+import logging
 import os
 import random
 import string
@@ -30,11 +31,9 @@ from api.utils import DateHelper
 from koku.database import get_model
 from koku.database_exc import ExtendedDBException
 from masu.database import AWS_CUR_TABLE_MAP
-from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportSchema
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
@@ -46,6 +45,8 @@ from reporting.provider.aws.models import AWSEnabledTagKeys
 from reporting.provider.aws.models import AWSTagsSummary
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemProjectDailySummaryP
 from reporting_common import REPORT_COLUMN_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class ReportSchemaTest(MasuTestCase):
@@ -182,6 +183,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             "provider_id": self.aws_provider.uuid,
         }
         self.creator.create_cost_entry_reservation()
+        self.creator.create_cost_entry_pricing()
+        self.creator.create_cost_entry_product()
 
     def test_initializer(self):
         """Test initializer."""
@@ -222,21 +225,24 @@ class AWSReportDBAccessorTest(MasuTestCase):
 
     def test_get_db_obj_query_with_columns(self):
         """Test that a query is returned with limited columns."""
-        table_name = random.choice(self.foreign_key_tables)
-        columns = list(REPORT_COLUMN_MAP[table_name].values())
+        tested = False
+        for table_name in self.foreign_key_tables:
+            columns = list(REPORT_COLUMN_MAP[table_name].values())
 
-        selected_columns = [random.choice(columns) for _ in range(2)]
-        missing_columns = set(columns).difference(selected_columns)
+            selected_columns = [random.choice(columns) for _ in range(2)]
+            missing_columns = set(columns).difference(selected_columns)
 
-        query = self.accessor._get_db_obj_query(table_name, columns=selected_columns)
-        with schema_context(self.schema):
-            self.assertIsInstance(query, QuerySet)
-            result = query.first()
-            for column in selected_columns:
-                self.assertTrue(column in result)
-
-            for column in missing_columns:
-                self.assertFalse(column in result)
+            query = self.accessor._get_db_obj_query(table_name, columns=selected_columns)
+            with schema_context(self.schema):
+                self.assertIsInstance(query, QuerySet)
+                result = query.first()
+                if result:
+                    for column in selected_columns:
+                        self.assertTrue(column in result)
+                    for column in missing_columns:
+                        self.assertFalse(column in result)
+                    tested = True
+        self.assertTrue(tested)
 
     def _create_columns_from_data(self, datadict):
         columns = {}
@@ -252,45 +258,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             elif type(value) is float:
                 columns[name] = "FLOAT"
         return columns
-
-    def test_bulk_insert_rows(self):
-        """Test that the bulk insert method inserts line items."""
-        # Get data commited for foreign key relationships to work
-        with schema_context(self.schema):
-
-            table_name = AWS_CUR_TABLE_MAP["line_item"]
-            table = get_model(table_name)
-
-            query = self.accessor._get_db_obj_query(table_name)
-            initial_count = query.count()
-            cost_entry = query.first()
-
-            data = {
-                "cost_entry_bill__id": cost_entry.cost_entry_bill_id,
-                "cost_entry__id": cost_entry.cost_entry_id,
-                "cost_entry_product__id": cost_entry.cost_entry_product_id,
-                "cost_entry_pricing__id": cost_entry.cost_entry_pricing_id,
-                "cost_entry_reservation__id": cost_entry.cost_entry_reservation_id,
-            }
-            data_dict = self.creator.create_columns_for_table_with_bakery(table, data)
-
-            columns = list(data_dict.keys())
-            values = list(data_dict.values())
-            file_obj = self.creator.create_csv_file_stream(values)
-
-            self.accessor.bulk_insert_rows(file_obj, table_name, columns)
-            new_query = self.accessor._get_db_obj_query(table_name)
-
-            new_count = new_query.count()
-            new_line_item = new_query.order_by("-id").first()
-
-            self.assertTrue(new_count > initial_count)
-            for column in columns:
-                value = getattr(new_line_item, column)
-                if isinstance(value, datetime.datetime):
-                    value = self.creator.stringify_datetime(value)
-                    data_dict[column] = self.creator.stringify_datetime(data_dict[column])
-                self.assertEqual(value, data_dict[column])
 
     def test_insert_on_conflict_do_nothing_with_conflict(self):
         """Test that an INSERT succeeds ignoring the conflicting row."""
@@ -498,20 +465,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             cost_entries = self.accessor.get_bill_query_before_date(earlier_cutoff)
             self.assertEqual(cost_entries.count(), 0)
 
-    def test_get_lineitem_query_for_billid(self):
-        """Test that gets a cost entry line item query given a bill id."""
-        table_name = "reporting_awscostentrybill"
-        with schema_context(self.schema):
-            # Verify that the line items for the test bill_id are returned
-            bill_id = self.accessor._get_db_obj_query(table_name).first().id
-            line_item_query = self.accessor.get_lineitem_query_for_billid(bill_id)
-            self.assertEqual(line_item_query.first().cost_entry_bill_id, bill_id)
-
-            # Verify that no line items are returned for a missing bill_id
-            wrong_bill_id = bill_id + 5
-            line_item_query = self.accessor.get_lineitem_query_for_billid(wrong_bill_id)
-            self.assertEqual(line_item_query.count(), 0)
-
     def test_get_cost_entry_query_for_billid(self):
         """Test that gets a cost entry query given a bill id."""
         table_name = "reporting_awscostentrybill"
@@ -581,390 +534,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.assertEqual(len(reservations.keys()), count)
             self.assertIn(first_entry.reservation_arn, reservations)
 
-    def test_populate_line_item_daily_table(self):
-        """Test that the daily table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-        daily_table = getattr(self.accessor.report_schema, daily_table_name)
-
-        with schema_context(self.schema):
-            bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-            bill_ids = [str(bill.id) for bill in bills.all()]
-
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-            query = self.accessor._get_db_obj_query(daily_table_name)
-            query.delete()
-            initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
-
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_start__max"]
-
-            self.assertEqual(result_start_date, start_date.date())
-            self.assertEqual(result_end_date, end_date.date())
-            entry = query.first()
-
-            summary_columns = [
-                "cost_entry_product_id",
-                "cost_entry_pricing_id",
-                "line_item_type",
-                "usage_account_id",
-                "usage_start",
-                "usage_end",
-                "product_code",
-                "usage_type",
-                "operation",
-                "resource_id",
-                "usage_amount",
-                "currency_code",
-                "unblended_rate",
-                "unblended_cost",
-                "blended_rate",
-                "blended_cost",
-                "public_on_demand_cost",
-                "public_on_demand_rate",
-                "tags",
-            ]
-
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
-
-            self.assertNotEqual(getattr(entry, "tags"), {})
-
-    def test_populate_line_item_daily_table_no_bill_ids(self):
-        """Test that the daily table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        daily_table_name = AWS_CUR_TABLE_MAP["line_item_daily"]
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-        daily_table = getattr(self.accessor.report_schema, daily_table_name)
-        bill_ids = None
-
-        with schema_context(self.schema):
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-            query = self.accessor._get_db_obj_query(daily_table_name)
-
-        self.accessor.populate_line_item_daily_table(start_date, end_date, bill_ids)
-
-        with schema_context(self.schema):
-            daily_entry = daily_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = daily_entry["usage_start__min"]
-            result_end_date = daily_entry["usage_start__max"]
-
-            self.assertEqual(result_start_date, start_date.date())
-            self.assertEqual(result_end_date, end_date.date())
-            entry = query.first()
-
-            summary_columns = [
-                "cost_entry_product_id",
-                "cost_entry_pricing_id",
-                "line_item_type",
-                "usage_account_id",
-                "usage_start",
-                "usage_end",
-                "product_code",
-                "usage_type",
-                "operation",
-                "resource_id",
-                "usage_amount",
-                "currency_code",
-                "unblended_rate",
-                "unblended_cost",
-                "blended_rate",
-                "blended_cost",
-                "public_on_demand_cost",
-                "public_on_demand_rate",
-                "tags",
-            ]
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
-
-            self.assertNotEqual(getattr(entry, "tags"), {})
-
-    def test_populate_line_item_daily_summary_table(self):
-        """Test that the daily summary table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-
-        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.aws_provider.uuid)
-        with schema_context(self.schema):
-            bill_ids = [str(bill.id) for bill in bills.all()]
-
-        table_name = AWS_CUR_TABLE_MAP["line_item"]
-        tag_query = self.accessor._get_db_obj_query(table_name)
-        possible_keys = []
-        possible_values = []
-        with schema_context(self.schema):
-            for item in tag_query:
-                possible_keys += list(item.tags.keys())
-                possible_values += list(item.tags.values())
-
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
-            summary_table.objects.all().delete()
-            initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_start__max"]
-
-            self.assertEqual(result_start_date, start_date.date())
-            self.assertEqual(result_end_date, end_date.date())
-
-            entry = query.first()
-
-            summary_columns = [
-                "usage_start",
-                "usage_end",
-                "usage_account_id",
-                "product_code",
-                "product_family",
-                "region",
-                "unit",
-                "resource_count",
-                "usage_amount",
-                "currency_code",
-                "unblended_rate",
-                "unblended_cost",
-                "blended_rate",
-                "blended_cost",
-                "public_on_demand_cost",
-                "public_on_demand_rate",
-                "tags",
-            ]
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
-
-            found_keys = []
-            found_values = []
-            for item in query.all():
-                found_keys += list(item.tags.keys())
-                found_values += list(item.tags.values())
-
-            self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
-            self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
-
-    def test_populate_line_item_daily_summary_table_no_bill_ids(self):
-        """Test that the daily summary table is populated."""
-        ce_table_name = AWS_CUR_TABLE_MAP["cost_entry"]
-        summary_table_name = AWS_CUR_TABLE_MAP["line_item_daily_summary"]
-
-        ce_table = getattr(self.accessor.report_schema, ce_table_name)
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-        bill_ids = None
-
-        table_name = AWS_CUR_TABLE_MAP["line_item"]
-        tag_query = self.accessor._get_db_obj_query(table_name)
-        possible_keys = []
-        possible_values = []
-        with schema_context(self.schema):
-            for item in tag_query:
-                possible_keys += list(item.tags.keys())
-                possible_values += list(item.tags.values())
-
-            ce_entry = ce_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = ce_entry["interval_start__min"]
-            end_date = ce_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(summary_table_name)
-        with schema_context(self.schema):
-            summary_table.objects.all().delete()
-            initial_count = query.count()
-
-        self.accessor.populate_line_item_daily_summary_table(start_date, end_date, bill_ids)
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            summary_entry = summary_table.objects.all().aggregate(Min("usage_start"), Max("usage_start"))
-            result_start_date = summary_entry["usage_start__min"]
-            result_end_date = summary_entry["usage_start__max"]
-
-            self.assertEqual(result_start_date, start_date.date())
-            self.assertEqual(result_end_date, end_date.date())
-
-            entry = query.first()
-
-            summary_columns = [
-                "usage_start",
-                "usage_end",
-                "usage_account_id",
-                "product_code",
-                "product_family",
-                "region",
-                "unit",
-                "resource_count",
-                "usage_amount",
-                "currency_code",
-                "unblended_rate",
-                "unblended_cost",
-                "blended_rate",
-                "blended_cost",
-                "public_on_demand_cost",
-                "public_on_demand_rate",
-                "tags",
-            ]
-
-            for column in summary_columns:
-                self.assertIsNotNone(getattr(entry, column))
-
-            found_keys = []
-            found_values = []
-            for item in query.all():
-                found_keys += list(item.tags.keys())
-                found_values += list(item.tags.values())
-
-            self.assertEqual(set(sorted(possible_keys)), set(sorted(found_keys)))
-            self.assertEqual(set(sorted(possible_values)), set(sorted(found_values)))
-
-    def test_populate_awstags_summary_table(self):
-        """Test that the AWS tags summary table is populated."""
-        tags_summary_name = AWS_CUR_TABLE_MAP["tags_summary"]
-
-        query = self.accessor._get_db_obj_query(tags_summary_name)
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = list({tag.key for tag in tags})
-
-        with schema_context(self.schema):
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT DISTINCT jsonb_object_keys(tags)
-                        FROM reporting_awscostentrylineitem_daily"""
-                )
-                expected_tag_keys = cursor.fetchall()
-                expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-
-            self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
-
-    def test_populate_ocp_on_aws_cost_daily_summary(self):
-        """Test that the OCP on AWS cost summary table is populated."""
-        summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_daily_summary"]
-        project_summary_table_name = AWS_CUR_TABLE_MAP["ocp_on_aws_project_daily_summary"]
-        bill_ids = []
-        markup_value = Decimal(0.1)
-
-        summary_table = get_model(summary_table_name)
-        project_table = get_model(project_summary_table_name)
-
-        today = DateAccessor().today_with_timezone("UTC")
-        last_month = today - relativedelta.relativedelta(months=1)
-        resource_id = "i-12345"
-        with schema_context(self.schema):
-            for cost_entry_date in (today, last_month):
-                bill = self.creator.create_cost_entry_bill(
-                    provider_uuid=self.aws_provider.uuid, bill_date=cost_entry_date
-                )
-                bill_ids.append(str(bill.id))
-                cost_entry = self.creator.create_cost_entry(bill, cost_entry_date)
-                product = self.creator.create_cost_entry_product("Compute Instance")
-                pricing = self.creator.create_cost_entry_pricing()
-                reservation = self.creator.create_cost_entry_reservation()
-                self.creator.create_cost_entry_line_item(
-                    bill, cost_entry, product, pricing, reservation, resource_id=resource_id
-                )
-
-        self.accessor.populate_line_item_daily_table(last_month, today, bill_ids)
-
-        li_table_name = AWS_CUR_TABLE_MAP["line_item"]
-        with schema_context(self.schema):
-            li_table = get_model(li_table_name)
-
-            sum_aws_cost = li_table.objects.all().aggregate(Sum("unblended_cost"))["unblended_cost__sum"]
-
-        with OCPReportDBAccessor(self.schema) as ocp_accessor:
-            cluster_id = "testcluster"
-            with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_access:
-                provider_uuid = provider_access.get_provider().uuid
-
-            for cost_entry_date in (today, last_month):
-                period = self.creator.create_ocp_report_period(
-                    provider_uuid, period_date=cost_entry_date, cluster_id=cluster_id
-                )
-                report = self.creator.create_ocp_report(period, cost_entry_date)
-                self.creator.create_ocp_usage_line_item(period, report, resource_id=resource_id)
-                self.creator.create_ocp_node_label_line_item(period, report)
-
-            ocp_report_table_name = OCP_REPORT_TABLE_MAP["report"]
-            with schema_context(self.schema):
-                report_table = getattr(ocp_accessor.report_schema, ocp_report_table_name)
-
-                report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-                start_date = report_entry["interval_start__min"]
-                end_date = report_entry["interval_start__max"]
-
-                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-            ocp_accessor.populate_node_label_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_table(start_date, end_date, cluster_id)
-            ocp_accessor.populate_line_item_daily_summary_table(start_date, end_date, cluster_id, provider_uuid)
-        with schema_context(self.schema):
-            query = self.accessor._get_db_obj_query(summary_table_name)
-            initial_count = query.count()
-
-        self.accessor.populate_ocp_on_aws_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
-        with schema_context(self.schema):
-            self.assertNotEqual(query.count(), initial_count)
-
-            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
-                "unblended_cost__sum"
-            ]
-            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("unblended_cost"))[
-                "unblended_cost__sum"
-            ]
-            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
-                "pod_cost__sum"
-            ]
-            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
-                "markup_cost__sum"
-            ]
-            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("markup_cost")
-            )["markup_cost__sum"]
-            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("project_markup_cost")
-            )["project_markup_cost__sum"]
-
-            self.assertEqual(sum_cost, sum_project_cost)
-            self.assertLessEqual(sum_cost, sum_aws_cost)
-            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 9)
-            self.assertAlmostEqual(sum_markup_cost_project, sum_cost * markup_value, 9)
-            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 9)
-
     def test_bills_for_provider_uuid(self):
         """Test that bills_for_provider_uuid returns the right bills."""
         bill1_date = datetime.datetime(2018, 1, 6, 0, 0, 0)
@@ -977,8 +546,8 @@ class AWSReportDBAccessorTest(MasuTestCase):
             self.aws_provider.uuid, start_date=bill2_date.strftime("%Y-%m-%d")
         )
         with schema_context(self.schema):
-            self.assertEquals(len(bills), 1)
-            self.assertEquals(bills[0].id, bill2.id)
+            self.assertEqual(len(bills), 1)
+            self.assertEqual(bills[0].id, bill2.id)
 
     def test_mark_bill_as_finalized(self):
         """Test that test_mark_bill_as_finalized sets finalized_datetime field."""
@@ -1226,27 +795,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
     def test_table_map(self):
         self.assertEqual(self.accessor._table_map, AWS_CUR_TABLE_MAP)
 
-    def test_get_openshift_on_cloud_matched_tags(self):
-        """Test that matched tags are returned."""
-        dh = DateHelper()
-        start_date = dh.this_month_start.date()
-
-        with schema_context(self.schema_name):
-            bills = self.accessor.bills_for_provider_uuid(self.aws_provider_uuid, start_date)
-            bill_id = bills.first().id
-
-        with OCPReportDBAccessor(self.schema_name) as accessor:
-            with schema_context(self.schema_name):
-                report_period = accessor.report_periods_for_provider_uuid(
-                    self.ocp_on_aws_ocp_provider.uuid, start_date
-                )
-                report_period_id = report_period.id
-
-        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
-
-        self.assertGreater(len(matched_tags), 0)
-        self.assertIsInstance(matched_tags[0], dict)
-
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
@@ -1277,4 +825,6 @@ class AWSReportDBAccessorTest(MasuTestCase):
                 [1], self.aws_provider_uuid, self.ocp_provider_uuid, "2022", "01"
             )
         mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

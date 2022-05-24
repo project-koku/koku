@@ -53,12 +53,12 @@ help:
 	@echo "--- General Commands ---"
 	@echo "  clean                                 clean the project directory of any scratch files, bytecode, logs, etc"
 	@echo "  help                                  show this message"
-	@echo "  html                                  create html documentation for the project"
 	@echo "  lint                                  run pre-commit against the project"
 	@echo ""
 	@echo "--- Commands using local services ---"
 	@echo "  clear-testing                         Remove stale files/subdirectories from the testing directory."
 	@echo "  clear-trino                           Remove stale files/subdirectories from the trino data directory."
+	@echo "  clear-cache                           Flushes cache keys inside of the redis container."
 	@echo "  create-test-customer                  create a test customer and tenant in the database"
 	@echo "  create-test-customer-no-sources       create a test customer and tenant in the database without test sources"
 	@echo "  create-large-ocp-source-config-file   create a config file for nise to generate a large data sample"
@@ -162,9 +162,6 @@ help:
 clean:
 	git clean -fdx -e .idea/ -e *env/ -e .env
 
-html:
-	@cd docs; $(MAKE) html
-
 lint:
 	pre-commit run --all-files
 
@@ -173,6 +170,9 @@ clear-testing:
 
 clear-trino:
 	$(PREFIX) rm -fr ./.trino/
+
+clear-cache:
+	$(DOCKER) exec -it koku_redis redis-cli -n 1 flushall
 
 create-test-customer: run-migrations docker-up-koku
 	$(PYTHON) $(SCRIPTDIR)/create_test_customer.py || echo "WARNING: create_test_customer failed unexpectedly!"
@@ -227,7 +227,6 @@ reset-db-statistics:
 
 requirements:
 	pipenv lock
-	pipenv lock -r > docs/rtd_requirements.txt
 	python dev/scripts/create_manifest.py
 
 manifest:
@@ -307,7 +306,7 @@ kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	bash <(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
+	bash <$(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
 	}
 KUSTOMIZE=$(TESTINGDIR)/kustomize
 else

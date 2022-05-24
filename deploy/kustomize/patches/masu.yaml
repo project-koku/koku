@@ -100,16 +100,22 @@
           value: ${PROMETHEUS_PUSHGATEWAY}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
+        - name: QE_SCHEMA
+          value: ${QE_SCHEMA}
+        - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
+          value: 'true'
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/?liveness
           port: private
           scheme: HTTP
-        initialDelaySeconds: 30
+        initialDelaySeconds: 45
         periodSeconds: 20
         successThreshold: 1
         failureThreshold: 5
-        timeoutSeconds: 10
+        timeoutSeconds: 15
       readinessProbe:
           httpGet:
             path: ${API_PATH_PREFIX}/v1/status/
@@ -156,14 +162,14 @@
     displayName: Memory Request
     name: MASU_MEMORY_REQUEST
     required: true
-    value: 256Mi
+    value: 350Mi
 - op: add
   path: /parameters/-
   value:
     displayName: Memory Limit
     name: MASU_MEMORY_LIMIT
     required: true
-    value: 512Mi
+    value: 700Mi
 - op: add
   path: /parameters/-
   value:

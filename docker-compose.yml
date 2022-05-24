@@ -60,6 +60,13 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - CURRENCY_URL=${CURRENCY_URL}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - QE_SCHEMA=${QE_SCHEMA}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 8000:8000
       - 8001:9000
@@ -69,7 +76,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -118,6 +125,12 @@ services:
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
       - UNLEASH_LOG_LEVEL=${UNLEASH_LOG_LEVEL-WARNING}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS-}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 5042:8000
       - 5001:9000
@@ -127,7 +140,7 @@ services:
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
       - './run_server.sh:/koku/run_server.sh'
-      - './testing/gcp_auth_json/:/testing/gcp_auth_json/'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -135,7 +148,7 @@ services:
     hostname: koku-worker-1
     image: koku_base
     working_dir: /koku/koku
-    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
+    entrypoint: ['watchmedo', 'auto-restart', '--directory=./', '--pattern=*.py', '--ignore-patterns=*test*', '--recursive', '--', 'celery', '-A', 'koku', 'worker', '--without-gossip', '-l', 'info', '-Q', 'celery,download,hcs,ocp,priority,summary,cost_model,refresh']
     environment:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
@@ -188,6 +201,12 @@ services:
       - RETAIN_NUM_MONTHS=${RETAIN_NUM_MONTHS-3}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
     volumes:
@@ -197,6 +216,7 @@ services:
       - './scripts:/koku/scripts'
       - './testing:/testing'
       - './testing/local_providers/azure_local:/tmp/local_container'
+      - './testing/local_providers/oci_local:/tmp/oci_local'
       - './testing/local_providers/aws_local:/tmp/local_bucket'
       - './testing/local_providers/aws_local_0:/tmp/local_bucket_0'
       - './testing/local_providers/aws_local_1:/tmp/local_bucket_1'
@@ -210,6 +230,7 @@ services:
       - './testing/local_providers/gcp_local_1/:/tmp/gcp_local_bucket_1'
       - './testing/local_providers/gcp_local_2/:/tmp/gcp_local_bucket_2'
       - './testing/local_providers/gcp_local_3/:/tmp/gcp_local_bucket_3'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
         - koku-base
 
@@ -258,6 +279,7 @@ services:
       - ENABLE_TRINO_SOURCE_TYPE
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
     volumes:
@@ -310,6 +332,12 @@ services:
       - GUNICORN_THREADS=${GUNICORN_THREADS-False}
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - OCI_CLI_USER=${OCI_CLI_USER}
+      - OCI_CLI_FINGERPRINT=${OCI_CLI_FINGERPRINT}
+      - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
+      - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
+      - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 4000:8000
       - 4001:9000
@@ -318,6 +346,7 @@ services:
       - './.unleash:/koku/.unleash'
       - './db_functions:/koku/db_functions'
       - './scripts:/koku/scripts'
+      - './testing/auth_files/:/testing/auth_files/'
     depends_on:
       - koku-base
 
@@ -351,6 +380,7 @@ services:
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'

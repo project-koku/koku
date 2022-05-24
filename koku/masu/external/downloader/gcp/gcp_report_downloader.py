@@ -77,7 +77,7 @@ def create_daily_archives(
                 {"data_frame": invoice_data[invoice_data.partition_date.str.contains(cur_day)], "date": cur_day}
                 for cur_day in days
             ]
-            start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+            start_of_invoice = dh.invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
@@ -175,7 +175,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _generate_default_scan_range(self, range_length=3):
         """
-            Generates the first date of the date range.
+        Generates the first date of the date range.
         """
         today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
@@ -442,7 +442,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 writer.writerow(column_list)
                 for row in query_job:
                     writer.writerow(row)
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
                 f"\n  Provider: {self._provider_uuid}"

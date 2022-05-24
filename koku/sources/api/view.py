@@ -29,8 +29,6 @@ from rest_framework.serializers import ValidationError
 
 from api.common.filters import CharListFilter
 from api.common.permissions import RESOURCE_TYPE_MAP
-from api.iam.models import Tenant
-from api.iam.serializers import create_schema_name
 from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.provider_manager import ProviderManager
@@ -132,22 +130,33 @@ class SourcesViewSet(*MIXIN_LIST):
 
     @staticmethod
     def get_excludes(request):
-        """Get excluded source types by access.
-        """
+        """Get excluded source types by access."""
         excludes = []
-        if request.user.admin:
+        keep = []
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return excludes
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
             for resource_type in RESOURCE_TYPE_MAP.keys():
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
-            return excludes
+            return list(set(excludes))
         for resource_type in RESOURCE_TYPE_MAP.keys():
             access_value = resource_access.get(resource_type)
             if access_value is None:
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
             elif not access_value.get("read", []):
                 excludes.extend(RESOURCE_TYPE_MAP.get(resource_type))
+            else:
+                keep.extend(RESOURCE_TYPE_MAP.get(resource_type))
+
+        excludes = list(set(excludes))
+        keep = list(set(keep))
+
+        for provider in keep:
+            try:
+                excludes.remove(provider)
+            except ValueError:
+                pass
 
         return excludes
 
@@ -283,8 +292,6 @@ class SourcesViewSet(*MIXIN_LIST):
     @action(methods=["get"], detail=True, permission_classes=[AllowAny])
     def stats(self, request, pk=None):
         """Get source stats."""
-        account_id = request.user.customer.account_id
-        schema_name = create_schema_name(account_id)
         source = self.get_object()
         stats = {}
         try:
@@ -293,6 +300,5 @@ class SourcesViewSet(*MIXIN_LIST):
             stats["provider_linked"] = False
         else:
             stats["provider_linked"] = True
-            tenant = Tenant.objects.get(schema_name=schema_name)
-            stats.update(manager.provider_statistics(tenant))
+            stats.update(manager.provider_statistics(request.tenant))
         return Response(stats)

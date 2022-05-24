@@ -107,7 +107,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_sync.return_value.sync_bucket.side_effect = SyncedFileInColdStorageError()
         with self.assertRaises(Retry):
             tasks.sync_data_to_customer(data_export_object.uuid)
-        self.assertEquals(data_export_object.status, APIExportRequest.WAITING)
+        self.assertEqual(data_export_object.status, APIExportRequest.WAITING)
 
     @patch("masu.celery.tasks.sync_data_to_customer.retry", side_effect=MaxRetriesExceededError())
     @patch("masu.celery.tasks.DataExportRequest.objects")
@@ -122,7 +122,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_sync.return_value.sync_bucket.side_effect = SyncedFileInColdStorageError()
 
         tasks.sync_data_to_customer(data_export_object.uuid)
-        self.assertEquals(data_export_object.status, APIExportRequest.ERROR)
+        self.assertEqual(data_export_object.status, APIExportRequest.ERROR)
 
     # Check to see if exchange rates are being created or updated
     def test_get_currency_conversion_rates(self):
@@ -224,7 +224,7 @@ class TestCeleryTasks(MasuTestCase):
             tasks.delete_archived_data(schema_name, provider_type, provider_uuid)
             self.assertIn("Skipping delete_archived_data. Upload feature is disabled.", captured_logs.output[0])
 
-    @override_settings(ENABLE_S3_ARCHIVING=True, S3_MINIO_IN_USE=True)
+    @override_settings(ENABLE_S3_ARCHIVING=True, SKIP_MINIO_DATA_DELETION=True)
     def test_delete_archived_data_minio(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
         schema_name = "acct10001"

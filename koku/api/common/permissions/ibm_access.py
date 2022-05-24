@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the IBM Access Permissions class."""
+from django.conf import settings
 from rest_framework import permissions
 
 
@@ -13,7 +14,7 @@ class IbmAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission to view IBM data."""
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return True
 
         resource_access = request.user.access

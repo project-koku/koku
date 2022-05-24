@@ -12,6 +12,7 @@ from api.report.test.util.constants import AWS_CONSTANTS
 from api.report.test.util.constants import AWS_GEOG
 from api.report.test.util.constants import AZURE_CONSTANTS
 from api.report.test.util.constants import GCP_CONSTANTS
+from api.report.test.util.constants import OCI_CONSTANTS
 from api.report.test.util.constants import OCP_CONSTANTS
 
 
@@ -117,7 +118,7 @@ ocp_usage_storage = Recipe(  # Storage data_source
 )
 
 ocp_on_aws_daily_summary = Recipe(
-    "OCPAWSCostLineItemDailySummary",
+    "OCPAWSCostLineItemDailySummaryP",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),
     namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
@@ -130,7 +131,7 @@ ocp_on_aws_daily_summary = Recipe(
 )
 
 ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
-    "OCPAWSCostLineItemProjectDailySummary",
+    "OCPAWSCostLineItemProjectDailySummaryP",
     data_source="Pod",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),
@@ -148,7 +149,7 @@ ocp_on_aws_project_daily_summary_pod = Recipe(  # Pod data_source
 )
 
 ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
-    "OCPAWSCostLineItemProjectDailySummary",
+    "OCPAWSCostLineItemProjectDailySummaryP",
     data_source="Storage",
     node=cycle(f"aws_node_{i}" for i in range(AWS_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-0000{i}{i}{i}" for i in range(AWS_CONSTANTS.length - 1)),
@@ -165,7 +166,7 @@ ocp_on_aws_project_daily_summary_storage = Recipe(  # Storage data_source
 )
 
 ocp_on_azure_daily_summary = Recipe(
-    "OCPAzureCostLineItemDailySummary",
+    "OCPAzureCostLineItemDailySummaryP",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     namespace=cycle([ns] for ns in OCP_CONSTANTS["namespaces"]),
@@ -178,7 +179,7 @@ ocp_on_azure_daily_summary = Recipe(
 )
 
 ocp_on_azure_project_daily_summary_pod = Recipe(  # Pod data_source
-    "OCPAzureCostLineItemProjectDailySummary",
+    "OCPAzureCostLineItemProjectDailySummaryP",
     data_source="Pod",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
@@ -195,7 +196,7 @@ ocp_on_azure_project_daily_summary_pod = Recipe(  # Pod data_source
 )
 
 ocp_on_azure_project_daily_summary_storage = Recipe(  # Storage data_source
-    "OCPAzureCostLineItemProjectDailySummary",
+    "OCPAzureCostLineItemProjectDailySummaryP",
     data_source="Storage",
     node=cycle(f"azure_node_{i}" for i in range(AZURE_CONSTANTS.length - 1)),
     resource_id=cycle(f"i-000{i}{i}{i}{i}" for i in range(AZURE_CONSTANTS.length - 1)),
@@ -263,4 +264,16 @@ ocp_on_gcp_project_daily_summary_storage = Recipe(  # Storage data_source
     unit=cycle(GCP_CONSTANTS["units"]),
     _fill_optional=True,
     _quantity=min(GCP_CONSTANTS.length, 9),
+)
+
+oci_daily_summary = Recipe(
+    "OCICostEntryLineItemDailySummary",
+    product_service=cycle(OCI_CONSTANTS["product_service"]),
+    instance_type=cycle(OCI_CONSTANTS["instance_type"]),
+    resource_ids=cycle(OCI_CONSTANTS["resource_ids"]),
+    resource_count=cycle(OCI_CONSTANTS["resource_count"]),
+    unit=cycle(OCI_CONSTANTS["unit"]),
+    region="uk-london-1",
+    _fill_optional=True,
+    _quantity=OCI_CONSTANTS.length,
 )

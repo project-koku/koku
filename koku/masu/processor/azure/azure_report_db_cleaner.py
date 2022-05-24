@@ -10,7 +10,6 @@ from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
-from koku.database import get_model
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.provider.azure.models import UI_SUMMARY_TABLES
@@ -72,7 +71,7 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 cascade_delete(bill_objects.query.model, bill_objects)
@@ -91,7 +90,6 @@ class AzureReportDBCleaner:
                 accessor.ocpall_line_item_project_daily_summary_table._meta.db_table,
             ]
             table_names.extend(UI_SUMMARY_TABLES)
-            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             removed_items = []
@@ -106,7 +104,7 @@ class AzureReportDBCleaner:
                 all_providers.add(bill.provider_id)
                 all_period_starts.add(str(bill.billing_period_start))
 
-            LOG.info(f"Deleting data for providers {sorted(all_providers)} and periods {sorted(all_period_starts)}")
+            LOG.info(f"Deleting data for providers {all_providers} and periods {all_period_starts}")
 
             if not simulate:
                 # Will call trigger to detach, truncate, and drop partitions
@@ -123,8 +121,5 @@ class AzureReportDBCleaner:
                     )
                 )
                 LOG.info(f"Deleted {del_count} table partitions")
-
-            if not simulate:
-                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
 
         return removed_items

@@ -36,6 +36,10 @@ if gunicorn_threads:
     threads = cpu_resources * 2 + 1
 
 
+# Allow HTTP headers up to this size
+limit_request_field_size = 16380
+
+
 # Server Hooks
 def on_starting(server):
     """Called just before the main process is initialized."""

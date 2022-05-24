@@ -33,10 +33,12 @@ PRESTO_LINE_ITEM_DAILY_TABLE = "aws_line_items_daily"
 PRESTO_OCP_ON_AWS_DAILY_TABLE = "aws_openshift_daily"
 
 PRESTO_REQUIRED_COLUMNS = (
+    "bill/BillingEntity",
     "lineItem/UsageStartDate",
     "lineItem/ProductCode",
     "product/productFamily",
     "lineItem/UsageAccountId",
+    "lineItem/LegalEntity",
     "lineItem/AvailabilityZone",
     "product/region",
     "product/instanceType",

@@ -71,6 +71,8 @@ def ingest_method_for_provider(provider):
         Provider.PROVIDER_GCP_LOCAL: POLL_INGEST,
         Provider.PROVIDER_IBM: POLL_INGEST,
         Provider.PROVIDER_IBM_LOCAL: POLL_INGEST,
+        Provider.PROVIDER_OCI: POLL_INGEST,
+        Provider.PROVIDER_OCI_LOCAL: POLL_INGEST,
         Provider.PROVIDER_OCP: LISTEN_INGEST,
     }
     return ingest_map.get(provider)
@@ -118,7 +120,7 @@ def month_date_range(for_date_time):
     _, num_days = calendar.monthrange(for_date_time.year, for_date_time.month)
     end_month = start_month.replace(day=num_days)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def safe_float(val):
@@ -225,13 +227,14 @@ def date_range_pair(start_date, end_date, step=5):
     # Special case with only 1 period
     if len(dates) == 1:
         yield start_date.date(), end_date.date()
-    for date in dates:
-        if date == start_date:
-            continue
-        yield start_date.date(), date.date()
-        start_date = date + timedelta(days=1)
-    if len(dates) != 1 and end_date not in dates:
-        yield start_date.date(), end_date.date()
+    else:
+        for date in dates:
+            if date == start_date and date != end_date:
+                continue
+            yield start_date.date(), date.date()
+            start_date = date + timedelta(days=1)
+        if len(dates) != 1 and end_date not in dates:
+            yield start_date.date(), end_date.date()
 
 
 def get_path_prefix(account, provider_type, provider_uuid, start_date, data_type, report_type=None, daily=False):

@@ -69,22 +69,13 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.updater = OCPReportSummaryUpdater(self.schema, self.provider, self.manifest)
 
     @patch(
-        "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_node_label_line_item_daily_table"
-    )
-    @patch(
         "masu.processor.ocp.ocp_report_summary_updater."
         "OCPReportDBAccessor.populate_storage_line_item_daily_summary_table"
     )
     @patch(
-        "masu.processor.ocp.ocp_report_summary_updater." "OCPReportDBAccessor.populate_storage_line_item_daily_table"
-    )
-    @patch(
         "masu.processor.ocp.ocp_report_summary_updater." "OCPReportDBAccessor.populate_line_item_daily_summary_table"
     )
-    @patch("masu.processor.ocp.ocp_report_summary_updater." "OCPReportDBAccessor.populate_line_item_daily_table")
-    def test_update_summary_tables_with_manifest(
-        self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary, mock_node_daily
-    ):
+    def test_update_summary_tables_with_manifest(self, mock_sum, mock_storage_summary):
         """Test that summary tables are properly run."""
         self.manifest.num_processed_files = self.manifest.num_total_files
         self.manifest.save()
@@ -104,22 +95,15 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         self.assertIsNone(period.summary_data_updated_datetime)
 
-        self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid)
-        mock_storage_summary.assert_called_with(
-            start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
-        )
+        mock_sum.assert_called()
+        mock_storage_summary.assert_called()
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
-
             self.assertIsNotNone(period.summary_data_creation_datetime)
             self.assertIsNotNone(period.summary_data_updated_datetime)
 
@@ -195,18 +179,11 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             self.assertIsNotNone(period.summary_data_updated_datetime)
 
     @patch(
-        "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_node_label_line_item_daily_table"
-    )
-    @patch(
         "masu.processor.ocp.ocp_report_summary_updater."
         "OCPReportDBAccessor.populate_storage_line_item_daily_summary_table"
     )
-    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_storage_line_item_daily_table")
     @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_summary_table")
-    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_table")
-    def test_update_summary_tables_new_period_last_month(
-        self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary, mock_node_daily
-    ):
+    def test_update_summary_tables_new_period_last_month(self, mock_sum, mock_storage_summary):
         """Test that summary tables are run for the month of the manifest."""
         billing_start = self.dh.today.replace(day=1) + relativedelta(months=-1)
         manifest_dict = {
@@ -268,11 +245,6 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertIsNone(period.summary_data_creation_datetime)
         self.assertIsNone(period.summary_data_updated_datetime)
 
-        self.updater.update_daily_tables(start_date_str, end_date_str)
-        self.assertEqual(mock_node_daily.call_args_list, expected_calls)
-        self.assertEqual(mock_daily.call_args_list, expected_calls)
-        self.assertEqual(mock_storage_daily.call_args_list, expected_calls)
-
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
@@ -280,24 +252,12 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(mock_sum.call_args_list, expected_calls_with_source_uuid)
         self.assertEqual(mock_storage_summary.call_args_list, expected_calls_with_source_uuid)
 
-        with OCPReportDBAccessor(self.schema) as accessor:
-            period = accessor.get_usage_periods_by_date(bill_date)[0]
-            self.assertIsNotNone(period.summary_data_creation_datetime)
-            self.assertIsNotNone(period.summary_data_updated_datetime)
-
-    @patch(
-        "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_node_label_line_item_daily_table"
-    )
     @patch(
         "masu.processor.ocp.ocp_report_summary_updater."
         "OCPReportDBAccessor.populate_storage_line_item_daily_summary_table"
     )
-    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_storage_line_item_daily_table")
     @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_summary_table")
-    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_line_item_daily_table")
-    def test_update_summary_tables_existing_period_done_processing(
-        self, mock_daily, mock_sum, mock_storage_daily, mock_storage_summary, mock_node_daily
-    ):
+    def test_update_summary_tables_existing_period_done_processing(self, mock_sum, mock_storage_summary):
         """Test that summary tables are not run for a full month."""
         start_date = self.dh.today
         end_date = start_date + datetime.timedelta(days=1)
@@ -313,19 +273,12 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         end_date_str = end_date.strftime("%Y-%m-%d")
 
         self.assertIsNone(period.summary_data_updated_datetime)
-
-        self.updater.update_daily_tables(start_date_str, end_date_str)
-        mock_node_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
-        mock_storage_daily.assert_called_with(start_date.date(), end_date.date(), self.cluster_id)
         mock_sum.assert_not_called()
         mock_storage_summary.assert_not_called()
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_sum.assert_called_with(start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid)
-        mock_storage_summary.assert_called_with(
-            start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
-        )
+        mock_sum.assert_called()
+        mock_storage_summary.assert_called()
 
         with OCPReportDBAccessor(self.schema) as accessor:
             period = accessor.get_usage_periods_by_date(bill_date).filter(provider_id=self.ocp_provider_uuid)[0]
@@ -373,11 +326,11 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
             start_date.date(), end_date.date(), self.cluster_id, self.provider.uuid
         )
 
-        with OCPReportDBAccessor(self.schema) as accessor:
-            period = accessor.get_usage_periods_by_date(bill_date)[0]
-            self.assertIsNotNone(period.summary_data_creation_datetime)
-            self.assertGreater(period.summary_data_updated_datetime, self.today)
+        self.assertIsNotNone(period.summary_data_creation_datetime)
+        self.assertGreater(period.summary_data_updated_datetime, self.today)
 
+    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_volume_label_summary_table")
+    @patch("masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor.populate_pod_label_summary_table")
     @patch(
         "masu.processor.ocp.ocp_report_summary_updater.OCPReportDBAccessor."
         "update_line_item_daily_summary_with_enabled_tags"
@@ -402,6 +355,8 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_storage_summary,
         mock_node_daily,
         mock_udt_lids_tags,
+        mock_pod_labels,
+        mock_volume_labels,
     ):
         """Test that summary tables are run for a full month when no report period is found."""
         self.manifest.num_processed_files = self.manifest.num_total_files
@@ -429,3 +384,5 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         mock_sum.assert_called()
         mock_storage_summary.assert_called()
         mock_udt_lids_tags.assert_called()
+        mock_pod_labels.assert_called()
+        mock_volume_labels.assert_called()

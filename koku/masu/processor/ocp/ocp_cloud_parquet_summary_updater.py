@@ -52,6 +52,10 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            if not report_period:
+                LOG.info(f"No report period for AWS provider {openshift_provider_uuid} with start date {start_date}")
+                return
+
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
@@ -112,12 +116,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_aws_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPAWSCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPAWSCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_aws_cost_daily_summary_presto(
                     start,
@@ -144,6 +147,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
 
+        LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
+
     def update_azure_summary_tables(self, openshift_provider_uuid, azure_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on Azure."""
         if isinstance(start_date, str):
@@ -162,6 +170,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 )
                 return
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            if not report_period:
+                LOG.info(f"No report period for Azure provider {openshift_provider_uuid} with start date {start_date}")
+                return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
@@ -222,12 +233,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_azure_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPAzureCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPAzureCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_azure_cost_daily_summary_presto(
                     start,
@@ -254,6 +264,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
 
+        LOG.info("Updating ocp_on_cloud_updated_datetime OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()
+
     def update_gcp_summary_tables(self, openshift_provider_uuid, gcp_provider_uuid, start_date, end_date):
         """Update operations specifically for OpenShift on GCP."""
         if isinstance(start_date, str):
@@ -266,6 +281,9 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
 
         with OCPReportDBAccessor(self._schema) as accessor:
             report_period = accessor.report_periods_for_provider_uuid(openshift_provider_uuid, start_date)
+            if not report_period:
+                LOG.info(f"No report period for GCP provider {openshift_provider_uuid} with start date {start_date}")
+                return
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
@@ -321,12 +339,11 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                     cluster_id,
                     current_gcp_bill_id,
                 )
+                filters = {
+                    "report_period_id": current_ocp_report_period_id
+                }  # Use report_period_id to leverage DB index on DELETE
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid,
-                    start,
-                    end,
-                    table=OCPGCPCostLineItemProjectDailySummaryP,
-                    filters={"cluster_id": cluster_id},
+                    self._provider.uuid, start, end, filters, table=OCPGCPCostLineItemProjectDailySummaryP
                 )
                 accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
                     start,
@@ -353,3 +370,7 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 ocp_accessor.populate_ui_summary_tables(
                     start, end, openshift_provider_uuid, UI_SUMMARY_TABLES_MARKUP_SUBSET
                 )
+        LOG.info("Updating ocp_on_cloud_updated_datetime on OpenShift report periods")
+        with schema_context(self._schema):
+            report_period.ocp_on_cloud_updated_datetime = self._date_accessor.today_with_timezone("UTC")
+            report_period.save()

@@ -19,6 +19,7 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -602,18 +603,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
-
-            def check_if_valid_date_str(date_str):
-                """Check to see if a valid date has been passed in."""
-                import ciso8601
-
-                try:
-                    ciso8601.parse_datetime(date_str)
-                except ValueError:
-                    return False
-                except TypeError:
-                    return False
-                return True
 
             query_sum = self._build_sum(query, annotations)
 

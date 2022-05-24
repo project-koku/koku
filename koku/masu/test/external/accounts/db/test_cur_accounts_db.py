@@ -44,8 +44,10 @@ class CURAccountsDBTest(MasuTestCase):
                 self.assertIn(
                     account.get("credentials"),
                     [
+                        self.ocp_provider.authentication.credentials,  # OCP-on-Prem
                         self.ocp_on_aws_ocp_provider.authentication.credentials,
                         self.ocp_on_azure_ocp_provider.authentication.credentials,
+                        self.ocp_on_gcp_ocp_provider.authentication.credentials,
                     ],
                 )
                 self.assertTrue(
@@ -60,6 +62,9 @@ class CURAccountsDBTest(MasuTestCase):
             elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 self.assertEqual(account.get("credentials"), self.gcp_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.gcp_provider.billing_source.data_source)
+                self.assertEqual(account.get("customer_name"), self.schema)
+            elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                self.assertEqual(account.get("data_source"), self.oci_provider.billing_source.data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
             else:
                 self.fail("Unexpected provider")

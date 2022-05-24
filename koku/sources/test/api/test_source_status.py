@@ -119,7 +119,7 @@ class SourcesStatusTest(IamTestCase):
             json_data = {"source_id": 1}
             with patch.object(SourcesHTTPClient, "set_source_status", return_value=True):
                 response = client.post(url, data=json_data, **self.headers)
-            self.assertEquals(response.status_code, 204)
+            self.assertEqual(response.status_code, 204)
 
     @patch("sources.api.source_status.SourcesProviderCoordinator.create_account")
     @patch("sources.api.source_status.SourcesProviderCoordinator.update_account")
@@ -300,7 +300,7 @@ class SourcesStatusTest(IamTestCase):
             json_data = {"source_id": 1}
             with patch.object(SourcesHTTPClient, "set_source_status", side_effect=SourcesHTTPClientError):
                 response = client.post(url, data=json_data, **self.headers)
-            self.assertEquals(response.status_code, 204)
+            self.assertEqual(response.status_code, 204)
 
     def test_available(self):
         """Test that availability status is available when cost_usage_source_ready is True."""
@@ -354,7 +354,7 @@ class SourcesStatusTest(IamTestCase):
                     Sources.objects.create(source_id=i, **test)
                     response = client.get(url + f"?source_id={i}", **self.headers)
                     actual_source_status = response.data
-                    self.assertEquals("available", actual_source_status.get("availability_status"))
+                    self.assertEqual("available", actual_source_status.get("availability_status"))
                     self.assertTrue(Provider.objects.get(uuid=provider.uuid).active)
 
     @override_settings(
@@ -485,7 +485,7 @@ class SourcesStatusTest(IamTestCase):
             "availability_status": "unavailable",
             "availability_status_error": ProviderErrors.AWS_ROLE_ARN_UNREACHABLE_MESSAGE,
         }
-        self.assertEquals(actual_source_status, expected)
+        self.assertEqual(actual_source_status, expected)
 
     def test_azure_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
@@ -514,7 +514,7 @@ class SourcesStatusTest(IamTestCase):
             "availability_status": "unavailable",
             "availability_status_error": ProviderErrors.AZURE_INCORRECT_TENANT_ID_MESSAGE,
         }
-        self.assertEquals(actual_source_status, expected)
+        self.assertEqual(actual_source_status, expected)
 
     def test_ocp_unavailable(self):
         """Test that the API returns status when a source is configured correctly."""
@@ -536,7 +536,7 @@ class SourcesStatusTest(IamTestCase):
             "availability_status": "unavailable",
             "availability_status_error": "Provider resource name is a required parameter for OCP.",
         }
-        self.assertEquals(actual_source_status, expected)
+        self.assertEqual(actual_source_status, expected)
 
     # TODO double check these new tests
     def test_post_status_provider_available(self):

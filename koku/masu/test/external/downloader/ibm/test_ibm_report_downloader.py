@@ -107,7 +107,7 @@ class IBMDownloadHelpers(MasuTestCase):
             )
             data = f"{report_meta_data}\n{report_body}"
             writer(data)
-            with open(full_path, "r") as temp_file:
+            with open(full_path) as temp_file:
                 self.assertEqual(report_body, temp_file.read())
             report_meta_data = (
                 '"Entity ID","Entity Type","Billing Month","Total Pages","Current Page","Created Time"\n'
@@ -124,7 +124,7 @@ class IBMDownloadHelpers(MasuTestCase):
                 '"0cc49d6f294240b4b688ac34cfcc7812","Red Hat","2ac47896436e417d81929833f55eb02d","dev_sandbox_sten"\n'
             )
             writer(data)
-            with open(full_path, "r") as temp_file:
+            with open(full_path) as temp_file:
                 self.assertEqual(expected_text, temp_file.read())
 
     @patch("masu.external.downloader.ibm.ibm_report_downloader.settings")

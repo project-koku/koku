@@ -100,8 +100,8 @@ class CommonUtilTests(MasuTestCase):
 
         start_month, first_next_month = common_utils.month_date_range_tuple(test_date)
 
-        self.assertEquals(start_month, expected_start_month)
-        self.assertEquals(first_next_month, expected_start_next_month)
+        self.assertEqual(start_month, expected_start_month)
+        self.assertEqual(first_next_month, expected_start_next_month)
 
     def test_date_range(self):
         """Test that a date range generator is returned."""
@@ -271,6 +271,8 @@ class CommonUtilTests(MasuTestCase):
             current_month_bill = bills.filter(billing_period_start=dh.this_month_start).first()
             last_month_bill = bills.filter(billing_period_start=dh.last_month_start).first()
 
+            current_month_bill.summary_data_creation_datetime = datetime.now()
+            current_month_bill.save()
             # Current month, previously summarized
             self.assertFalse(common_utils.determine_if_full_summary_update_needed(current_month_bill))
             # Previous month
@@ -455,4 +457,4 @@ class NamedTemporaryGZipTests(TestCase):
             with gzip.open(temp_gzip.name, "rt") as f:
                 read_data = f.read()
 
-        self.assertEquals(test_data, read_data)
+        self.assertEqual(test_data, read_data)

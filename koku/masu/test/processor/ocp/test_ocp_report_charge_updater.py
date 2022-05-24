@@ -3,13 +3,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import logging
 import random
 from decimal import Decimal
 from unittest import skip
 from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
-from django.db.models import Max
+from django.db.models import Sum
 from tenant_schemas.utils import schema_context
 
 from api.utils import DateHelper
@@ -19,6 +20,8 @@ from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdat
 from masu.processor.ocp.ocp_cost_model_cost_updater import OCPCostModelCostUpdaterError
 from masu.test import MasuTestCase
 from reporting.models import OCPUsageLineItemDailySummary
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPCostModelCostUpdaterTest(MasuTestCase):
@@ -35,8 +38,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
-        self.provider = self.ocp_provider
-        self.cluster_id = self.ocp_cluster_id
+        self.provider = self.ocp_on_aws_ocp_provider
+        self.cluster_id = self.ocpaws_ocp_cluster_id
+        self.provider_uuid = self.ocpaws_provider_uuid
         self.updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
 
     def test_normalize_tier(self):
@@ -217,7 +221,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         with schema_context(self.schema):
             line_items = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=self.cluster_id
             ).all()
             for line_item in line_items:
                 if line_item.infrastructure_raw_cost is not None:
@@ -258,7 +262,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         with schema_context(self.schema):
             line_items = OCPUsageLineItemDailySummary.objects.filter(
-                cluster_id=self.cluster_id, usage_start__gte=start_date, usage_start__lte=end_date
+                usage_start__gte=start_date, usage_start__lte=end_date, cluster_id=self.cluster_id
             ).all()
             for line_item in line_items:
                 self.assertEqual(line_item.infrastructure_markup_cost, 0)
@@ -289,9 +293,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
         with schema_context(self.schema):
             pod_line_items = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
                 data_source="Pod",
+                cluster_id=self.cluster_id,
                 infrastructure_raw_cost__isnull=True,
             ).all()
             for line_item in pod_line_items:
@@ -304,9 +308,9 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
                 self.assertEqual(line_item.supplementary_usage_cost.get("storage"), 0)
 
             volume_line_items = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
                 data_source="Storage",
+                cluster_id=self.cluster_id,
                 infrastructure_raw_cost__isnull=True,
             ).all()
 
@@ -334,7 +338,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                infrastructure_monthly_cost_json__isnull=False
+                cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False
             ).first()
             self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), 0)
             self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
@@ -353,25 +357,33 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         end_date = self.dh.this_month_end
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
         updater._update_monthly_cost(start_date, end_date)
+        with OCPReportDBAccessor(self.schema) as accessor:
+            report_period = accessor.get_usage_period_by_dates_and_cluster(start_date, end_date, self.cluster_id)
         with schema_context(self.schema):
             nodes = (
-                OCPUsageLineItemDailySummary.objects.filter(source_uuid=self.provider.uuid)
+                OCPUsageLineItemDailySummary.objects.filter(cluster_id=self.cluster_id)
                 .values("node")
                 .annotate(
                     **{
-                        "node_capacity_cpu_core_hours": Max("node_capacity_cpu_core_hours"),
-                        "cluster_capacity_cpu_core_hours": Max("cluster_capacity_cpu_core_hours"),
+                        "node_capacity_cpu_core_hours": Sum("node_capacity_cpu_core_hours"),
+                        "cluster_capacity_cpu_core_hours": Sum("cluster_capacity_cpu_core_hours"),
                     }
                 )
                 .values_list("node", "node_capacity_cpu_core_hours", "cluster_capacity_cpu_core_hours")
+                .filter(report_period_id=report_period)
             )
             for node in nodes:
                 if node[1] is None:
                     continue
                 monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                    infrastructure_monthly_cost_json__isnull=False, node=node[0], usage_start__gte=start_date
+                    usage_start__gte=start_date,
+                    node=node[0],
+                    monthly_cost_type="Cluster",
+                    infrastructure_monthly_cost_json__isnull=False,
+                    cluster_id=self.cluster_id,
+                    report_period_id=report_period,
                 ).first()
-                expected_cost = float(node[1] / node[2] * cluster_cost)
+                expected_cost = float((node[1] / node[2]) * cluster_cost)
                 self.assertAlmostEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("cpu"), expected_cost)
                 self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("memory"), 0)
                 self.assertEqual(monthly_cost_row.infrastructure_monthly_cost_json.get("pvc"), 0)
@@ -390,8 +402,10 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         updater._update_monthly_cost(start_date, end_date)
         with schema_context(self.schema):
             monthly_cost_row = OCPUsageLineItemDailySummary.objects.filter(
-                supplementary_monthly_cost_json__isnull=False
+                supplementary_monthly_cost_json__isnull=False,
+                cluster_id=self.cluster_id,
             ).first()
+
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("cpu"), 0)
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("memory"), 0)
             self.assertEqual(monthly_cost_row.supplementary_monthly_cost_json.get("pvc"), 0)
@@ -426,28 +440,29 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             # Monthly cost
             expected_count = (
                 OCPUsageLineItemDailySummary.objects.filter(
-                    report_period__provider_id=self.ocp_provider.uuid, usage_start__gte=start_date
+                    usage_start__gte=start_date,
+                    cluster_id=self.cluster_id,
                 )
                 .values("node")
                 .distinct()
                 .count()
             )
             monthly_cost_rows = OCPUsageLineItemDailySummary.objects.filter(
-                usage_start=start_date, infrastructure_monthly_cost_json__isnull=False
+                usage_start=start_date, cluster_id=self.cluster_id, infrastructure_monthly_cost_json__isnull=False
             ).count()
             self.assertEqual(monthly_cost_rows, expected_count)
 
             pod_line_item = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
-                infrastructure_raw_cost__isnull=False,
                 data_source="Pod",
+                cluster_id=self.cluster_id,
+                infrastructure_raw_cost__isnull=False,
             ).first()
             volume_line_item = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
-                infrastructure_raw_cost__isnull=False,
                 data_source="Storage",
+                cluster_id=self.cluster_id,
+                infrastructure_raw_cost__isnull=False,
             ).first()
 
             # Markup
@@ -462,16 +477,16 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
 
             # Now we want non-cloud infra line item to check usage cost on
             pod_line_item = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
-                infrastructure_raw_cost__isnull=True,
                 data_source="Pod",
+                cluster_id=self.cluster_id,
+                infrastructure_raw_cost__isnull=True,
             ).first()
             volume_line_item = OCPUsageLineItemDailySummary.objects.filter(
-                report_period__provider_id=self.ocp_provider.uuid,
                 usage_start__gte=start_date,
-                infrastructure_raw_cost__isnull=True,
                 data_source="Storage",
+                cluster_id=self.cluster_id,
+                infrastructure_raw_cost__isnull=True,
             ).first()
 
             # Usage cost
@@ -506,7 +521,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.cluster_id,
             updater._cluster_alias,
             "cpu",
-            self.ocp_provider_uuid,
+            str(self.provider_uuid),
         )
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_monthly_tag_cost")
@@ -543,7 +558,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.cluster_id,
             updater._cluster_alias,
             distribution,
-            self.ocp_provider_uuid,
+            str(self.provider_uuid),
         )
         mock_update_monthly.assert_any_call(
             "Node",
@@ -554,7 +569,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.cluster_id,
             updater._cluster_alias,
             distribution,
-            self.ocp_provider_uuid,
+            str(self.provider_uuid),
         )
 
         self.assertEqual(mock_update_monthly.call_count, 2)
@@ -588,7 +603,7 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
             self.cluster_id,
             updater._cluster_alias,
             distribution,
-            self.ocp_provider_uuid,
+            str(self.provider_uuid),
         )
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.populate_tag_usage_costs")

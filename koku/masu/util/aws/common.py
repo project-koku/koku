@@ -115,7 +115,7 @@ def month_date_range(for_date_time):
     start_month = start_month.replace(day=1)
     end_month = start_month + relativedelta(months=+1)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def get_assembly_id_from_cur_key(key):
@@ -430,7 +430,10 @@ def aws_generate_daily_data(data_frame):
         [
             "lineitem_resourceid",
             pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "bill_payeraccountid",
             "lineitem_usageaccountid",
+            "lineitem_legalentity",
+            "bill_billingentity",
             "lineitem_productcode",
             "lineitem_availabilityzone",
             "product_productfamily",
@@ -453,6 +456,8 @@ def aws_generate_daily_data(data_frame):
             "pricing_publicondemandcost": ["sum"],
             "pricing_publicondemandrate": ["max"],
             "savingsplan_savingsplaneffectivecost": ["sum"],
+            "product_productname": ["max"],
+            "bill_invoiceid": ["max"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)

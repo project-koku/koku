@@ -7,6 +7,7 @@ import logging
 from functools import reduce
 from operator import and_
 
+from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -37,8 +38,17 @@ class CostModelsFilter(FilterSet):
     name = CharFilter(field_name="name", method="list_contain_filter")
     uuid = UUIDFilter(field_name="uuid")
     source_uuid = UUIDFilter(field_name="costmodelmap__provider_uuid")
-    description = CharFilter(field_name="description", lookup_expr="icontains")
+    description = CharFilter(field_name="description", method="list_contain_filter")
     source_type = CharListFilter(field_name="source_type", lookup_expr="source_type__iexact")
+    currency = CharListFilter(field_name="currency", method="currency_filter")
+
+    def currency_filter(self, qs, name, values):
+        """Filter currency if a valid currency is passed in"""
+        serializer = CostModelSerializer(qs)
+        if serializer.validate_currency(values[0]):
+            lookup = "__".join([name, "iexact"])
+            queries = [Q(**{lookup: val}) for val in values]
+            return qs.filter(reduce(and_, queries))
 
     def list_contain_filter(self, qs, name, values):
         """Filter items that contain values in their name."""
@@ -49,7 +59,7 @@ class CostModelsFilter(FilterSet):
 
     class Meta:
         model = CostModel
-        fields = ["source_type", "name", "source_uuid", "description"]
+        fields = ["source_type", "name", "source_uuid", "description", "currency"]
 
 
 class RateProviderPermissionDenied(APIException):
@@ -111,7 +121,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
     @staticmethod
     def check_fields(dict_, model, exception):
         """Check if GET fields are valid."""
-        valid_query_params = ["limit", "offset", "source_uuid", "ordering"]
+        valid_query_params = ["limit", "offset", "source_uuid", "ordering", "currency"]
         cost_models_params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
         try:
             model.objects.filter(**cost_models_params)
@@ -125,7 +135,7 @@ class CostModelViewSet(viewsets.ModelViewSet):
         """
         queryset = CostModel.objects.all()
         self.check_fields(self.request.query_params, CostModel, CostModelQueryException)
-        if not self.request.user.admin:
+        if not (settings.ENHANCED_ORG_ADMIN and self.request.user.admin):
             read_access_list = self.request.user.access.get("cost_model").get("read")
             if "*" not in read_access_list:
                 try:

@@ -217,61 +217,75 @@ class SourcesStorageTest(TestCase):
         test_matrix = [
             {
                 "provider": MockProvider(
-                    1,
-                    "AWS Provider",
-                    Provider.PROVIDER_AWS,
-                    {"role_arn": "arn:fake"},
-                    {"bucket": "testbucket"},
-                    "authheader",
-                    1,
-                    False,
+                    source_id=1,
+                    name="AWS Provider",
+                    source_type=Provider.PROVIDER_AWS,
+                    auth={"role_arn": "arn:fake"},
+                    billing_source={"bucket": "testbucket"},
+                    auth_header="authheader",
+                    offset=1,
+                    pending_delete=False,
                 ),
                 "expected_response": {"operation": "create", "offset": 1},
             },
             {
                 "provider": MockProvider(
-                    1, "AWS Provider", Provider.PROVIDER_AWS, {"role_arn": "arn:fake"}, None, "authheader", 1, False
+                    source_id=1,
+                    name="AWS Provider",
+                    source_type=Provider.PROVIDER_AWS,
+                    auth={"role_arn": "arn:fake"},
+                    billing_source=None,
+                    auth_header="authheader",
+                    offset=1,
+                    pending_delete=False,
                 ),
                 "expected_response": {},
             },
             {
                 "provider": MockProvider(
-                    2,
-                    "OCP Provider",
-                    Provider.PROVIDER_OCP,
-                    {"role_arn": "my-cluster-id"},
-                    {"bucket": ""},
-                    "authheader",
-                    2,
-                    False,
+                    source_id=2,
+                    name="OCP Provider",
+                    source_type=Provider.PROVIDER_OCP,
+                    auth={"role_arn": "my-cluster-id"},
+                    billing_source={"bucket": ""},
+                    auth_header="authheader",
+                    offset=2,
+                    pending_delete=False,
                 ),
                 "expected_response": {"operation": "create", "offset": 2},
             },
             {
                 "provider": MockProvider(
-                    2,
-                    "OCP Provider",
-                    Provider.PROVIDER_OCP,
-                    {"cluster_id": "my-cluster-id"},
-                    {},
-                    "authheader",
-                    2,
-                    True,
+                    source_id=2,
+                    name="OCP Provider",
+                    source_type=Provider.PROVIDER_OCP,
+                    auth={"cluster_id": "my-cluster-id"},
+                    billing_source={},
+                    auth_header="authheader",
+                    offset=2,
+                    pending_delete=True,
                 ),
                 "expected_response": {},
             },
             {
                 "provider": MockProvider(
-                    2, None, Provider.PROVIDER_OCP, {"cluster_id": "my-cluster-id"}, {}, "authheader", 2, False
+                    source_id=2,
+                    name=None,
+                    source_type=Provider.PROVIDER_OCP,
+                    auth={"cluster_id": "my-cluster-id"},
+                    billing_source={},
+                    auth_header="authheader",
+                    offset=2,
+                    pending_delete=False,
                 ),
                 "expected_response": {},
             },
             {
                 "provider": MockProvider(
-                    3,
-                    "Azure Provider",
-                    Provider.PROVIDER_AZURE,
-                    {
+                    source_id=3,
+                    name="Azure Provider",
+                    source_type=Provider.PROVIDER_AZURE,
+                    auth={
                         "credentials": {
                             "client_id": "test_client_id",
                             "tenant_id": "test_tenant_id",
@@ -279,46 +293,77 @@ class SourcesStorageTest(TestCase):
                             "subscription_id": "test_subscription_id",
                         }
                     },
-                    {
+                    billing_source={
                         "data_source": {
                             "resource_group": "test_resource_group",
                             "storage_account": "test_storage_account",
                         }
                     },
-                    "authheader",
-                    3,
-                    False,
+                    auth_header="authheader",
+                    offset=3,
+                    pending_delete=False,
                 ),
                 "expected_response": {"operation": "create", "offset": 3},
             },
             {
                 "provider": MockProvider(
-                    3,
-                    "GCP Provider",
-                    Provider.PROVIDER_GCP,
-                    {"project_id": "test-project"},
-                    {"data_source": {"dataset": "test-dataset", "table_id": "test-tableid"}},
-                    "authheader",
-                    3,
-                    False,
+                    source_id=3,
+                    name="GCP Provider",
+                    source_type=Provider.PROVIDER_GCP,
+                    auth={"project_id": "test-project"},
+                    billing_source={"data_source": {"dataset": "test-dataset", "table_id": "test-tableid"}},
+                    auth_header="authheader",
+                    offset=3,
+                    pending_delete=False,
                 ),
                 "expected_response": {"operation": "create", "offset": 3},
             },
             {
                 "provider": MockProvider(
-                    3,
-                    "GCP Provider",
-                    Provider.PROVIDER_GCP,
-                    {"project_id": "test-project"},
-                    {"data_source": {}},
-                    "authheader",
-                    1,
-                    False,
+                    source_id=3,
+                    name="GCP Provider",
+                    source_type=Provider.PROVIDER_GCP,
+                    auth={"project_id": "test-project"},
+                    billing_source={"data_source": {}},
+                    auth_header="authheader",
+                    offset=1,
+                    pending_delete=False,
+                ),
+                "expected_response": {},
+            },
+            {
+                "provider": MockProvider(
+                    source_id=4,
+                    name="OCI Provider",
+                    source_type=Provider.PROVIDER_OCI,
+                    auth={},
+                    billing_source={
+                        "data_source": {
+                            "bucket": "bucket",
+                            "bucket_namespace": "bucket-namespace",
+                            "bucket_region": "bucket-region",
+                        }
+                    },
+                    auth_header="authheader",
+                    offset=4,
+                    pending_delete=False,
+                ),
+                "expected_response": {"operation": "create", "offset": 4},
+            },
+            {
+                "provider": MockProvider(
+                    source_id=4,
+                    name="OCI Provider",
+                    source_type=Provider.PROVIDER_OCI,
+                    auth={},
+                    billing_source={"data_source": {}},
+                    auth_header="authheader",
+                    offset=1,
+                    pending_delete=False,
                 ),
                 "expected_response": {},
             },
         ]
-
         for test in test_matrix:
             response = storage.screen_and_build_provider_sync_create_event(test.get("provider"))
 
@@ -344,8 +389,8 @@ class SourcesStorageTest(TestCase):
         ocp_obj.save()
 
         response = storage.get_source_type(test_source_id)
-        self.assertEquals(response, Provider.PROVIDER_OCP)
-        self.assertEquals(storage.get_source_type(test_source_id + 1), None)
+        self.assertEqual(response, Provider.PROVIDER_OCP)
+        self.assertEqual(storage.get_source_type(test_source_id + 1), None)
 
     def test_add_provider_sources_auth_info(self):
         """Test to add authentication to a source."""
@@ -364,7 +409,7 @@ class SourcesStorageTest(TestCase):
         result = storage.add_provider_sources_auth_info(test_source_id, test_authentication)
         self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.authentication, test_authentication)
+        self.assertEqual(response.authentication, test_authentication)
 
     def test_add_provider_sources_auth_info_with_sub_id(self):
         """Test to add authentication to a source with subscription_id."""
@@ -405,7 +450,7 @@ class SourcesStorageTest(TestCase):
         result = storage.add_provider_sources_billing_info(test_source_id, test_billing)
         self.assertTrue(result)
         response = Sources.objects.filter(source_id=test_source_id).first()
-        self.assertEquals(response.billing_source, test_billing)
+        self.assertEqual(response.billing_source, test_billing)
 
     def test_add_provider_sources_billing_info_no_source(self):
         """Test to add billing_source to a non-existent source."""
@@ -538,7 +583,7 @@ class SourcesStorageTest(TestCase):
 
             storage.enqueue_source_create_or_update(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
-            self.assertEquals(test.get("expected_pending_update"), response.pending_update)
+            self.assertEqual(test.get("expected_pending_update"), response.pending_update)
 
     def test_enqueue_source_update_unknown_source(self):
         """Test to enqueue a source update for an unknown source."""
@@ -568,7 +613,7 @@ class SourcesStorageTest(TestCase):
 
             storage.clear_update_flag(test_source_id)
             response = Sources.objects.get(source_id=test_source_id)
-            self.assertEquals(test.get("expected_pending_update"), response.pending_update)
+            self.assertEqual(test.get("expected_pending_update"), response.pending_update)
 
     def test_clear_update_flag_unknown_id(self):
         """Test to clear update flag for an unknown id."""
@@ -600,7 +645,7 @@ class SourcesStorageTest(TestCase):
             aws_obj.save()
 
             response = storage.load_providers_to_update()
-            self.assertEquals(len(response), test.get("expected_list_length"))
+            self.assertEqual(len(response), test.get("expected_list_length"))
             aws_obj.delete()
 
     def test_save_status(self):

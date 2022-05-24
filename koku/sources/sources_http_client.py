@@ -26,12 +26,15 @@ APP_EXTRA_FIELD_MAP = {
     Provider.PROVIDER_AZURE_LOCAL: ["resource_group", "storage_account"],
     Provider.PROVIDER_GCP: ["dataset"],
     Provider.PROVIDER_GCP_LOCAL: ["dataset"],
+    Provider.PROVIDER_OCI: ["bucket", "bucket_namespace", "bucket_region"],
+    Provider.PROVIDER_OCI_LOCAL: ["bucket", "bucket_namespace", "bucket_region"],
 }
 AUTH_TYPES = {
     Provider.PROVIDER_OCP: "token",
     Provider.PROVIDER_AWS: "arn",
     Provider.PROVIDER_AZURE: "tenant_id_client_id_client_secret",
     Provider.PROVIDER_GCP: "project_id_service_account_json",
+    Provider.PROVIDER_OCI: "ocid",
 }
 ENDPOINT_APPLICATIONS = "applications"
 ENDPOINT_APPLICATION_TYPES = "application_types"
@@ -162,9 +165,7 @@ class SourcesHTTPClient:
             msg = f"[get_data_source] Unexpected source type: {source_type}"
             LOG.error(msg)
             raise SourcesHTTPClientError(msg)
-        application_url = (
-            f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
-        )
+        application_url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self._source_id}&filter[application_type_id]={app_type_id}"  # noqa: E501
         applications_response = self._get_network_response(application_url, "Unable to get application settings")
         applications_data = (applications_response.get("data") or [None])[0]
         if not applications_data:
@@ -196,9 +197,7 @@ class SourcesHTTPClient:
     def _get_aws_credentials(self, _):
         """Get the roleARN from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_AWS)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}"  # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get AWS RoleARN")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -224,9 +223,7 @@ class SourcesHTTPClient:
     def _get_gcp_credentials(self, _):
         """Get the GCP credentials from Sources Authentication service."""
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_GCP)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}"  # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get GCP credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -240,7 +237,7 @@ class SourcesHTTPClient:
     def _get_azure_credentials(self, app_type_id):
         """Get the Azure Credentials from Sources Authentication service."""
         # get subscription_id from applications extra
-        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?source_id={self._source_id}&application_type_id={app_type_id}"
+        url = f"{self._base_url}/{ENDPOINT_APPLICATIONS}?filter[source_id]={self._source_id}&filter[application_type_id]={app_type_id}"  # noqa: E501
         app_response = self._get_network_response(url, "Unable to get Azure credentials")
         app_data = (app_response.get("data") or [None])[0]
         if not app_data:
@@ -249,9 +246,7 @@ class SourcesHTTPClient:
 
         # get client and tenant ids
         auth_type = AUTH_TYPES.get(Provider.PROVIDER_AZURE)
-        authentications_url = (
-            f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?source_id={self._source_id}&authtype={auth_type}"
-        )
+        authentications_url = f"{self._base_url}/{ENDPOINT_AUTHENTICATIONS}?filter[source_id]={self._source_id}&filter[authtype]={auth_type}"  # noqa: E501
         auth_response = self._get_network_response(authentications_url, "Unable to get Azure credentials")
         auth_data = (auth_response.get("data") or [None])[0]
         if not auth_data:
@@ -332,10 +327,10 @@ class SourcesHTTPClient:
                     f"[set_source_status] error: Status code: "
                     f"{application_response.status_code}. Response: {application_response.text}."
                 )
-                if application_response.status_code != 204:
-                    if application_response.status_code != 404:
-                        raise SourcesHTTPClientError(error_message)
-                    else:
-                        LOG.info(error_message)
-                return True
+                if 200 <= application_response.status_code < 300:
+                    return True
+                if application_response.status_code != 404:
+                    raise SourcesHTTPClientError(error_message)
+                else:
+                    LOG.info(error_message)
         return False

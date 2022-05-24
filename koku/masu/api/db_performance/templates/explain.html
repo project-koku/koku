@@ -1,0 +1,155 @@
+<!--
+Copyright 2022 Red Hat Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+<html>
+    <head>
+        <title>Cost Management DB Performance Statistics</title>
+        <style>
+            .container > * {
+                display: inline-block;
+                vertical-align: middle;
+            }
+            .header1 {
+                display: block;
+                font-size: 2em;
+                margin-block-start: 0.67em;
+                margin-block-end: 0.67em;
+                margin-inline-start: 0px;
+                margin-inline-end: 0px;
+                margin-right: 1em;
+                font-weight: bold;
+                margin-right: 0.5em;
+                padding-right: 1em;
+                border-right: 2px solid black;
+            }
+            ul.menu {
+                list-style-type: none;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: white;
+            }
+            ul.menu > li {
+                float: left;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+            ul.menu > li > a {
+                display: block;
+                color: black;
+                text-align: center;
+                padding: 16px;
+                text-decoration: none;
+                font-weight: bold;
+            }
+            ul.menu > li a:hover {
+                background-color: black;
+                color: white;
+            }
+            .current {
+                border-bottom: 2px solid black;
+            }
+            .pre {white-space: pre;}
+            .monospace {font-family: 'Courier New', Courier, monospace;}
+            .sans {font-family:'Courier New', Courier, monospace}
+            .inset {padding: 0.5em 0.5em 0.5em 0.5em}
+            .box-margin {margin-top: 1em; margin-left: 1em; margin-right: 1em; margin-bottom: 1em;}
+            .xy-scroll {overflow-x: scroll; overflow-y: scroll;}
+            .x-scroll-y-auto {overflow-x: scroll; overflow-y: auto;}
+            .lt-grey-bg {background-color: #bdbdbd;}
+            .black-fg {color: black}
+            .placeholder {color: #5c5c5c; font-style: italic;}
+            .sqlinput {
+                -moz-appearance: textfield-multiline;
+                -webkit-appearance: textarea;
+                border: 1px solid #000000;
+                height: 30%;
+                resize: none;
+            }
+            .unselectable {
+                -moz-user-select: -moz-none;
+                -khtml-user-select: none;
+                -webkit-user-select: none;
+
+                /*
+                    Introduced in IE 10.
+                    See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+                */
+                -ms-user-select: none;
+                user-select: none;
+            }
+            ::selection {background-color: #4c60cf; color: white}
+            hr {width: 100%}
+            button {margin-left: 1em; margin-bottom: 0.5em;}
+        </style>
+        <script>
+function explain_it_key(e) {
+    var explain_btn = document.getElementById("explain-btn");
+    if (e.ctrlKey && e.key == 'Enter') {
+        explain_btn.focus();
+        explain_btn.click();
+    }
+}
+
+function explain_it() {
+    var sql_elem = document.getElementById("div-sql-statement");
+    var res_elem = document.getElementById("div-results");
+    var selection = document.getSelection();
+    var sel_node_parent = null;
+    var response_data = '';
+    var sql = "";
+
+    if (selection.isCollapsed) {
+        sql = sql_elem.innerText;
+    }
+    else {
+        sql = selection.toString();
+    }
+
+    sql = sql.trim();
+
+    if (sql.length > 0) {
+        if (sql_elem.selectionStart != sql_elem.selectionEnd) {
+            sql = sql.substring(sql_elem.selectionStart, sql_elem.selectionEnd);
+        }
+        xhttp = new XMLHttpRequest();
+        xhttp.open("POST", "{{action_urls[0]}}", false);
+        xhttp.setRequestHeader('Content-type', 'application/json');
+        xhttp.send(JSON.stringify({'sql_statement': sql}));
+        if (xhttp.status != 200) {
+            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+        }
+        else {
+            response_data = JSON.parse(xhttp.responseText)
+            res_elem.innerHTML = "";
+            res_elem.innerText = response_data["query_plan"];
+        }
+    }
+    else {
+        res_elem.innerHTML = '<span class="unselectable lt-grey-bg placeholder">Nothing to process.</span>';
+    }
+
+    sql_elem.focus();
+}
+        </script>
+    </head>
+    <body>
+        <div id="header-container" class="container unselectable">
+            <div id="header-div" class="header1 unselectable" style="display: inline-block !important;">Database Performance</div>
+            <div id="menu-div unselectable">
+                {{db_performance_menu}}
+            </div>
+        </div>
+        <hr class="unselectable" />
+        <h2 id="data_header" class="unselectable">{{page_header}}</h2>
+        <div id="div-sql-statement" contenteditable="true" spellcheck="false" class="pre monospace sans inset black-fg sqlinput xy-scroll box-margin"></div>
+        <div id="div-btn"  class="unselectable">
+            <button id="explain-btn" onclick="explain_it()" class="unselectable">Explain</button>
+        </div>
+        <hr />
+        <div id="div-results" class="unselectable pre monospace sans inset result lt-grey-bg black-fg box-margin x-scroll-y-auto"><span class="lt-grey-bg unselectable placeholder">Enter a query above and click "Explain". Results will appear here.</span></div>
+        <script>
+document.getElementById("div-sql-statement").addEventListener("keypress", explain_it_key);
+        </script>
+    </body>
+</html>
