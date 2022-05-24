@@ -166,7 +166,6 @@ class TagQueryHandler(QueryHandler):
                 continue
 
             filter_value = self.parameters.get_filter(filter_key)
-            LOG.debug(f"_get_filter_value:{filter_value}")
             # Added to prevent 500 error when filtering value with a wildcard.
             if self.parameters.get_filter("value") and TagQueryHandler.has_wildcard(filter_value):
                 # Adds filter to the query response, however this filter will remove no values.
