@@ -114,6 +114,7 @@ jobs:
           PROMETHEUS_MULTIPROC_DIR: /tmp
           TRINO_DATE_STEP: 31
           MIDDLEWARE_TIME_TO_LIVE: 0
+          ENHANCED_ORG_ADMIN: True
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml
