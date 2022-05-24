@@ -66,6 +66,7 @@ services:
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
       - QE_SCHEMA=${QE_SCHEMA}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 8000:8000
       - 8001:9000
@@ -129,6 +130,7 @@ services:
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 5042:8000
       - 5001:9000
@@ -204,7 +206,7 @@ services:
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
-      - HCS_FINALIZATION_DAY_OF_MONTH=${HCS_FINALIZATION_DAY_OF_MONTH}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 6001-6020:9000
     volumes:
@@ -277,6 +279,7 @@ services:
       - ENABLE_TRINO_SOURCE_TYPE
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 7001-7020:9000
     volumes:
@@ -334,6 +337,7 @@ services:
       - OCI_CLI_TENANCY=${OCI_CLI_TENANCY}
       - OCI_CLI_KEY_FILE=${OCI_CLI_KEY_FILE}
       - OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=True
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     ports:
       - 4000:8000
       - 4001:9000
@@ -376,6 +380,7 @@ services:
       - UPLOAD_NORMALIZED_DATA_INTERVAL=10000000
       - UNLEASH_HOST=${UNLEASH_HOST-unleash}
       - UNLEASH_PORT=${UNLEASH_PORT-4242}
+      - ENHANCED_ORG_ADMIN=${ENHANCED_ORG_ADMIN-True}
     volumes:
       - './koku:/koku/koku'
       - './.unleash:/koku/.unleash'

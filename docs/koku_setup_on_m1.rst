@@ -3,100 +3,28 @@ Koku Setup on M1 Mac
 =====================
 
 About
-=====
+-----
 
 This documentation is to guide M1 Mac users on how to successfully install and run Koku on their machines.
 
-Getting Started
-================
+Generally, in order to run Intel-based packages and programs on Mac with Apple silicon processors (M1), one can make `use of Rosetta`_ which simulates the Intel environment.
 
-This guide mostly makes use of Rosetta in order to get Intel-based programs and packages to run on Mac with Apple silicon processors (M1).
+However, as for running Koku on M1 Macs we can follow the general development documentation with a few modifications as shown below.
 
-Using Rosetta (2)
------------------
+Development
+-----------
 
-Rosetta 2 enables a Mac with Apple silicon to use apps built for a Mac with an Intel processer. Check out and follow the steps on `how to install Rosetta on your Mac`_.
+From the current list of packages used by Koku, only ``confluent-kafka`` has no support on M1 Mac, but we can install it through ``brew`` with a few modifications.
 
-TL;DR: ::
+1. Install ``librdkafka`` through ``brew``: ::
 
-    /usr/sbin/softwareupdate --install-rosetta --aggree-to-license
+    brew install librdkafka
 
-1. Running Terminal with Rosetta
---------------------------------
+2. Add the following line into ``~/.zshrc`` and run ``source ~/.zshrc``. *Note:* Replace ``<version>`` with the version of librdkafka you installed above: ::
 
-It is a good idea to have a separate terminal to run with Rosetta, while keeping the default terminal run on M1.
+    C_INCLUDE_PATH=/opt/homebrew/Cellar/librdkafka/<version>/include LIBRARY_PATH=/opt/homebrew/Cellar/librdkafka/<version>/lib pip3 install confluent_kafka
 
-1. Download and install `iTerm2`_
-2. Go to Applications in Finder
-3. Find iTerm, right-click and select `Get Info`
-4. Make sure `Open using Rosetta` is checked
-
-Alternatively, you can create a copy of your default terminal, rename the copy and have it run specifically with Rosetta.
-
-`Note`: We will be using this version of the terminal for all the steps that follow.
-
-1. Installing ``brew``
-----------------------
-
-Same as we have a separate terminal running Intel-based programs, we also want to have a separate ``brew`` version that run Intel-based programs. When you install Homebrew on an Intel Mac, it installs it in the `/usr/local/homebrew` directory.
-
-1. Create a ``~/Downloads/homebrew`` and download Homebrew tarball and extract it to the ``~/Downloads/homebrew`` directory: ::
-
-    cd ~/Downloads
-    mkdir homebrew
-    curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C homebrew
-
-2. Move the ``homebrew`` directory to ``/usr/local/homebrew``. You need the ``sudo`` command: ::
-
-    sudo mv homebrew /usr/local/homebrew
-
-3. Add the following path and alias to the ``.zshrc`` file. *Note*: We are setting an alias ``brow`` (you could name it anything you'd like) to the version of ``homebrew`` that run on Intel-based machines. ::
-
-    # need this for x86_64 brew
-    export PATH=$HOME/bin:/usr/local/bin:$PATH
-    export PATH="/usr/local/homebrew/bin:$PATH"
-
-    # for intel x86_64 brew
-    alias brow='arch -x86_64 /usr/local/homebrew/bin/brew'
-
-4. Implement the new changes in ``.zshrc`` file: ::
-
-    source ~/.zshrc
-
-Now you can install apps for Intel processors: ::
-
-    brow install package-name
-
-And you can use all ``brew`` commands: ::
-
-    brow list
-    brow reinstall package-name
-    brow --help
-
-3. Install Python
------------------
-
-1. Install Python 3.8 using Intel-based ``brew``: ::
-
-    brow install python@3.8
-    brow list | grep python
-
-2. Assuming ``python`` and ``pip`` (comes with ``python`` installation above) currently do not point to any commands, add the following paths and aliases to ``~/.zshrc``: ::
-
-    export PATH="/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/python3.8:$PATH"
-    export PATH="/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/pip3:$PATH"
-
-    alias python='/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/python3.8'
-    alias pip='/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/pip3'
-
-3. Implement the new changes in ``.zshrc`` file: ::
-
-    source ~/.zshrc
-
-4. Development
---------------
-
-At this point, you should be able to follow the steps in `Koku's original development`_ process from `1` through `9`; just make sure you use ``brow`` instead of ``brew`` and ``pip`` instead of ``pip3`` in order to use the versions that we installed above.
+After compoleting these steps, you should be able to follow the development on `Koku's README`_. Make sure to install the versions of Docker and Homebrew that are made for M1 Macs.
 
 Developing with Docker
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -122,17 +50,16 @@ Alternatively, if you want to run the project in Docker environment, follow the 
         }
     }
 
+Once these steps are completed, follow the instructions on `Developing with docker-compose`_.
 
 References
 ----------
-- https://medium.com/mkdir-awesome/how-to-install-x86-64-homebrew-packages-on-apple-m1-macbook-54ba295230f
-- https://til.simonwillison.net/macos/running-docker-on-remote-m1
+
 - https://github.com/jsbroks/coco-annotator/issues/493
 
-.. _`how to install Rosetta on your Mac`: https://support.apple.com/en-us/HT211861
-.. _`iTerm2`: https://iterm2.com/
-.. _`Koku's original development`: https://github.com/project-koku/koku/blob/main/README.rst#development
+.. _`use of Rosetta`: https://github.com/project-koku/koku/blob/main/docs/rosetta_on_m1.rst
 .. _`Koku's README`: https://github.com/project-koku/koku/blob/main/README.rst
 .. _`docker-compose-m1.yml`: https://github.com/project-koku/koku/blob/main/testing/compose_files/docker-compose-m1.yml
 .. _`Run on Save`: https://betterprogramming.pub/automatically-execute-bash-commands-on-save-in-vs-code-7a3100449f63
 .. _`bash script`: https://github.com/project-koku/koku/tree/main/dev/scripts/m1_refresher.sh
+.. _`Developing with docker-compose`: https://github.com/project-koku/koku/blob/main/README.rst#developing-with-docker-compose
