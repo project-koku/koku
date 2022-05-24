@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Openshift clusters."""
+from django.conf import settings
 from django.db.models import F
 from django.db.models.functions.comparison import Coalesce
 from django.utils.decorators import method_decorator
@@ -47,7 +48,7 @@ class OCPClustersView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
             user_access = request.user.access.get("openshift.cluster", {}).get("read", [])

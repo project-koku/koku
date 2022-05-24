@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Azure Service types."""
+from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -55,7 +56,7 @@ class AzureServiceView(generics.ListAPIView):
                             .distinct()
                             .filter(service_name__isnull=False)
                         )
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])

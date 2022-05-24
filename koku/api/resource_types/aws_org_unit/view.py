@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS organizational units."""
+from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -39,7 +40,7 @@ class AWSOrganizationalUnitView(generics.ListAPIView):
                 if key not in supported_query_params:
                     error_message[key] = [{"Unsupported parameter"}]
                     return Response(error_message, status=status.HTTP_400_BAD_REQUEST)
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.organizational_unit", {}).get("read", [])
