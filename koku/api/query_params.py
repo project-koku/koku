@@ -117,10 +117,10 @@ class QueryParameters:
     @cached_property
     def tag_keys(self):
         """Get a set of tag keys to validate filters."""
-        tag_keys = []
+        tag_keys = set()
         for tag_model in self.tag_handler:
             with tenant_context(self.tenant):
-                tag_keys.extend(tag_model.objects.values_list("key", flat=True).distinct())
+                tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
         return tag_keys
 
     def _strip_tag_prefix(self, value):
