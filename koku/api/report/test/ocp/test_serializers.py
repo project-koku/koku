@@ -490,9 +490,15 @@ class OCPCostQueryParamSerializerTest(TestCase):
 
     def test_fail_without_group_by(self):
         """Test fail if filter[limit] and filter[offset] passed without group by."""
-        query_params = {"filter[limit]": "1", "filter[offset]": "1"}
-
+        param_failures_list = [
+            {"filter": {"limit": "1", "offset": "1"}},
+            {"filter": {"limit": "1"}},
+            {"filter": {"offset": "1"}},
+        ]
         req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
+        for param in param_failures_list:
+            with self.subTest(param=param):
+                with self.assertRaises(serializers.ValidationError):
+                    serializer = OCPInventoryQueryParamSerializer(data=param, context={"request": req})
+                    self.assertFalse(serializer.is_valid())
+                    serializer.is_valid(raise_exception=True)
