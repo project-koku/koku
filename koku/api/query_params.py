@@ -303,10 +303,7 @@ class QueryParameters:
         for item in ["filter", "group_by", "order_by"]:
             if get_tags:
                 break
-            params = query_params.get(item)
-            if not params:
-                continue
-            for key in params:
+            for key in query_params.get(item, []):
                 if "tag" in key:
                     get_tags = True
                     break
