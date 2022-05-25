@@ -5,6 +5,7 @@
 """Defines the Rate Access Permissions class."""
 from uuid import UUID
 
+from django.conf import settings
 from rest_framework import permissions
 
 
@@ -22,7 +23,7 @@ class CostModelsAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission based on the defined access."""
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return True
 
         if not request.user.access:
