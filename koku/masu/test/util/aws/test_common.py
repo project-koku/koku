@@ -360,6 +360,22 @@ class TestAWSUtils(MasuTestCase):
                 upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
                 self.assertEqual(upload, None)
 
+    def test_copy_hcs_data_to_s3_bucket(self):
+        """Test copy_hcs_data_to_s3_bucket."""
+        upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+        self.assertEqual(upload, None)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+                self.assertIsNotNone(upload)
+
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+                self.assertEqual(upload, None)
+
     def test_aws_post_processor(self):
         """Test that missing columns in a report end up in the data frame."""
         column_one = "column_one"
