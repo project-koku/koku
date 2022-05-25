@@ -7,7 +7,6 @@ import copy
 import logging
 import operator
 from collections import OrderedDict
-from functools import cached_property
 from functools import reduce
 from pprint import pformat
 
@@ -87,6 +86,7 @@ class QueryParameters:
             error = {"details": "Invalid query parameter format."}
             raise ValidationError(error) from e
 
+        self._set_tag_keys()  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
         for item in ["filter", "group_by", "order_by", "access"]:
@@ -113,15 +113,6 @@ class QueryParameters:
     def __str__(self):
         """Readable representation."""
         return pformat(self.__repr__())
-
-    @cached_property
-    def tag_keys(self):
-        """Get a set of tag keys to validate filters."""
-        tag_keys = set()
-        for tag_model in self.tag_handler:
-            with tenant_context(self.tenant):
-                tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
-        return tag_keys
 
     def _strip_tag_prefix(self, value):
         """Strip the tag prefixes from the value."""
@@ -295,6 +286,16 @@ class QueryParameters:
                 self.parameters["filter"][filter_key] = list(items)
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
+
+    def _set_tag_keys(self):
+        """Set the valid tag keys"""
+        self.tag_keys = set()
+        if self.report_type == "tags" or "tag" not in self.url_data:
+            return
+
+        for tag_model in self.tag_handler:
+            with tenant_context(self.tenant):
+                self.tag_keys.update(tag_model.objects.values_list("key", flat=True).distinct())
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
