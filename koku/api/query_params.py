@@ -290,6 +290,8 @@ class QueryParameters:
     def _set_tag_keys(self):
         """Set the valid tag keys"""
         self.tag_keys = set()
+        # we do not need to fetch the tags for tags report type.
+        # we also do not need to fetch the tags if none of the query params contain `tags`
         if self.report_type == "tags" or "tag" not in self.url_data:
             return
 
