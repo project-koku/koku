@@ -332,8 +332,8 @@ class QueryParameters:
 
         """
         if self.report_type != "tags" and "tag" in self.url_data:
-            tag_keys = self._process_tag_query_params(query_params)
-            qps = self.serializer(data=query_params, tag_keys=tag_keys, context={"request": self.request})
+            self.tag_keys = self._process_tag_query_params(query_params)
+            qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
         else:
             qps = self.serializer(data=query_params, context={"request": self.request})
 
