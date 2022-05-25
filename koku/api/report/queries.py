@@ -848,6 +848,9 @@ class ReportQueryHandler(QueryHandler):
                 else:
                     order_mapping[date] = {group_by: out_data}
             order_numbers.update(meta_data.get("order_numbers", {}))
+            # TODO: CODY -> Figure out if this deepcopy is actually needed.
+            LOG.info(f"order_numbers: {order_numbers}")
+            order_numbers = copy.deepcopy(order_numbers)
         return out_data, order_mapping, order_numbers
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
@@ -946,7 +949,7 @@ class ReportQueryHandler(QueryHandler):
             ordered_dict[date_key] = key_list
         return ordered_dict
 
-    def build_reordered(self, data, key_order_mapping, key_map, group_key, date=None):
+    def build_reordered(self, data, key_order_mapping, key_map, group_key, date=None):  # noqa: C901
         """
         Builds reordered data.
         data: list of dictionaries
@@ -963,9 +966,11 @@ class ReportQueryHandler(QueryHandler):
                     # LOG.info(f"key_order_mapping: {key_order_mapping}")
                     key_order = key_order_mapping.get(date)
                     # LOG.info(f"key_order: {key_order}")
-                    for key in key_order:
-                        new_data.append(key_map.get(date, {}).get(key))
-                    return new_data
+                    if key_order:
+                        for key in key_order:
+                            new_data.append(key_map.get(date, {}).get(key))
+                        return new_data
+                    return data
             for value in data:
                 return [self.build_reordered(value, key_order_mapping, key_map, group_key, date)]
         elif isinstance(data, dict):
