@@ -12,8 +12,6 @@ from google.cloud.exceptions import NotFound
 from rest_framework.serializers import ValidationError
 
 from api.models import Provider
-from api.provider.models import ProviderAuthentication
-from api.provider.models import ProviderBillingSource
 from api.provider.models import Sources
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import REQUIRED_IAM_PERMISSIONS
@@ -203,21 +201,6 @@ class GCPProviderTestCase(TestCase):
         }
         Sources(**gcp_source).save()
 
-        auth = ProviderAuthentication(**{"credentials": credentials})
-        auth.save()
-        billing = ProviderBillingSource(**{"data_source": data_source})
-        billing.save()
-        gcp_provider = {
-            "uuid": provider_uuid,
-            "name": "Provider GCP",
-            "type": "GCP",
-            "authentication": auth,
-            "billing_source": billing,
-        }
-
-        provider = Provider(**gcp_provider)
-        provider.save()
-
         provider = GCPProvider()
         updated_data_source = copy.deepcopy(data_source)
         updated_data_source["table_id"] = test_dataset_table_id
@@ -225,10 +208,7 @@ class GCPProviderTestCase(TestCase):
 
         db_obj = Sources.objects.get(source_id=source_id)
 
-        provider_data_source = Provider.objects.get(uuid=provider_uuid).billing_source.data_source
-
         self.assertEqual(db_obj.billing_source, {"data_source": updated_data_source})
-        self.assertEqual(provider_data_source, updated_data_source)
 
         gcp2_source_id = 14
         gcp2_dataset_table_id = "test_table_id_2"
