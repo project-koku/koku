@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the OCP-on-ALL Access Permissions class."""
+from django.conf import settings
 from rest_framework import permissions
 
 from api.common.permissions import RESOURCE_TYPES
@@ -13,7 +14,7 @@ class OpenshiftAllAccessPermission(permissions.BasePermission):
 
     def has_permission(self, request, view):
         """Check permission to view OCP-on-ALL data."""
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return True
 
         resource_access = request.user.access
