@@ -86,13 +86,7 @@ class QueryParameters:
             error = {"details": "Invalid query parameter format."}
             raise ValidationError(error) from e
 
-        # implement logic here to prevent us from fetching tags when we are not grouping/filtering by tags
-
-        self.tag_keys = []
-        if self.report_type != "tags":
-            for tag_model in self.tag_handler:
-                self.tag_keys.extend(self._get_tag_keys(tag_model))
-
+        self._set_tag_keys(query_params)  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
         for item in ["filter", "group_by", "order_by", "access"]:
@@ -298,6 +292,23 @@ class QueryParameters:
                 self.parameters["filter"][filter_key] = list(items)
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
+
+    def _set_tag_keys(self, query_params):
+        """Set the valid tag keys"""
+        # this logic prevents fetching tags when we are not grouping/filtering/ordering by tags
+        get_tags = False
+        for item in ["filter", "group_by", "order_by"]:
+            params = query_params.get(item)
+            if not params:
+                continue
+            for key in params:
+                if "tag" in key:
+                    get_tags = True
+
+        self.tag_keys = []
+        if get_tags and self.report_type != "tags":
+            for tag_model in self.tag_handler:
+                self.tag_keys.extend(self._get_tag_keys(tag_model))
 
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
