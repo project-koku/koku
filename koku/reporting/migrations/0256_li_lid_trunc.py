@@ -49,6 +49,6 @@ TRUNCATE TABLE {} ;
 
 class Migration(migrations.Migration):
 
-    dependencies = [("reporting", "0254_oci_models")]
+    dependencies = [("reporting", "0255_ocp_label_indices")]
 
     operations = [migrations.RunPython(code=truncate_tables, reverse_code=migrations.RunPython.noop)]
