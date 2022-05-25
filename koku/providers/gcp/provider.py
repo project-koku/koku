@@ -58,7 +58,8 @@ class GCPProvider(ProviderInterface):
         source_query = Sources.objects.filter(billing_source__data_source__dataset=data_source.get("dataset"))
         for source in source_query:
             if source.billing_source.get("data_source") != data_source:
-                source.update(billing_source={"data_source": data_source})
+                source_filter = Sources.objects.filter(source_id=source.source_id)
+                source_filter.update(billing_source={"data_source": data_source})
 
     def _format_dataset_id(self, data_source, credentials):
         """Format dataset ID based on input format."""
