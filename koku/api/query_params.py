@@ -136,7 +136,7 @@ class QueryParameters:
         param_tag_keys = set()
         for key, value in query_params.items():
             if not isinstance(value, (dict, list)):
-                value = list(value)
+                value = [value]
             for inner_key in value:
                 stripped_key = self._strip_tag_prefix(inner_key)
                 if stripped_key in self.tag_keys:
