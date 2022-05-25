@@ -296,25 +296,6 @@ class QueryParameters:
             elif access_list:
                 self.parameters["filter"][filter_key] = access_list
 
-    def _set_tag_keys(self, query_params):
-        """Set the valid tag keys"""
-        self.tag_keys = []
-        if self.report_type == "tags":
-            return
-        # this logic prevents fetching tags when we are not grouping/filtering/ordering by tags
-        get_tags = False
-        for item in ["filter", "group_by", "order_by"]:
-            if get_tags:
-                break
-            for key in query_params.get(item, []):
-                if "tag" in key:
-                    get_tags = True
-                    break
-
-        if get_tags:
-            for tag_model in self.tag_handler:
-                self.tag_keys.extend(self._get_tag_keys(tag_model))
-
     def _set_time_scope_defaults(self):
         """Set the default filter parameters."""
         time_scope_units = self.get_filter("time_scope_units")
@@ -350,7 +331,7 @@ class QueryParameters:
             (Dict): Dictionary parsed from query params string
 
         """
-        if self.report_type != "tags" and "tag" in self.request.path:
+        if self.report_type != "tags" and "tag" in self.url_data:
             tag_keys = self._process_tag_query_params(query_params)
             qps = self.serializer(data=query_params, tag_keys=tag_keys, context={"request": self.request})
         else:
