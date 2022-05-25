@@ -7,6 +7,7 @@ import copy
 import logging
 import operator
 from collections import OrderedDict
+from functools import cached_property
 from functools import reduce
 from pprint import pformat
 
@@ -86,7 +87,6 @@ class QueryParameters:
             error = {"details": "Invalid query parameter format."}
             raise ValidationError(error) from e
 
-        self._set_tag_keys(query_params)  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
         for item in ["filter", "group_by", "order_by", "access"]:
@@ -114,11 +114,14 @@ class QueryParameters:
         """Readable representation."""
         return pformat(self.__repr__())
 
-    def _get_tag_keys(self, model):
+    @cached_property
+    def tag_keys(self):
         """Get a set of tag keys to validate filters."""
-        with tenant_context(self.tenant):
-            tags = model.objects.values_list("key", flat=True).distinct()
-            return set(tags)
+        tag_keys = []
+        for tag_model in self.tag_handler:
+            with tenant_context(self.tenant):
+                tag_keys.extend(tag_model.objects.values_list("key", flat=True).distinct())
+        return tag_keys
 
     def _strip_tag_prefix(self, value):
         """Strip the tag prefixes from the value."""
@@ -350,9 +353,9 @@ class QueryParameters:
             (Dict): Dictionary parsed from query params string
 
         """
-        if self.tag_keys:
-            self.tag_keys = self._process_tag_query_params(query_params)
-            qps = self.serializer(data=query_params, tag_keys=self.tag_keys, context={"request": self.request})
+        if self.report_type != "tags" and "tag" in self.request.path:
+            tag_keys = self._process_tag_query_params(query_params)
+            qps = self.serializer(data=query_params, tag_keys=tag_keys, context={"request": self.request})
         else:
             qps = self.serializer(data=query_params, context={"request": self.request})
 
