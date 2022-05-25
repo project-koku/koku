@@ -45,7 +45,6 @@ class CostModelManager:
     def create(self, **data):
         """Create cost model and optionally associate to providers."""
         cost_model_data = copy.deepcopy(data)
-
         provider_uuids = cost_model_data.pop("provider_uuids", [])
         self._model = CostModel.objects.create(**cost_model_data)
         self.update_provider_uuids(provider_uuids)
