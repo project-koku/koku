@@ -31,16 +31,15 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
         """Set up a test with database objects."""
         super().setUp()
 
-    @RbacPermissions({"oci.project": {"read": ["*"]}, "oci.account": {"read": ["example_account_id"]}})
+    @RbacPermissions({"oci.payer_tenant_id": {"read": ["*"]}})
     @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor.get_oci_topology_trino")
-    def test_oci_regions_view_with_oci_project_wildcard_and_account_access(self, mock_get_topo):
+    def test_oci_regions_view_with_oci_payer_tenant_id_access(self, mock_get_topo):
         """Test endpoint runs with a customer owner."""
         source_uuid = uuid4()
         mock_topo_record = [
             (
                 source_uuid,
-                "example_account_id",
-                "example-project-id",
+                "example_payer_tenant_id_id",
                 "The Best Project",
                 "Service_1",
                 "The Best Service",
@@ -48,8 +47,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
             ),
             (
                 source_uuid,
-                "not_example_account_id",
-                "not_example-project-id",
+                "not_example_payer_tenant_id_id",
                 "The Worst Project",
                 "Service_2",
                 "The Worst Service",
@@ -66,55 +64,7 @@ class ResourceTypesViewTestGcpRegions(MasuTestCase):
                 OCITopology.objects.annotate(**{"value": F("region")})
                 .values("value")
                 .distinct()
-                .filter(account_id="example_account_id")
-                .count()
-            )
-        # check that the expected is not zero
-        self.assertTrue(expected)
-        url = reverse("oci-regions")
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        json_result = response.json()
-        self.assertIsNotNone(json_result.get("data"))
-        self.assertIsInstance(json_result.get("data"), list)
-        self.assertEqual(len(json_result.get("data")), expected)
-
-    @RbacPermissions({"oci.project": {"read": ["example-project-id"]}, "oci.account": {"read": ["*"]}})
-    @patch("masu.database.oci_report_db_accessor.OCIReportDBAccessor.get_oci_topology_trino")
-    def test_oci_regions_view_with_oci_account_wildcard_and_project_access(self, mock_get_topo):
-        """Test endpoint runs with a customer owner."""
-        source_uuid = uuid4()
-        mock_topo_record = [
-            (
-                source_uuid,
-                "example_account_id",
-                "example-project-id",
-                "The Best Project",
-                "Service_1",
-                "The Best Service",
-                "US East",
-            ),
-            (
-                source_uuid,
-                "not_example_account_id",
-                "not_example-project-id",
-                "The Worst Project",
-                "Service_2",
-                "The Worst Service",
-                "US West",
-            ),
-        ]
-        mock_get_topo.return_value = mock_topo_record
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
-        self.accessor.populate_oci_topology_information_tables(self.oci_provider, start_date, end_date)
-        with schema_context(self.schema_name):
-            expected = (
-                OCITopology.objects.annotate(**{"value": F("region")})
-                .values("value")
-                .distinct()
-                .filter(project_id="example-project-id")
+                .filter(payer_tenant_id="example-tenant-id")
                 .count()
             )
         # check that the expected is not zero
