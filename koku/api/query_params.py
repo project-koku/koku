@@ -295,18 +295,23 @@ class QueryParameters:
 
     def _set_tag_keys(self, query_params):
         """Set the valid tag keys"""
+        self.tag_keys = []
+        if self.report_type == "tags":
+            return
         # this logic prevents fetching tags when we are not grouping/filtering/ordering by tags
         get_tags = False
         for item in ["filter", "group_by", "order_by"]:
+            if get_tags:
+                break
             params = query_params.get(item)
             if not params:
                 continue
             for key in params:
                 if "tag" in key:
                     get_tags = True
+                    break
 
-        self.tag_keys = []
-        if get_tags and self.report_type != "tags":
+        if get_tags:
             for tag_model in self.tag_handler:
                 self.tag_keys.extend(self._get_tag_keys(tag_model))
 
