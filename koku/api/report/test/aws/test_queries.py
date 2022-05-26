@@ -195,7 +195,7 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_transform_null_group_with_limit(self):
         """Test transform data with null group value."""
-        url = "?filter[limit]=1"
+        url = "?filter[limit]=1&group_by[account]=*"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         groups = ["region"]
@@ -236,8 +236,10 @@ class AWSReportQueryTest(IamTestCase):
     def test_get_group_by_with_limit_and_no_group_by_params(self):
         """Test the _get_group_by method with limit params."""
         expected = ["instance_type"]
-        url = "?filter[limit]=1"
-        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        param = "?filter[limit]=1"
+        query_params = self.mocked_query_params(
+            param, AWSInstanceTypeView, path="/api/cost-management/v1/reports/azure/instance-types/"
+        )
         handler = AWSReportQueryHandler(query_params)
         group_by = handler._get_group_by()
         self.assertEqual(expected, group_by)
@@ -1983,8 +1985,10 @@ class AWSReportQueryTest(IamTestCase):
 
     def test_rank_list_big_limit(self):
         """Test rank list limit with account alias, ensuring we return results with limited data."""
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"  # noqa: E501
-        query_params = self.mocked_query_params(url, AWSInstanceTypeView)
+        params = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"  # noqa: E501
+        query_params = self.mocked_query_params(
+            params, AWSInstanceTypeView, path="api/cost-management/v1/reports/aws/instance-types/"
+        )
         handler = AWSReportQueryHandler(query_params)
         data_list = [
             {

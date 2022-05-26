@@ -179,7 +179,7 @@ class AWSProviderMap(ProviderMap):
                                 Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency_code"), Value("USD")),
+                            "cost_units": Coalesce(Max("currency_code"), Value("USD"), output_field=CharField()),
                             "count": Max("resource_count"),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
