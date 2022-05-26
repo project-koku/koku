@@ -13,9 +13,9 @@ from tenant_schemas.utils import schema_context
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range_pair
-from masu.util.common import determine_if_full_summary_update_needed
 from reporting.provider.gcp.models import UI_SUMMARY_TABLES
 
 LOG = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 do_month_update = False
                 with schema_context(self._schema):
                     if first_bill:
-                        do_month_update = determine_if_full_summary_update_needed(first_bill)
+                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
                 if do_month_update:
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
@@ -136,3 +136,20 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 bill.save()
 
         return start_date, end_date
+
+    def _determine_if_full_summary_update_needed(self, bill):
+        """Decide whether to update summary tables for full billing period."""
+        summary_creation = bill.summary_data_creation_datetime
+
+        is_done_processing = False
+        with ReportManifestDBAccessor() as manifest_accesor:
+            is_done_processing = manifest_accesor.manifest_ready_for_summary(self._manifest.id)
+
+        is_new_bill = summary_creation is None
+
+        # Do a full month update if we just finished processing a finalized
+        # bill or we just finished processing a bill for the first time
+        if is_done_processing and is_new_bill:
+            return True
+
+        return False
