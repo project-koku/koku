@@ -132,7 +132,7 @@ class UserAccessView(APIView):
         {"type": "azure", "access_class": AzureUserAccess},
         {"type": "cost_model", "access_class": CostModelUserAccess},
         {"type": "gcp", "access_class": GCPUserAccess},
-        {"type": "oci", "access_class": OCIUserAccess, "pre_release_feature": True},
+        {"type": "oci", "access_class": OCIUserAccess},
         {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
         {"type": "ocp", "access_class": OCPUserAccess},
     ]
