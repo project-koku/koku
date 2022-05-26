@@ -1210,14 +1210,13 @@ class ReportQueryHandler(QueryHandler):
                 clusters_list = set()
                 source_uuids_list = set()
                 for entry in others_list:
-                    clusters_list.extend(entry.get("clusters", []))
+                    clusters_list.update(entry.get("clusters", []))
                     source_uuid = entry.get("source_uuid", [])
                     if source_uuid and type(source_uuid) != list:
-                        source_uuids_list.append(source_uuid)
-                    else:
-                        source_uuids_list.extend(source_uuid)
-                other["clusters"] = list(set(clusters_list))
-                other["source_uuid"] = list(set(source_uuids_list))
+                        source_uuid = [source_uuid]
+                    source_uuids_list.update(source_uuid)
+                other["clusters"] = list(clusters_list)
+                other["source_uuid"] = list(source_uuids_list)
                 exclusions = ()
             else:
                 # delete these labels from the Others category if we're not
