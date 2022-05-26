@@ -39,8 +39,6 @@ from api.utils import DateHelper
 from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
-# from pprint import pformat
-
 LOG = logging.getLogger(__name__)
 
 
@@ -1041,8 +1039,6 @@ class OCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    # Fails when: tox api.report.test.ocp.test_views.OCPReportViewTest
-    # but passes if you run indivdually.
     def test_execute_query_group_by_node(self, mocked_exchange_rates, mock_base_currency):
         """Test that grouping by node filters data."""
         with tenant_context(self.tenant):
@@ -1390,8 +1386,6 @@ class OCPReportViewTest(IamTestCase):
             if other:
                 self.assertIn("Other", other[0].get("node"))
 
-    # Fails when: tox api.report.test.ocp.test_views.OCPReportViewTest
-    # but passes if you run indivdually.
     def test_execute_query_with_group_by_order_by_and_limit(self, mocked_exchange_rates, mock_base_currency):
         """Test that data is grouped by and limited on order by."""
         order_by_options = ["cost", "infrastructure", "supplementary", "usage", "request", "limit"]
@@ -1413,7 +1407,6 @@ class OCPReportViewTest(IamTestCase):
                 url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-                # import pdb; pdb.set_trace()
                 data = response.json()
                 data = data.get("data", [])
                 self.assertTrue(data)
@@ -1440,8 +1433,6 @@ class OCPReportViewTest(IamTestCase):
                         current_value = entry.get("values", [])[0].get(data_key, {}).get("total", {}).get("value")
                     else:
                         current_value = entry.get("values", [])[0].get(option, {}).get("value")
-                    LOG.info(f"current_value: {current_value}")
-                    LOG.info(f"previous_value: {current_value}")
                     self.assertTrue(current_value <= previous_value)
                     previous_value = current_value
 

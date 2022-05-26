@@ -10,7 +10,6 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
-from pprint import pformat
 
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
@@ -131,7 +130,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
-        # TODO: Could we simplfy this by using an odered dictionary.
+        # TODO: Cody - Could we simplfy this by using an odered dictionary.
         total_query = {
             "infra_total": 0,
             "infra_raw": 0,
@@ -447,20 +446,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 groupby,
                 self.query_data,
                 extra_deltas=extra_deltas)
-            # LOG.info(f"order_numbers: {order_numbers}")
             key_order_dict = self.find_key_order(order_numbers)
-            # LOG.info(f"key_order_dict: {key_order_dict}")
-            # LOG.info(pformat(self.query_data))
-            LOG.info(f"groupby: {groupby}")
-            # The ordering logic I came up with does not work on multiple group bys.
+            # TODO: CODY - The ordering logic I came up with
+            # does not work on multiple group bys.
             if len(groupby) == 1:
+                # TODO: Cody - Figure out if this deepcopy is needed
                 copy_data = copy.deepcopy(self.query_data)
-                LOG.info(f"copy_data: {pformat(copy_data)}")
-                LOG.info(f"key_order_dict: {pformat(key_order_dict)}")
-                LOG.info(f"order_mapping: {pformat(order_mapping)}")
                 self.query_data = self.build_reordered(copy_data, key_order_dict, order_mapping, groupby[0])
 
-            # LOG.info(pformat(data))
         self.query_sum = ordered_total
 
         return self._format_query_response()
