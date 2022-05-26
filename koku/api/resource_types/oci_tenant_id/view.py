@@ -18,8 +18,8 @@ from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.oci.models import OCICostSummaryByAccountP
 
 
-class OCISubscriptionGuidView(generics.ListAPIView):
-    """API GET list view for OCI Subscription Guid."""
+class OCITenantidView(generics.ListAPIView):
+    """API GET list view for OCI Tenant id."""
 
     queryset = OCICostSummaryByAccountP.objects.annotate(**{"value": F("payer_tenant_id")}).values("value").distinct()
     serializer_class = ResourceTypeSerializer

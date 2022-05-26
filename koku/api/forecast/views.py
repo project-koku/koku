@@ -143,7 +143,7 @@ class OCPAllCostForecastView(ForecastView):
     tag_handler = [OCPAWSTagsSummary, OCPAzureTagsSummary]
 
 
-class GCPForecastCostView(ForecastView):
+class GCPCostForecastView(ForecastView):
     """GCP Cost Forecast View."""
 
     permission_classes = (GcpAccessPermission,)
@@ -152,7 +152,7 @@ class GCPForecastCostView(ForecastView):
     tag_handler = [GCPTagsSummary]
 
 
-class OCIForecastCostView(ForecastView):
+class OCICostForecastView(ForecastView):
     """OCI Cost Forecast View."""
 
     permission_classes = (OCIAccessPermission,)

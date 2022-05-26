@@ -29,7 +29,7 @@ class OCIAccessPermission(permissions.BasePermission):
         return False
 
 
-class OCIProjectPermission(OCIAccessPermission):
+class OCITenantPermission(OCIAccessPermission):
     """Determines if a user can view OCI data."""
 
-    resource_type = "oci.project"
+    resource_type = "oci.payer_tenant_id"

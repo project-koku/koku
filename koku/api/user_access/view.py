@@ -91,6 +91,12 @@ class GCPUserAccess(UIFeatureAccess):
     access_keys = ["gcp.account", "gcp.project"]
 
 
+class OCIUserAccess(UIFeatureAccess):
+    """Access to OCI UI Features."""
+
+    access_keys = ["oci.payer_tenant_id"]
+
+
 class IBMUserAccess(UIFeatureAccess):
     """Access to IBM UI Features."""
 
@@ -107,7 +113,11 @@ class AnyUserAccess(UIFeatureAccess):
     """Check for if the user has access to any features."""
 
     access_keys = (
-        AWSUserAccess.access_keys + AzureUserAccess.access_keys + GCPUserAccess.access_keys + OCPUserAccess.access_keys
+        AWSUserAccess.access_keys
+        + AzureUserAccess.access_keys
+        + GCPUserAccess.access_keys
+        + OCIUserAccess.access_keys
+        + OCPUserAccess.access_keys
     )
 
 
@@ -122,6 +132,7 @@ class UserAccessView(APIView):
         {"type": "azure", "access_class": AzureUserAccess},
         {"type": "cost_model", "access_class": CostModelUserAccess},
         {"type": "gcp", "access_class": GCPUserAccess},
+        {"type": "oci", "access_class": OCIUserAccess, "pre_release_feature": True},
         {"type": "ibm", "access_class": IBMUserAccess, "pre_release_feature": True},
         {"type": "ocp", "access_class": OCPUserAccess},
     ]
