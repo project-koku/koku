@@ -8,6 +8,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
     id,
     usage_start,
     usage_end,
+    usage_amount,
+    instance_type,
     resource_ids,
     resource_count,
     cost,
@@ -18,6 +20,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
     SELECT uuid_generate_v4() as id,
         c.usage_start,
         c.usage_start as usage_end,
+        c.usage_amount,
+        c.instance_type,
         r.resource_ids,
         CARDINALITY(r.resource_ids) AS resource_count,
         c.cost,
@@ -27,9 +31,11 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
     FROM (
         -- this group by gets the counts
         SELECT usage_start,
+            SUM(usage_amount) AS usage_amount,
             SUM(cost) AS cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency) AS currency,
+            instance_type,
             {{source_uuid}}::uuid as source_uuid
         FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
         WHERE usage_start >= {{start_date}}::date
