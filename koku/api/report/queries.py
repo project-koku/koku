@@ -727,25 +727,6 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def check_missing_rank_value(self, rank_value):
-        """Check to see ranked values is missing.
-
-        If it is missing, it converts it to no-{group_by}
-
-        rank_value: string or None value
-        """
-        if rank_value:
-            return rank_value
-
-        check_tag_group_by = is_grouped_by_tag(self.parameters)
-        if check_tag_group_by:
-            tag = check_tag_group_by[0]
-            rank_value = f"no-{tag[tag.index(':') + 1:]}"
-        else:
-            rank_value = f"no-{self._get_group_by()[0]}"
-
-        return rank_value
-
     def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
@@ -798,13 +779,10 @@ class ReportQueryHandler(QueryHandler):
         rankings = []
         distinct_ranks = []
         for rank in ranks:
-            rank_value = rank.get(group_by_value[0])
-            rank_value = self.check_missing_rank_value(rank_value)
+            rank_value = (rank.get(group) for group in group_by_value)
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
-        for query_return in data:
-            query_return = self._apply_group_null_label(query_return, gb)
         return self._ranked_list(data, distinct_ranks)
 
     def _ranked_list(self, data_list, ranks):
@@ -819,7 +797,6 @@ class ReportQueryHandler(QueryHandler):
         """
         is_offset = "offset" in self.parameters.get("filter", {})
         group_by = self._get_group_by()
-        rank_field = group_by[0]
         self.max_rank = len(ranks)
         # Columns we drop in favor of the same named column merged in from rank data frame
         drop_columns = ["cost_units", "source_uuid"]
@@ -831,15 +808,14 @@ class ReportQueryHandler(QueryHandler):
         # Using + 1 to start at rank 1, instead of 0
         # rank_list = [(field, rank + 1) for rank, field in enumerate(ranks)]
         rank_data_frame = pd.DataFrame(ranks)
-
         if "costs" in self._report_type:
-            rank_data_frame.drop(columns=["cost_total"], inplace=True)
+            rank_data_frame.drop(columns=["cost_total"], inplace=True, errors="ignore")
         else:
-            rank_data_frame.drop(columns=["usage"], inplace=True)
+            rank_data_frame.drop(columns=["usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
-        if self.is_aws and rank_field == "account":
+        if self.is_aws and "account" in group_by:
             agg_fields.update({"account_alias": ["max"]})
             drop_columns.append("account_alias")
         if "costs" not in self._report_type:
@@ -849,11 +825,11 @@ class ReportQueryHandler(QueryHandler):
             agg_fields.update({"count_units": ["max"]})
             drop_columns.append("count_units")
 
-        aggs = data_frame.groupby(rank_field).agg(agg_fields)
+        aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs.reset_index(inplace=True)
-        rank_data_frame = rank_data_frame.merge(aggs, on=rank_field)
+        rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
 
         # Create a dataframe of days in the query
         days = data_frame["date"].unique()
@@ -864,17 +840,19 @@ class ReportQueryHandler(QueryHandler):
 
         # Merge our data frame to "zero-fill" missing data for each rank field
         # per day in the query, using a RIGHT JOIN
-        data_frame.drop(columns=drop_columns, inplace=True)
-        data_frame = data_frame.merge(ranks_by_day, how="right", on=[rank_field, "date"])
+        data_frame.drop(columns=drop_columns, inplace=True, errors="ignore")
+        data_frame = data_frame.merge(ranks_by_day, how="right", on=(group_by + ["date"]))
 
-        # fill_values.update({"source_uuid": "", "cost_units": ""})
         if is_offset:
-            data_frame = data_frame[(data_frame["rank"] > self._offset) & (data_frame["rank"] <= self._limit)]
+            data_frame = data_frame[
+                (data_frame["rank"] > self._offset) & (data_frame["rank"] <= (self._offset + self._limit))
+            ]
         else:
             # Get others category
             others_data_frame = self._aggregate_ranks_over_limit(data_frame, group_by)
             # Reduce data to limit
             data_frame = data_frame[data_frame["rank"] <= self._limit]
+
             # Add the others category to the data set
             data_frame = pd.concat([data_frame, others_data_frame])
 
@@ -887,8 +865,7 @@ class ReportQueryHandler(QueryHandler):
 
     def _aggregate_ranks_over_limit(self, data_frame, group_by):
         """When filter[limit] is used without filter[offset] we want to create an Others category."""
-        rank_field = group_by[0]
-        drop_columns = [rank_field, "rank", "source_uuid"]
+        drop_columns = group_by + ["rank", "source_uuid"]
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
@@ -898,25 +875,25 @@ class ReportQueryHandler(QueryHandler):
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }
-
         others_data_frame = data_frame[data_frame["rank"] > self._limit]
-        other_count = len(others_data_frame[rank_field].unique())
+        other_count = len(others_data_frame[group_by].drop_duplicates())
 
         source_uuids = list(others_data_frame["source_uuid"].explode().dropna().unique())
         if self.is_openshift:
             clusters = list(others_data_frame["clusters"].explode().dropna().unique())
             drop_columns.append("clusters")
 
-        others_data_frame = others_data_frame.drop(columns=drop_columns)
+        others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
 
-        others_data_frame = others_data_frame.groupby(groups).agg(aggs, axis=1)
+        others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
         others_data_frame.reset_index(inplace=True)
 
         # Add back columns
         other_str = "Others" if other_count > 1 else "Other"
-        others_data_frame[rank_field] = other_str
+        for group in group_by:
+            others_data_frame[group] = other_str
         if self.is_aws and "account" in group_by:
             others_data_frame["account_alias"] = other_str
         elif "gcp_project" in group_by:
