@@ -609,6 +609,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 "sup_usage": 1,
                 "cost_units": "USD",
                 "source_uuid": ["1"],
+                "rank": 2,
             },
         ]
         ranked_list = handler._ranked_list(data_list, ranks)
