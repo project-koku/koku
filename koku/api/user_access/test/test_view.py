@@ -557,7 +557,7 @@ class UserAccessViewTest(IamTestCase):
         }
     )
     def test_oci_view_wildcard(self):
-        """Test user-access view with azure subscription wildcard permission."""
+        """Test user-access view with oci tenant wildcard permission."""
         url = reverse("user-access")
         response = self.client.get(url, **self.headers)
 
