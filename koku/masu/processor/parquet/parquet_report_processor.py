@@ -144,6 +144,7 @@ class ParquetReportProcessor:
         """The start date for processing.
         Used to determine the year/month partitions.
         """
+        # TODO something around here is messing up my start dates
         return self._start_date
 
     @start_date.setter
