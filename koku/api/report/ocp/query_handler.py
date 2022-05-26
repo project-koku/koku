@@ -453,7 +453,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # LOG.info(pformat(self.query_data))
             LOG.info(f"groupby: {groupby}")
             # The ordering logic I came up with does not work on multiple group bys.
-            if len(groupby) > 1:
+            if len(groupby) == 1:
                 copy_data = copy.deepcopy(self.query_data)
                 LOG.info(f"copy_data: {pformat(copy_data)}")
                 LOG.info(f"key_order_dict: {pformat(key_order_dict)}")
