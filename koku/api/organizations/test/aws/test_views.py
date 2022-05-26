@@ -51,19 +51,13 @@ class AWSReportViewTest(IamTestCase):
         """Test invalid delta value."""
         bad_delta = "Invalid"
         expected = "Unsupported parameter or invalid value"
-        qs = f"?filter[limit]=2&delta={bad_delta}"
+        qs = f"?delta={bad_delta}"
         url = self.url + qs
 
         response = self.client.get(url, **self.headers)
         result = str(response.data.get("delta")[0])
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
-
-    def test_with_limit_params(self):
-        """Test the _get_group_by method with limit and group by params."""
-        url = self.url + "?filter[limit]=1"
-        response = self.client.get(url, **self.headers)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_filter_by_org_id(self):
         """Test that you can filter by org_unit_id"""
