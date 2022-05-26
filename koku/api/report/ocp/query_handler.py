@@ -10,6 +10,7 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from pprint import pformat
 
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
@@ -22,8 +23,6 @@ from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
 from koku.settings import KOKU_DEFAULT_CURRENCY
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
-
-# from pprint import pformat
 
 LOG = logging.getLogger(__name__)
 
@@ -452,10 +451,15 @@ class OCPReportQueryHandler(ReportQueryHandler):
             key_order_dict = self.find_key_order(order_numbers)
             # LOG.info(f"key_order_dict: {key_order_dict}")
             # LOG.info(pformat(self.query_data))
-            # LOG.info(f"groupby: {groupby}")
-            if groupby:
+            LOG.info(f"groupby: {groupby}")
+            # The ordering logic I came up with does not work on multiple group bys.
+            if len(groupby) > 1:
                 copy_data = copy.deepcopy(self.query_data)
+                LOG.info(f"copy_data: {pformat(copy_data)}")
+                LOG.info(f"key_order_dict: {pformat(key_order_dict)}")
+                LOG.info(f"order_mapping: {pformat(order_mapping)}")
                 self.query_data = self.build_reordered(copy_data, key_order_dict, order_mapping, groupby[0])
+
             # LOG.info(pformat(data))
         self.query_sum = ordered_total
 

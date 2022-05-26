@@ -849,7 +849,7 @@ class ReportQueryHandler(QueryHandler):
                     order_mapping[date] = {group_by: out_data}
             order_numbers.update(meta_data.get("order_numbers", {}))
             # TODO: CODY -> Figure out if this deepcopy is actually needed.
-            LOG.info(f"order_numbers: {order_numbers}")
+            # LOG.info(f"order_numbers: {order_numbers}")
             order_numbers = copy.deepcopy(order_numbers)
         return out_data, order_mapping, order_numbers
 
