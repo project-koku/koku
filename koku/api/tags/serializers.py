@@ -32,8 +32,6 @@ class FilterSerializer(serializers.Serializer):
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
-    offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
         """Validate incoming data.
