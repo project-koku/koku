@@ -812,7 +812,7 @@ class OCPGCPQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        correctlst = [service.get("service") for service in expected]
+        correctlst = [service.get("service_id") for service in expected]
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
