@@ -808,11 +808,11 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             expected = list(
                 OCPGCPCostSummaryByServiceP.objects.filter(usage_start=str(yesterday))
-                .values("service_id")
+                .values("service_alias")
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        correctlst = [service.get("service_id") for service in expected]
+        correctlst = [service.get("service_alias") for service in expected]
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
