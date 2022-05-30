@@ -23,6 +23,23 @@ class ResourceTypesViewTestOCIRegions(IamTestCase):
         self.client = APIClient()
 
     @RbacPermissions({"oci.payer_tenant_id": {"read": ["*"]}})
+    def test_oci_region_with_tenant_access_wildcard_view(self):
+        """Test endpoint runs with a customer owner."""
+        with schema_context(self.schema_name):
+            expected = (
+                OCICostSummaryByRegionP.objects.annotate(**{"value": F("region")}).values("value").distinct().count()
+            )
+        # check that the expected is not zero
+        self.assertTrue(expected)
+        url = reverse("oci-regions")
+        response = self.client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        self.assertIsNotNone(json_result.get("data"))
+        self.assertIsInstance(json_result.get("data"), list)
+        self.assertEqual(len(json_result.get("data")), expected)
+
+    @RbacPermissions({"oci.payer_tenant_id": {"read": ["example-tenant-ocid"]}})
     def test_oci_region_with_tenant_access_view(self):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
