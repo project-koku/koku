@@ -28,16 +28,28 @@ LOG = logging.getLogger(__name__)
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def hcs_report_finalization(request):
     """Generate HCS finalized for last month(based on 'datetime.date.today')reports."""
+    params = request.query_params
+    month = params.get("month")
+    year = params.get("year")
+
     tracing_id = str(uuid.uuid4())
 
-    report_data_msg_key = "HCS Report Finalization Task ID"
     async_results = []
 
     today = datetime.date.today()
-    first = today.replace(day=1)
-    last_month = first - datetime.timedelta(days=1)
+    finalization_month = today.replace(day=1)
+
+    if month is not None:
+        finalization_month = finalization_month.replace(month=int(month))
+    else:
+        finalization_month = finalization_month - datetime.timedelta(days=1)
+
+    if year is not None:
+        finalization_month = finalization_month.replace(year=int(year))
+
+    report_data_msg_key = "HCS Report Finalization"
 
     if request.method == "GET":
-        async_result = collect_hcs_report_finalization.s(tracing_id).apply_async(queue=HCS_QUEUE)
-        async_results.append({last_month.strftime("%Y-%m"): str(async_result)})
+        async_result = collect_hcs_report_finalization.s(month, year, tracing_id).apply_async(queue=HCS_QUEUE)
+        async_results.append({"month": finalization_month.strftime("%Y-%m"), "id": str(async_result)})
         return Response({report_data_msg_key: async_results})

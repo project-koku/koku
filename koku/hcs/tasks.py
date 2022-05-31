@@ -8,6 +8,7 @@ import logging
 import uuid
 
 from dateutil import parser
+from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
 from api.provider.models import Provider
@@ -109,6 +110,9 @@ def collect_hcs_report_data(
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
+    end_date = end_date.strftime("%Y-%m-%d")
+    start_date = start_date.strftime("%Y-%m-%d")
+
     if enable_hcs_processing(schema_name) and provider in HCS_EXCEPTED_PROVIDERS:
         stmt = (
             f"[collect_hcs_report_data]: "
@@ -133,11 +137,24 @@ def collect_hcs_report_data(
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
-def collect_hcs_report_finalization(tracing_id=None):
+def collect_hcs_report_finalization(month=None, year=None, tracing_id=None):
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    today = DateAccessor().today()
+    finalization_date = DateAccessor().today()
+    finalization_date = finalization_date.replace(day=1)
+
+    if month is not None:
+        finalization_date = finalization_date.replace(month=int(month)) + relativedelta(months=1)
+
+    if year is not None:
+        finalization_date = finalization_date.replace(year=year)
+
+    end_date = finalization_date - datetime.timedelta(days=1)
+    start_date = finalization_date - datetime.timedelta(days=end_date.day)
+
+    end_date = end_date.strftime("%Y-%m-%d")
+    start_date = start_date.strftime("%Y-%m-%d")
 
     for excepted_provider in HCS_EXCEPTED_PROVIDERS:
         LOG.debug(log_json(tracing_id, f"excepted_provider: {excepted_provider}"))
@@ -148,15 +165,13 @@ def collect_hcs_report_finalization(tracing_id=None):
             schema_name = provider.customer.schema_name
             provider_uuid = provider.uuid
             provider_type = provider.type
-            end_date_prev_month = today.replace(day=1) - datetime.timedelta(days=1)
-            start_date_prev_month = today.replace(day=1) - datetime.timedelta(days=end_date_prev_month.day)
 
             stmt = (
                 f"[collect_hcs_report_finalization]: "
                 f"schema_name: {schema_name}, "
                 f"provider_type: {provider_type}, "
                 f"provider_uuid: {provider_uuid}, "
-                f"dates: {start_date_prev_month} - {end_date_prev_month}"
+                f"dates: {start_date} - {end_date}"
             )
             LOG.info(log_json(tracing_id, stmt))
 
@@ -164,8 +179,8 @@ def collect_hcs_report_finalization(tracing_id=None):
                 schema_name,
                 provider_type,
                 provider_uuid,
-                start_date_prev_month,
-                end_date_prev_month,
+                start_date,
+                end_date,
                 tracing_id,
                 True,
             ).apply_async()
