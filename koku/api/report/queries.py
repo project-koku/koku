@@ -27,7 +27,7 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
-from django.db.models.functions import Rank
+from django.db.models.functions import DenseRank
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -763,7 +763,7 @@ class ReportQueryHandler(QueryHandler):
             rank_orders.append(self.get_tag_order_by(gb[0]))
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
-        rank_by_total = Window(expression=Rank(), order_by=rank_orders)
+        rank_by_total = Window(expression=DenseRank(), order_by=rank_orders)
 
         if rank_annotations:
             ranks = (
@@ -776,8 +776,7 @@ class ReportQueryHandler(QueryHandler):
             if self.is_openshift:
                 ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
         else:
-            ranks = query.annotate(**self.annotations).values(*group_by_value).annotate(rank=rank_by_total)
-
+            ranks = query.annotate(**self.annotations).values(*group_by_value).distinct().annotate(rank=rank_by_total)
         rankings = []
         distinct_ranks = []
         for rank in ranks:
