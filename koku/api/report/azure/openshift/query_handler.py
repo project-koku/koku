@@ -42,6 +42,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
         # super() needs to be called before _get_group_by is called
+        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
     @property
     def annotations(self):
@@ -76,11 +77,14 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", self.currency)
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
+            if self._report_type == "costs" and not self.is_csv_output:
+                query_group_by.append("currency")
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
@@ -92,13 +96,14 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
+                if self._report_type == "costs" and not self.is_csv_output:
+                    metric_sum = self.return_total_query(query_data)
+                else:
+                    metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -126,7 +131,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
@@ -136,7 +140,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                     count_units_value = query_data[0].get("count_units")
 
-            if is_csv_output:
+            if self.is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
@@ -148,7 +152,10 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
 
         init_order_keys = []
-        query_sum["cost_units"] = cost_units_value
+        if self._report_type == "costs" and not self.is_csv_output:
+            query_sum["cost_units"] = self.currency
+        else:
+            query_sum["cost_units"] = cost_units_value
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
@@ -159,6 +166,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
         ordered_total.update(query_sum)
         self._pack_data_object(ordered_total, **self._mapper.PACK_DEFINITIONS)
 
-        self.query_sum = ordered_total
         self.query_data = data
+        self.query_sum = ordered_total
+        groupby = self._get_group_by()
+
+        if self._report_type == "costs" and not self.is_csv_output:
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+
         return self._format_query_response()

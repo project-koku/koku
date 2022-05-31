@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the organizations serializer."""
-from unittest import TestCase
-from unittest.mock import Mock
-
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.serializers import AWSOrgFilterSerializer
 from api.organizations.serializers import FilterSerializer
 from api.organizations.serializers import OrgQueryParamSerializer
@@ -15,7 +13,7 @@ from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
 
-class FilterSerializerTest(TestCase):
+class FilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -64,7 +62,7 @@ class FilterSerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class AWSFilterSerializerTest(TestCase):
+class AWSFilterSerializerTest(IamTestCase):
     """Tests for the AWS filter serializer."""
 
     def test_parse_filter_params_w_project_success(self):
@@ -94,7 +92,7 @@ class AWSFilterSerializerTest(TestCase):
             self.assertFalse(serializer.is_valid())
 
 
-class OrgQueryParamSerializerTest(TestCase):
+class OrgQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -104,22 +102,22 @@ class OrgQueryParamSerializerTest(TestCase):
             "limit": "5",
             "offset": "3",
         }
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
-        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {"invalid": "invalid"}
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
-        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
@@ -137,13 +135,13 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params, context={"request": url})
+                serializer = OrgQueryParamSerializer(data=params, context=self.request_context)
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},
@@ -171,5 +169,5 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params, context={"request": url})
+                serializer = OrgQueryParamSerializer(data=params, context=self.request_context)
                 self.assertFalse(serializer.is_valid())

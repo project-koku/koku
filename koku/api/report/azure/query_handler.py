@@ -55,6 +55,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         # super() needs to be called after _mapper and _limit is set
         super().__init__(parameters)
+        self.is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
     @property
     def annotations(self):
@@ -153,6 +154,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
+            if self._report_type == "costs" and not self.is_csv_output:
+                query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
@@ -167,8 +170,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
-
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -197,7 +198,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 if self._limit:
                     data = self._ranked_list(list(query_data))
                 else:
@@ -212,8 +213,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
         ordered_total.update(query_sum)
 
-        self.query_sum = ordered_total
         self.query_data = data
+        self.query_sum = ordered_total
+        groupby = self._get_group_by()
+
+        if self._report_type == "costs" and not self.is_csv_output:
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+
         return self._format_query_response()
 
     def calculate_total(self, **units):
@@ -227,16 +233,23 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        if self._report_type == "costs" and not self.is_csv_output:
+            query_group_by.append("currency")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
-
-        total_query = query.aggregate(**aggregates)
+        if self._report_type == "costs":
+            total_queryset = query_data.annotate(**aggregates)
+            total_query = self.return_total_query(total_queryset)
+        else:
+            total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
-            total_query[unit_key] = unit_value
-
+            if self._report_type == "costs":
+                total_query[unit_key] = self.currency
+            else:
+                total_query[unit_key] = unit_value
         if counts:
             total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)

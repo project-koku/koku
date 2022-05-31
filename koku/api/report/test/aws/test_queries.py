@@ -10,6 +10,7 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest import skip
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -68,6 +69,7 @@ def get_account_ailases():
     return account_aliases, account_alias_mapping
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AWSReportQueryTest(IamTestCase):
     """Tests the report queries."""
 
@@ -151,7 +153,7 @@ class AWSReportQueryTest(IamTestCase):
                 .get("cost")
             )
 
-    def test_apply_group_null_label(self):
+    def test_apply_group_null_label(self, mocked_exchange_rates):
         """Test adding group label for null values."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -171,7 +173,7 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._apply_group_null_label(data, groups)
         self.assertEqual(expected, out_data)
 
-    def test_transform_null_group(self):
+    def test_transform_null_group(self, mocked_exchange_rates):
         """Test transform data with null group value."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -193,7 +195,7 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-    def test_transform_null_group_with_limit(self):
+    def test_transform_null_group_with_limit(self, mocked_exchange_rates):
         """Test transform data with null group value."""
         url = "?filter[limit]=1&group_by[account]=*"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -215,7 +217,7 @@ class AWSReportQueryTest(IamTestCase):
         out_data = handler._transform_data(groups, group_index, data)
         self.assertEqual(expected, out_data)
 
-    def test_get_group_by_with_group_by_and_limit_params(self):
+    def test_get_group_by_with_group_by_and_limit_params(self, mocked_exchange_rates):
         """Test the _get_group_by method with limit and group by params."""
         expected = ["account"]
         url = "?group_by[account]=*&filter[limit]=1"
@@ -224,7 +226,7 @@ class AWSReportQueryTest(IamTestCase):
         group_by = handler._get_group_by()
         self.assertEqual(expected, group_by)
 
-    def test_get_group_by_with_group_by_and_no_limit_params(self):
+    def test_get_group_by_with_group_by_and_no_limit_params(self, mocked_exchange_rates):
         """Test the _get_group_by method with group by params."""
         expected = ["account", "instance_type"]
         url = "?group_by[account]=*"
@@ -233,7 +235,7 @@ class AWSReportQueryTest(IamTestCase):
         group_by = handler._get_group_by()
         self.assertEqual(expected, group_by)
 
-    def test_get_group_by_with_limit_and_no_group_by_params(self):
+    def test_get_group_by_with_limit_and_no_group_by_params(self, mocked_exchange_rates):
         """Test the _get_group_by method with limit params."""
         expected = ["instance_type"]
         param = "?filter[limit]=1"
@@ -244,41 +246,41 @@ class AWSReportQueryTest(IamTestCase):
         group_by = handler._get_group_by()
         self.assertEqual(expected, group_by)
 
-    def test_get_resolution_empty_day_time_scope(self):
+    def test_get_resolution_empty_day_time_scope(self, mocked_exchange_rates):
         """Test get_resolution returns default when time_scope is month."""
         url = "?filter[time_scope_value]=-10"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.resolution, "daily")
 
-    def test_get_time_scope_units_empty_default(self):
+    def test_get_time_scope_units_empty_default(self, mocked_exchange_rates):
         """Test get_time_scope_units returns default when query params are empty."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.get_time_scope_units(), "day")
 
-    def test_get_time_scope_units_existing_value(self):
+    def test_get_time_scope_units_existing_value(self, mocked_exchange_rates):
         """Test get_time_scope_units returns month when time_scope is month."""
         url = "?filter[time_scope_units]=month"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.get_time_scope_units(), "month")
 
-    def test_get_time_scope_value_empty_default(self):
+    def test_get_time_scope_value_empty_default(self, mocked_exchange_rates):
         """Test get_time_scope_value returns default when query params are empty."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler.get_time_scope_value(), -10)
 
-    def test_get_time_scope_value_existing_value(self):
+    def test_get_time_scope_value_existing_value(self, mocked_exchange_rates):
         """Test validationerror for invalid time_scope_value."""
         url = "?filter[time_scope_value]=9999"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
-    def test_get_time_frame_filter_current_month(self):
+    def test_get_time_frame_filter_current_month(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for current month."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -291,7 +293,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertEqual(len(interval), DateHelper().today.day)
 
-    def test_get_time_frame_filter_previous_month(self):
+    def test_get_time_frame_filter_previous_month(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for previous month."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-2&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -304,7 +306,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) >= 28)
 
-    def test_get_time_frame_filter_2_months_ago(self):
+    def test_get_time_frame_filter_2_months_ago(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for 2 months ago."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-3&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -318,7 +320,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertEqual(len(interval), end.day)
 
-    def test_get_time_frame_filter_90_days_ago(self):
+    def test_get_time_frame_filter_90_days_ago(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for 90 days ago month."""
         url = "?filter[time_scope_units]=day&filter[time_scope_value]=-90&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -333,7 +335,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertEqual(len(interval), 90)
 
-    def test_get_time_frame_filter_last_ten(self):
+    def test_get_time_frame_filter_last_ten(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for last ten days."""
         url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -348,7 +350,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) == 10)
 
-    def test_get_time_frame_filter_last_thirty(self):
+    def test_get_time_frame_filter_last_thirty(self, mocked_exchange_rates):
         """Test _get_time_frame_filter for last thirty days."""
         url = "?filter[time_scope_units]=day&filter[time_scope_value]=-30&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -363,7 +365,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsInstance(interval, list)
         self.assertTrue(len(interval) == 30)
 
-    def test_execute_take_defaults(self):
+    def test_execute_take_defaults(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -374,7 +376,7 @@ class AWSReportQueryTest(IamTestCase):
         total = query_output.get("total")
         self.assertIsNotNone(total.get("cost"))
 
-    def test_execute_query_current_month_daily(self):
+    def test_execute_query_current_month_daily(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -384,7 +386,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(total_cost_total)
         self.assertAlmostEqual(total_cost_total.get("value"), self.calculate_total(handler), 6)
 
-    def test_execute_query_current_month_monthly(self):
+    def test_execute_query_current_month_monthly(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -395,7 +397,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertIsNotNone(query_output.get("total"))
         self.assertAlmostEqual(total_cost_total.get("value"), self.calculate_total(handler), 6)
 
-    def test_execute_query_current_month_by_service(self):
+    def test_execute_query_current_month_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -418,7 +420,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIn(service, self.services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_filtered_service(self):
+    def test_execute_query_by_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -441,7 +443,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertEqual(compute, "AmazonEC2")
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_query_by_partial_filtered_service(self):
+    def test_query_by_partial_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -464,7 +466,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertEqual(compute, "AmazonEC2")
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_current_month_by_account(self):
+    def test_execute_query_current_month_by_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -487,7 +489,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIn(account, self.accounts)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_account_by_service(self):
+    def test_execute_query_by_account_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month breakdown by account by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -510,7 +512,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIn(account, self.accounts)
                 self.assertIsInstance(month_item.get("services"), list)
 
-    def test_execute_query_with_counts(self):
+    def test_execute_query_with_counts(self, mocked_exchange_rates):
         """Test execute_query with counts of unique resources."""
         url = "?compute_count=true&filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[instance_type]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -563,7 +565,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertEqual(actual_count, expected_count)
         self.assertEqual(total.get("count", {}).get("value"), total_count)
 
-    def test_execute_query_without_counts(self):
+    def test_execute_query_without_counts(self, mocked_exchange_rates):
         """Test execute_query without counts of unique resources."""
         instances = AWS_CONSTANTS.get("instance_types")
         self.assertIsNotNone(instances)
@@ -589,7 +591,7 @@ class AWSReportQueryTest(IamTestCase):
                     actual_count = it["values"][0].get("count")
                     self.assertIsNone(actual_count)
 
-    def test_execute_query_curr_month_by_account_w_limit(self):
+    def test_execute_query_curr_month_by_account_w_limit(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account with limit."""
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
@@ -612,7 +614,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("account"), str)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_curr_month_by_account_w_order(self):
+    def test_execute_query_curr_month_by_account_w_order(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
 
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[cost]=asc"  # noqa: E501
@@ -641,7 +643,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertLess(current_total, data_point_total)
                 current_total = data_point_total
 
-    def test_execute_query_curr_month_by_account_w_order_by_account_alias(self):
+    def test_execute_query_curr_month_by_account_w_order_by_account_alias(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account with asc order."""
 
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]={self.account_alias}&order_by[account_alias]=asc"  # noqa: E501
@@ -670,7 +672,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertLess(current, data_point)
                 current = data_point
 
-    def test_execute_query_curr_month_by_region(self):
+    def test_execute_query_curr_month_by_region(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by region."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -694,7 +696,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_curr_month_by_filtered_region(self):
+    def test_execute_query_curr_month_by_filtered_region(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by filtered region."""
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[region]={self.region}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -717,7 +719,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_curr_month_by_avail_zone(self):
+    def test_execute_query_curr_month_by_avail_zone(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by avail_zone."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -741,7 +743,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_curr_month_by_filtered_avail_zone(self):
+    def test_execute_query_curr_month_by_filtered_avail_zone(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by filtered avail_zone."""
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[az]={self.availability_zone}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -766,7 +768,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("cost"))
 
-    def test_execute_query_current_month_filter_account(self):
+    def test_execute_query_current_month_filter_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by account."""
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[account]={self.account_alias}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -785,7 +787,7 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_service(self):
+    def test_execute_query_current_month_filter_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=AmazonEC2"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -805,7 +807,7 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_region(self):
+    def test_execute_query_current_month_filter_region(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by region."""
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]={self.region}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -824,7 +826,7 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
-    def test_execute_query_current_month_filter_avail_zone(self):
+    def test_execute_query_current_month_filter_avail_zone(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by avail_zone."""
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]={self.availability_zone}"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -844,7 +846,7 @@ class AWSReportQueryTest(IamTestCase):
             self.assertIsInstance(month_data, list)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
+    def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query for current month on monthly filtered by avail_zone for csv."""
         mock_accept.return_value = "text/csv"
         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[az]={self.availability_zone}"  # noqa: E501
@@ -858,7 +860,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertAlmostEqual(total_cost_total.get("value"), self.calculate_total(handler), 6)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
-    def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept):
+    def test_execute_query_curr_month_by_account_w_limit_csv(self, mock_accept, mocked_exchange_rates):
         """Test execute_query for current month on monthly by account with limt as csv."""
         mock_accept.return_value = "text/csv"
 
@@ -878,7 +880,7 @@ class AWSReportQueryTest(IamTestCase):
             month = data_item.get("date")
             self.assertEqual(month, cmonth_str)
 
-    def test_execute_query_w_delta(self):
+    def test_execute_query_w_delta(self, mocked_exchange_rates):
         """Test grouped by deltas."""
         dh = DateHelper()
         current_total = Decimal(0)
@@ -927,7 +929,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertEqual(delta.get("value"), expected_delta_value)
         self.assertEqual(delta.get("percent"), expected_delta_percent)
 
-    def test_execute_query_w_delta_no_previous_data(self):
+    def test_execute_query_w_delta_no_previous_data(self, mocked_exchange_rates):
         """Test deltas with no previous data."""
 
         url = "?filter[time_scope_value]=-2&delta=cost"
@@ -946,7 +948,7 @@ class AWSReportQueryTest(IamTestCase):
         self.assertAlmostEqual(delta.get("value"), expected_delta_value, 6)
         self.assertEqual(delta.get("percent"), expected_delta_percent)
 
-    def test_execute_query_orderby_delta(self):
+    def test_execute_query_orderby_delta(self, mocked_exchange_rates):
         """Test execute_query with ordering by delta ascending."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&order_by[delta]=asc&group_by[account]=*&delta=cost"  # noqa: E501
         path = reverse("reports-openshift-aws-costs")
@@ -967,7 +969,7 @@ class AWSReportQueryTest(IamTestCase):
                 self.assertIsInstance(month_item.get("values"), list)
                 self.assertIsNotNone(month_item.get("values")[0].get("delta_percent"))
 
-    def test_execute_query_with_account_alias(self):
+    def test_execute_query_with_account_alias(self, mocked_exchange_rates):
         """Test execute_query when account alias is avaiable."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -979,7 +981,7 @@ class AWSReportQueryTest(IamTestCase):
 
         self.assertIn(account_alias, self.account_aliases)
 
-    def test_execute_query_orderby_alias(self):
+    def test_execute_query_orderby_alias(self, mocked_exchange_rates):
         """Test execute_query when account alias is avaiable."""
         # execute query
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
@@ -998,14 +1000,15 @@ class AWSReportQueryTest(IamTestCase):
         for account_id, account_alias in self.account_alias_mapping.items():
             self.assertEqual(actual.get(account_alias), account_id)
 
-    def test_calculate_total(self):
+    def test_calculate_total(self, mocked_exchange_rates):
         """Test that calculated totals return correctly."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         expected_units = "USD"
+        org_unit_applied = False
         with tenant_context(self.tenant):
-            result = handler.calculate_total(**{"cost_units": expected_units})
+            result = handler.calculate_total(org_unit_applied, **{"cost_units": expected_units})
         cost_total_value = result.get("cost", {}).get("total", {}).get("value")
         cost_total_units = result.get("cost", {}).get("total", {}).get("units")
         self.assertIsNotNone(cost_total_value)
@@ -1013,14 +1016,14 @@ class AWSReportQueryTest(IamTestCase):
         self.assertAlmostEqual(cost_total_value, self.calculate_total(handler), 6)
         self.assertEqual(cost_total_units, expected_units)
 
-    def test_percent_delta(self):
+    def test_percent_delta(self, mocked_exchange_rates):
         """Test _percent_delta() utility method."""
         url = "?"
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         self.assertEqual(handler._percent_delta(10, 5), 100)
 
-    def test_rank_list(self):
+    def test_rank_list(self, mocked_exchange_rates):
         """Test rank list limit with account alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1047,7 +1050,7 @@ class AWSReportQueryTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_no_account(self):
+    def test_rank_list_no_account(self, mocked_exchange_rates):
         """Test rank list limit with out account alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1066,7 +1069,7 @@ class AWSReportQueryTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_with_offset(self):
+    def test_rank_list_with_offset(self, mocked_exchange_rates):
         """Test rank list limit and offset with account alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1081,7 +1084,7 @@ class AWSReportQueryTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list)
         self.assertEqual(ranked_list, expected)
 
-    def test_rank_list_zerofill_account(self):
+    def test_rank_list_zerofill_account(self, mocked_exchange_rates):
         """Test rank list limit with account alias, ensuring we zero-fill missing ranks and populate account_alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=10&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -1309,7 +1312,7 @@ class AWSReportQueryTest(IamTestCase):
         for each in expected:
             self.assertIn(each, ranked_list)
 
-    def test_rank_list_big_limit(self):
+    def test_rank_list_big_limit(self, mocked_exchange_rates):
         """Test rank list limit with account alias, ensuring we return results with limited data."""
         params = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&filter[limit]=3"  # noqa: E501
         query_params = self.mocked_query_params(
@@ -1357,7 +1360,7 @@ class AWSReportQueryTest(IamTestCase):
         ranked_list = handler._ranked_list(data_list, ranks=["m2.large", "m1.large"])
         self.assertEqual(ranked_list, expected)
 
-    def test_query_costs_with_totals(self):
+    def test_query_costs_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - costs with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -1380,7 +1383,7 @@ class AWSReportQueryTest(IamTestCase):
                     self.assertIsInstance(cost_total, Decimal)
                     self.assertGreater(cost_total, Decimal(0))
 
-    def test_query_instance_types_with_totals(self):
+    def test_query_instance_types_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - instance types with totals.
 
         Query for instance_types, validating that cost totals are present.
@@ -1405,7 +1408,7 @@ class AWSReportQueryTest(IamTestCase):
                     self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                     self.assertGreater(value.get("usage", {}).get("value"), Decimal(0))
 
-    def test_query_storage_with_totals(self):
+    def test_query_storage_with_totals(self, mocked_exchange_rates):
         """Test execute_query() - storage with totals.
 
         Query for storage, validating that cost totals are present.
@@ -1432,7 +1435,7 @@ class AWSReportQueryTest(IamTestCase):
                         self.assertIsInstance(value.get("usage", {}).get("value"), Decimal)
                         self.assertGreater(value.get("usage", {}).get("value"), Decimal(0))
 
-    def test_order_by(self):
+    def test_order_by(self, mocked_exchange_rates):
         """Test that order_by returns properly sorted data."""
         today = datetime.utcnow()
         yesterday = today - timedelta(days=1)
@@ -1469,13 +1472,13 @@ class AWSReportQueryTest(IamTestCase):
         ordered_data = handler.order_by(unordered_data, order_fields)
         self.assertEqual(ordered_data, expected)
 
-    def test_strip_tag_prefix(self):
+    def test_strip_tag_prefix(self, mocked_exchange_rates):
         """Verify that our tag prefix is stripped from a string."""
         tag_str = "tag:project"
         result = strip_tag_prefix(tag_str)
         self.assertEqual(result, tag_str.replace("tag:", ""))
 
-    def test_execute_query_with_wildcard_tag_filter(self):
+    def test_execute_query_with_wildcard_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered to include entries with tag key."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
@@ -1498,7 +1501,7 @@ class AWSReportQueryTest(IamTestCase):
         result = data_totals.get("cost", {}).get("total", {}).get("value")
         self.assertEqual(result, totals["cost"])
 
-    def test_execute_query_with_tag_group_by(self):
+    def test_execute_query_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
@@ -1526,7 +1529,7 @@ class AWSReportQueryTest(IamTestCase):
         result = data_totals.get("cost", {}).get("total", {}).get("value")
         self.assertEqual(totals["cost"], result)
 
-    def test_execute_query_return_others_with_tag_group_by(self):
+    def test_execute_query_return_others_with_tag_group_by(self, mocked_exchange_rates):
         """Test that data is grouped by tag key."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
@@ -1562,7 +1565,7 @@ class AWSReportQueryTest(IamTestCase):
         result = data_totals.get(totals_key, {}).get("total", {}).get("value")
         self.assertAlmostEqual(result, (totals[totals_key] + others_totals[totals_key]), 6)
 
-    def test_execute_query_with_tag_filter(self):
+    def test_execute_query_with_tag_filter(self, mocked_exchange_rates):
         """Test that data is filtered by tag key."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSTagView)
@@ -1642,8 +1645,7 @@ class AWSReportQueryTest(IamTestCase):
             with self.subTest(org=org):
                 check_accounts_subous_totals(org)
 
-    @skip("Fix after currency support goes in")
-    def test_execute_query_with_multiple_or_org_unit_group_by(self):
+    def test_execute_query_with_multiple_or_org_unit_group_by(self, mocked_exchange_rates):
         """Test that when data has multiple grouped by org_unit_id, the totals add up correctly."""
         ou_to_compare = ["OU_001", "OU_002"]
         with tenant_context(self.tenant):
@@ -1692,7 +1694,7 @@ class AWSReportQueryTest(IamTestCase):
             for expected in expected_accounts_and_sub_ous:
                 self.assertIn(expected, accounts_and_sub_ous)
 
-    def test_filter_org_unit(self):
+    def test_filter_org_unit(self, mocked_exchange_rates):
         """Check that the total is correct when filtering by org_unit_id."""
         with tenant_context(self.tenant):
             org_unit = "R_001"
@@ -1723,7 +1725,7 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(org_cost_total, expected_cost_total)
             self.assertEqual(org_infra_total, expected_cost_total)
 
-    def test_rename_org_unit(self):
+    def test_rename_org_unit(self, mocked_exchange_rates):
         """Test that a renamed org unit only shows up once."""
         with tenant_context(self.tenant):
             # Check to make sure OU_001 was renamed in the default dummy data
@@ -1754,7 +1756,7 @@ class AWSReportQueryTest(IamTestCase):
                         org_values = org_entity.get("values", [])[0]
                         self.assertEqual(org_values.get("alias"), expected_alias)
 
-    def test_filter_and_group_by_org_unit_match(self):
+    def test_filter_and_group_by_org_unit_match(self, mocked_exchange_rates):
         """Test that the cost group_by and filter match."""
         org_unit_id_list = list(self.ou_to_account_subou_map.keys())
         with tenant_context(self.tenant):
@@ -1762,16 +1764,17 @@ class AWSReportQueryTest(IamTestCase):
                 filter_url = f"?filter[org_unit_id]={org_unit_id}"
                 filter_params = self.mocked_query_params(filter_url, AWSCostView, "costs")
                 filter_handler = AWSReportQueryHandler(filter_params)
+                filter_data = filter_handler.execute_query()
                 filter_total = filter_handler.execute_query().get("total", None)
                 self.assertIsNotNone(filter_total)
                 group_url = f"?group_by[org_unit_id]={org_unit_id}"
                 group_params = self.mocked_query_params(group_url, AWSCostView, "costs")
                 group_handler = AWSReportQueryHandler(group_params)
-                group_total = group_handler.execute_query().get("total", None)
+                group_data = group_handler.execute_query()
                 self.assertIsNotNone(filter_total)
-                self.assertEqual(filter_total, group_total)
+                self.assertEqual(filter_data.get("total"), group_data.get("total"))
 
-    def test_multi_group_by_parent_and_child(self):
+    def test_multi_group_by_parent_and_child(self, mocked_exchange_rates):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
         with tenant_context(self.tenant):
             parent_org_unit = "R_001"
@@ -1790,7 +1793,7 @@ class AWSReportQueryTest(IamTestCase):
             result_total = handler.execute_query().get("total")
             self.assertEqual(expected_total, result_total)
 
-    def test_multi_group_by_seperate_children(self):
+    def test_multi_group_by_seperate_children(self, mocked_exchange_rates):
         """Test cost sum of multi org_unit_id group by of children nodes"""
         with tenant_context(self.tenant):
             org_units = ["OU_001", "OU_002"]
@@ -1809,7 +1812,7 @@ class AWSReportQueryTest(IamTestCase):
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
             self.assertEqual(sum(expected_costs), multi_cost)
 
-    def test_multiple_group_by_alias_change(self):
+    def test_multiple_group_by_alias_change(self, mocked_exchange_rates):
         """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
         with tenant_context(self.tenant):
             # https://issues.redhat.com/browse/COST-478
@@ -1825,22 +1828,23 @@ class AWSReportQueryTest(IamTestCase):
                 handler.execute_query()
                 passed = False
                 for day in handler.query_data:
-                    for org_entity in day.get("org_entities", []):
-                        if group_by_option in reformats_data:
-                            group_key = group_by_option + "s"
-                            for group in org_entity.get(group_key, []):
-                                for value in group.get("values", []):
+                    if day.get("org_entities"):
+                        for org_entity in day.get("org_entities", []):
+                            if group_by_option in reformats_data:
+                                group_key = group_by_option + "s"
+                                for group in org_entity.get(group_key, []):
+                                    for value in group.get("values", []):
+                                        self.assertIsNotNone(value.get("id"))
+                                        self.assertIsNotNone(value.get("alias"))
+                                        passed = True
+                            else:
+                                for value in org_entity.get("values", []):
                                     self.assertIsNotNone(value.get("id"))
                                     self.assertIsNotNone(value.get("alias"))
                                     passed = True
-                        else:
-                            for value in org_entity.get("values", []):
-                                self.assertIsNotNone(value.get("id"))
-                                self.assertIsNotNone(value.get("alias"))
-                                passed = True
-                self.assertTrue(passed)
+                        self.assertTrue(passed)
 
-    def test_limit_offset_order_by_group_by_ranks_account_alias(self):
+    def test_limit_offset_order_by_group_by_ranks_account_alias(self, mocked_exchange_rates):
         """Test execute_query with limit/offset/order_by for aws account alias."""
         # execute query
         url = "?filter[limit]=2&filter[offset]=0&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
@@ -1858,7 +1862,7 @@ class AWSReportQueryTest(IamTestCase):
         for i, (account_alias, account_id) in enumerate(actual.items()):
             self.assertEqual(account_alias, alias_order[i])
 
-    def test_limit_offset_order_by_group_by_ranks(self):
+    def test_limit_offset_order_by_group_by_ranks(self, mocked_exchange_rates):
         """Test execute_query with limit/offset/order_by for aws cost."""
         # execute query
         url = "?filter[limit]=2&filter[offset]=0&group_by[account]=*&order_by[cost]=asc"  # noqa: E501
@@ -1892,7 +1896,7 @@ class AWSReportQueryTest(IamTestCase):
         for acc in actual:
             self.assertTrue(acc in expected)
 
-    def test_aws_date_order_by_cost_desc(self):
+    def test_aws_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""
         # execute query
         yesterday = self.dh.yesterday.date()
@@ -1928,25 +1932,26 @@ class AWSReportQueryTest(IamTestCase):
                     if lst and correctlst:
                         self.assertEqual(correctlst, lst)
 
-    def test_aws_date_incorrect_date(self):
+    def test_aws_date_incorrect_date(self, mocked_exchange_rates):
         wrong_date = "200BC"
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
-    def test_aws_out_of_range_under_date(self):
+    def test_aws_out_of_range_under_date(self, mocked_exchange_rates):
         wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
-    def test_aws_out_of_range_over_date(self):
+    def test_aws_out_of_range_over_date(self, mocked_exchange_rates):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AWSReportQueryLogicalAndTest(IamTestCase):
     """Tests the report queries."""
 
@@ -1955,7 +1960,7 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         self.dh = DateHelper()
         super().setUp()
 
-    def test_prefixed_logical_and(self):
+    def test_prefixed_logical_and(self, mocked_exchange_rates):
         """Test prefixed logical AND."""
         # Create Test Accounts
         # account_ab_fake_aws = FakeAWSCostData(self.provider, account_alias="ab")
@@ -1993,6 +1998,7 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         self.assertGreater(data_to_test["4"]["total"], data_to_test["1"]["total"])
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AWSQueryHandlerTest(IamTestCase):
     """Test the report queries."""
 
@@ -2001,7 +2007,7 @@ class AWSQueryHandlerTest(IamTestCase):
         self.dh = DateHelper()
         super().setUp()
 
-    def test_group_by_star_does_not_override_filters(self):
+    def test_group_by_star_does_not_override_filters(self, mocked_exchange_rates):
         """Test Group By star does not override filters, with example below.
 
         This is an expected response. Notice that the only region is eu-west-3
@@ -2058,7 +2064,7 @@ class AWSQueryHandlerTest(IamTestCase):
             for list_item in region_dict["regions"]:
                 self.assertEqual("eu-west-3", list_item["region"])
 
-    def test_filter_to_group_by(self):
+    def test_filter_to_group_by(self, mocked_exchange_rates):
         """Test the filter_to_group_by method."""
         url = "?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2"
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -2067,7 +2073,7 @@ class AWSQueryHandlerTest(IamTestCase):
 
         self.assertEqual(["eu-west-3"], query_params._parameters["group_by"]["region"])
 
-    def test_filter_to_group_by_3(self):
+    def test_filter_to_group_by_3(self, mocked_exchange_rates):
         """Test group_by[service]=something AND group_by[service]=*."""
         url = "?group_by[region]=*&filter[region]=eu-west-3&group_by[service]=AmazonEC2&group_by[service]=*&filter[service]=AmazonEC2"  # noqa
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -2077,7 +2083,7 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertEqual(["eu-west-3"], query_params._parameters["group_by"]["region"])
         self.assertEqual(["AmazonEC2"], query_params._parameters["group_by"]["service"])
 
-    def test_filter_to_group_by_star(self):
+    def test_filter_to_group_by_star(self, mocked_exchange_rates):
         """Test group_by star."""
         url = "?group_by[region]=*&group_by[service]=*"
         query_params = self.mocked_query_params(url, AWSInstanceTypeView)
@@ -2086,7 +2092,7 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertEqual(["*"], query_params._parameters["group_by"]["region"])
         self.assertEqual(["*"], query_params._parameters["group_by"]["service"])
 
-    def test_two_filters_and_group_by_star(self):
+    def test_two_filters_and_group_by_star(self, mocked_exchange_rates):
         """
         Test two filters for the same category.
 
@@ -2106,7 +2112,7 @@ class AWSQueryHandlerTest(IamTestCase):
         self.assertTrue(region_1_exists)
         self.assertTrue(region_2_exists)
 
-    def test_query_no_account_group_check_tags_no_tags(self):
+    def test_query_no_account_group_check_tags_no_tags(self, mocked_exchange_rates):
         """Test "tags_exist" is not present if not grouping by account, and has "check_tags" parameter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2&check_tags=true"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -2120,7 +2126,7 @@ class AWSQueryHandlerTest(IamTestCase):
                 for value_item in account_item["values"]:
                     self.assertTrue("tags_exist" not in value_item)
 
-    def test_query_account_group_no_check_tags_no_tags(self):
+    def test_query_account_group_no_check_tags_no_tags(self, mocked_exchange_rates):
         """Test "tags_exist" is not present if grouping by account, but missing "check_tags" parameter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -2134,7 +2140,7 @@ class AWSQueryHandlerTest(IamTestCase):
                 for value_item in account_item["values"]:
                     self.assertTrue("tags_exist" not in value_item)
 
-    def test_query_account_group_check_tags_has_tags(self):
+    def test_query_account_group_check_tags_has_tags(self, mocked_exchange_rates):
         """Test "tags_exist" is present if grouping by account and has "check_tags" parameter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&check_tags=true"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -2148,7 +2154,7 @@ class AWSQueryHandlerTest(IamTestCase):
                 for value_item in account_item["values"]:
                     self.assertTrue("tags_exist" in value_item)
 
-    def test_query_account_group_no_check_tags_has_tags_base_table(self):
+    def test_query_account_group_no_check_tags_has_tags_base_table(self, mocked_exchange_rates):
         """Test "tags_exist" is not present if grouping by account as well as
         another group and has"check_tags" parameter."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[or:account]=*&group_by[or:service]=AmazonEC2&check_tags=true"  # noqa: E501
@@ -2164,7 +2170,7 @@ class AWSQueryHandlerTest(IamTestCase):
                     for value_item in service_item["values"]:
                         self.assertTrue("tags_exist" in value_item)
 
-    def test_query_cost_type_default(self):
+    def test_query_cost_type_default(self, mocked_exchange_rates):
         """Test "cost_type" is defaulted when not passed in."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -2173,7 +2179,7 @@ class AWSQueryHandlerTest(IamTestCase):
         cost_type = query_output.get("cost_type")
         self.assertEqual(cost_type, "unblended_cost")
 
-    def test_query_cost_type_passed_in(self):
+    def test_query_cost_type_passed_in(self, mocked_exchange_rates):
         """Test "cost_type" is recognized when passed in."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
@@ -2182,7 +2188,7 @@ class AWSQueryHandlerTest(IamTestCase):
         cost_type = query_output.get("cost_type")
         self.assertEqual(cost_type, "blended_cost")
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    def test_source_uuid_mapping(self, mocked_exchange_rates):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         with tenant_context(self.tenant):
             aws_uuids = AWSCostEntryLineItemDailySummary.objects.distinct().values_list("source_uuid", flat=True)
@@ -2208,7 +2214,7 @@ class AWSQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_query_table(self):
+    def test_query_table(self, mocked_exchange_rates):
         """Test that the correct view is assigned by query table property."""
         test_cases = [
             ("?", AWSCostView, AWSCostSummaryP),
@@ -2269,3 +2275,48 @@ class AWSQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+
+class AWSReportQueryTestCurrency(IamTestCase):
+    """Tests the currency function for report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+
+    @patch("api.report.queries.ExchangeRates")
+    def test_get_exchange_rate_expected(self, mock_exchange):
+        """Test that the exchange rate is the set currency divided by the base."""
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        usd_exchange = MagicMock()
+        usd_exchange.exchange_rate = 1
+        aud_exchange = MagicMock()
+        aud_exchange.exchange_rate = 2
+        mock_exchange.objects.get.side_effect = [usd_exchange, aud_exchange]
+        handler.currency = "USD"
+        actual = handler._get_exchange_rate("AUD")
+        self.assertEqual(actual, Decimal(1 / 2))
+
+    def test_exchange_rate_error(self):
+        """Test that an error returns 1."""
+        # since the exchange rates objects are not populated we should return 1
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        actual = handler._get_exchange_rate("AUD")
+        self.assertEqual(actual, 1)
+
+    def test_query_cost_type_passed_in(self):
+        """Test "cost_type" is recognized when passed in."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&check_tags=true&cost_type=blended_cost"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        for each in data:
+            # assert that the data has both a currency codes and values entry
+            self.assertIsNotNone(each.get("values"))
+            self.assertIsNotNone(each.get("currencys"))

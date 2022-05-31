@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP-on-Azure Report views."""
+from unittest.mock import patch
 from urllib.parse import quote_plus
 from urllib.parse import urlencode
 
@@ -26,6 +27,7 @@ URLS = [
 GROUP_BYS = ["subscription_guid", "resource_location", "instance_type", "service_name", "project", "cluster", "node"]
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAzureReportViewTest(IamTestCase):
     """OCP on Azure report view test cases."""
 
@@ -36,14 +38,14 @@ class OCPAzureReportViewTest(IamTestCase):
         self.factory = RequestFactory()
         self.dh = DateHelper()
 
-    def test_execute_query_w_delta_total(self):
+    def test_execute_query_w_delta_total(self, mocked_exchange_rates):
         """Test that delta=total returns deltas."""
         query = "delta=cost"
         url = reverse("reports-openshift-azure-costs") + "?" + query
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_w_delta_bad_choice(self):
+    def test_execute_query_w_delta_bad_choice(self, mocked_exchange_rates):
         """Test invalid delta value."""
         bad_delta = "Invalid"
         expected = f'"{bad_delta}" is not a valid choice.'
@@ -54,7 +56,7 @@ class OCPAzureReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
-    def test_group_bys_with_second_group_by_tag(self):
+    def test_group_bys_with_second_group_by_tag(self, mocked_exchange_rates):
         """Test that a group by project followed by a group by tag does not error."""
         with tenant_context(self.tenant):
             labels = (

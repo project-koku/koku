@@ -6,6 +6,7 @@
 import copy
 import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
@@ -32,6 +33,7 @@ from reporting.models import OCPAWSStorageSummaryP
 LOG = logging.getLogger(__name__)
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAWSQueryHandlerTestNoData(IamTestCase):
     """Tests for the OCP report query handler with no data."""
 
@@ -48,7 +50,7 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
             "usage_end__lte": self.dh.last_month_end,
         }
 
-    def test_execute_sum_query_instance_types(self):
+    def test_execute_sum_query_instance_types(self, mocked_exchange_rates):
         """Test that the sum query runs properly for instance-types."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSInstanceTypeView)
@@ -71,6 +73,7 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         self.assertEqual(total.get("count").get("units"), "instances")
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class OCPAWSQueryHandlerTest(IamTestCase):
     """Tests for the OCP report query handler."""
 
@@ -98,7 +101,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         with tenant_context(self.tenant):
             return OCPAWSCostLineItemDailySummaryP.objects.filter(**filters).aggregate(**aggregates)
 
-    def test_execute_sum_query_storage(self):
+    def test_execute_sum_query_storage(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSStorageView)
@@ -113,7 +116,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
-    def test_execute_query_current_month_daily(self):
+    def test_execute_query_current_month_daily(self, mocked_exchange_rates):
         """Test execute_query for current month on daily breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -126,9 +129,11 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
-    def test_execute_query_current_month_monthly(self):
+    def test_execute_query_current_month_monthly(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -141,9 +146,11 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
-    def test_execute_query_current_month_by_service(self):
+    def test_execute_query_current_month_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -157,7 +164,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -170,7 +179,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 self.assertIn(service, self.services)
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_filtered_service(self):
+    def test_execute_query_by_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=AmazonEC2"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -186,7 +195,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         filt = copy.deepcopy(self.this_month_filter)
         filt["product_code"] = "AmazonEC2"
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -199,7 +210,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 self.assertEqual(compute, "AmazonEC2")
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_query_by_partial_filtered_service(self):
+    def test_query_by_partial_filtered_service(self, mocked_exchange_rates):
         """Test execute_query monthly breakdown by filtered service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service]=eC2"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -214,7 +225,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         filt["product_code__icontains"] = "ec2"
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, filt)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -227,7 +240,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 self.assertEqual(compute, "AmazonEC2")
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_current_month_by_account(self):
+    def test_execute_query_current_month_by_account(self, mocked_exchange_rates):
         """Test execute_query for current month on monthly breakdown by account."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -241,7 +254,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -252,7 +267,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("values"), list)
 
-    def test_execute_query_by_account_by_service(self):
+    def test_execute_query_by_account_by_service(self, mocked_exchange_rates):
         """Test execute_query for current month breakdown by account by service."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[account]=*&group_by[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -266,7 +281,9 @@ class OCPAWSQueryHandlerTest(IamTestCase):
 
         aggregates = handler._mapper.report_type_map.get("aggregates")
         current_totals = self.get_totals_by_time_scope(aggregates, self.this_month_filter)
-        self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
+        self.assertAlmostEqual(
+            total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1), 6
+        )
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -277,7 +294,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             for month_item in month_data:
                 self.assertIsInstance(month_item.get("services"), list)
 
-    def test_check_view_filter_and_group_by_criteria(self):
+    def test_check_view_filter_and_group_by_criteria(self, mocked_exchange_rates):
         """Test that all filter and group by checks return the correct result."""
         good_group_by_options = ["account", "service", "region", "cluster", "product_family"]
         bad_group_by_options = ["project", "node"]
@@ -316,7 +333,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
             group_by_keys = {option}
             self.assertFalse(check_view_filter_and_group_by_criteria(filter_keys, group_by_keys))
 
-    def test_query_table(self):
+    def test_query_table(self, mocked_exchange_rates):
         """Test that the correct view is assigned by query table property."""
         url = "?"
         query_params = self.mocked_query_params(url, OCPAWSCostView)
@@ -393,7 +410,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         handler = OCPAWSReportQueryHandler(query_params)
         self.assertEqual(handler.query_table, OCPAWSDatabaseSummaryP)
 
-    def test_source_uuid_mapping(self):  # noqa: C901
+    def test_source_uuid_mapping(self, mocked_exchange_rates):  # noqa: C901
         """Test source_uuid is mapped to the correct source."""
         endpoints = [OCPAWSCostView, OCPAWSInstanceTypeView, OCPAWSStorageView]
         with tenant_context(self.tenant):
@@ -419,7 +436,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
-    def test_ocp_aws_date_order_by_cost_desc(self):
+    def test_ocp_aws_date_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that order of every other date matches the order of the `order_by` date."""
         yesterday = self.dh.yesterday.date()
         url = f"?order_by[cost]=desc&order_by[date]={yesterday}&group_by[service]=*"
@@ -454,19 +471,19 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                     tested = True
         self.assertTrue(tested)
 
-    def test_ocp_aws_date_incorrect_date(self):
+    def test_ocp_aws_date_incorrect_date(self, mocked_exchange_rates):
         wrong_date = "200BC"
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
 
-    def test_ocp_aws_out_of_range_under_date(self):
+    def test_ocp_aws_out_of_range_under_date(self, mocked_exchange_rates):
         wrong_date = materialized_view_month_start() - timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
 
-    def test_ocp_aws_out_of_range_over_date(self):
+    def test_ocp_aws_out_of_range_over_date(self, mocked_exchange_rates):
         wrong_date = DateHelper().today.date() + timedelta(days=1)
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):

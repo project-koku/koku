@@ -120,6 +120,17 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 annotations[q_param] = F(db_field)
         return annotations
 
+    def format_sub_orgs(self, sub_orgs_data):
+        new_data = {}
+        group_by = self._get_group_by()
+        for sub_org_name, sub_org_data in sub_orgs_data.items():
+            new_list = []
+            for each_dict in sub_org_data:
+                check = self.format_for_ui_recursive(group_by, [each_dict])
+                new_list += check
+            new_data[sub_org_name] = new_list
+        return new_data
+
     def format_sub_org_results(self, query_data_results, query_data, sub_orgs_dict):  # noqa: C901
         """
         Add the sub_orgs into the overall results if grouping by org unit.
@@ -134,6 +145,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
         """
         # loop through original query data
         group_by_format_keys = [key + "s" for key in self.parameters.parameters.get("group_by").keys()]
+        group_by = self._get_group_by()
+        if "account" not in group_by:
+            group_by = ["account"] + group_by
+        query_data = self.format_for_ui_recursive(group_by, query_data)
+        query_data_results = self.format_sub_orgs(query_data_results)
         for each_day in query_data:
             accounts = each_day.get("accounts", [])
             # rename id/alias and add type
@@ -168,6 +184,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                                 "type": "organizational_unit",
                                 "date": day.get("date"),
                                 "values": values,
+                                "currencys": day.get("currencys"),
                             }
                         )
                         # now we need to do an order by cost
@@ -328,8 +345,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
         # Add each of the sub_org sums to the query_sum
         self.query_data = query_data
         self.query_sum = query_sum
-
         # reset to the original query filters
+        groupby = self._get_group_by()
+        if self._report_type == "costs" and not self.is_csv_output and not org_unit_applied:
+            self.query_data = self.format_for_ui_recursive(groupby, self.query_data, org_unit_applied)
         self.parameters.parameters["filter"] = original_filters
         return self._format_query_response()
 
@@ -350,14 +369,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def _build_sum(self, query, annotations):
+    def _build_sum(self, query, annotations, org_unit_applied):
         """Build the sum results for the query."""
         sum_units = {}
-
         query_sum = self.initialize_totals()
         if not self.parameters.parameters.get("compute_count"):
             query_sum.pop("count", None)
-
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
@@ -374,7 +391,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_units["usage_units"] = units_value
             if annotations.get("count_units"):
                 sum_units["count_units"] = count_units_fallback
-            query_sum = self.calculate_total(**sum_units)
+            query_sum = self.calculate_total(org_unit_applied, **sum_units)
         else:
             sum_units["cost_units"] = cost_units_fallback
             if annotations.get("count_units"):
@@ -560,12 +577,16 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             (Dict): the sum result
         """
         expected_keys = list(sum1)
+        if "date" in expected_keys:
+            expected_keys.remove("date")
         if "value" in expected_keys:
             sum2["value"] = sum1["value"] + sum2["value"]
         else:
             for expected_key in expected_keys:
                 if sum1.get(expected_key) and sum2.get(expected_key):
                     sum2[expected_key] = self.total_sum(sum1.get(expected_key), sum2.get(expected_key))
+        if not sum2.get("date") and sum1.get("date"):
+            sum2["date"] = sum1.get("date")
         return sum2
 
     def execute_individual_query(self, org_unit_applied=False):  # noqa: C901
@@ -583,8 +604,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-
             query_group_by = ["date"] + self._get_group_by()
+            if self._report_type == "costs" and not self.is_csv_output:
+                query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
@@ -595,17 +617,13 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 annotations.pop("count_units", None)
 
             query_data = query_data.values(*query_group_by).annotate(**annotations)
-
             if "account" in query_group_by:
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
-
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
-
-            query_sum = self._build_sum(query, annotations)
-
+            query_sum = self._build_sum(query, annotations, org_unit_applied)
             if self._limit and query_data and not org_unit_applied:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
@@ -643,7 +661,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             # Fetch the data (returning list(dict))
             query_results = list(query_data)
-
             # Resolve tag exists for unique account returned
             # if tag_results is not Falsey
             # Append the flag to the query result for the report
@@ -666,9 +683,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         query_sum = ordered_total
         query_data = data
+
         return query_data, query_sum
 
-    def calculate_total(self, **units):
+    def calculate_total(self, org_unit_applied, **units):
         """Calculate aggregated totals for the query.
 
         Args:
@@ -679,10 +697,11 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        if self._report_type == "costs" and not self.is_csv_output:
+            query_group_by.append("currency_code")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
-
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
         if not self.parameters.parameters.get("compute_count"):
             # Query parameter indicates count should be removed from DB queries
@@ -697,15 +716,21 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .distinct()
             )
             counts = len(resource_ids)
+        if self._report_type == "costs":
+            total_queryset = query_data.annotate(**aggregates)
+            total_query = self.return_total_query(total_queryset)
+        else:
+            total_query = query.aggregate(**aggregates)
 
-        total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
-            total_query[unit_key] = unit_value
+            if self._report_type == "costs":
+                total_query[unit_key] = self.currency
+            else:
+                total_query[unit_key] = unit_value
 
         if counts:
             total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
-
         return total_query
 
     def _group_by_ranks(self, query, data):

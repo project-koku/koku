@@ -16,6 +16,8 @@ TESTING_DIRS = [
     "local_providers/aws_local_4",
     "local_providers/aws_local_5",
     "local_providers/azure_local",
+    "local_providers/azure_local_0",
+    "local_providers/azure_local_1",
     "local_providers/gcp_local",
     "local_providers/gcp_local_0",
     "local_providers/gcp_local_1",

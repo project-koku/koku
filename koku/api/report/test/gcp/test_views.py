@@ -21,6 +21,7 @@ from api.report.gcp.view import GCPCostView
 FAKE = Faker()
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class GCPReportViewTest(IamTestCase):
     """GCP report view test cases."""
 
@@ -69,7 +70,7 @@ class GCPReportViewTest(IamTestCase):
         }
 
     @patch("api.report.gcp.query_handler.GCPReportQueryHandler")
-    def test_costview_with_units_success(self, mock_handler):
+    def test_costview_with_units_success(self, mock_handler, mocked_exchange_rates):
         """Test unit conversion succeeds in GCPCostView."""
         mock_handler.return_value.execute_query.return_value = self.report
         params = {
@@ -91,7 +92,7 @@ class GCPReportViewTest(IamTestCase):
         response = GCPCostView().get(request)
         self.assertIsInstance(response, Response)
 
-    def test_execute_query_w_delta_total(self):
+    def test_execute_query_w_delta_total(self, mocked_exchange_rates):
         """Test that delta=total returns deltas."""
         qs = "delta=cost"
         url = reverse("reports-gcp-costs") + "?" + qs
@@ -99,7 +100,7 @@ class GCPReportViewTest(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_w_delta_bad_choice(self):
+    def test_execute_query_w_delta_bad_choice(self, mocked_exchange_rates):
         """Test invalid delta value."""
         bad_delta = "Invalid"
         expected = f'"{bad_delta}" is not a valid choice.'

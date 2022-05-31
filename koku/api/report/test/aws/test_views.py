@@ -5,6 +5,7 @@
 """Test the AWS Report views."""
 import copy
 import logging
+from unittest.mock import patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -33,6 +34,7 @@ def _calculate_accounts_and_subous(data):
     return list(set(accounts_and_subous))
 
 
+@patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
 class AWSReportViewTest(IamTestCase):
     """Tests the report view."""
 
@@ -116,14 +118,14 @@ class AWSReportViewTest(IamTestCase):
             "total": {"value": 5475.922451027388, "units": "GB-Mo"},
         }
 
-    def test_execute_query_w_delta_total(self):
+    def test_execute_query_w_delta_total(self, mocked_exchange_rates):
         """Test that delta=total returns deltas."""
         qs = "delta=cost"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_w_delta_bad_choice(self):
+    def test_execute_query_w_delta_bad_choice(self, mocked_exchange_rates):
         """Test invalid delta value."""
         bad_delta = "Invalid"
         expected = f'"{bad_delta}" is not a valid choice.'
@@ -135,14 +137,14 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
-    def test_execute_query_w_valid_cost_type(self):
+    def test_execute_query_w_valid_cost_type(self, mocked_exchange_rates):
         """Test that delta=total returns deltas."""
         qs = "cost_type=unblended_cost"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_execute_query_w_invalid_cost_type(self):
+    def test_execute_query_w_invalid_cost_type(self, mocked_exchange_rates):
         """Test invalid delta value."""
         invalid_cost_type = "Invalid"
         expected = f'"{invalid_cost_type}" is not a valid choice.'
@@ -154,7 +156,7 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(result, expected)
 
-    def test_convert_units_success(self):
+    def test_convert_units_success(self, mocked_exchange_rates):
         """Test unit conversion succeeds."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -168,7 +170,7 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
 
-    def test_convert_units_list(self):
+    def test_convert_units_list(self, mocked_exchange_rates):
         """Test that the list check is hit."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -183,7 +185,7 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(expected_unit, result_unit)
         self.assertEqual(report_total * 1e9, result_total)
 
-    def test_convert_units_total_not_dict(self):
+    def test_convert_units_total_not_dict(self, mocked_exchange_rates):
         """Test that the total not dict block is hit."""
         converter = UnitConverter()
         to_unit = "byte"
@@ -204,7 +206,7 @@ class AWSReportViewTest(IamTestCase):
             "aws.organizational_unit": {"read": ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]},
         }
     )
-    def test_execute_query_csv_w_multi_group_by_rbac_explicit_access(self):
+    def test_execute_query_csv_w_multi_group_by_rbac_explicit_access(self, mocked_exchange_rates):
         """Test that a csv will be returned with an account group-by AND an org_unit group-by."""
         qs = "?group_by[org_unit_id]=OU_001&group_by[account]=9999999999990"
         url = reverse("reports-aws-costs") + qs
@@ -221,7 +223,7 @@ class AWSReportViewTest(IamTestCase):
             "aws.organizational_unit": {"read": ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]},
         }
     )
-    def test_execute_query_w_group_by_rbac_explicit_access(self):
+    def test_execute_query_w_group_by_rbac_explicit_access(self, mocked_exchange_rates):
         """Test that explicit access results in all accounts/orgs listed."""
         ou_to_account_subou_map = {
             "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"]},
@@ -245,7 +247,7 @@ class AWSReportViewTest(IamTestCase):
                 self.assertIn(ou, accounts_and_subous)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["R_001"]}})
-    def test_rbac_org_unit_root_node_provides_access_to_tree(self):
+    def test_rbac_org_unit_root_node_provides_access_to_tree(self, mocked_exchange_rates):
         """Test that total account access/restricted org results in all accounts/ accessible orgs."""
         ou_to_account_subou_map = {
             "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001", "OU_002"]},
@@ -268,7 +270,7 @@ class AWSReportViewTest(IamTestCase):
                 self.assertIn(ou, accounts_and_subous)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["OU_001"]}})
-    def test_rbac_org_unit_limited_access(self):
+    def test_rbac_org_unit_limited_access(self, mocked_exchange_rates):
         """Test that total account access/restricted org results in all accounts/ accessible orgs."""
         ou_to_account_subou_map = {
             "OU_001": {"accounts": ["9999999999991", "9999999999992"], "org_units": ["OU_005"]},
@@ -293,7 +295,7 @@ class AWSReportViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["R_001"]}})
-    def test_rbac_org_unit_root_node_multiple_group_by(self):
+    def test_rbac_org_unit_root_node_multiple_group_by(self, mocked_exchange_rates):
         """Test that total account access/restricted org results in all accounts/ accessible orgs."""
         expected_combined_accounts = ["9999999999991", "9999999999992"]
         expected_combined_ous = ["OU_003", "OU_005"]
@@ -310,7 +312,7 @@ class AWSReportViewTest(IamTestCase):
             self.assertIn(ou, accounts_and_subous)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["OU_001", "OU_003"]}})
-    def test_rbac_org_unit_limited_access_multiple_group_by(self):
+    def test_rbac_org_unit_limited_access_multiple_group_by(self, mocked_exchange_rates):
         """Test that total account access/restricted org results in all accounts/ accessible orgs."""
         expected_combined_accounts = ["9999999999991", "9999999999992", "9999999999993"]
         expected_combined_ous = ["OU_005"]
@@ -327,7 +329,7 @@ class AWSReportViewTest(IamTestCase):
             self.assertIn(ou, accounts_and_subous)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["OU_001", "OU_003"]}})
-    def test_rbac_org_unit_access_denied_with_multiple_group_by(self):
+    def test_rbac_org_unit_access_denied_with_multiple_group_by(self, mocked_exchange_rates):
         """Test that total account access/restricted org results in all accounts/ accessible orgs."""
         qs = "?group_by[or:org_unit_id]=OU_001&group_by[or:org_unit_id]=OU_002"
         url = reverse("reports-aws-costs") + qs
@@ -335,7 +337,7 @@ class AWSReportViewTest(IamTestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     @RbacPermissions({"aws.account": {"read": ["*"]}, "aws.organizational_unit": {"read": ["*"]}})
-    def test_execute_query_w_group_by_rbac_no_restrictions(self):
+    def test_execute_query_w_group_by_rbac_no_restrictions(self, mocked_exchange_rates):
         """Test that total access results in all accounts and orgs."""
         ou_to_account_subou_map = {
             "R_001": {"accounts": ["9999999999990"], "org_units": ["OU_001"]},
@@ -365,7 +367,7 @@ class AWSReportViewTest(IamTestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     @RbacPermissions({"aws.account": {"read": ["9999999999990"]}, "aws.organizational_unit": {"read": ["*"]}})
-    def test_execute_query_w_group_by_rbac_account_restrictions(self):
+    def test_execute_query_w_group_by_rbac_account_restrictions(self, mocked_exchange_rates):
         """Test that restricted access results in the accessible orgs/accounts."""
         ou_to_account_subou_map = {"R_001": {"accounts": ["9999999999990"], "org_units": []}}
         # since we only have access to the account directly under root - no org units will show up
@@ -384,17 +386,18 @@ class AWSReportViewTest(IamTestCase):
                 self.assertIn(ou, accounts_and_subous)
 
     @RbacPermissions({"aws.account": {"read": ["9999999999991"]}, "aws.organizational_unit": {"read": ["*"]}})
-    def test_execute_query_w_group_by_rbac_restriction(self):
+    def test_execute_query_w_group_by_rbac_restriction(self, mocked_exchange_rates):
         """Test limited access results in only the account that the user can see."""
         qs = "group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + "?" + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         accounts_and_subous = _calculate_accounts_and_subous(response.data.get("data"))
-        self.assertEqual(accounts_and_subous, ["9999999999991"])
+        for item in accounts_and_subous:
+            self.assertIn(item, ["9999999999991", "OU_005"])
 
     @RbacPermissions({"aws.account": {"read": ["fakeaccount"]}, "aws.organizational_unit": {"read": ["fake_org"]}})
-    def test_execute_query_w_group_by_rbac_no_accounts_or_orgs(self):
+    def test_execute_query_w_group_by_rbac_no_accounts_or_orgs(self, mocked_exchange_rates):
         """Test that no access to relevant results in a 403."""
         for org in ["R_001", "OU_001", "OU_002", "OU_003", "OU_004", "OU_005"]:
             qs = f"?group_by[org_unit_id]={org}"
@@ -407,21 +410,21 @@ class AWSReportViewTest(IamTestCase):
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_group_by_org_unit_non_costs_reports(self):
+    def test_group_by_org_unit_non_costs_reports(self, mocked_exchange_rates):
         """Test that grouping by org unit on non costs reports raises a validation error."""
         qs = "?group_by[org_unit_id]=*"
         url = reverse("reports-aws-storage") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_group_by_org_unit_wildcard_costs_reports(self):
+    def test_group_by_org_unit_wildcard_costs_reports(self, mocked_exchange_rates):
         """Test that grouping by org unit with a wildcard raises a validation error."""
         qs = "?group_by[org_unit_id]=*"
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_ou_group_by_default_pagination(self):
+    def test_ou_group_by_default_pagination(self, mocked_exchange_rates):
         """Test that the default pagination works."""
         qs = "?group_by[org_unit_id]=R_001&filter[resolution]=monthly&filter[time_scope_value]=-1&filter[time_scope_units]=month"  # noqa: E501
         url = reverse("reports-aws-costs") + qs
@@ -441,7 +444,7 @@ class AWSReportViewTest(IamTestCase):
             org_entities = entry.get("org_entities", [])
             self.assertEqual(len(org_entities), count)
 
-    def test_ou_group_by_filter_limit_offset_pagination(self):
+    def test_ou_group_by_filter_limit_offset_pagination(self, mocked_exchange_rates):
         """Test that the ranked group pagination works."""
         limit = 1
         offset = 0
@@ -467,7 +470,7 @@ class AWSReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(org_entities), limit)
 
-    def test_ou_group_by_filter_limit_high_offset_pagination(self):
+    def test_ou_group_by_filter_limit_high_offset_pagination(self, mocked_exchange_rates):
         """Test that high offset pagination works."""
         limit = 1
         offset = 10
@@ -493,7 +496,7 @@ class AWSReportViewTest(IamTestCase):
             else:
                 self.assertEqual(len(org_entities), limit)
 
-    def test_group_by_org_unit_order_by_cost_asc(self):
+    def test_group_by_org_unit_order_by_cost_asc(self, mocked_exchange_rates):
         """Test that ordering by cost=asc works as expected"""
         qs = "?group_by[org_unit_id]=R_001&order_by[cost]=asc"
         url = reverse("reports-aws-costs") + qs
@@ -508,7 +511,7 @@ class AWSReportViewTest(IamTestCase):
             sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=False)
             self.assertEqual(org_entities, sorted_org_entities)
 
-    def test_group_by_org_unit_order_by_cost_desc(self):
+    def test_group_by_org_unit_order_by_cost_desc(self, mocked_exchange_rates):
         """Test that ordering by cost=descworks as expected"""
         qs = "?group_by[org_unit_id]=R_001&order_by[cost]=desc"
         url = reverse("reports-aws-costs") + qs
@@ -523,28 +526,28 @@ class AWSReportViewTest(IamTestCase):
             sorted_org_entities.sort(key=lambda e: e["values"][0]["cost"]["total"]["value"], reverse=True)
             self.assertEqual(org_entities, sorted_org_entities)
 
-    def test_multiple_and_group_by_org_unit_bad_request(self):
+    def test_multiple_and_group_by_org_unit_bad_request(self, mocked_exchange_rates):
         """Test that grouping by org unit on non costs reports raises a validation error."""
         qs = "?group_by[org_unit_id]=R_001&group_by[org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_multiple_mixed_group_by_org_unit_bad_request(self):
+    def test_multiple_mixed_group_by_org_unit_bad_request(self, mocked_exchange_rates):
         """Test that grouping by org unit on non costs reports raises a validation error."""
         qs = "?group_by[org_unit_id]=R_001&group_by[or:org_unit_id]=OU_001"
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_group_by_org_unit_or_wildcard_bad_request(self):
+    def test_group_by_org_unit_or_wildcard_bad_request(self, mocked_exchange_rates):
         """Test that grouping by org unit on non costs reports raises a validation error."""
         qs = "?group_by[or:org_unit_id]=*"
         url = reverse("reports-aws-costs") + qs
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_group_by_org_unit_id_and_wildcard_region(self):
+    def test_group_by_org_unit_id_and_wildcard_region(self, mocked_exchange_rates):
         """Test multiple group by with org unit id and region."""
         # The ui team uses these to populate graphs
         qs = "?group_by[or:org_unit_id]=R_001&group_by[region]=*"
@@ -552,7 +555,7 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_group_by_org_unit_id_and_wildcard_account(self):
+    def test_group_by_org_unit_id_and_wildcard_account(self, mocked_exchange_rates):
         """Test multiple group by with org unit id and account."""
         qs = "?group_by[or:org_unit_id]=R_001&group_by[account]=*"
         # The ui team uses these to populate graphs
@@ -560,7 +563,7 @@ class AWSReportViewTest(IamTestCase):
         response = self.client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_order_by_delta(self):
+    def test_order_by_delta(self, mocked_exchange_rates):
         """Test that the order_by delta with pagination does not error."""
         qs_list = [
             "?filter[limit]=5&filter[offset]=0&order_by[delta]=asc&delta=usage",
@@ -594,7 +597,7 @@ class AWSReportViewTest(IamTestCase):
                             previous_delta = current_delta
             self.assertTrue(compared_deltas)
 
-    def test_others_count(self):
+    def test_others_count(self, mocked_exchange_rates):
         """Test that the others count works with a small limit."""
         qs_list = ["?filter[limit]=1&group_by[region]=*"]
         for qs in qs_list:
@@ -606,7 +609,7 @@ class AWSReportViewTest(IamTestCase):
             meta = response_data.get("meta", {})
             self.assertNotEqual(meta.get("others"), 0)
 
-    def test_order_by_delta_no_delta(self):
+    def test_order_by_delta_no_delta(self, mocked_exchange_rates):
         """Test that the order_by delta with no delta passed in triggers 400."""
         qs_list = ["?filter[limit]=5&filter[offset]=0&order_by[delta]=asc", "?order_by[delta]=asc"]
         for qs in qs_list:
@@ -614,7 +617,7 @@ class AWSReportViewTest(IamTestCase):
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_start_end_parameters_monthly_resolution(self):
+    def test_start_end_parameters_monthly_resolution(self, mocked_exchange_rates):
         """Test that a validation error is raised for monthly resolution with start/end parameters."""
         qs_list = [
             f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&filter[resolution]=monthly"
@@ -624,7 +627,7 @@ class AWSReportViewTest(IamTestCase):
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_start_end_parameters_no_resolution(self):
+    def test_start_end_parameters_no_resolution(self, mocked_exchange_rates):
         """Test that a no_validation error is raised for no resolution with start/end parameters."""
         qs_list = [f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}"]
         for qs in qs_list:
@@ -632,7 +635,7 @@ class AWSReportViewTest(IamTestCase):
             response = self.client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_start_end_parameters_with_delta(self):
+    def test_start_end_parameters_with_delta(self, mocked_exchange_rates):
         """Test that a validation error is raised for delta with start/end parameters."""
         qs_list = [
             f"?start_date={self.dh.last_month_end.date()}&end_date={self.dh.today.date()}&delta=usage",
