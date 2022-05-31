@@ -42,7 +42,7 @@ class ResourceTypesViewTestOCIServices(IamTestCase):
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(len(json_result.get("data")), expected)
 
-    @RbacPermissions({"oci.payer_tenant_id": {"read": ["example-tenant-ocid"]}})
+    @RbacPermissions({"oci.payer_tenant_id": {"read": ["8d361f2b-f1ff-4718-8159-181db259f6c9"]}})
     def test_oci_service_with_tenant_access_view(self):
         """Test endpoint runs with a customer owner."""
         with schema_context(self.schema_name):
