@@ -357,7 +357,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             else col
             for col in columns_list
         ]
-        # columns_list = self.modify_query_select_for_resource_columns(columns_list)
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
