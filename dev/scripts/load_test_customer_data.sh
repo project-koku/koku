@@ -333,32 +333,34 @@ build_all(){
 }
 
 # ---execute---
-case ${1} in
-   "AWS"|"aws")
+provider_arg=`echo ${1} |tr [a-z] [A-Z]`
+
+case ${provider_arg} in
+   "AWS")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_aws_data
       enable_ocp_tags ;;
-   "AZURE"|"azure"|"Azure")
+   "AZURE")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_azure_data
       enable_ocp_tags ;;
-   "GCP"|"gcp")
+   "GCP")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_gcp_data
       enable_ocp_tags ;;
-   "ONPREM"|"onprem")
+   "ONPREM")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_onprem_data
       enable_ocp_tags ;;
-   "all")
+   "ALL")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_all
       enable_ocp_tags ;;
-   "HELP"|"help") usage;;
+   "HELP") usage;;
    *) usage;;
 esac

@@ -596,7 +596,7 @@ class AWSReportViewTest(IamTestCase):
 
     def test_others_count(self):
         """Test that the others count works with a small limit."""
-        qs_list = ["?filter[limit]=1"]
+        qs_list = ["?filter[limit]=1&group_by[region]=*"]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)
