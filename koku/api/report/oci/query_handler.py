@@ -1,44 +1,54 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Azure Query Handling for Reports."""
+"""OCI Query Handling for Reports."""
 import copy
 import logging
 
-from django.db.models import ExpressionWrapper
-from django.db.models import F
 from django.db.models import Value
-from django.db.models.fields import CharField
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
-from api.report.azure.provider_map import AzureProviderMap
+from api.report.oci.provider_map import OCIProviderMap
 from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
 
 
-class AzureReportQueryHandler(ReportQueryHandler):
-    """Handles report queries and responses for Azure."""
+class OCIReportQueryHandler(ReportQueryHandler):
+    """Handles report queries and responses for OCI."""
 
-    provider = Provider.PROVIDER_AZURE
+    provider = Provider.PROVIDER_OCI
+
     network_services = {
-        "Virtual Network",
-        "VPN",
-        "DNS",
-        "Traffic Manager",
-        "ExpressRoute",
-        "Load Balancer",
-        "Application Gateway",
+        "Virtual Cloud Networks",
+        "Networking Gateways",
+        "Load Balancers",
+        "Site-to-Site VPN",
+        "Client-to-Site VPN",
+        "FastConnect",
+        "Customer-Premises Equipment",
+        "DNS Management",
     }
-    database_services = {"Database", "Cosmos DB", "Cache for Redis"}
+    database_services = {
+        "Autonomous Database",
+        "Autonomous Data Warehouse",
+        "Autonomous Transaction Processing",
+        "Autonomous JSON Database",
+        "Exadata Database Service",
+        "Database Cloud Service",
+        "Autonomous Database on Exadata",
+        "MySQL HeatWave",
+        "NoSQL",
+        "Search Service with OpenSearch",
+    }
 
     def __init__(self, parameters):
-        """Establish Azure report query handler.
+        """Establish OCI report query handler.
 
         Args:
             parameters    (QueryParameters): parameter object for query
@@ -48,13 +58,31 @@ class AzureReportQueryHandler(ReportQueryHandler):
         try:
             getattr(self, "_mapper")
         except AttributeError:
-            self._mapper = AzureProviderMap(provider=self.provider, report_type=parameters.report_type)
+            self._mapper = OCIProviderMap(provider=self.provider, report_type=parameters.report_type)
 
         self.group_by_options = self._mapper.provider_map.get("group_by_options")
         self._limit = parameters.get_filter("limit")
+        self.is_csv_output = parameters.accept_type and "text/csv" in parameters.accept_type
 
-        # super() needs to be called after _mapper and _limit is set
+        oci_pack_keys = {
+            "infra_raw": {"key": "raw", "group": "infrastructure"},
+            "infra_markup": {"key": "markup", "group": "infrastructure"},
+            "infra_usage": {"key": "usage", "group": "infrastructure"},
+            "infra_total": {"key": "total", "group": "infrastructure"},
+            "sup_raw": {"key": "raw", "group": "supplementary"},
+            "sup_markup": {"key": "markup", "group": "supplementary"},
+            "sup_usage": {"key": "usage", "group": "supplementary"},
+            "sup_total": {"key": "total", "group": "supplementary"},
+            "cost_raw": {"key": "raw", "group": "cost"},
+            "cost_markup": {"key": "markup", "group": "cost"},
+            "cost_usage": {"key": "usage", "group": "cost"},
+            "cost_total": {"key": "total", "group": "cost"},
+        }
+        oci_pack_definitions = copy.deepcopy(self._mapper.PACK_DEFINITIONS)
+        oci_pack_definitions["cost_groups"]["keys"] = oci_pack_keys
+
         super().__init__(parameters)
+        self._mapper.PACK_DEFINITIONS = oci_pack_definitions
 
     @property
     def annotations(self):
@@ -67,15 +95,11 @@ class AzureReportQueryHandler(ReportQueryHandler):
         units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback, output_field=CharField())),
+            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-            annotations["usage_units"] = Coalesce(
-                self._mapper.usage_units_key, Value(units_fallback, output_field=CharField())
-            )
-
-        # { query_param: database_field_name }
+            annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
         fields = self._mapper.provider_map.get("annotations")
         for q_param, db_field in fields.items():
             annotations[q_param] = Concat(db_field, Value(""))
@@ -104,21 +128,12 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
 
         if query.exists():
-            sum_annotations = {
-                "cost_units": Coalesce(
-                    ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
-                    Value(cost_units_fallback, output_field=CharField()),
-                )
-            }
+            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-                sum_annotations["usage_units"] = Coalesce(
-                    ExpressionWrapper(F(self._mapper.usage_units_key), output_field=CharField()),
-                    Value(units_fallback, output_field=CharField()),
-                )
+                sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
 
             units_value = sum_query.values("cost_units").first().get("cost_units", cost_units_fallback)
@@ -126,14 +141,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 sum_units["usage_units"] = units_value
-            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                sum_units["count_units"] = count_units_fallback
 
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = cost_units_fallback
-            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -152,14 +163,16 @@ class AzureReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
+
             query_group_by = ["date"] + self._get_group_by()
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
+
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 
-            if self._limit and query_data:
+            if self._limit:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
                     # override implicit ordering when using ranked ordering.
@@ -231,14 +244,11 @@ class AzureReportQueryHandler(ReportQueryHandler):
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
-        counts = None
 
         total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
 
-        if counts:
-            total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query

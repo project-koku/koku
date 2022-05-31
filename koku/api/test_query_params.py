@@ -89,9 +89,7 @@ class QueryParametersTests(TestCase):
         """
         tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
         fake_objects = Mock()
-        fake_objects.objects.values.return_value.distinct.return_value = [
-            {"key": key, "value": self.FAKE.word()} for key in tag_keys
-        ]
+        fake_objects.objects.values_list.return_value.distinct.return_value = tag_keys
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
@@ -643,9 +641,7 @@ class QueryParametersTests(TestCase):
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_objects = Mock()
-        fake_objects.objects.values.return_value.distinct.return_value = [
-            {"key": key, "value": self.FAKE.word()} for key in tag_keys
-        ]
+        fake_objects.objects.values_list.return_value.distinct.return_value = tag_keys
         fake_view = Mock(
             spec=ReportView,
             provider=self.FAKE.word(),
