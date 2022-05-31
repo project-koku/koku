@@ -340,12 +340,12 @@ Please refer to Contributing_.
 .. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
 .. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/12/tutorial-start.html
-.. _`Working with Openshift`: https://github.com/project-koku/koku/blob/main/docs/source/openshift.rst
+.. _`Working with Openshift`: https://github.com/project-koku/koku/blob/main/docs/openshift.rst
 .. _Contributing: https://github.com/project-koku/koku/blob/main/CONTRIBUTING.rst
 .. _pre-commit: https://pre-commit.com
 .. _Black: https://github.com/psf/black
 .. _Flake8: http://flake8.pycqa.org
-.. _`M1 Mac Setup`: https://github.com/project-koku/koku/blob/main/docs/source/koku_setup_on_m1.rst
+.. _`M1 Mac Setup`: https://github.com/project-koku/koku/blob/main/docs/koku_setup_on_m1.rst
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/main/LICENSE

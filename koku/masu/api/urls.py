@@ -20,6 +20,7 @@ from masu.api.views import explain_query
 from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
+from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
 from masu.api.views import pg_engine_version
 from masu.api.views import report_data
@@ -39,6 +40,7 @@ urlpatterns = [
     path("enabled_tags/", enabled_tags, name="enabled_tags"),
     path("expired_data/", expired_data, name="expired_data"),
     path("hcs_report_data/", hcs_report_data, name="hcs_report_data"),
+    path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),

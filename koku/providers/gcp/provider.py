@@ -26,6 +26,9 @@ REQUIRED_IAM_PERMISSIONS = [
     "bigquery.tables.get",
 ]
 
+RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export_resource"
+NON_RESOURCE_LEVEL_EXPORT_NAME = "gcp_billing_export"
+
 
 class GCPProvider(ProviderInterface):
     """GCP provider."""
@@ -37,23 +40,26 @@ class GCPProvider(ProviderInterface):
     def get_table_id(self, data_set):
         """Get the billing table from a dataset in the format projectID.dataset"""
         client = bigquery.Client()
+        full_table_id = None
         for table in client.list_tables(data_set):
-            if "gcp_billing_export" in table.full_table_id:
+            if RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
                 full_table_id = table.full_table_id.replace(":", ".")
-                _, _, table_id = full_table_id.split(".")
-                return table_id
+                # Break because we prefer the resource-level report.
+                break
+            elif NON_RESOURCE_LEVEL_EXPORT_NAME in table.full_table_id:
+                full_table_id = table.full_table_id.replace(":", ".")
+        if full_table_id:
+            _, _, table_id = full_table_id.split(".")
+            return table_id
         return None
 
-    def update_source_data_source(self, credentials, data_source):
+    def update_source_data_source(self, data_source):
         """Update data_source."""
-        try:
-            update_query = Sources.objects.filter(authentication={"credentials": credentials})
-            for source in update_query:
-                if source.billing_source.get("data_source", {}).get("dataset") == data_source.get("dataset"):
-                    source_filter = Sources.objects.filter(source_id=source.source_id)
-                    source_filter.update(billing_source={"data_source": data_source})
-        except Sources.DoesNotExist:
-            LOG.info("Source not found, unable to update data source.")
+        source_query = Sources.objects.filter(billing_source__data_source__dataset=data_source.get("dataset"))
+        for source in source_query:
+            if source.billing_source.get("data_source") != data_source:
+                source_filter = Sources.objects.filter(source_id=source.source_id)
+                source_filter.update(billing_source={"data_source": data_source})
 
     def _format_dataset_id(self, data_source, credentials):
         """Format dataset ID based on input format."""
@@ -70,12 +76,12 @@ class GCPProvider(ProviderInterface):
             bigquery_table_id = self.get_table_id(proj_table)
             if bigquery_table_id:
                 data_source["table_id"] = bigquery_table_id
-                self.update_source_data_source(credentials, data_source)
+                self.update_source_data_source(data_source)
             else:
                 raise SkipStatusPush("Table ID not ready.")
         except NotFound as e:
             data_source.pop("table_id", None)
-            self.update_source_data_source(credentials, data_source)
+            self.update_source_data_source(data_source)
             key = "billing_source.dataset"
             LOG.info(error_obj(key, e.message))
             message = (

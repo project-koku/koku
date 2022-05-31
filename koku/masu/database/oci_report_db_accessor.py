@@ -97,58 +97,6 @@ class OCIReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             summary_item_query = base_query.filter(cost_entry_bill_id=bill_id)
             return summary_item_query
 
-    def populate_line_item_daily_table(self, start_date, end_date, bill_ids):
-        """Populate the daily aggregate of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-            bill_ids (list)
-
-        Returns
-            (None)
-
-        """
-        table_name = self._table_map["line_item_daily"]
-
-        daily_sql = pkgutil.get_data("masu.database", "sql/reporting_ocicostentrylineitem_daily.sql")
-        daily_sql = daily_sql.decode("utf-8")
-        daily_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        daily_sql, daily_sql_params = self.jinja_sql.prepare_query(daily_sql, daily_sql_params)
-        self._execute_raw_sql_query(table_name, daily_sql, start_date, end_date, bind_params=list(daily_sql_params))
-
-    def populate_line_item_daily_summary_table(self, start_date, end_date, bill_ids):
-        """Populate the daily aggregated summary of line items table.
-
-        Args:
-            start_date (datetime.date) The date to start populating the table.
-            end_date (datetime.date) The date to end on.
-
-        Returns
-            (None)
-
-        """
-        table_name = self._table_map["line_item_daily_summary"]
-        summary_sql = pkgutil.get_data("masu.database", "sql/reporting_ocicostentrylineitem_daily_summary.sql")
-        summary_sql = summary_sql.decode("utf-8")
-        summary_sql_params = {
-            "uuid": str(uuid.uuid4()).replace("-", "_"),
-            "start_date": start_date,
-            "end_date": end_date,
-            "bill_ids": bill_ids,
-            "schema": self.schema,
-        }
-        summary_sql, summary_sql_params = self.jinja_sql.prepare_query(summary_sql, summary_sql_params)
-        self._execute_raw_sql_query(
-            table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
-        )
-
     def populate_ui_summary_tables(self, start_date, end_date, source_uuid, tables=UI_SUMMARY_TABLES):
         """Populate our UI summary tables (formerly materialized views)."""
         for table_name in tables:

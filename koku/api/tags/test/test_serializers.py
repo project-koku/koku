@@ -4,6 +4,7 @@
 #
 """Test the tag serializer."""
 from unittest import TestCase
+from unittest.mock import Mock
 
 from rest_framework import serializers
 
@@ -140,7 +141,8 @@ class TagsQueryParamSerializerTest(TestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {"filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}}
-        serializer = TagsQueryParamSerializer(data=query_params)
+        url = Mock(path="/api/cost-management/v1/tags/aws/")
+        serializer = TagsQueryParamSerializer(data=query_params, context={"request": url})
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_ocp_invalid_fields(self):
@@ -148,7 +150,8 @@ class TagsQueryParamSerializerTest(TestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
-        serializer = OCPTagsQueryParamSerializer(data=query_params)
+        url = Mock(path="/api/cost-management/v1/tags/aws/")
+        serializer = OCPTagsQueryParamSerializer(data=query_params, context={"request": url})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -157,13 +160,15 @@ class TagsQueryParamSerializerTest(TestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
-        serializer = AWSTagsQueryParamSerializer(data=query_params)
+        url = Mock(path="/api/cost-management/v1/tags/aws/")
+        serializer = AWSTagsQueryParamSerializer(data=query_params, context={"request": url})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
+        url = Mock(path="/api/cost-management/v1/tags/aws/")
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
@@ -181,12 +186,13 @@ class TagsQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = TagsQueryParamSerializer(data=params)
+                serializer = TagsQueryParamSerializer(data=params, context={"request": url})
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
+        url = Mock(path="/api/cost-management/v1/tags/aws/")
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},
@@ -215,5 +221,5 @@ class TagsQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = TagsQueryParamSerializer(data=params)
+                serializer = TagsQueryParamSerializer(data=params, context={"request": url})
                 self.assertFalse(serializer.is_valid())

@@ -7,7 +7,6 @@ import copy
 import logging
 import uuid
 
-from celery import chain
 from django.db import transaction
 
 from api.provider.models import Provider
@@ -15,7 +14,6 @@ from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -47,7 +45,6 @@ class CostModelManager:
     def create(self, **data):
         """Create cost model and optionally associate to providers."""
         cost_model_data = copy.deepcopy(data)
-
         provider_uuids = cost_model_data.pop("provider_uuids", [])
         self._model = CostModel.objects.create(**cost_model_data)
         self.update_provider_uuids(provider_uuids)
@@ -94,23 +91,15 @@ class CostModelManager:
                         f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
                         + f"with tracing_id {tracing_id}"
                     )
-                    chain(
-                        update_cost_model_costs.s(
-                            schema_name,
-                            provider.uuid,
-                            start_date,
-                            end_date,
-                            tracing_id=tracing_id,
-                            queue_name=PRIORITY_QUEUE,
-                        ).set(queue=PRIORITY_QUEUE),
-                        refresh_materialized_views.si(
-                            schema_name,
-                            provider.type,
-                            provider_uuid=provider.uuid,
-                            tracing_id=tracing_id,
-                            queue_name=PRIORITY_QUEUE,
-                        ).set(queue=PRIORITY_QUEUE),
-                    ).apply_async()
+
+                    update_cost_model_costs.s(
+                        schema_name,
+                        provider.uuid,
+                        start_date,
+                        end_date,
+                        tracing_id=tracing_id,
+                        queue_name=PRIORITY_QUEUE,
+                    ).set(queue=PRIORITY_QUEUE).apply_async()
 
     def update(self, **data):
         """Update the cost model object."""

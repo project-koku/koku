@@ -9,7 +9,7 @@ from rest_framework.views import APIView
 from tenant_schemas.utils import tenant_context
 
 from api.common import CACHE_RH_IDENTITY_HEADER
-from api.common.pagination import ListPaginator
+from api.common.pagination import ResourceTypePaginator
 from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.query_params import get_tenant
 from cost_models.models import CostModel
@@ -107,6 +107,6 @@ class ResourceTypeView(APIView):
                 gcp_project_dict,
                 cost_model_dict,
             ]
-            paginator = ListPaginator(data, request)
+            paginator = ResourceTypePaginator(data, request)
 
             return paginator.get_paginated_response(data)

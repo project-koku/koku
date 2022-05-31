@@ -425,3 +425,7 @@ parameters:
   displayName: OCI tenancy (Ephemeral)
   required: true
   value: insert-string-value
+- description: Enhanced Org Admin
+  displayName: Enhanced Org Admin
+  name: ENHANCED_ORG_ADMIN
+  value: "False"
