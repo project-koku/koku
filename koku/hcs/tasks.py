@@ -145,7 +145,7 @@ def collect_hcs_report_finalization(month=None, year=None, tracing_id=None):
         finalization_date = finalization_date.replace(month=int(month)) + relativedelta(months=1)
 
     if year is not None:
-        finalization_date = finalization_date.replace(year=year)
+        finalization_date = finalization_date.replace(year=int(year))
 
     end_date = finalization_date - datetime.timedelta(days=1)
     start_date = finalization_date - datetime.timedelta(days=end_date.day)
