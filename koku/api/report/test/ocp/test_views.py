@@ -4,8 +4,10 @@
 #
 """Test the Report views."""
 import datetime
+import logging
 import random
 from decimal import Decimal
+from pprint import pformat
 from unittest import skip
 from unittest.mock import patch
 from urllib.parse import quote_plus
@@ -38,6 +40,8 @@ from api.utils import DateHelper
 from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
+LOG = logging.getLogger(__name__)
+
 
 @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
 @patch("api.report.queries.ReportQueryHandler._get_exchange_rate", return_value=1)
@@ -54,7 +58,6 @@ class OCPReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
-
         self.report_ocp_cpu = {
             "group_by": {"project": ["*"]},
             "filter": {"resolution": "monthly", "time_scope_value": "-1", "time_scope_units": "month"},
@@ -402,6 +405,7 @@ class OCPReportViewTest(IamTestCase):
         client = APIClient()
         params = {"filter[resolution]": "daily", "filter[time_scope_value]": "-2", "filter[time_scope_units]": "month"}
         url = url + "?" + urlencode(params, quote_via=quote_plus)
+        LOG.info(url)
         response = client.get(url, **self.headers)
 
         expected_start_date = self.dh.last_month_start.strftime("%Y-%m-%d")
@@ -414,7 +418,9 @@ class OCPReportViewTest(IamTestCase):
         self.assertEqual(dates[-1], expected_end_date)
 
         for item in data.get("data"):
-            if item.get("values"):
+            blah = item.get("values")
+            if blah:
+                LOG.info(f"values: {blah}")
                 values = item.get("values")[0]
                 self.assertTrue("limit" in values)
                 self.assertTrue("usage" in values)
@@ -422,6 +428,17 @@ class OCPReportViewTest(IamTestCase):
 
     def test_execute_query_ocp_memory_group_by_limit(self, mocked_exchange_rates, mock_base_currency):
         """Test that OCP Mem endpoint works with limits."""
+        # Query to reproduce in test_postgres
+        # select usage_start, sum(pod_usage_memory_gigabyte_hours)
+        # from reporting_ocpusagelineitem_daily_summary where
+        # usage_start >= '2022-05-21' and data_source = 'Pod'
+        # group by usage_start order by usage_start;
+
+        # It is not taking node2 into consideration.
+
+        # select usage_start, sum(pod_usage_memory_gigabyte_hours), node
+        # from reporting_ocpusagelineitem_daily_summary where usage_start >= '2022-05-21'
+        # and data_source = 'Pod' group by usage_start, node order by usage_start;
         url = reverse("reports-openshift-memory")
         client = APIClient()
         params = {
@@ -432,6 +449,7 @@ class OCPReportViewTest(IamTestCase):
             "filter[resolution]": "daily",
         }
         url = f"{url}?{urlencode(params, quote_via=quote_plus)}"
+        LOG.info(f"url: {pformat(url)}")
         response = client.get(url, **self.headers)
         data = response.data
 
@@ -440,6 +458,7 @@ class OCPReportViewTest(IamTestCase):
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
                 .values(*["usage_start"])
                 .annotate(usage=Sum("pod_usage_memory_gigabyte_hours"))
+                .filter(data_source="Pod")
             )
             num_nodes = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=self.ten_days_ago.date())
@@ -1405,7 +1424,6 @@ class OCPReportViewTest(IamTestCase):
                 url = f'{reverse("reports-openshift-cpu")}?' + urlencode(params, quote_via=quote_plus)
                 response = client.get(url, **self.headers)
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
-
                 data = response.json()
                 data = data.get("data", [])
                 self.assertTrue(data)
@@ -1425,6 +1443,7 @@ class OCPReportViewTest(IamTestCase):
                         previous_value = node.get("values", [])[0].get(option, {}).get("value")
                         break
                 for entry in nodes:
+                    LOG.info(f"entry: {entry}")
                     if entry.get("node", "") in ("Others", "no-node"):
                         continue
                     if data_key:

@@ -5,6 +5,7 @@
 """Query Handling for Reports."""
 import copy
 import logging
+import operator
 import random
 import re
 import string
@@ -222,7 +223,7 @@ class ReportQueryHandler(QueryHandler):
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default ({query_table})."
             LOG.warning(msg)
         return query_table
 
@@ -734,7 +735,16 @@ class ReportQueryHandler(QueryHandler):
         return data
 
     def format_for_ui_recursive(
-        self, groupby, out_data, org_unit_applied=False, level=-1, org_id=None, org_type=None, extra_deltas=None
+        self,
+        groupby,
+        out_data,
+        org_unit_applied=False,
+        level=-1,
+        org_id=None,
+        org_type=None,
+        extra_deltas=None,
+        order_mapping={},
+        order_numbers={},
     ):
         """Format the data for the UI."""
         level += 1
@@ -748,12 +758,13 @@ class ReportQueryHandler(QueryHandler):
             if level == len(groupby):
                 new_value = []
                 for value in out_data:
-                    # org_applied = False
-                    # if "org_entitie" in groupby:
-                    #     org_applied = True
-                    new_values = self.aggregate_currency_codes_ui(value, extra_deltas)
+                    new_values, order_mapping, order_numbers = self.aggregate_currency_codes_ui(
+                        value, extra_deltas, order_mapping, order_numbers
+                    )
+                    # TODO: CODY - I have built the order_mapping here using new values?
+                    # LOG.info(new_values)
                     new_value.append(new_values)
-                return new_value
+                return new_value, order_mapping, order_numbers
             else:
                 group = groupby[level]
                 if group.startswith("tags"):
@@ -764,11 +775,18 @@ class ReportQueryHandler(QueryHandler):
                     new_out_data = value.get(group + "s")
                     org_id = value.get("id")
                     org_type = value.get("type")
-                    value[group + "s"] = self.format_for_ui_recursive(
-                        groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
+                    value_return, order_mapping, order_numbers = self.format_for_ui_recursive(
+                        groupby,
+                        new_out_data,
+                        level=level,
+                        org_id=org_id,
+                        org_type=org_type,
+                        order_mapping=order_mapping,
+                        order_numbers=order_numbers,
                     )
+                    value[group + "s"] = value_return
                     overall.append(value)
-        return overall
+        return overall, order_mapping, order_numbers
 
     def get_codes(self):
         codes = {
@@ -786,12 +804,12 @@ class ReportQueryHandler(QueryHandler):
                 codes[Provider.PROVIDER_OCP] = "source_uuids"
         return codes
 
-    def aggregate_currency_codes_ui(self, out_data, extra_deltas):
+    def aggregate_currency_codes_ui(self, out_data, extra_deltas, order_mapping, order_numbers):
         """Aggregate currency code info for UI."""
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
-            total_query = self.aggregate_currency_codes(currency_codes)
+            total_query, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
@@ -800,9 +818,9 @@ class ReportQueryHandler(QueryHandler):
             out_data["currencys"] = currencys
         else:
             if self.provider == Provider.PROVIDER_OCP:
-                total_query, new_codes = self.aggregate_currency_codes(currency_codes, extra_deltas)
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes, extra_deltas)
             else:
-                total_query, new_codes = self.aggregate_currency_codes(currency_codes)
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
             total_query_list = [total_query]
             if not total_query.get("date"):
                 total_query_list = []
@@ -813,7 +831,24 @@ class ReportQueryHandler(QueryHandler):
                 currency_list.append(cur_dictionary)
             out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currency_list
-        return out_data
+            group_by_key = meta_data.get("group_by_key")
+            date = meta_data.get("date")
+            group_by = out_data.get(group_by_key)
+            if group_by_key:
+                if order_mapping.get(date):
+                    dict_to_update = order_mapping[date]
+                    dict_to_update[group_by] = out_data
+                else:
+                    order_mapping[date] = {group_by: out_data}
+            meta_orders = meta_data.get("order_numbers", {})
+            for key in meta_orders.keys():
+                if key in order_numbers.keys():
+                    order_numbers[key].update(meta_orders.keys())
+            # TODO: CODY -> Figure out if this deepcopy is actually needed.
+            # LOG.info(f"order_numbers: {order_numbers}")
+            order_numbers = copy.deepcopy(order_numbers)
+            # order_mapping = copy.deepcopy(order_mapping)
+        return out_data, order_mapping, order_numbers
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
         """Aggregate and format the data after currency."""
@@ -875,7 +910,10 @@ class ReportQueryHandler(QueryHandler):
                                 count_usage = {"value": 0, "units": None}
                                 total_query[key] = copy.deepcopy(count_usage)
                             total_query_val = total_query.get(key).get("value")
-                            total_query[key]["value"] = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            value = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            total_query[key]["value"] = value
+                            LOG.info("\n\n\n\n\n\n")
+                            LOG.info(f"usage: {value}")
                             total_query[key]["units"] = data.get(key).get("units")
                     else:
                         base_val = total_query.get(key)
@@ -891,7 +929,53 @@ class ReportQueryHandler(QueryHandler):
                         if base_val and not isinstance(base_val, str):
                             new_val = list(filter(None, (base_val + new_val)))
                         total_query[key] = new_val
-        return total_query
+        return total_query, {}
+
+    def find_key_order(self, order_numbers):
+        """
+        orders the key
+        """
+        pagination_key = "Others"
+        ordered_dict = dict()
+        for date_key, values in order_numbers.items():
+            sort_by_number = operator.itemgetter(1)
+            expected_key_order = sorted(values.items(), key=sort_by_number, reverse=True)
+            key_list = [key[0] for key in expected_key_order]
+            if pagination_key in key_list:
+                # The "Others" should always be at the end
+                # during pagination.
+                key_list.remove(pagination_key)
+                key_list.append(pagination_key)
+            ordered_dict[date_key] = key_list
+        return ordered_dict
+
+    def build_reordered(self, data, key_order_mapping, key_map, group_key, date=None):  # noqa: C901
+        """
+        Builds reordered data.
+        data: list of dictionaries
+        key_order: List with order the keys should be in
+        key_map: dictionary that is mapping of data
+        """
+        if not key_order_mapping or not key_map:
+            return data
+        if isinstance(data, list):
+            if data and isinstance(data[0], dict):
+                if "currencys" in data[0].keys() and group_key in data[0].keys():
+                    new_data = []
+                    key_order = key_order_mapping.get(date)
+                    if key_order:
+                        for key in key_order:
+                            new_data.append(key_map.get(date, {}).get(key))
+                        return new_data
+                    return data
+            for value in data:
+                return [self.build_reordered(value, key_order_mapping, key_map, group_key, date)]
+        elif isinstance(data, dict):
+            for dikt_key, dikt_value in data.items():
+                if "date":
+                    date = data.get("date")
+                data[dikt_key] = self.build_reordered(dikt_value, key_order_mapping, key_map, group_key, date)
+        return data
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""

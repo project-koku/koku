@@ -238,7 +238,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
         if not self.is_csv_output:
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+            self.query_data, _, _ = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
     def calculate_total(self, **units):
