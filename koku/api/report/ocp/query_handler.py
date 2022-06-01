@@ -374,7 +374,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: round(metric_sum.get(key), 11) for key in aggregates}
+                query_sum = {key: round(metric_sum.get(key, 0), 11) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
