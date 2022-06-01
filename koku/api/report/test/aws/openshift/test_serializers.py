@@ -214,3 +214,18 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
         serializer = OCPAWSQueryParamSerializer(data=query_params)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
+
+    def test_fail_without_group_by(self):
+        """Test fail if filter[limit] and filter[offset] passed without group by."""
+        param_failures_list = [
+            {"filter": {"limit": "1", "offset": "1"}},
+            {"filter": {"limit": "1"}},
+            {"filter": {"offset": "1"}},
+        ]
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
+        for param in param_failures_list:
+            with self.subTest(param=param):
+                with self.assertRaises(serializers.ValidationError):
+                    serializer = OCPAWSQueryParamSerializer(data=param, context=self.request_context)
+                    self.assertFalse(serializer.is_valid())
+                    serializer.is_valid(raise_exception=True)

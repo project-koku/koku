@@ -23,15 +23,18 @@ class ReportHCS:
         self._date_accessor = DateAccessor()
         self._tracing_id = tracing_id
 
-    def generate_report(self, start_date, end_date):
+    def generate_report(self, start_date, end_date, finalize=False):
         """Generate HCS daily report
         :param start_date (str) The date to start populating the table
         :param end_date   (str) The date to end on
+        :param finalize   (bool) Set to True when report is final(default=False)
 
-        :returns (none)
+        returns (none)
         """
         sql_file = f"sql/reporting_{self._provider.lower()}_hcs_daily_summary.sql"
 
         with HCSReportDBAccessor(self._schema_name) as accessor:
             for date in date_range(start_date, end_date, step=1):
-                accessor.get_hcs_daily_summary(date, self._provider, self._provider_uuid, sql_file, self._tracing_id)
+                accessor.get_hcs_daily_summary(
+                    date, self._provider, self._provider_uuid, sql_file, self._tracing_id, finalize
+                )
