@@ -19,6 +19,7 @@ from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
 import ciso8601
+import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import F
@@ -28,6 +29,7 @@ from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import DenseRank
+from django.db.models.functions import RowNumber
 
 from api.models import Provider
 from api.query_filter import QueryFilter
@@ -735,6 +737,7 @@ class ReportQueryHandler(QueryHandler):
         gb = group_by_value if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
         rank_orders = []
+        expression = RowNumber()
 
         rank_annotations = {}
         if ("delta" in self.order) or ("-delta" in self.order):
@@ -750,6 +753,7 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
             # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
             if self.order_field == "account_alias":
+                expression = DenseRank()
                 rank_orders.append(getattr(F("special_rank"), self.order_direction)())
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
@@ -763,7 +767,7 @@ class ReportQueryHandler(QueryHandler):
             rank_orders.append(self.get_tag_order_by(gb[0]))
         # this is a sub-query, but not really.
         # in the future, this could be accomplished using CTEs.
-        rank_by_total = Window(expression=DenseRank(), order_by=rank_orders)
+        rank_by_total = Window(expression=expression, order_by=rank_orders)
 
         if rank_annotations:
             ranks = (
@@ -830,6 +834,7 @@ class ReportQueryHandler(QueryHandler):
         columns = aggs.columns.droplevel(1)
         aggs.columns = columns
         aggs.reset_index(inplace=True)
+        aggs = aggs.replace({np.nan: None})
         rank_data_frame = rank_data_frame.merge(aggs, on=group_by)
 
         # Create a dataframe of days in the query
