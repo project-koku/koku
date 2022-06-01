@@ -842,6 +842,7 @@ class ReportQueryHandler(QueryHandler):
             # TODO: CODY -> Figure out if this deepcopy is actually needed.
             # LOG.info(f"order_numbers: {order_numbers}")
             order_numbers = copy.deepcopy(order_numbers)
+            # order_mapping = copy.deepcopy(order_mapping)
         return out_data, order_mapping, order_numbers
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
@@ -904,7 +905,10 @@ class ReportQueryHandler(QueryHandler):
                                 count_usage = {"value": 0, "units": None}
                                 total_query[key] = copy.deepcopy(count_usage)
                             total_query_val = total_query.get(key).get("value")
-                            total_query[key]["value"] = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            value = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            total_query[key]["value"] = value
+                            LOG.info("\n\n\n\n\n\n")
+                            LOG.info(f"usage: {value}")
                             total_query[key]["units"] = data.get(key).get("units")
                     else:
                         base_val = total_query.get(key)
