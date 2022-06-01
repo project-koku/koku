@@ -838,7 +838,10 @@ class ReportQueryHandler(QueryHandler):
                     dict_to_update[group_by] = out_data
                 else:
                     order_mapping[date] = {group_by: out_data}
-            order_numbers.update(meta_data.get("order_numbers", {}))
+            meta_orders = meta_data.get("order_numbers", {})
+            for key in meta_orders.keys():
+                if key in order_numbers.keys():
+                    order_numbers[key].update(meta_orders.keys())
             # TODO: CODY -> Figure out if this deepcopy is actually needed.
             # LOG.info(f"order_numbers: {order_numbers}")
             order_numbers = copy.deepcopy(order_numbers)

@@ -478,12 +478,9 @@ class OCPReportViewTest(IamTestCase):
 
         # Check if limit returns the correct number of results, and
         # that the totals add up properly
-        LOG.info(f"totals: {pformat(totals)}")
         for item in data.get("data"):
-            LOG.info(f"item: {pformat(item)}")
             if item.get("nodes"):
                 date = item.get("date")
-                LOG.info(f"date: {pformat(date)}")
                 nodes = item.get("nodes")
                 node_total_usage = 0
                 for node in nodes:
