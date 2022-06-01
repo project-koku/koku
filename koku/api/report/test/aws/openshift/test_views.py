@@ -1052,17 +1052,24 @@ class OCPAWSReportViewTest(IamTestCase):
 
     def test_order_by_delta(self, mocked_exchange_rates):
         """Test that the order_by delta with pagination does not error."""
+        # also fix in instance type code
         limit = 5
         offset = 0
         url = reverse("reports-openshift-aws-instance-type")
         client = APIClient()
         params_list = [
-            {"filter[limit]": limit, "filter[offset]": offset, "order_by[delta]": "asc", "delta": "usage"},
+            {
+                "filter[limit]": limit,
+                "filter[offset]": offset,
+                "order_by[delta]": "asc",
+                "delta": "usage",
+            },
             {"order_by[delta]": "asc", "delta": "usage"},
         ]
 
         for params in params_list:
             url = url + "?" + urlencode(params, quote_via=quote_plus)
+            print("URL: ", url)
             response = client.get(url, **self.headers)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -1076,6 +1083,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
             compared_deltas = False
             for day in data:
+                print("\nDAY: ", day)
                 previous_delta = None
                 for instance_type in day.get("instance_types", []):
                     values = instance_type.get("values", [])

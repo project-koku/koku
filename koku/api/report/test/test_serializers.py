@@ -364,7 +364,7 @@ class QueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True
+            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True, path=""
         )
 
     def test_parse_query_params_success(self):
@@ -659,3 +659,17 @@ class ParamSerializerTest(TestCase):
             serializer = ParamSerializer(data=params)
             self.assertFalse(serializer.is_valid())
             serializer.is_valid(raise_exception=True)
+
+    def test_fail_without_group_by(self):
+        """Test fail if filter[limit] and filter[offset] passed without group by."""
+        param_failures_list = [
+            {"filter": {"limit": "1", "offset": "1"}},
+            {"filter": {"limit": "1"}},
+            {"filter": {"offset": "1"}},
+        ]
+        for param in param_failures_list:
+            with self.subTest(param=param):
+                with self.assertRaises(ValidationError):
+                    serializer = ParamSerializer(data=param)
+                    self.assertFalse(serializer.is_valid())
+                    serializer.is_valid(raise_exception=True)

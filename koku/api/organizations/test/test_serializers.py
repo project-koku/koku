@@ -102,12 +102,14 @@ class OrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {"invalid": "invalid"}
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -115,6 +117,7 @@ class OrgQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
@@ -138,6 +141,7 @@ class OrgQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},

@@ -139,6 +139,7 @@ class TagsQueryParamSerializerTest(IamTestCase):
     def test_parse_query_params_success(self):
         """Test parse of a query params successfully."""
         query_params = {"filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}}
+        self.request_context["request"].path = "/api/cost-management/v1/tags/aws/"
         serializer = TagsQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
@@ -147,6 +148,7 @@ class TagsQueryParamSerializerTest(IamTestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
+        self.request_context["request"].path = "/api/cost-management/v1/tags/aws/"
         serializer = OCPTagsQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -156,6 +158,7 @@ class TagsQueryParamSerializerTest(IamTestCase):
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "invalid": "param"}
         }
+        self.request_context["request"].path = "/api/cost-management/v1/tags/aws/"
         serializer = AWSTagsQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -163,6 +166,7 @@ class TagsQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
+        self.request_context["request"].path = "/api/cost-management/v1/tags/aws/"
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
@@ -186,6 +190,7 @@ class TagsQueryParamSerializerTest(IamTestCase):
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
+        self.request_context["request"].path = "/api/cost-management/v1/tags/aws/"
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},
