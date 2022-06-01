@@ -26,13 +26,14 @@ from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
-from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 from reporting_common.models import CostUsageReportStatus
+
+# from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -182,28 +183,149 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
-    def _generate_etag(self):
-        """
-        Generate the etag to be used for the download report & assembly_id.
-        To generate the etag, we use BigQuery to collect the last modified
-        date to the table and md5 hash it.
-        """
+    # def _generate_etag(self):
+    #     """
+    #     Generate the etag to be used for the download report & assembly_id.
+    #     To generate the etag, we use BigQuery to collect the last modified
+    #     date to the table and md5 hash it.
+    #     """
 
-        try:
-            client = bigquery.Client()
-            billing_table_obj = client.get_table(self.table_name)
-            last_modified = billing_table_obj.modified
-            modified_hash = hashlib.md5(str(last_modified).encode())
-            modified_hash = modified_hash.hexdigest()
-        except GoogleCloudError as err:
-            err_msg = (
-                "Could not obtain last modified date for BigQuery table."
-                f"\n  Provider: {self._provider_uuid}"
-                f"\n  Customer: {self.customer_name}"
-                f"\n  Response: {err.message}"
-            )
-            raise ReportDownloaderWarning(err_msg)
-        return modified_hash
+    #     try:
+    #         client = bigquery.Client()
+    #         billing_table_obj = client.get_table(self.table_name)
+    #         last_modified = billing_table_obj.modified
+    #         modified_hash = hashlib.md5(str(last_modified).encode())
+    #         modified_hash = modified_hash.hexdigest()
+    #     except GoogleCloudError as err:
+    #         err_msg = (
+    #             "Could not obtain last modified date for BigQuery table."
+    #             f"\n  Provider: {self._provider_uuid}"
+    #             f"\n  Customer: {self.customer_name}"
+    #             f"\n  Response: {err.message}"
+    #         )
+    #         raise ReportDownloaderWarning(err_msg)
+    #     return modified_hash
+
+    # TODO: Remove?
+    # def _generate_etag(self):
+    #     """
+    #     Generate the etag to be used for the download report & assembly_id.
+    #     To generate the etag, we use BigQuery to collect the last modified
+    #     date to the table and md5 hash it.
+    #     """
+
+    #     try:
+    #         client = bigquery.Client()
+    #         billing_table_obj = client.get_table(self.table_name)
+    #         last_modified = billing_table_obj.modified
+
+    #     except GoogleCloudError as err:
+    #         err_msg = (
+    #             "Could not obtain last modified date for BigQuery table."
+    #             f"\n  Provider: {self._provider_uuid}"
+    #             f"\n  Customer: {self.customer_name}"
+    #             f"\n  Response: {err.message}"
+    #         )
+    #         raise ReportDownloaderWarning(err_msg)
+    #     return modified_hash
+
+    def retrieve_current_manifests(self, start_date):
+        """
+        Checks for manifests with same bill_date & provider and determines
+        scan range. If manifests do exist it will return a mapping of
+        partition_dates to export time.
+
+        Returns:
+            manifests_dict: {partition_date: export_time}
+            example:
+                    {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
+
+        """
+        manifests_dict = {}
+        # Check to see if we have any manifests within the date range.
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.provider_uuid, start_date)
+            # if it is an empty list, that means it is the first time we are
+            # downloading this month, so we need to update our
+            # scan range to include the full month.
+            # TODO: SEE IF WE CAN MOVE THIS OUT OF THE WITH
+            if not manifests:
+                self.scan_start = start_date
+                end_of_month = start_date + relativedelta(months=1)
+                if isinstance(end_of_month, datetime.datetime):
+                    end_of_month = end_of_month.date()
+                if end_of_month < self.scan_end:
+                    self.scan_end = end_of_month
+                # This looks unnecessary, but it is used for day2day
+                # workflow testing with date override
+                today = DateAccessor().today().date()
+                if today < end_of_month:
+                    self.scan_end = today
+            else:
+                for manifest in manifests:
+                    last_export_time = manifests_dict.get(manifest.gcp_parition_date)
+                    if not last_export_time or manifest.export_time > last_export_time:
+                        manifests_dict[manifest.gcp_parition_date] = manifests_dict.export_time
+        return manifests_dict
+
+    def bigquery_export_to_partition_mapping(self):
+        """
+        Grab the parition_date & max(export_time) from BigQuery.
+
+        GCP is different from our other providers since we build the csvs
+        ourselves. Therefore, we need to check each day in the scan range
+        to see if there is new data to be downloaded. We do this by
+        collecting the partition date in GCP and mapping it to the last
+        time data was exported to that partition.
+
+        returns:
+            dict: {parition_date: export_time}
+            example:
+                {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
+        """
+        # TODO: Error Catching
+        mapping = {}
+        client = bigquery.Client()
+        export_partition_date_query = f"""
+            SELECT DATE(_PARTITIONTIME), max(export_time)  FROM {self.table_name}
+            WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
+            AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+        """
+        eq_result = client.query(export_partition_date_query).result()
+        for row in eq_result:
+            mapping[row[0]] = row[1]
+        return mapping
+
+    def create_new_manifests(self, current_manifests, bigquery_mappings):
+        """
+        Checks the partition dates and decides
+
+        Variable Shorthand:
+        *_pd = partition_date
+        *_et = export_time
+        """
+        new_manifests = []
+        for bigquery_pd, bigquery_et in bigquery_mappings:
+            manifest_export_time = current_manifests.get(bigquery_pd)
+            if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
+                # if the manifest export time does not match bigquery we have new data
+                # for that partion time and new manifest should be created.
+                manifest_kwargs = {}
+                file_name = f"{self.scan_start.strftime('%Y%m')}_{bigquery_pd}:{bigquery_et}.csv"
+                if manifest_export_time:
+                    manifest_kwargs["last_reports"] = {"last_export": manifest_export_time}
+                manifest_metadata = {
+                    "assembly_id": f"{bigquery_pd}:{bigquery_et}",
+                    "etag": hashlib.md5(str(f"{bigquery_pd}:{bigquery_et}").encode()).hexdigest(),
+                    "new_et": bigquery_et,
+                    "previous_et": manifest_export_time,
+                    "partition_date": bigquery_pd,
+                    "bill_date": self.scan_start.replace(day=1),
+                    "files": [file_name],
+                    "kwargs": manifest_kwargs,
+                }
+                new_manifests.append(manifest_metadata)
+        return new_manifests
 
     def get_manifest_context_for_date(self, date):
         """
@@ -220,24 +342,26 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-        manifest_dict = {}
-        report_dict = {}
-        manifest_dict = self._generate_monthly_pseudo_manifest(date)
-
-        file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
-        manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
-        )
-
-        report_dict["manifest_id"] = manifest_id
-        report_dict["assembly_id"] = manifest_dict.get("assembly_id")
-        report_dict["compression"] = manifest_dict.get("compression")
-        files_list = [
-            {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest_dict.get("file_names")
-        ]
-        report_dict["files"] = files_list
-        return report_dict
+        current_manifests = self.retrieve_current_manifests(date)
+        bigquery_mapping = self.bigquery_export_to_partition_mapping()
+        new_manifest_list = self.create_new_manifests(current_manifests, bigquery_mapping)
+        reports_list = []
+        for manifest in new_manifest_list:
+            manifest_id = self._process_manifest_db_record(
+                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh._now, manifest["kwargs"]
+            )
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
+            ]
+            report_dict = {
+                "manifest_id": manifest_id,
+                "assembly_id": manifest["assembly_id"],
+                "compression": UNCOMPRESSED,
+                "files": files_list,
+            }
+            reports_list.append(report_dict)
+        return reports_list
 
     def _generate_monthly_pseudo_manifest(self, start_date):
         """

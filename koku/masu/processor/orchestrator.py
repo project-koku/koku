@@ -231,6 +231,74 @@ class Orchestrator:
 
         return manifest, reports_tasks_queued
 
+        # TODO: I was working on returning more than one manifest.
+        # # only gcp returns more than one manifest at the moment.
+        # manifest_list = downloader.download_manifest(report_month)
+        # for manifest in manifest_list:
+        #     tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
+        #     files = manifest.get("files", [])
+        #     filenames = []
+        #     for file in files:
+        #         filenames.append(file.get("local_file"))
+        #     LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
+        #     files_list = [report.get("local_file") for report in manifest.get("files", [])]
+        #     if manifest:
+        #         LOG.debug("Saving all manifest file names.")
+        #         record_all_manifest_files(
+        #             manifest["manifest_id"], files_list, tracing_id
+        #         )
+
+        #     LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
+        #     report_files = manifest.get("files", [])
+        #     last_report_index = len(report_files) - 1
+        #     for i, report_file_dict in enumerate(report_files):
+        #         local_file = report_file_dict.get("local_file")
+        #         report_file = report_file_dict.get("key")
+
+        #         # Check if report file is complete or in progress.
+        #         if record_report_status(manifest["manifest_id"], local_file, "no_request"):
+        #             LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
+        #             continue
+
+        #         cache_key = f"{provider_uuid}:{report_file}"
+        #         if self.worker_cache.task_is_running(cache_key):
+        #             LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
+        #             continue
+
+        #         report_context = manifest.copy()
+        #         report_context["current_file"] = report_file
+        #         report_context["local_file"] = local_file
+        #         report_context["key"] = report_file
+        #         report_context["request_id"] = tracing_id
+
+        #         if provider_type in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP] or i == last_report_index:
+        #             # This create_table flag is used by the ParquetReportProcessor
+        #             # to create a Hive/Trino table.
+        #             # To reduce the number of times we check Trino/Hive tables, we just do this
+        #             # on the final file of the set.
+        #             report_context["create_table"] = True
+        #         # add the tracing id to the report context
+        #         # This defaults to the celery queue
+        #         report_tasks.append(
+        #             get_report_files.s(
+        #                 customer_name,
+        #                 credentials,
+        #                 data_source,
+        #                 provider_type,
+        #                 schema_name,
+        #                 provider_uuid,
+        #                 report_month,
+        #                 report_context,
+        #             ).set(queue=REPORT_QUEUE)
+        #         )
+        #         LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
+
+        # if report_tasks:
+        #     reports_tasks_queued = True
+        #     async_id = chord(report_tasks, summarize_reports.s().set(queue=SUMMARY_QUEUE))()
+        #     LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+        # return reports_tasks_queued
+
     def prepare(self):
         """
         Prepare a processing request for each account.
@@ -256,7 +324,7 @@ class Orchestrator:
                 )
                 account["report_month"] = month
                 try:
-                    _, reports_tasks_queued = self.start_manifest_processing(**account)
+                    reports_tasks_queued = self.start_manifest_processing(**account)
                 except ReportDownloaderError as err:
                     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
                     continue

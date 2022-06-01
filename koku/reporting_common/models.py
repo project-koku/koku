@@ -35,6 +35,7 @@ class CostUsageReportManifest(models.Model):
     provider = models.ForeignKey("api.Provider", on_delete=models.CASCADE)
     export_time = models.DateTimeField(null=True)
     last_reports = models.JSONField(default=dict, null=True)
+    gcp_parition_date = models.DateField(null=True)
 
 
 class CostUsageReportStatus(models.Model):
