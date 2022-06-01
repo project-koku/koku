@@ -5,6 +5,7 @@
 """Query Handling for Reports."""
 import copy
 import logging
+import operator
 import random
 import re
 import string
@@ -18,6 +19,7 @@ from functools import cached_property
 from itertools import groupby
 from json import dumps as json_dumps
 from urllib.parse import quote_plus
+from uuid import UUID
 
 import ciso8601
 from django.db.models import F
@@ -130,7 +132,6 @@ class ReportQueryHandler(QueryHandler):
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -159,7 +160,6 @@ class ReportQueryHandler(QueryHandler):
                 Provider.OCP_GCP: "currency",
             }
             base = query_set.get(codes.get(self.provider))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
             generic_list = [
                 "infra_total",
@@ -180,6 +180,11 @@ class ReportQueryHandler(QueryHandler):
             for value in generic_list:
                 orig_value = total_query[value]
                 total_query[value] = orig_value + Decimal(query_set.get(value)) * Decimal(exchange_rate)
+            for each in ["count", "usage"]:
+                orig_value = total_query.get(each)
+                new_val = query_set.get(each)
+                if new_val is not None:
+                    total_query[each] = (orig_value or 0) + Decimal(query_set.get(each, 0))
         return total_query
 
     @cached_property
@@ -218,7 +223,7 @@ class ReportQueryHandler(QueryHandler):
         try:
             query_table = self._mapper.views[report_type][report_group]
         except KeyError:
-            msg = f"{report_group} for {report_type} has no entry in views. Using the default."
+            msg = f"{report_group} for {report_type} has no entry in views. Using the default ({query_table})."
             LOG.warning(msg)
         return query_table
 
@@ -520,6 +525,8 @@ class ReportQueryHandler(QueryHandler):
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
+            if type(key) == list:
+                key = "Others"
             datapoint = out_data.get(key)
             if datapoint and isinstance(datapoint, dict):
                 if isinstance(grouped, OrderedDict) and isinstance(datapoint, OrderedDict):
@@ -535,6 +542,7 @@ class ReportQueryHandler(QueryHandler):
                 out_data[key] = grouped + datapoint
             else:
                 out_data[key] = grouped
+
         return out_data
 
     def _apply_group_null_label(self, data, groupby=None):
@@ -695,22 +703,21 @@ class ReportQueryHandler(QueryHandler):
     def _apply_total_exchange(self, data):
         source_uuid = data.get("source_uuid")
         base_currency = KOKU_DEFAULT_CURRENCY
-        if self._report_type == "costs":
-            exchange_rate = 1
-            if source_uuid:
-                base_currency = self._get_base_currency(source_uuid[0])
-                exchange_rate = self._get_exchange_rate(base_currency)
-            for key, value in data.items():
-                if key in ["infrastructure", "supplementary", "cost"]:
-                    for in_key, in_value in value.items():
-                        for this_key, this_value in in_value.items():
-                            if this_key in ["units"]:
-                                # change to currency code
-                                in_value[this_key] = self.currency
-                            elif this_key in ["value"]:
-                                in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
-                                # multiply and override
-                            value[in_key] = in_value
+        exchange_rate = 1
+        if source_uuid:
+            base_currency = self._get_base_currency(source_uuid[0])
+            exchange_rate = self._get_exchange_rate(base_currency)
+        for key, value in data.items():
+            if key in ["infrastructure", "supplementary", "cost"]:
+                for in_key, in_value in value.items():
+                    for this_key, this_value in in_value.items():
+                        if this_key in ["units"]:
+                            # change to currency code
+                            in_value[this_key] = self.currency
+                        elif this_key in ["value"]:
+                            in_value[this_key] = Decimal(this_value) * Decimal(exchange_rate)
+                            # multiply and override
+                        value[in_key] = in_value
 
         return data
 
@@ -727,7 +734,18 @@ class ReportQueryHandler(QueryHandler):
                     dictionary[key] = new_values
         return data
 
-    def format_for_ui_recursive(self, groupby, out_data, org_unit_applied=False, level=-1, org_id=None, org_type=None):
+    def format_for_ui_recursive(
+        self,
+        groupby,
+        out_data,
+        org_unit_applied=False,
+        level=-1,
+        org_id=None,
+        org_type=None,
+        extra_deltas=None,
+        order_mapping={},
+        order_numbers={},
+    ):
         """Format the data for the UI."""
         level += 1
         overall = []
@@ -740,12 +758,13 @@ class ReportQueryHandler(QueryHandler):
             if level == len(groupby):
                 new_value = []
                 for value in out_data:
-                    # org_applied = False
-                    # if "org_entitie" in groupby:
-                    #     org_applied = True
-                    new_values = self.aggregate_currency_codes_ui(value)
+                    new_values, order_mapping, order_numbers = self.aggregate_currency_codes_ui(
+                        value, extra_deltas, order_mapping, order_numbers
+                    )
+                    # TODO: CODY - I have built the order_mapping here using new values?
+                    # LOG.info(new_values)
                     new_value.append(new_values)
-                return new_value
+                return new_value, order_mapping, order_numbers
             else:
                 group = groupby[level]
                 if group.startswith("tags"):
@@ -756,11 +775,18 @@ class ReportQueryHandler(QueryHandler):
                     new_out_data = value.get(group + "s")
                     org_id = value.get("id")
                     org_type = value.get("type")
-                    value[group + "s"] = self.format_for_ui_recursive(
-                        groupby, new_out_data, level=level, org_id=org_id, org_type=org_type
+                    value_return, order_mapping, order_numbers = self.format_for_ui_recursive(
+                        groupby,
+                        new_out_data,
+                        level=level,
+                        org_id=org_id,
+                        org_type=org_type,
+                        order_mapping=order_mapping,
+                        order_numbers=order_numbers,
                     )
+                    value[group + "s"] = value_return
                     overall.append(value)
-        return overall
+        return overall, order_mapping, order_numbers
 
     def get_codes(self):
         codes = {
@@ -778,25 +804,51 @@ class ReportQueryHandler(QueryHandler):
                 codes[Provider.PROVIDER_OCP] = "source_uuids"
         return codes
 
-    def aggregate_currency_codes_ui(self, out_data):
+    def aggregate_currency_codes_ui(self, out_data, extra_deltas, order_mapping, order_numbers):
         """Aggregate currency code info for UI."""
         codes = self.get_codes()
         currency_codes = out_data.get(codes.get(self.provider))
         if self.provider != Provider.PROVIDER_OCP:
-            total_query = self.aggregate_currency_codes(currency_codes)
-            out_data["values"] = [total_query]
+            total_query, meta_data = self.aggregate_currency_codes(currency_codes)
+            total_query_list = [total_query]
+            if not total_query.get("date"):
+                total_query_list = []
+            out_data["values"] = total_query_list
             currencys = out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currencys
         else:
-            total_query, new_codes = self.aggregate_currency_codes(currency_codes)
-            out_data["values"] = [total_query]
+            if self.provider == Provider.PROVIDER_OCP:
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes, extra_deltas)
+            else:
+                total_query, new_codes, meta_data = self.aggregate_currency_codes(currency_codes)
+            total_query_list = [total_query]
+            if not total_query.get("date"):
+                total_query_list = []
+            out_data["values"] = total_query_list
             currency_list = []
             for key, value in new_codes.items():
                 cur_dictionary = {"currency": key, "values": [value]}
                 currency_list.append(cur_dictionary)
             out_data.pop(codes.get(self.provider))
             out_data["currencys"] = currency_list
-        return out_data
+            group_by_key = meta_data.get("group_by_key")
+            date = meta_data.get("date")
+            group_by = out_data.get(group_by_key)
+            if group_by_key:
+                if order_mapping.get(date):
+                    dict_to_update = order_mapping[date]
+                    dict_to_update[group_by] = out_data
+                else:
+                    order_mapping[date] = {group_by: out_data}
+            meta_orders = meta_data.get("order_numbers", {})
+            for key in meta_orders.keys():
+                if key in order_numbers.keys():
+                    order_numbers[key].update(meta_orders.keys())
+            # TODO: CODY -> Figure out if this deepcopy is actually needed.
+            # LOG.info(f"order_numbers: {order_numbers}")
+            order_numbers = copy.deepcopy(order_numbers)
+            # order_mapping = copy.deepcopy(order_mapping)
+        return out_data, order_mapping, order_numbers
 
     def aggregate_currency_codes(self, currency_codes):  # noqa: C901
         """Aggregate and format the data after currency."""
@@ -850,6 +902,19 @@ class ReportQueryHandler(QueryHandler):
                             total_query[key][each]["value"] = Decimal(data.get(key).get(each).get("value")) + Decimal(
                                 orig_value
                             )
+                    elif key in ["count", "usage"]:
+                        check_val = data.get(key)
+                        if check_val:
+                            orig_value = total_query.get(key)
+                            if not orig_value:
+                                count_usage = {"value": 0, "units": None}
+                                total_query[key] = copy.deepcopy(count_usage)
+                            total_query_val = total_query.get(key).get("value")
+                            value = Decimal(data.get(key).get("value")) + Decimal(total_query_val)
+                            total_query[key]["value"] = value
+                            LOG.info("\n\n\n\n\n\n")
+                            LOG.info(f"usage: {value}")
+                            total_query[key]["units"] = data.get(key).get("units")
                     else:
                         base_val = total_query.get(key)
                         new_val = data.get(key)
@@ -862,9 +927,55 @@ class ReportQueryHandler(QueryHandler):
                             if new_val:
                                 total_query[key] = total_query.get(key, 0) + data.get(key)
                         if base_val and not isinstance(base_val, str):
-                            new_val = base_val + new_val
+                            new_val = list(filter(None, (base_val + new_val)))
                         total_query[key] = new_val
-        return total_query
+        return total_query, {}
+
+    def find_key_order(self, order_numbers):
+        """
+        orders the key
+        """
+        pagination_key = "Others"
+        ordered_dict = dict()
+        for date_key, values in order_numbers.items():
+            sort_by_number = operator.itemgetter(1)
+            expected_key_order = sorted(values.items(), key=sort_by_number, reverse=True)
+            key_list = [key[0] for key in expected_key_order]
+            if pagination_key in key_list:
+                # The "Others" should always be at the end
+                # during pagination.
+                key_list.remove(pagination_key)
+                key_list.append(pagination_key)
+            ordered_dict[date_key] = key_list
+        return ordered_dict
+
+    def build_reordered(self, data, key_order_mapping, key_map, group_key, date=None):  # noqa: C901
+        """
+        Builds reordered data.
+        data: list of dictionaries
+        key_order: List with order the keys should be in
+        key_map: dictionary that is mapping of data
+        """
+        if not key_order_mapping or not key_map:
+            return data
+        if isinstance(data, list):
+            if data and isinstance(data[0], dict):
+                if "currencys" in data[0].keys() and group_key in data[0].keys():
+                    new_data = []
+                    key_order = key_order_mapping.get(date)
+                    if key_order:
+                        for key in key_order:
+                            new_data.append(key_map.get(date, {}).get(key))
+                        return new_data
+                    return data
+            for value in data:
+                return [self.build_reordered(value, key_order_mapping, key_map, group_key, date)]
+        elif isinstance(data, dict):
+            for dikt_key, dikt_value in data.items():
+                if "date":
+                    date = data.get("date")
+                data[dikt_key] = self.build_reordered(dikt_value, key_order_mapping, key_map, group_key, date)
+        return data
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""
@@ -895,7 +1006,7 @@ class ReportQueryHandler(QueryHandler):
                 group_label = f"no-{group_title}"
             cur = {group_title: group_label, label: self._transform_data(groups, next_group_index, group_value)}
             out_data.append(cur)
-        if self.provider != Provider.PROVIDER_OCP and self._report_type == "costs":
+        if self.provider != Provider.PROVIDER_OCP:
             out_data = self._apply_exchange_rate(out_data)
         return out_data
 
@@ -1104,25 +1215,32 @@ class ReportQueryHandler(QueryHandler):
 
     def _zerofill_ranks(self, data, ranks, account_alias_map):
         """Ensure the data set has at least one entry from every ranked category."""
-        rank_field = self._get_group_by()[0]
-        missing = set(ranks) - {item[rank_field] for item in data}
 
-        if missing:
+        def _else_condition(value):
+            """Write logic to determine what value we return."""
+            if isinstance(value, UUID):
+                return str(value)
+            return type(value)()
+
+        rank_field = self._get_group_by()[0]
+        missing_set = set(ranks) - {item[rank_field] for item in data}
+
+        if missing_set:
             fd = data[0]  # first data record
             fd_date = data[0].get("date")  # first data record date field
 
             data.extend(
                 {
-                    k: m
-                    if k == rank_field
+                    key: missing
+                    if key == rank_field
                     else fd_date
-                    if k == "date"
-                    else account_alias_map.get(m, m)
-                    if k == "account_alias" and rank_field == "account"
-                    else type(v)()
-                    for k, v in fd.items()
+                    if key == "date"
+                    else account_alias_map.get(missing, missing)
+                    if key == "account_alias" and rank_field == "account"
+                    else _else_condition(value)
+                    for key, value in fd.items()
                 }
-                for m in missing
+                for missing in missing_set
             )  # noqa
 
         return data
@@ -1179,7 +1297,10 @@ class ReportQueryHandler(QueryHandler):
                 source_uuids_list = set()
                 for entry in others_list:
                     clusters_list.update(entry.get("clusters", []))
-                    source_uuids_list.update(entry.get("source_uuid", []))
+                    source_uuid = entry.get("source_uuid", [])
+                    if source_uuid and type(source_uuid) != list:
+                        source_uuid = [source_uuid]
+                    source_uuids_list.update(source_uuid)
                 other["clusters"] = list(clusters_list)
                 other["source_uuid"] = list(source_uuids_list)
                 exclusions = ()
@@ -1287,8 +1408,7 @@ class ReportQueryHandler(QueryHandler):
         """
         delta_group_by = ["date"] + self._get_group_by()
         codes = self.get_codes()
-        if self._report_type == "costs":
-            delta_group_by.append(codes.get(self.provider)[:-1])
+        delta_group_by.append(codes.get(self.provider)[:-1])
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
@@ -1296,8 +1416,12 @@ class ReportQueryHandler(QueryHandler):
             key = tuple(row[key] for key in delta_group_by)
             try:
                 previous_total = previous_dict.get(json_dumps(key)) or 0
+                if previous_total != 0:
+                    previous_dict.pop(json_dumps(key))
             except TypeError:
                 previous_total = previous_dict.get(json_dumps(str(key))) or 0
+                if previous_total != 0:
+                    previous_dict.pop(json_dumps(str(key)))
             current_total = row.get(self._delta) or 0
             row["delta_value"] = current_total - previous_total
             row["delta_percent"] = self._percent_delta(current_total, previous_total)
@@ -1314,11 +1438,17 @@ class ReportQueryHandler(QueryHandler):
                 current_total_sum = Decimal(query_sum.get("cost") or 0)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         prev_total_sum = previous_query.aggregate(value=delta_field)
+        dates_to_keep = {}
         if self.resolution == "daily":
             dates = [entry.get("date") for entry in query_data]
+            dates_copy = copy.deepcopy(dates)
             prev_total_filters = self._get_previous_totals_filter(dates)
             if prev_total_filters:
                 prev_total_sum = previous_query.filter(prev_total_filters).aggregate(value=delta_field)
+            for key in previous_dict.keys():
+                for date in set(dates_copy):
+                    if date in key:
+                        dates_to_keep[date] = previous_dict.get(key)
 
         prev_total_sum = Decimal(prev_total_sum.get("value") or 0)
 
@@ -1332,4 +1462,4 @@ class ReportQueryHandler(QueryHandler):
             query_data = sorted(
                 list(query_data), key=lambda x: (x.get("delta_value", 0), x.get("delta_percent", 0)), reverse=reverse
             )
-        return query_data
+        return query_data, dates_to_keep

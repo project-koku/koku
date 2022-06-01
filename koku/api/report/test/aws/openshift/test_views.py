@@ -131,7 +131,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
         for item in data.get("data"):
             if item.get("values"):
-                values = item.get("values")[0]
+                values = list(item.get("values")[0])
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
 

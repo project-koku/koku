@@ -39,7 +39,7 @@ def _calculate_subtotals(data, cost, infra, sup):
         if isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):
-                    if "values" in item.keys():
+                    if "values" in item.keys() and item["values"]:
                         value = item["values"][0]
                         cost.append(value["cost"]["total"]["value"])
                         infra.append(value["infrastructure"]["total"]["value"])
@@ -82,6 +82,33 @@ class OCPReportQueryHandlerTest(IamTestCase):
             filters = self.this_month_filter
         with tenant_context(self.tenant):
             return OCPUsageLineItemDailySummary.objects.filter(**filters).aggregate(**aggregates)
+
+    def _compare_query_results(self, group_by):
+        """Helper function to return the query results in comparable format."""
+        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
+        url = base_url + sub_url
+        query_params = self.mocked_query_params(url, OCPCpuView)
+        handler = OCPReportQueryHandler(query_params)
+        query_data = handler.execute_query()
+        the_sum = handler.query_sum
+        data = query_data["data"][0]
+        result_cost, result_infra, result_sup = _calculate_subtotals(data, [], [], [])
+        test_dict = {
+            "cost": {
+                "expected": the_sum.get("cost", {}).get("total", {}).get("value"),
+                "result": sum(result_cost),
+            },
+            "infra": {
+                "expected": the_sum.get("infrastructure", {}).get("total", {}).get("value"),
+                "result": sum(result_infra),
+            },
+            "sup": {
+                "expected": the_sum.get("supplementary", {}).get("total", {}).get("value"),
+                "result": sum(result_sup),
+            },
+        }
+        return test_dict
 
     def test_execute_sum_query(self, mocked_exchange_rates):
         """Test that the sum query runs properly."""
@@ -136,7 +163,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         capacity_by_cluster = defaultdict(Decimal)
         total_capacity = Decimal(0)
@@ -154,7 +180,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 cluster_id = entry.get("cluster_id", "")
                 capacity_by_cluster[cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
-
+        query_data = handler.execute_query()
         for entry in query_data.get("data", []):
             for cluster in entry.get("clusters", []):
                 cluster_name = cluster.get("cluster", "")
@@ -170,7 +196,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?start_date={start_date}&end_date={end_date}&filter[resolution]=monthly"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         with tenant_context(self.tenant):
             total_capacity = (
@@ -181,6 +206,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 .annotate(capacity=Max("cluster_capacity_cpu_core_hours"))
                 .aggregate(total=Sum("capacity"))
             )
+        query_data = handler.execute_query()
         self.assertAlmostEqual(
             query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity.get("total"), 6
         )
@@ -193,7 +219,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         capacity_by_month_cluster = defaultdict(lambda: defaultdict(Decimal))
         total_capacity = Decimal(0)
@@ -212,7 +237,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 month = entry.get("usage_start", "").month
                 capacity_by_month_cluster[month][cluster_id] += entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
-
+        query_data = handler.execute_query()
         for entry in query_data.get("data", []):
             month = int(entry.get("date").split("-")[1])
             for cluster in entry.get("clusters", []):
@@ -227,27 +252,30 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily"
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         daily_capacity = defaultdict(Decimal)
+        daily_caplist = defaultdict(list)
         total_capacity = Decimal(0)
         query_filter = handler.query_filter
-        query_group_by = ["usage_start", "cluster_id"]
+        query_group_by = ["usage_start", "cluster_id", "source_uuid"]
         annotations = {"capacity": Max("cluster_capacity_cpu_core_hours")}
         cap_key = list(annotations.keys())[0]
 
-        q_table = handler._mapper.provider_map.get("tables").get("query")
-        query = q_table.objects.filter(query_filter)
-
         with tenant_context(self.tenant):
+            q_table = handler._mapper.provider_map.get("tables").get("query")
+            query = q_table.objects.filter(query_filter)
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 date = handler.date_to_string(entry.get("usage_start"))
                 daily_capacity[date] += entry.get(cap_key, 0)
+                daily_caplist[date] += [entry.get(cap_key, 0)]
             cap_data = query.values(*query_group_by).annotate(**annotations)
             for entry in cap_data:
                 total_capacity += entry.get(cap_key, 0)
 
+        # For some reason we needed to move the execute query down to
+        # avoid an aborted transaction error while running the test.
+        query_data = handler.execute_query()
         self.assertEqual(query_data.get("total", {}).get("capacity", {}).get("value"), total_capacity)
         for entry in query_data.get("data", []):
             date = entry.get("date")
@@ -263,7 +291,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
         )
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
-        query_data = handler.execute_query()
 
         daily_capacity_by_cluster = defaultdict(dict)
         total_capacity = Decimal(0)
@@ -285,7 +312,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                 else:
                     daily_capacity_by_cluster[date][cluster_id] = entry.get(cap_key, 0)
                 total_capacity += entry.get(cap_key, 0)
-
+        query_data = handler.execute_query()
         for entry in query_data.get("data", []):
             date = entry.get("date")
             for cluster in entry.get("clusters", []):
@@ -583,47 +610,77 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
                         self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
 
-    def test_subtotals_add_up_to_total(self, mocked_exchange_rates):
+    def test_subtotals_add_up_to_total_pcn(self, mocked_exchange_rates):
         """Test the apply_group_by handles different grouping scenerios."""
-        group_by_list = [
-            ("project", "cluster", "node"),
-            ("project", "node", "cluster"),
-            ("cluster", "project", "node"),
-            ("cluster", "node", "project"),
-            ("node", "cluster", "project"),
-            ("node", "project", "cluster"),
-        ]
-        base_url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=3"  # noqa: E501
+        group_by = ("project", "cluster", "node")
         tolerance = 1
-        for group_by in group_by_list:
-            sub_url = "&group_by[%s]=*&group_by[%s]=*&group_by[%s]=*" % group_by
-            url = base_url + sub_url
-            query_params = self.mocked_query_params(url, OCPCpuView)
-            handler = OCPReportQueryHandler(query_params)
-            query_data = handler.execute_query()
-            the_sum = handler.query_sum
-            data = query_data["data"][0]
-            result_cost, result_infra, result_sup = _calculate_subtotals(data, [], [], [])
-            test_dict = {
-                "cost": {
-                    "expected": the_sum.get("cost", {}).get("total", {}).get("value"),
-                    "result": sum(result_cost),
-                },
-                "infra": {
-                    "expected": the_sum.get("infrastructure", {}).get("total", {}).get("value"),
-                    "result": sum(result_infra),
-                },
-                "sup": {
-                    "expected": the_sum.get("supplementary", {}).get("total", {}).get("value"),
-                    "result": sum(result_sup),
-                },
-            }
-            for _, data in test_dict.items():
-                expected = data["expected"]
-                result = data["result"]
-                self.assertIsNotNone(expected)
-                self.assertIsNotNone(result)
-                self.assertLessEqual(abs(expected - result), tolerance)
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_cpn(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("cluster", "project", "node")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_pnc(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("project", "node", "cluster")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_cnp(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("cluster", "node", "project")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_ncp(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("node", "cluster", "project")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
+
+    def test_subtotals_add_up_to_total_npc(self, mocked_exchange_rates):
+        """Test the apply_group_by handles different grouping scenerios."""
+        group_by = ("node", "project", "cluster")
+        tolerance = 1
+        test_results = self._compare_query_results(group_by)
+        for _, data in test_results.items():
+            expected = data["expected"]
+            result = data["result"]
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(result)
+            self.assertLessEqual(abs(expected - result), tolerance)
 
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler._get_base_currency", return_value="USD")
     def test_source_uuid_mapping(self, mocked_exchange_rates, mocked_base_currency):  # noqa: C901

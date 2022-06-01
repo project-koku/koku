@@ -34,12 +34,11 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
         with tenant_context(self.tenant):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-            cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", self.currency)
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
-            if self._report_type == "costs" and not is_csv_output:
+            if not is_csv_output:
                 query_group_by.append("currency_code")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -58,19 +57,18 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type == "costs" and not is_csv_output:
+                if not is_csv_output:
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
                 query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
+                query_data, _ = self.add_deltas(query_data, query_sum)
 
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
-                cost_units_value = query_data[0].get("cost_units")
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
@@ -113,10 +111,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
-        if self._report_type == "costs":
-            query_sum["cost_units"] = self.currency
-        else:
-            query_sum["cost_units"] = cost_units_value
+        query_sum["cost_units"] = self.currency
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
@@ -132,8 +127,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 
-        if self._report_type == "costs" and not is_csv_output:
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+        if not is_csv_output:
+            self.query_data, _, _ = self.format_for_ui_recursive(groupby, self.query_data)
         return self._format_query_response()
 
 

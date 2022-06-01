@@ -154,7 +154,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
-            if self._report_type == "costs" and not self.is_csv_output:
+            if not self.is_csv_output:
                 query_group_by.append("currency")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
@@ -169,7 +169,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                     query_order_by[-1] = "rank"
 
             if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
+                query_data, _ = self.add_deltas(query_data, query_sum)
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -217,8 +217,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
         self.query_sum = ordered_total
         groupby = self._get_group_by()
 
-        if self._report_type == "costs" and not self.is_csv_output:
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+        if not self.is_csv_output:
+            self.query_data, _, _ = self.format_for_ui_recursive(groupby, self.query_data)
 
         return self._format_query_response()
 
@@ -233,23 +233,19 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
-        if self._report_type == "costs" and not self.is_csv_output:
+        if not self.is_csv_output:
             query_group_by.append("currency")
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
-        if self._report_type == "costs":
-            total_queryset = query_data.annotate(**aggregates)
-            total_query = self.return_total_query(total_queryset)
-        else:
-            total_query = query.aggregate(**aggregates)
+        total_queryset = query_data.annotate(**aggregates)
+        total_query = self.return_total_query(total_queryset)
         for unit_key, unit_value in units.items():
-            if self._report_type == "costs":
+            total_query[unit_key] = unit_value
+            if unit_key not in ["usage_units"]:
                 total_query[unit_key] = self.currency
-            else:
-                total_query[unit_key] = unit_value
         if counts:
             total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)

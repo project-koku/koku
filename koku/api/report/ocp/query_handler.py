@@ -130,8 +130,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
     def return_total_query(self, total_queryset):
         """Return total query data for calculate_total."""
+        # TODO: Cody - Could we simplfy this by using an odered dictionary.
         total_query = {
-            "date": None,
             "infra_total": 0,
             "infra_raw": 0,
             "infra_usage": 0,
@@ -150,9 +150,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
         for query_set in total_queryset:
             base = self._get_base_currency(query_set.get("source_uuid_id", query_set.get("source_uuid")))
-            total_query["date"] = query_set.get("date")
             exchange_rate = self._get_exchange_rate(base)
-            total_query["date"] = query_set.get("date")
             for value in [
                 "infra_total",
                 "infra_raw",
@@ -173,10 +171,37 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 orig_value = total_query[value]
                 total_query[value] = orig_value + (query_set.get(value) * Decimal(exchange_rate))
 
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            query_keys = aggregates.keys()
+            for each in ["usage", "request", "limit", "capacity"]:
+                orig_value = total_query.get(each, 0)
+                new_val = query_set.get(each)
+                if new_val is not None or (each in query_keys):
+                    total_query[each] = orig_value + Decimal(new_val or 0)
         return total_query
 
-    def aggregate_currency_codes(self, currency_codes):  # noqa: C901
+    def _find_identity_key(self):
+        """
+        Finds the best identify key for order by
+        """
+        # If there is no group by then it is sorted by day
+        group_by = None
+        order_by = None
+        groupby = self._get_group_by()
+        if groupby:
+            group_by = groupby[0]
+        if self.order:
+            order_by = self.order[0]
+        return group_by, order_by
+
+    # fmt: off
+    def aggregate_currency_codes(self, currency_codes, extra_deltas):  # noqa: C901, E501
         """Aggregate and format the unconverted after currency."""
+        # fmt: on
+        order_numbers = {}
+        meta_data = {}
+        group_by, order_by = self._find_identity_key()
+        meta_data["group_by_key"] = group_by
         total_results = {
             "date": None,
             "source_uuid": [],
@@ -212,6 +237,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
             exchange_rate = self._get_exchange_rate(currency)
             ui_dikts = {"total": total_results}
             for unconverted in unconverted_values:
+                groupby_key_value = unconverted.get(group_by)
+                date = unconverted.get("date")
+                meta_data["date"] = date
                 currencys_values = currencys.get(currency)
                 ui_dikts["currencys"] = currencys_values
                 initial_currency_ingest = False
@@ -244,7 +272,24 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                     )
                                     ui_view_dikt[key][each]["value"] = Decimal(converted) + Decimal(current_ui_value)
                         elif key == "delta_value" and unconverted.get(key):
-                            ui_view_dikt[key] = ui_view_dikt.get(key, 0) + unconverted.get(key)
+                            ui_view_dikt[key] = Decimal(ui_view_dikt.get(key, 0)) + Decimal(unconverted.get(key, 0))
+                        elif key in ["usage", "request", "limit"]:
+                            check_val = unconverted.get(key)
+                            if check_val:
+                                orig_value = ui_view_dikt.get(key)
+                                if not orig_value:
+                                    usage = {"value": 0, "units": None}
+                                    ui_view_dikt[key] = copy.deepcopy(usage)
+                                total_query_val = ui_view_dikt.get(key).get("value")
+                                order_value = Decimal(check_val.get("value")) + Decimal(total_query_val)
+                                ui_view_dikt[key]["value"] = order_value
+                                ui_view_dikt[key]["units"] = check_val.get("units")
+                                if key in order_by and groupby_key_value:
+                                    if order_numbers.get(date):
+                                        dict_to_update = order_numbers[date]
+                                        dict_to_update[groupby_key_value] = order_value
+                                    else:
+                                        order_numbers[date] = {groupby_key_value: order_value}
                         elif key == "delta_percent":
                             current_delta = unconverted.get("delta_value", 0)
                             percentage = unconverted.get("delta_percent", None)
@@ -263,15 +308,32 @@ class OCPReportQueryHandler(ReportQueryHandler):
                                     current_vals = [current_vals]
                                 if not isinstance(new_val, list):
                                     new_val = [new_val]
-                            if current_vals and not isinstance(current_vals, str):
+                            if (
+                                current_vals
+                                and not isinstance(current_vals, str)
+                                and not isinstance(current_vals, dict)
+                            ):
                                 new_val = current_vals + new_val
                             ui_view_dikt[key] = new_val
                         sum_previous_delta = False
                 if initial_currency_ingest:
                     currencys[currency] = ui_dikts["currencys"]
         if total_results.get("delta_value") and overall_previous_total:
-            total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
-        return total_results, currencys
+            if "__" not in self._delta:
+                total_results["delta_percent"] = (total_results.get("delta_value") / overall_previous_total) * 100
+            else:
+                delta_dikt = {}
+                deltas = self._delta.split("__")
+                for each in deltas:
+                    value = total_results.get(each, {}).get("value", 0)
+                    delta_dikt[each] = value
+                total_results["delta_percent"] = delta_dikt[deltas[0]] / delta_dikt[deltas[1]] * 100
+        # add last delta check
+        date = total_results.get("date")
+        if date and extra_deltas and date in extra_deltas.keys():
+            total_results["delta_value"] = total_results.get("delta_value") - extra_deltas.get(date, 0)
+        meta_data["order_numbers"] = order_numbers
+        return total_results, currencys, meta_data
 
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
@@ -287,7 +349,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by_value = self._get_group_by()
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
             query_group_by = ["date"] + group_by_value
-            if (self._report_type == "costs" or self._report_type == "costs_by_project") and not is_csv_output:
+            if not is_csv_output:
                 if self.query_table == OCPUsageLineItemDailySummary:
                     query_group_by.append("source_uuid")
                     self.report_annotations.pop("source_uuid")
@@ -298,7 +360,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
-
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 # the no node issue is happening here
@@ -309,18 +370,18 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                if self._report_type == "costs" and not is_csv_output:
+                if not is_csv_output:
                     metric_sum = self.return_total_query(query_data)
                 else:
                     metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: round(metric_sum.get(key), 11) for key in aggregates}
+                query_sum = {key: round(metric_sum.get(key, 0), 11) for key in aggregates}
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
                 query_sum.update(total_capacity)
-
+            extra_deltas = {}
             if self._delta:
-                query_data = self.add_deltas(query_data, query_sum)
+                query_data, extra_deltas = self.add_deltas(query_data, query_sum)
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -364,11 +425,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 groups.remove("date")
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
-
-        if self._report_type == "costs":
-            sum_init = {"cost_units": self.currency}
-        else:
-            sum_init = {"cost_units": self._mapper.cost_units_key}
+        sum_init = {"cost_units": self.currency}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
@@ -379,9 +436,20 @@ class OCPReportQueryHandler(ReportQueryHandler):
         ordered_total.update(query_sum)
 
         self.query_data = data
-        if (self._report_type == "costs" or self._report_type == "costs_by_project") and not is_csv_output:
+        if not is_csv_output:
             groupby = self._get_group_by()
-            self.query_data = self.format_for_ui_recursive(groupby, self.query_data)
+            self.query_data, order_mapping, order_numbers = self.format_for_ui_recursive(
+                groupby,
+                self.query_data,
+                extra_deltas=extra_deltas)
+            key_order_dict = self.find_key_order(order_numbers)
+            # TODO: CODY - The ordering logic I came up with
+            # does not work on multiple group bys.
+            if len(groupby) == 1:
+                # TODO: Cody - Figure out if this deepcopy is needed
+                copy_data = copy.deepcopy(self.query_data)
+                self.query_data = self.build_reordered(copy_data, key_order_dict, order_mapping, groupby[0])
+
         self.query_sum = ordered_total
 
         return self._format_query_response()
@@ -461,7 +529,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         """
         if "__" in self._delta:
-            return self.add_current_month_deltas(query_data, query_sum)
+            return (self.add_current_month_deltas(query_data, query_sum), {})
         else:
             return super().add_deltas(query_data, query_sum)
 
