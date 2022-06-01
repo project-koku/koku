@@ -30,7 +30,6 @@ from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
-from reporting_common.models import CostUsageReportStatus
 
 # from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 
@@ -39,7 +38,7 @@ LOG = logging.getLogger(__name__)
 
 
 # TODO: DOSTON
-# This needs to be reworded, we no longer grab scan ranges so each file should be a day already.
+# This needs to be reworked, we no longer grab scan ranges so each file should be a day already.
 # I am note sure if this is needed anymore?
 def create_daily_archives(
     tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, last_export_time, context={}
@@ -186,27 +185,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     # TODO: our old etag system does not make sense with the new layout.
     # For now I am replacing it with the file
-    # def _generate_etag(self):
-    #     """
-    #     Generate the etag to be used for the download report & assembly_id.
-    #     To generate the etag, we use BigQuery to collect the last modified
-    #     date to the table and md5 hash it.
-    #     """
-
-    #     try:
-    #         client = bigquery.Client()
-    #         billing_table_obj = client.get_table(self.table_name)
-    #         last_modified = billing_table_obj.modified
-
-    #     except GoogleCloudError as err:
-    #         err_msg = (
-    #             "Could not obtain last modified date for BigQuery table."
-    #             f"\n  Provider: {self._provider_uuid}"
-    #             f"\n  Customer: {self.customer_name}"
-    #             f"\n  Response: {err.message}"
-    #         )
-    #         raise ReportDownloaderWarning(err_msg)
-    #     return modified_hash
+    # def _generate_etag(self): (FUNCTION REMOVED)
 
     def retrieve_current_manifests(self, start_date):
         """
@@ -365,34 +344,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
-
-    def _get_export_time_for_big_query(self, scan_start, scan_end, key):
-        """
-        Logic to set export_time in the manifest.
-        """
-        tomorrow = DateAccessor().today().date() + relativedelta(days=1)
-        bill_start = ciso8601.parse_datetime(scan_start).date().replace(day=1)
-        with ReportManifestDBAccessor() as manifest_accessor:
-            last_export_time = manifest_accessor.get_max_export_time_for_manifests(self._provider_uuid, bill_start)
-            record = CostUsageReportStatus.objects.filter(report_name=key).first()
-            if record:
-                manifest = manifest_accessor.get_manifest_by_id(record.manifest_id)
-                total_files = manifest.num_total_files
-                processed_files = manifest_accessor.number_of_files_processed(record.manifest_id)
-                if (total_files - 1) == processed_files:
-                    client = bigquery.Client()
-                    export_query = f"""
-                    SELECT max(export_time) FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) >= '{bill_start}'
-                    AND DATE(_PARTITIONTIME) < '{tomorrow}'
-                    """
-                    eq_result = client.query(export_query).result()
-                    for row in eq_result:
-                        new_export_time = row[0]
-                        break
-                    manifest.export_time = new_export_time
-                    manifest.save()
-        return last_export_time
 
     # TODO: DOSTON
     # TESTING
