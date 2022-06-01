@@ -110,9 +110,6 @@ def collect_hcs_report_data(
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    end_date = end_date.strftime("%Y-%m-%d")
-    start_date = start_date.strftime("%Y-%m-%d")
-
     if enable_hcs_processing(schema_name) and provider in HCS_EXCEPTED_PROVIDERS:
         stmt = (
             f"[collect_hcs_report_data]: "
