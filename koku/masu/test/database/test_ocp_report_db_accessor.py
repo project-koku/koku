@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCPReportDBAccessor utility object."""
+import logging
 import random
 import string
 import uuid
@@ -47,6 +48,8 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -804,13 +807,12 @@ class OCPReportDBAccessorTest(MasuTestCase):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = dh.last_month_start
+        end_date = dh.this_month_start
         first_month, _ = month_date_range_tuple(start_date)
-        cluster_alias = "test_cluster_alias"
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                self.cluster_id = self.ocp_cluster_id
                 cluster_rate = random.randrange(1, 100)
                 self.accessor.populate_monthly_cost(
                     "Cluster",
@@ -819,7 +821,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     start_date,
                     end_date,
                     self.cluster_id,
-                    cluster_alias,
+                    self.cluster_id,
                     distribution,
                     self.provider_uuid,
                 )
@@ -843,7 +845,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         sum_row_list.append(monthly_cost_row.infrastructure_monthly_cost_json.get(distribution))
                     #  handle small possible imprecision due to division
                     # eg. 56.99999999999999 != 57
-                    self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
+                    self.assertLessEqual((cluster_rate - sum(sum_row_list)), 0.001)
 
                     # Test cluster to project distribution
                     project_sum_list = []
@@ -851,20 +853,19 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         project_sum_list.append(
                             p_monthly_cost_row.infrastructure_project_monthly_cost.get(distribution)
                         )
-                    self.assertTrue((cluster_rate - sum(project_sum_list)) < 0.001)
+                    self.assertLessEqual((cluster_rate - sum(project_sum_list)), 0.001)
 
     def test_populate_monthly_cost_cluster_supplementary_cost(self):
         """Test that the monthly infrastructure cost row for clusters in the summary table is populated."""
         distribution_choices = [metric_constants.CPU_DISTRIBUTION, metric_constants.MEMORY_DISTRIBUTION]
         dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
+        start_date = dh.last_month_start
+        end_date = dh.this_month_start
         first_month, _ = month_date_range_tuple(start_date)
-        cluster_alias = "test_cluster_alias"
 
         for distribution in distribution_choices:
             with self.subTest(distribution=distribution):
-                self.cluster_id = self.ocp_provider.authentication.credentials.get("cluster_id")
+                self.cluster_id = self.ocp_cluster_id
                 cluster_rate = random.randrange(1, 100)
                 self.accessor.populate_monthly_cost(
                     "Cluster",
@@ -873,7 +874,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     start_date,
                     end_date,
                     self.cluster_id,
-                    cluster_alias,
+                    self.cluster_id,  # the alias is the same as id in bakery at the moment
                     distribution,
                     self.provider_uuid,
                 )
@@ -894,7 +895,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                     sum_row_list = []
                     for monthly_cost_row in monthly_cost_rows:
                         sum_row_list.append(monthly_cost_row.supplementary_monthly_cost_json.get(distribution))
-                    self.assertTrue((cluster_rate - sum(sum_row_list)) < 0.001)
+                    self.assertLessEqual((cluster_rate - sum(sum_row_list)), 0.001)
 
                     # Test cluster to project distribution
                     project_sum_list = []
@@ -902,7 +903,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
                         project_sum_list.append(
                             p_monthly_cost_row.supplementary_project_monthly_cost.get(distribution)
                         )
-                    self.assertTrue((cluster_rate - sum(project_sum_list)) < 0.001)
+                    self.assertLessEqual((cluster_rate - sum(project_sum_list)), 0.001)
 
     def test_populate_monthly_cost_pvc_infrastructure_cost(self):
         """Test that the monthly infrastructure cost row for PVC in the summary table is populated."""
