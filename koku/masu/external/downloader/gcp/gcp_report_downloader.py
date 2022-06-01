@@ -28,7 +28,6 @@ from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
-from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 from reporting_common.models import CostUsageReportStatus
@@ -39,6 +38,9 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
+# TODO: DOSTON
+# This needs to be reworded, we no longer grab scan ranges so each file should be a day already.
+# I am note sure if this is needed anymore?
 def create_daily_archives(
     tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, last_export_time, context={}
 ):
@@ -161,7 +163,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.scan_start, self.scan_end = self._generate_default_scan_range()
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
-            self.etag = self._generate_etag()
         except ValidationError as ex:
             msg = f"GCP source ({self._provider_uuid}) for {customer_name} is not reachable. Error: {str(ex)}"
             LOG.warning(log_json(self.tracing_id, msg, self.context))
@@ -183,30 +184,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
-    # def _generate_etag(self):
-    #     """
-    #     Generate the etag to be used for the download report & assembly_id.
-    #     To generate the etag, we use BigQuery to collect the last modified
-    #     date to the table and md5 hash it.
-    #     """
-
-    #     try:
-    #         client = bigquery.Client()
-    #         billing_table_obj = client.get_table(self.table_name)
-    #         last_modified = billing_table_obj.modified
-    #         modified_hash = hashlib.md5(str(last_modified).encode())
-    #         modified_hash = modified_hash.hexdigest()
-    #     except GoogleCloudError as err:
-    #         err_msg = (
-    #             "Could not obtain last modified date for BigQuery table."
-    #             f"\n  Provider: {self._provider_uuid}"
-    #             f"\n  Customer: {self.customer_name}"
-    #             f"\n  Response: {err.message}"
-    #         )
-    #         raise ReportDownloaderWarning(err_msg)
-    #     return modified_hash
-
-    # TODO: Remove?
+    # TODO: our old etag system does not make sense with the new layout.
+    # For now I am replacing it with the file
     # def _generate_etag(self):
     #     """
     #     Generate the etag to be used for the download report & assembly_id.
@@ -244,7 +223,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifests_dict = {}
         # Check to see if we have any manifests within the date range.
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.provider_uuid, start_date)
+            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self._provider_uuid, start_date)
             # if it is an empty list, that means it is the first time we are
             # downloading this month, so we need to update our
             # scan range to include the full month.
@@ -262,10 +241,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 if today < end_of_month:
                     self.scan_end = today
             else:
+                # day2day flow
                 for manifest in manifests:
                     last_export_time = manifests_dict.get(manifest.gcp_parition_date)
                     if not last_export_time or manifest.export_time > last_export_time:
-                        manifests_dict[manifest.gcp_parition_date] = manifests_dict.export_time
+                        manifests_dict[manifest.gcp_parition_date] = manifest.export_time
         return manifests_dict
 
     def bigquery_export_to_partition_mapping(self):
@@ -283,7 +263,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             example:
                 {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
         """
-        # TODO: Error Catching
+        # TODO: Doston: Error Catching
         mapping = {}
         client = bigquery.Client()
         export_partition_date_query = f"""
@@ -305,13 +285,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         *_et = export_time
         """
         new_manifests = []
-        for bigquery_pd, bigquery_et in bigquery_mappings:
+        for bigquery_pd, bigquery_et in bigquery_mappings.items():
             manifest_export_time = current_manifests.get(bigquery_pd)
             if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
                 # if the manifest export time does not match bigquery we have new data
                 # for that partion time and new manifest should be created.
                 manifest_kwargs = {}
-                file_name = f"{self.scan_start.strftime('%Y%m')}_{bigquery_pd}:{bigquery_et}.csv"
+                file_name = f"{self.scan_start.strftime('%Y%m')}_{bigquery_pd}?{bigquery_et}.csv"
                 if manifest_export_time:
                     manifest_kwargs["last_reports"] = {"last_export": manifest_export_time}
                 manifest_metadata = {
@@ -327,6 +307,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 new_manifests.append(manifest_metadata)
         return new_manifests
 
+    # This is the function called by the task
     def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
@@ -349,7 +330,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         reports_list = []
         for manifest in new_manifest_list:
             manifest_id = self._process_manifest_db_record(
-                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh._now, manifest["kwargs"]
+                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh._now, **manifest["kwargs"]
             )
             files_list = [
                 {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
@@ -362,93 +343,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             }
             reports_list.append(report_dict)
         return reports_list
-
-    def _generate_monthly_pseudo_manifest(self, start_date):
-        """
-        Generate a dict representing an analog to other providers' "manifest" files.
-
-        GCP does not produce a manifest file for monthly periods. So, we check for
-        files in the bucket that match dates within the monthly period starting on
-        the requested start_date.
-
-        Args:
-            start_date (datetime.datetime): when to start gathering reporting data
-
-        Returns:
-            Manifest-like dict with list of relevant found files.
-
-        """
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                self._provider_uuid, start_date
-            )
-        if not manifest_list:
-            # if it is an empty list, that means it is the first time we are
-            # downloading this month, so we need to update our
-            # scan range to include the full month.
-            self.scan_start = start_date
-            end_of_month = start_date + relativedelta(months=1)
-            if isinstance(end_of_month, datetime.datetime):
-                end_of_month = end_of_month.date()
-            if end_of_month < self.scan_end:
-                self.scan_end = end_of_month
-            today = DateAccessor().today().date()
-            if today < end_of_month:
-                self.scan_end = today
-
-        invoice_month = self.scan_start.strftime("%Y%m")
-        bill_date = self.scan_start.replace(day=1)
-        file_names = self._get_relevant_file_names(invoice_month)
-        fake_assembly_id = self._generate_assembly_id(invoice_month)
-
-        manifest_data = {
-            "assembly_id": fake_assembly_id,
-            "compression": UNCOMPRESSED,
-            "start_date": bill_date,
-            "end_date": self.scan_end,  # inclusive end date
-            "file_names": list(file_names),
-        }
-        LOG.info(f"Manifest Data: {str(manifest_data)}")
-        return manifest_data
-
-    def _generate_assembly_id(self, invoice_month):
-        """
-        Generate an assembly ID for use in manifests.
-
-        The assembly id is a unique identifier to ensure we don't needlessly
-        re-fetch data with BigQuery because it cost us money.
-        We use BigQuery to collect the last modified date of the table and md5
-        hash it.
-            Format: {provider_id}:(etag}:{invoice_month}
-            e.g. "5:36c75d88da6262dedbc2e1b6147e6d38:202109"
-
-        Returns:
-            str unique to this provider and GCP table and last modified date
-
-        """
-        fake_assembly_id = ":".join([str(self._provider_uuid), self.etag, str(invoice_month)])
-        return fake_assembly_id
-
-    def _get_relevant_file_names(self, invoice_month):
-        """
-        Generate a list of relevant file names for the manifest's dates.
-
-        GCP reports are simply named "YYYY-MM-DD.csv" with an optional prefix.
-        So, we have to iterate through all files and use rudimentary name
-        pattern-matching to find files relevant to this date range.
-
-        Args:
-            invoice_month (datetime.datetime): invoice month in "%Y%m" format
-
-        Returns:
-            list of relevant file (blob) names found in the GCP storage bucket.
-
-        """
-        relevant_file_names = list()
-        for start, end in date_range_pair(self.scan_start, self.scan_end):
-            end = end + relativedelta(days=1)
-            relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
-        return relevant_file_names
 
     def get_local_file_for_report(self, report):
         """
@@ -500,6 +394,16 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     manifest.save()
         return last_export_time
 
+    # TODO: DOSTON
+    # TESTING
+    # Test how the new queries handle cross over data.
+    # Test the day to day flow using stepping:
+    #     https://github.com/myersCody/cody_notes/blob/main/cloud_providers/gcp/day_to_day_flow.md
+    # PROCESSING
+    # We may have to tweak the processing side, we may only want to resummarize the parition_date.
+    # Because it probably resummarizes the entire month each time
+    # LOOK AT: _determine_if_full_summary_update_needed in:
+    # koku/masu/processor/gcp/gcp_report_parquet_summary_updater.py
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
@@ -517,29 +421,41 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         try:
             filename = os.path.splitext(key)[0]
+            LOG.info(filename)
             date_range = filename.split("_")[-1]
-            scan_start, scan_end = date_range.split(":")
-            last_export_time = self._get_export_time_for_big_query(scan_start, scan_end, key)
-            if not last_export_time:
-                if str(DateAccessor().today().date()) == scan_end:
-                    scan_end = DateAccessor().today().date() + relativedelta(days=1)
+            partition_date, new_export_time = date_range.split("?")
+            bill_start = ciso8601.parse_datetime(partition_date).date().replace(day=1)
+            with ReportManifestDBAccessor() as manifest_accessor:
+                last_export_time = manifest_accessor.get_max_export_time_for_manifests(
+                    self._provider_uuid, bill_start, partition_date
+                )
+
+            if last_export_time:
                 query = f"""
-                SELECT {self.build_query_select_statement()}
-                FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) < '{scan_end}'
-                """
+                    SELECT {self.build_query_select_statement()}
+                    FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                    AND export_time > '{last_export_time}'
+                    and export_time <= '{new_export_time}'
+                    """
             else:
                 query = f"""
-                SELECT {self.build_query_select_statement()}
-                FROM {self.table_name}
-                WHERE DATE(_PARTITIONTIME) >= '{scan_start}'
-                AND DATE(_PARTITIONTIME) < '{scan_end}'
-                AND export_time > '{last_export_time}'
-                """
+                    SELECT {self.build_query_select_statement()}
+                    FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                    and export_time <= '{new_export_time}'
+                    """
             client = bigquery.Client()
             LOG.info(f"{query}")
             query_job = client.query(query)
+            # Update the manifest
+            with ReportManifestDBAccessor() as manifest_accessor:
+                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+                if manifest:
+                    manifest.gcp_parition_date = partition_date
+                    manifest.export_time = new_export_time
+                    manifest.save()
+
         except GoogleCloudError as err:
             err_msg = (
                 "Could not query table for billing information."
@@ -591,7 +507,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, self.etag, dh.today, file_names
+        # Note: using filename as our etag for now
+        return full_local_path, filename, dh.today, file_names
 
     def _get_local_directory_path(self):
         """

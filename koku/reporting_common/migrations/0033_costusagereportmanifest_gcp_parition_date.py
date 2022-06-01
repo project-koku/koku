@@ -6,7 +6,7 @@ from django.db import models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("reporting_common", "0031_costusagereportmanifest_export_time"),
+        ("reporting_common", "0032_costusagereportmanifest_last_reports"),
     ]
 
     operations = [

@@ -216,9 +216,14 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.s3_parquet_cleared = True
             manifest.save()
 
-    def get_max_export_time_for_manifests(self, provider_uuid, bill_date):
+    def get_max_export_time_for_manifests(self, provider_uuid, bill_date, partition_date):
         """Return the max export time for manifests given provider and bill date."""
-        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        filters = {
+            "provider_id": provider_uuid,
+            "billing_period_start_datetime__date": bill_date,
+            "gcp_parition_date": partition_date,
+            "manifest_completed_datetime__isnull": False,
+        }
         manifests = CostUsageReportManifest.objects.filter(**filters).all()
         max_export = manifests.aggregate(Max("export_time"))
         return max_export.get("export_time__max")
