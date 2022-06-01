@@ -739,6 +739,9 @@ class ReportQueryHandler(QueryHandler):
         rank_orders = []
         expression = RowNumber()
 
+        if self.order_field == "account_alias" or "account" in self.parameters.get("filter", {}):
+            expression = DenseRank()
+
         rank_annotations = {}
         if ("delta" in self.order) or ("-delta" in self.order):
             if "__" in self._delta:
@@ -753,7 +756,6 @@ class ReportQueryHandler(QueryHandler):
                 rank_annotations = {self.order_field: self.report_annotations.get(self.order_field)}
             # AWS is special and account alias is a foreign key field so special_rank was annotated on the query
             if self.order_field == "account_alias":
-                expression = DenseRank()
                 rank_orders.append(getattr(F("special_rank"), self.order_direction)())
             else:
                 rank_orders.append(getattr(F(self.order_field), self.order_direction)())
