@@ -4,6 +4,7 @@
 #
 """AWS views."""
 from api.common.permissions.aws_access import AwsAccessPermission
+from api.common.permissions.aws_access import AWSOUAccessPermission
 from api.models import Provider
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.serializers import QueryParamSerializer
@@ -14,7 +15,7 @@ from reporting.provider.aws.models import AWSTagsSummary
 class AWSView(ReportView):
     """AWS Base View."""
 
-    permission_classes = [AwsAccessPermission]
+    permission_classes = [AwsAccessPermission | AWSOUAccessPermission]
     provider = Provider.PROVIDER_AWS
     serializer = QueryParamSerializer
     query_handler = AWSReportQueryHandler
