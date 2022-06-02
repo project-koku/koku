@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.openshift_access import OpenShiftAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.ocp.models import OCPCostSummaryP
@@ -35,6 +36,7 @@ class OCPClustersView(generics.ListAPIView):
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "ocp_cluster_alias"]
     search_fields = ["value", "ocp_cluster_alias"]
+    pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
