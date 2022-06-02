@@ -490,3 +490,51 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
+
+
+# Current State: Initial Download
+# Using:  http://127.0.0.1:5042/api/cost-management/v1/
+# gcp_invoice_monthly_cost/?provider_uuid=
+# 3d88ef55-e7c7-44cd-8997-5eaa9e842ce2
+# {
+#     "monthly_invoice_cost_mapping": {
+#         "previous": 1.4000000000000083,
+#         "current": 0.0052819999999999916
+#     }
+# }
+
+# (koku) bash-3.2$ trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
+# trino:acct10001> select sum(cost) from gcp_line_items WHERE invoice_month='202205';
+#        _col0
+# --------------------
+#  1.4000000000000083
+# (1 row)
+
+# trino:acct10001> select sum(cost) from gcp_line_items WHERE invoice_month='202206';
+#          _col0
+# -----------------------
+#  0.0052819999999999916
+# (1 row)
+
+# Using Trino our cost match exactly. However, when we go to the API:
+
+# Current Month:
+# http://localhost:8000/api/cost-management/v1/reports/
+# gcp/costs/?filter%5Btime_scope_value%5D=-1&filter%5Btime_scope_units%5D=
+# month&filter%5Bresolution%5D=monthly
+# "total": {
+#                     "value": 0.005282,
+#                     "units": "USD"
+#                 }
+
+# Previous Month:
+# http://localhost:8000/api/cost-management/v1/reports/gcp/
+# costs/?filter%5Btime_scope_value%5D=-2&filter%5Btime_scope_units%5D=
+# month&filter%5Bresolution%5D=monthly
+# "total": {
+#                     "value": 0.321132,
+#                     "units": "USD"
+#                 }
+
+# Since data is correct in trino that means there is a bug on the
+# data summarization side of things causing the costs to be off.
