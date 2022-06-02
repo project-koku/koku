@@ -5,12 +5,12 @@
 """View for Resource Types."""
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from tenant_schemas.utils import tenant_context
 
 from api.common import CACHE_RH_IDENTITY_HEADER
 from api.common.pagination import ResourceTypePaginator
-from api.common.permissions.resource_type_access import ResourceTypeAccessPermission
 from api.query_params import get_tenant
 from cost_models.models import CostModel
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
@@ -26,7 +26,7 @@ from reporting.provider.ocp.models import OCPCostSummaryP
 class ResourceTypeView(APIView):
     """API GET view for resource-types API."""
 
-    permission_classes = [ResourceTypeAccessPermission]
+    permission_classes = [AllowAny]
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def get(self, request, **kwargs):
