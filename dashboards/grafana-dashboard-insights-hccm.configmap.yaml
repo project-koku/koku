@@ -1030,7 +1030,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Cost Model",
+          "title": "Default",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1151,7 +1151,7 @@ data:
             "type": "prometheus",
             "uid": "pKSsqZB7k"
           },
-          "description": "Cost Management celery xost_model_queue",
+          "description": "Cost Management celery ocp_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
