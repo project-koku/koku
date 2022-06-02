@@ -143,3 +143,23 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("provider_type:", _logs.output[0])
             self.assertIn("provider_uuid:", _logs.output[0])
             self.assertIn("dates:", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_month(self, mock_report, rd, provider):
+        """Test hcs finalization for a given month"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
+
+        start_date = "2022-10-01"
+        end_date = "2022-10-31"
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(10)
+
+            self.assertIn("[collect_hcs_report_finalization]:", _logs.output[0])
+            self.assertIn("schema_name:", _logs.output[0])
+            self.assertIn("provider_type:", _logs.output[0])
+            self.assertIn("provider_uuid:", _logs.output[0])
+            self.assertIn(f"dates: {start_date} - {end_date}", _logs.output[0])

@@ -14,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.cost_models_access import CostModelsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from cost_models.models import CostModel
@@ -31,6 +32,7 @@ class CostModelResourceTypesView(generics.ListAPIView):
     permission_classes = [CostModelsAccessPermission]
     filter_backends = [filters.OrderingFilter]
     ordering = ["value"]
+    pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
