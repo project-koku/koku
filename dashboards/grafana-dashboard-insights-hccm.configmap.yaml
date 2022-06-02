@@ -1151,7 +1151,7 @@ data:
             "type": "prometheus",
             "uid": "pKSsqZB7k"
           },
-          "description": "Cost Management celery cost_model_queue",
+          "description": "Cost Management celery ocp_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
