@@ -6,25 +6,38 @@ data:
         "list": [
           {
             "builtIn": 1,
-            "datasource": "-- Grafana --",
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
             "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
             "type": "dashboard"
           }
         ]
       },
       "editable": true,
-      "gnetId": null,
+      "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 115,
-      "iteration": 1602102351505,
+      "id": 45,
+      "iteration": 1654180372742,
       "links": [],
+      "liveNow": false,
       "panels": [
         {
           "collapsed": false,
-          "datasource": null,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
@@ -41,7 +54,15 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Datasource",
+          "datasource": {
+            "uid": "$Datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -65,9 +86,10 @@ data:
           "linewidth": 1,
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -83,9 +105,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Requests per minute, by status code",
           "tooltip": {
             "shared": true,
@@ -94,33 +114,24 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -128,7 +139,15 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Datasource",
+          "datasource": {
+            "uid": "$Datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -152,9 +171,10 @@ data:
           "linewidth": 1,
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -175,9 +195,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Request Errors",
           "tooltip": {
             "shared": true,
@@ -186,33 +204,24 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -220,7 +229,15 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Datasource",
+          "datasource": {
+            "uid": "$Datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -244,9 +261,10 @@ data:
           "linewidth": 1,
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -262,9 +280,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Requests by view",
           "tooltip": {
             "shared": true,
@@ -273,33 +289,24 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
@@ -307,7 +314,15 @@ data:
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "$Datasource",
+          "datasource": {
+            "uid": "$Datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -331,9 +346,10 @@ data:
           "linewidth": 1,
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "8.5.2",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -349,9 +365,7 @@ data:
             }
           ],
           "thresholds": [],
-          "timeFrom": null,
           "timeRegions": [],
-          "timeShift": null,
           "title": "Request Latency Rate by View",
           "tooltip": {
             "shared": true,
@@ -360,38 +374,32 @@ data:
           },
           "type": "graph",
           "xaxis": {
-            "buckets": null,
             "mode": "time",
-            "name": null,
             "show": true,
             "values": []
           },
           "yaxes": [
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             },
             {
               "format": "short",
-              "label": null,
               "logBase": 1,
-              "max": null,
-              "min": null,
               "show": true
             }
           ],
           "yaxis": {
-            "align": false,
-            "alignLevel": null
+            "align": false
           }
         },
         {
-          "collapsed": true,
-          "datasource": null,
+          "collapsed": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
@@ -399,713 +407,861 @@ data:
             "y": 18
           },
           "id": 18,
-          "panels": [
-            {
-              "columns": [],
-              "datasource": "$Datasource",
-              "description": "Time spent on tasks within the interval window.",
-              "fontSize": "100%",
-              "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 0,
-                "y": 19
-              },
-              "id": 12,
-              "options": {},
-              "pageSize": null,
-              "showHeader": true,
-              "sort": {
-                "col": 0,
-                "desc": true
-              },
-              "styles": [
-                {
-                  "alias": "Time",
-                  "align": "auto",
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "pattern": "Time",
-                  "type": "date"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "",
-                  "thresholds": [],
-                  "type": "number",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "right",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "decimals": 2,
-                  "pattern": "__name__",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "app",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "cluster",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/deployment.*?/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/kubernetes_.*/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/node_.*/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "Task Name",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "exported_name",
-                  "thresholds": [],
-                  "type": "string",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "instance",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "job",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "le",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "name",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "role",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "template",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "Duration",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "Value",
-                  "thresholds": [
-                    "10",
-                    "180",
-                    "600"
-                  ],
-                  "type": "number",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/.*/",
-                  "thresholds": [],
-                  "type": "number",
-                  "unit": "short"
-                }
-              ],
-              "targets": [
-                {
-                  "expr": "increase(celery_tasks_runtime_seconds_bucket{namespace=\"$namespace\", le=\"+Inf\"}[$__interval])",
-                  "refId": "A"
-                }
-              ],
-              "timeFrom": null,
-              "timeShift": null,
-              "title": "Celery Task Runtime",
-              "transform": "timeseries_to_columns",
-              "type": "table"
-            },
-            {
-              "columns": [],
-              "datasource": "$Datasource",
-              "description": "Task Failures observed in the interval period",
-              "fontSize": "100%",
-              "gridPos": {
-                "h": 8,
-                "w": 12,
-                "x": 12,
-                "y": 19
-              },
-              "id": 14,
-              "options": {},
-              "pageSize": null,
-              "showHeader": true,
-              "sort": {
-                "col": 0,
-                "desc": true
-              },
-              "styles": [
-                {
-                  "alias": "Time",
-                  "align": "auto",
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "pattern": "Time",
-                  "type": "date"
-                },
-                {
-                  "alias": "Task Name",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "exported_name",
-                  "thresholds": [],
-                  "type": "string",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "Value",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "app",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "cluster",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/deployment.*/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "instance",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "job",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/kubernetes.*/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "name",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "/node.*/",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "role",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "__name__",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "template",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "auto",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "dateFormat": "YYYY-MM-DD HH:mm:ss",
-                  "decimals": 2,
-                  "mappingType": 1,
-                  "pattern": "state",
-                  "thresholds": [],
-                  "type": "hidden",
-                  "unit": "short"
-                },
-                {
-                  "alias": "",
-                  "align": "right",
-                  "colorMode": null,
-                  "colors": [
-                    "rgba(245, 54, 54, 0.9)",
-                    "rgba(237, 129, 40, 0.89)",
-                    "rgba(50, 172, 45, 0.97)"
-                  ],
-                  "decimals": 2,
-                  "pattern": "/.*/",
-                  "thresholds": [],
-                  "type": "number",
-                  "unit": "short"
-                }
-              ],
-              "targets": [
-                {
-                  "expr": "increase(celery_tasks_by_name{namespace=\"$namespace\", state=\"FAILURE\"}[$__interval]) > 0",
-                  "refId": "A"
-                }
-              ],
-              "timeFrom": null,
-              "timeShift": null,
-              "title": "Celery Task Failures",
-              "transform": "timeseries_to_columns",
-              "type": "table"
-            },
-            {
-              "aliasColors": {},
-              "bars": false,
-              "dashLength": 10,
-              "dashes": false,
-              "datasource": "$Datasource",
-              "fill": 1,
-              "fillGradient": 0,
-              "gridPos": {
-                "h": 8,
-                "w": 24,
-                "x": 0,
-                "y": 27
-              },
-              "hiddenSeries": false,
-              "id": 16,
-              "legend": {
-                "avg": false,
-                "current": false,
-                "max": false,
-                "min": false,
-                "show": true,
-                "total": false,
-                "values": false
-              },
-              "lines": true,
-              "linewidth": 1,
-              "nullPointMode": "null",
-              "options": {
-                "dataLinks": []
-              },
-              "percentage": false,
-              "pointradius": 2,
-              "points": false,
-              "renderer": "flot",
-              "seriesOverrides": [],
-              "spaceLength": 10,
-              "stack": false,
-              "steppedLine": false,
-              "targets": [
-                {
-                  "expr": "increase(celery_tasks_runtime_seconds_bucket{namespace=\"$namespace\", le=\"+Inf\"}[$__interval])",
-                  "legendFormat": "{{exported_name}}",
-                  "refId": "A"
-                }
-              ],
-              "thresholds": [],
-              "timeFrom": null,
-              "timeRegions": [],
-              "timeShift": null,
-              "title": "Celery Task Runtime",
-              "tooltip": {
-                "shared": true,
-                "sort": 0,
-                "value_type": "individual"
-              },
-              "type": "graph",
-              "xaxis": {
-                "buckets": null,
-                "mode": "time",
-                "name": null,
-                "show": true,
-                "values": []
-              },
-              "yaxes": [
-                {
-                  "format": "short",
-                  "label": null,
-                  "logBase": 1,
-                  "max": null,
-                  "min": null,
-                  "show": true
-                },
-                {
-                  "format": "short",
-                  "label": null,
-                  "logBase": 1,
-                  "max": null,
-                  "min": null,
-                  "show": true
-                }
-              ],
-              "yaxis": {
-                "align": false,
-                "alignLevel": null
-              }
-            }
-          ],
+          "panels": [],
           "title": "Celery",
           "type": "row"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery download_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 400
+                  },
+                  {
+                    "color": "red",
+                    "value": 500
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 19
+          },
+          "id": 12,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:download_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Download",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery summary_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 19
+          },
+          "id": 69,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:summary_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Summary",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery summary_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 71,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:refresh_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Refresh",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery priority_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 70,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:priority_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Priority",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery hcs_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
+          "id": 73,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:hcs_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "HCS",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery cost_model_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
+          "id": 72,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:cost_model_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Cost Model",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery default_celery_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
+          "id": 75,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:default_celery_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Cost Model",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery xost_model_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 30,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 74,
+          "options": {
+            "legend": {
+              "calcs": [
+                "min",
+                "max"
+              ],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:ocp_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "OCP",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "timeseries"
+        },
+        {
           "collapsed": true,
-          "datasource": null,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 19
+            "y": 51
           },
           "id": 28,
           "panels": [
@@ -1114,7 +1270,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$rds_datasource",
+              "datasource": {
+                "uid": "$rds_datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1186,9 +1344,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "RDS CPU Utilization",
               "tooltip": {
                 "shared": true,
@@ -1197,33 +1353,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "percent",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -1231,7 +1378,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$rds_datasource",
+              "datasource": {
+                "uid": "$rds_datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1278,9 +1427,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "RDS IOPs",
               "tooltip": {
                 "shared": true,
@@ -1289,33 +1436,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -1323,7 +1461,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1366,9 +1506,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "RDS DB Percent Used",
               "tooltip": {
                 "shared": true,
@@ -1377,16 +1515,13 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "percent",
-                  "label": null,
                   "logBase": 1,
                   "max": "100",
                   "min": "0",
@@ -1394,16 +1529,12 @@ data:
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -1411,7 +1542,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$rds_datasource",
+              "datasource": {
+                "uid": "$rds_datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1473,9 +1606,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "RDS Memory Utilization",
               "tooltip": {
                 "shared": true,
@@ -1484,16 +1615,13 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "kbytes",
-                  "label": null,
                   "logBase": 1,
                   "max": "100",
                   "min": "0",
@@ -1501,16 +1629,12 @@ data:
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             }
           ],
@@ -1519,12 +1643,15 @@ data:
         },
         {
           "collapsed": true,
-          "datasource": null,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 52
           },
           "id": 32,
           "panels": [
@@ -1533,7 +1660,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1575,9 +1704,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "PostgreSQL Tenant Schema Size",
               "tooltip": {
                 "shared": true,
@@ -1586,33 +1713,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "bytes",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             }
           ],
@@ -1621,12 +1739,15 @@ data:
         },
         {
           "collapsed": true,
-          "datasource": null,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 21
+            "y": 53
           },
           "id": 38,
           "panels": [
@@ -1635,7 +1756,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1678,9 +1801,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Worker Volume Capacity",
               "tooltip": {
                 "shared": true,
@@ -1689,33 +1810,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "bytes",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -1723,7 +1835,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -1765,9 +1879,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Available Volume Space (GB) by PV",
               "tooltip": {
                 "shared": true,
@@ -1776,33 +1888,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "bytes",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             }
           ],
@@ -1811,17 +1914,22 @@ data:
         },
         {
           "collapsed": true,
-          "datasource": null,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "tuHy3WB7z"
+          },
           "gridPos": {
             "h": 1,
             "w": 24,
             "x": 0,
-            "y": 22
+            "y": 54
           },
           "id": 40,
           "panels": [
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 6,
                 "w": 4,
@@ -1841,8 +1949,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -1866,13 +1973,13 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Active Customers",
               "type": "stat"
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 6,
                 "w": 5,
@@ -1892,8 +1999,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -1917,13 +2023,13 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Total Customers",
               "type": "stat"
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 6,
                 "w": 4,
@@ -1943,8 +2049,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -1968,20 +2073,19 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Total Users",
               "type": "stat"
             },
             {
               "aliasColors": {},
               "breakPoint": "50%",
-              "cacheTimeout": null,
               "combine": {
                 "label": "Others",
                 "threshold": 0
               },
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fontSize": "80%",
               "format": "short",
               "gridPos": {
@@ -1991,7 +2095,6 @@ data:
                 "y": 6
               },
               "id": 54,
-              "interval": null,
               "legend": {
                 "show": true,
                 "values": true
@@ -2010,14 +2113,14 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Current Active Sources By Type",
               "type": "grafana-piechart-panel",
               "valueName": "current"
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 7,
                 "w": 4,
@@ -2037,8 +2140,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -2062,8 +2164,6 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Active Sources",
               "type": "stat"
             },
@@ -2072,7 +2172,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2114,9 +2216,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Active Sources By Account",
               "tooltip": {
                 "shared": true,
@@ -2125,33 +2225,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -2159,7 +2250,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2201,9 +2294,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Active Sources By Type",
               "tooltip": {
                 "shared": true,
@@ -2212,37 +2303,30 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 7,
                 "w": 4,
@@ -2262,8 +2346,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -2287,8 +2370,6 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Stale Sources",
               "type": "stat"
             },
@@ -2297,7 +2378,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2340,9 +2423,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Stale Sources By Account",
               "tooltip": {
                 "shared": true,
@@ -2351,33 +2432,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -2385,7 +2457,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2427,9 +2501,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Stale Sources By Type",
               "tooltip": {
                 "shared": true,
@@ -2438,37 +2510,30 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 7,
                 "w": 4,
@@ -2488,8 +2553,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -2513,8 +2577,6 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Invalid Sources",
               "type": "stat"
             },
@@ -2523,7 +2585,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2566,9 +2630,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Invalid Sources By Account",
               "tooltip": {
                 "shared": true,
@@ -2577,33 +2639,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -2611,7 +2664,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2653,9 +2708,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Invalid Sources By Type",
               "tooltip": {
                 "shared": true,
@@ -2664,37 +2717,30 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 7,
                 "w": 4,
@@ -2714,8 +2760,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -2739,18 +2784,17 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Configured Sources",
               "type": "stat"
             },
             {
               "aliasColors": {},
               "bars": false,
-              "cacheTimeout": null,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2795,9 +2839,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Configured Sources By Account",
               "tooltip": {
                 "shared": true,
@@ -2806,33 +2848,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -2840,7 +2873,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -2882,9 +2917,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Configured Sources By Type",
               "tooltip": {
                 "shared": true,
@@ -2893,37 +2926,30 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "gridPos": {
                 "h": 7,
                 "w": 4,
@@ -2943,8 +2969,7 @@ data:
                       "mode": "absolute",
                       "steps": [
                         {
-                          "color": "green",
-                          "value": null
+                          "color": "green"
                         },
                         {
                           "color": "red",
@@ -2968,18 +2993,17 @@ data:
                   "refId": "A"
                 }
               ],
-              "timeFrom": null,
-              "timeShift": null,
               "title": "Not Configured Sources",
               "type": "stat"
             },
             {
               "aliasColors": {},
               "bars": false,
-              "cacheTimeout": null,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -3024,9 +3048,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Not Configured Sources By Account",
               "tooltip": {
                 "shared": true,
@@ -3035,33 +3057,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             },
             {
@@ -3069,7 +3082,9 @@ data:
               "bars": false,
               "dashLength": 10,
               "dashes": false,
-              "datasource": "$Datasource",
+              "datasource": {
+                "uid": "$Datasource"
+              },
               "fill": 1,
               "fillGradient": 0,
               "gridPos": {
@@ -3111,9 +3126,7 @@ data:
                 }
               ],
               "thresholds": [],
-              "timeFrom": null,
               "timeRegions": [],
-              "timeShift": null,
               "title": "Not Configured Sources By Type",
               "tooltip": {
                 "shared": true,
@@ -3122,33 +3135,24 @@ data:
               },
               "type": "graph",
               "xaxis": {
-                "buckets": null,
                 "mode": "time",
-                "name": null,
                 "show": true,
                 "values": []
               },
               "yaxes": [
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 },
                 {
                   "format": "short",
-                  "label": null,
                   "logBase": 1,
-                  "max": null,
-                  "min": null,
                   "show": true
                 }
               ],
               "yaxis": {
-                "align": false,
-                "alignLevel": null
+                "align": false
               }
             }
           ],
@@ -3156,16 +3160,16 @@ data:
           "type": "row"
         }
       ],
-      "schemaVersion": 22,
+      "schemaVersion": 36,
       "style": "dark",
       "tags": [],
       "templating": {
         "list": [
           {
             "current": {
-              "tags": [],
-              "text": "crc-stg-01-prometheus",
-              "value": "crc-stg-01-prometheus"
+              "selected": false,
+              "text": "crcp01ue1-prometheus",
+              "value": "crcp01ue1-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -3180,11 +3184,10 @@ data:
             "type": "datasource"
           },
           {
-            "allValue": null,
             "current": {
-              "selected": true,
-              "text": "hccm-stage",
-              "value": "hccm-stage"
+              "selected": false,
+              "text": "hccm-prod",
+              "value": "hccm-prod"
             },
             "hide": 0,
             "includeAll": false,
@@ -3193,12 +3196,12 @@ data:
             "name": "namespace",
             "options": [
               {
-                "selected": true,
+                "selected": false,
                 "text": "hccm-stage",
                 "value": "hccm-stage"
               },
               {
-                "selected": false,
+                "selected": true,
                 "text": "hccm-prod",
                 "value": "hccm-prod"
               }
@@ -3208,11 +3211,10 @@ data:
             "type": "custom"
           },
           {
-            "allValue": null,
             "current": {
               "selected": false,
-              "text": "cost-management-stage",
-              "value": "cost-management-stage"
+              "text": "cost-management-prod",
+              "value": "cost-management-prod"
             },
             "hide": 0,
             "includeAll": false,
@@ -3221,12 +3223,12 @@ data:
             "name": "db_instance",
             "options": [
               {
-                "selected": true,
+                "selected": false,
                 "text": "cost-management-stage",
                 "value": "cost-management-stage"
               },
               {
-                "selected": false,
+                "selected": true,
                 "text": "cost-management-prod",
                 "value": "cost-management-prod"
               }
@@ -3237,9 +3239,9 @@ data:
           },
           {
             "current": {
-              "selected": true,
-              "text": "app-sre-stage-01-prometheus",
-              "value": "app-sre-stage-01-prometheus"
+              "selected": false,
+              "text": "app-sre-prod-01-prometheus",
+              "value": "app-sre-prod-01-prometheus"
             },
             "hide": 0,
             "includeAll": false,
@@ -3254,25 +3256,23 @@ data:
             "type": "datasource"
           },
           {
-            "allValue": null,
             "current": {
               "selected": false,
-              "text": "insights-push-stage",
-              "value": "insights-push-stage"
+              "text": "insights-push-prod",
+              "value": "insights-push-prod"
             },
             "hide": 0,
             "includeAll": false,
-            "label": null,
             "multi": false,
             "name": "schema_namespace",
             "options": [
               {
-                "selected": true,
+                "selected": false,
                 "text": "insights-push-stage",
                 "value": "insights-push-stage"
               },
               {
-                "selected": false,
+                "selected": true,
                 "text": "insights-push-prod",
                 "value": "insights-push-prod"
               }
@@ -3304,7 +3304,8 @@ data:
       "timezone": "",
       "title": "Cost Management",
       "uid": "R0HueuFGk",
-      "version": 3
+      "version": 1,
+      "weekStart": ""
     }
 kind: ConfigMap
 metadata:
