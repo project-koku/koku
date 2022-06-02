@@ -771,6 +771,8 @@ class ReportQueryHandler(QueryHandler):
             .annotate(rank=rank_by_total)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
+        if self.is_aws and "account_alias" in self.parameters.url_data:
+            ranks = ranks.annotate(**{"account_alias": F("account_alias__account_alias")})
         if self.is_openshift:
             ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
 
@@ -814,7 +816,6 @@ class ReportQueryHandler(QueryHandler):
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
-            agg_fields.update({"account_alias": ["max"]})
             drop_columns.append("account_alias")
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})

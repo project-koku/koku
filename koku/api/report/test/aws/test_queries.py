@@ -2586,9 +2586,11 @@ class AWSReportQueryTest(IamTestCase):
                                 passed = True
                 self.assertTrue(passed)
 
-    def test_limit_offset_order_by_group_by_ranks_account_alias(self):
+    @patch("api.report.queries.ReportQueryHandler.is_aws", new_callable=PropertyMock)
+    def test_limit_offset_order_by_group_by_ranks_account_alias(self, mock_is_aws):
         """Test execute_query with limit/offset/order_by for aws account alias."""
         # execute query
+        mock_is_aws.return_value = True
         url = "?filter[limit]=2&filter[offset]=0&group_by[account]=*&order_by[account_alias]=asc"  # noqa: E501
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
