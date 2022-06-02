@@ -28,7 +28,6 @@ from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
-from django.db.models.functions import DenseRank
 from django.db.models.functions import RowNumber
 
 from api.models import Provider
@@ -737,10 +736,6 @@ class ReportQueryHandler(QueryHandler):
         gb = group_by_value if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
         rank_orders = []
-        expression = RowNumber()
-
-        if self.order_field == "account_alias" or "account" in self.parameters.get("filter", {}):
-            expression = DenseRank()
 
         rank_annotations = {}
         if ("delta" in self.order) or ("-delta" in self.order):
@@ -767,22 +762,18 @@ class ReportQueryHandler(QueryHandler):
 
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
-        # this is a sub-query, but not really.
-        # in the future, this could be accomplished using CTEs.
-        rank_by_total = Window(expression=expression, order_by=rank_orders)
 
-        if rank_annotations:
-            ranks = (
-                query.annotate(**self.annotations)
-                .values(*group_by_value)
-                .annotate(**rank_annotations)
-                .annotate(rank=rank_by_total)
-                .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
-            )
-            if self.is_openshift:
-                ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
-        else:
-            ranks = query.annotate(**self.annotations).values(*group_by_value).distinct().annotate(rank=rank_by_total)
+        rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
+        ranks = (
+            query.annotate(**self.annotations)
+            .values(*group_by_value)
+            .annotate(**rank_annotations)
+            .annotate(rank=rank_by_total)
+            .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
+        )
+        if self.is_openshift:
+            ranks = ranks.annotate(clusters=ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True))
+
         rankings = []
         distinct_ranks = []
         for rank in ranks:
