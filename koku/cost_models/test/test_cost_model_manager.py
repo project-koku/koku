@@ -12,7 +12,6 @@ from api.iam.models import User
 from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
-from api.utils import DateHelper
 from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
@@ -50,7 +49,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
@@ -82,9 +81,9 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 cost_model_obj = manager.create(**data)
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -120,9 +119,9 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 cost_model_obj = manager.create(**data)
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
@@ -130,7 +129,7 @@ class CostModelManagerTest(IamTestCase):
             self.assertEqual(CostModelManager(cost_model_obj.uuid).get_provider_names_uuids(), provider_names_uuids)
 
             second_cost_model_obj = None
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 with self.assertRaises(CostModelException):
                     second_cost_model_obj = manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
@@ -167,9 +166,9 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 cost_model_obj = manager.create(**data)
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
             self.assertIsNotNone(cost_model_obj.uuid)
             for rate in cost_model_obj.rates:
                 self.assertEqual(rate.get("metric", {}).get("name"), metric)
@@ -200,9 +199,9 @@ class CostModelManagerTest(IamTestCase):
         cost_model_obj = None
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 cost_model_obj = manager.create(**data)
-                mock_chain.return_value.apply_async.assert_not_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_not_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
@@ -217,9 +216,9 @@ class CostModelManagerTest(IamTestCase):
         # Add provider to existing cost model
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -229,9 +228,9 @@ class CostModelManagerTest(IamTestCase):
         # Add provider again to existing cost model.  Verify there is still only 1 item in map
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 manager.update_provider_uuids(provider_uuids=[provider_uuid])
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
@@ -241,17 +240,15 @@ class CostModelManagerTest(IamTestCase):
         # Remove provider from existing rate
         with tenant_context(self.tenant):
             manager = CostModelManager(cost_model_uuid=cost_model_obj.uuid)
-            with patch("cost_models.cost_model_manager.chain") as mock_chain:
+            with patch("cost_models.cost_model_manager.update_cost_model_costs") as mock_update:
                 manager.update_provider_uuids(provider_uuids=[])
-                mock_chain.return_value.apply_async.assert_called()
+                mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertEqual(len(cost_model_map), 0)
 
-    @patch("cost_models.cost_model_manager.refresh_materialized_views")
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
-    @patch("cost_models.cost_model_manager.chain")
-    def test_deleting_cost_model_triggers_tasks(self, mock_chain, mock_update, mock_refresh):
+    def test_deleting_cost_model_triggers_tasks(self, mock_update):
         """Test deleting a cost model refreshes the materialized views."""
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -269,27 +266,18 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain"):
-                cost_model_obj = manager.create(**data)
+            cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
             cost_model_map = CostModelMap.objects.filter(cost_model=cost_model_obj)
             self.assertIsNotNone(cost_model_map)
 
-            start_date = DateHelper().this_month_start.strftime("%Y-%m-%d")
-            end_date = DateHelper().today.strftime("%Y-%m-%d")
-
             # simulates deleting a cost_model
             manager.update_provider_uuids(provider_uuids=[])
-            mock_chain.assert_called_once_with(
-                mock_update.s(self.schema_name, provider_uuid, start_date, end_date).set(),
-                mock_refresh.si(self.schema_name, provider.type, provider_uuid=provider_uuid).set(),
-            )
+            mock_update.s.return_value.set.return_value.apply_async.assert_called()
 
-    @patch("cost_models.cost_model_manager.refresh_materialized_views")
     @patch("cost_models.cost_model_manager.update_cost_model_costs")
-    @patch("cost_models.cost_model_manager.chain")
-    def test_deleting_cost_model_not_triggers_tasks(self, mock_chain, mock_update, mock_refresh):
+    def test_deleting_cost_model_not_triggers_tasks(self, mock_update):
         """Test deleting a cost model with an inactive provider does not trigger tasks."""
         provider_name = "sample_provider"
         with patch("masu.celery.tasks.check_report_updates"):
@@ -309,7 +297,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
 
@@ -318,7 +306,7 @@ class CostModelManagerTest(IamTestCase):
 
             # simulates deleting a cost_model
             manager.update_provider_uuids(provider_uuids=[])
-            mock_chain.assert_not_called()
+            mock_update.assert_not_called()
 
     def test_update_distribution_choice(self):
         """Test creating a cost model."""
@@ -336,7 +324,7 @@ class CostModelManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = CostModelManager()
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.create(**data)
             self.assertIsNotNone(cost_model_obj.uuid)
             self.assertEqual(cost_model_obj.distribution, distribution)
@@ -345,6 +333,6 @@ class CostModelManagerTest(IamTestCase):
                 self.assertEqual(rate.get("tiered_rates"), tiered_rates)
                 self.assertEqual(rate.get("source_type"), source_type)
             data["distribution"] = update_distribution
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 cost_model_obj = manager.update(**data)
                 self.assertEqual(manager.instance.distribution, update_distribution)

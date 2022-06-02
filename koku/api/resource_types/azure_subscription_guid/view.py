@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for Azure Subscription guid."""
+from django.conf import settings
 from django.db.models import F
 from django.utils.decorators import method_decorator
 from django.views.decorators.vary import vary_on_headers
@@ -12,6 +13,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.azure_access import AzureAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.azure.models import AzureCostSummaryByAccountP
@@ -29,6 +31,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["value"]
+    pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
@@ -53,7 +56,7 @@ class AzureSubscriptionGuidView(generics.ListAPIView):
                             .distinct()
                         )
                         self.search_fields = ["alias"]
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("azure.subscription_guid", {}).get("read", [])
