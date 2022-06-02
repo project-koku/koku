@@ -1028,10 +1028,10 @@ class AWSReportQueryTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         ranks = [
-            {"account": "1", "rank": 1, "source_uuid": ["1"]},
-            {"account": "2", "rank": 2, "source_uuid": ["2"]},
-            {"account": "3", "rank": 3, "source_uuid": ["3"]},
-            {"account": "4", "rank": 4, "source_uuid": ["4"]},
+            {"account": "1", "account_alias": "1", "rank": 1, "source_uuid": ["1"]},
+            {"account": "2", "account_alias": "2", "rank": 2, "source_uuid": ["2"]},
+            {"account": "3", "account_alias": "3", "rank": 3, "source_uuid": ["3"]},
+            {"account": "4", "account_alias": "4", "rank": 4, "source_uuid": ["4"]},
         ]
 
         data_list = [
@@ -1455,11 +1455,11 @@ class AWSReportQueryTest(IamTestCase):
         query_params = self.mocked_query_params(url, AWSCostView)
         handler = AWSReportQueryHandler(query_params)
         ranks = [
-            {"account": "1", "rank": 4, "source_uuid": ["1"]},
-            {"account": "2", "rank": 3, "source_uuid": ["1"]},
-            {"account": "3", "rank": 1, "source_uuid": ["1"]},
-            {"account": "4", "rank": 2, "source_uuid": ["1"]},
-            {"account": "5", "rank": 5, "source_uuid": ["1"]},
+            {"account": "1", "account_alias": "acct 1", "rank": 4, "source_uuid": ["1"]},
+            {"account": "2", "account_alias": "acct 2", "rank": 3, "source_uuid": ["1"]},
+            {"account": "3", "account_alias": "acct 3", "rank": 1, "source_uuid": ["1"]},
+            {"account": "4", "account_alias": "acct 4", "rank": 2, "source_uuid": ["1"]},
+            {"account": "5", "account_alias": "5", "rank": 5, "source_uuid": ["1"]},
         ]
 
         data_list = [
