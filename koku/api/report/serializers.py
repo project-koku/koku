@@ -418,7 +418,7 @@ class ParamSerializer(BaseSerializer):
         """Validate that the start_date is within the expected range."""
         dh = DateHelper()
         start = materialized_view_month_start(dh).date()
-        end = dh.today.date()
+        end = dh.tomorrow.date()
         if value >= start and value <= end:
             return value
 
