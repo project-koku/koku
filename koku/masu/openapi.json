@@ -310,6 +310,30 @@
               "format": "uuid",
               "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
             }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "description": "The month you want to finalize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12,
+              "example": 4
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "The year you want to finalize, If no month is given then the previous month from today's date will be used",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2050,
+              "example": 2021
+            }
           }
         ],
         "responses": {

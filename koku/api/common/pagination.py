@@ -272,6 +272,12 @@ class ResourceTypePaginator(ListPaginator):
     max_limit = 20000
 
 
+class ResourceTypeViewPaginator(StandardResultsSetPagination):
+    """A paginator that applies a larger max limit based query support for user access."""
+
+    max_limit = 20000
+
+
 class EmptyResultsSetPagination(StandardResultsSetPagination):
     """A paginator for an empty response."""
 
