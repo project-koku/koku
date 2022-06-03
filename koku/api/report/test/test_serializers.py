@@ -614,7 +614,7 @@ class QueryParamSerializerTest(IamTestCase):
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},
-            {"start_date": dh.yesterday.date(), "end_date": dh.tomorrow.date()},
+            {"start_date": dh.yesterday.date(), "end_date": dh.tomorrow.date() + relativedelta(days=1)},
             {"start_date": dh.n_days_ago(materialized_view_month_start(), 1), "end_date": dh.today.date()},
             {"start_date": dh.today.date(), "end_date": dh.yesterday.date()},
             {"start_date": "llamas", "end_date": dh.yesterday.date()},
