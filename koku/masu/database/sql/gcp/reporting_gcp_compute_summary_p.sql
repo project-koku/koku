@@ -36,6 +36,6 @@ INSERT INTO {{schema | sqlsafe}}.reporting_gcp_compute_summary_p (
         AND usage_start <= {{end_date}}::date
         AND source_uuid = {{source_uuid}}
         AND invoice_month = {{invoice_month}}
-        AND sku_alias LIKE '%Instance Core running%'
+        AND sku_alias LIKE '%%Instance Core running%%'
     GROUP BY usage_start, instance_type, source_uuid, invoice_month
 ;
