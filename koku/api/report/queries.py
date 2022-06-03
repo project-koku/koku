@@ -803,6 +803,8 @@ class ReportQueryHandler(QueryHandler):
         if self.is_openshift:
             drop_columns.append("clusters")
 
+        if not data_list:
+            return data_list
         data_frame = pd.DataFrame(data_list)
         # Create a data frame with the group_by item e.g. account and corresponding rank
         # Using + 1 to start at rank 1, instead of 0
