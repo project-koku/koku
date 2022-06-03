@@ -428,7 +428,7 @@ class ParamSerializer(BaseSerializer):
     def validate_end_date(self, value):
         """Validate that the end_date is within the expected range."""
         dh = DateHelper()
-        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
+        if value >= materialized_view_month_start(dh).date() and value <= dh.tomorrow.date():
             return value
         error = "Parameter end_date must be from {} to {}".format(
             materialized_view_month_start(dh).date(), dh.today.date()
