@@ -325,11 +325,37 @@ build_onprem_data() {
   trigger_download "${_download_types[@]}"
 }
 
+# OCI customer data
+build_oci_data() {
+  local _source_name="OCI"
+  local _yaml_files=("oci/oci_static_data.yml")
+
+  local _rendered_yaml_files=("$YAML_PATH/oci/rendered_oci_static_data.yml")
+
+  local _download_types=("Test OCI Source")
+
+  log-info "Rendering ${_source_name} YAML files..."
+  render_yaml_files "${_yaml_files[@]}"
+
+  log-info "Building ${_source_name} report data..."
+  nise_report oci --static-report-file "$YAML_PATH/oci/rendered_oci_static_data.yml" --oci-local-bucket "$NISE_DATA_PATH/local_providers/oci_local/bucket_1"
+
+  log-info "Cleanup ${_source_name} rendered YAML files..."
+  cleanup_rendered_files "${_rendered_yaml_files[@]}"
+
+  log-info "Adding ${_source_name} cost models..."
+  add_cost_models 'Test OCI Source' oci_cost_model.json $KOKU_API_HOSTNAME:$KOKU_PORT
+
+  log-info "Trigger downloads..."
+  trigger_download "${_download_types[@]}"
+}
+
 build_all(){
-  build_aws_data
-  build_azure_data
-  build_gcp_data
-  build_onprem_data
+  # build_aws_data
+  # build_azure_data
+  # build_gcp_data
+  # build_onprem_data
+  build_oci_data
 }
 
 # ---execute---
@@ -350,6 +376,11 @@ case ${provider_arg} in
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
       check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
       build_gcp_data
+      enable_ocp_tags ;;
+   "OCI")
+      check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
+      check-api-status "Masu" "${MASU_URL_PREFIX}/v1/status/"
+      build_oci_data
       enable_ocp_tags ;;
    "ONPREM")
       check-api-status "Koku" "${KOKU_URL_PREFIX}/v1/status/"
