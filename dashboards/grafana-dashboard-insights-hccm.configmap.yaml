@@ -1407,7 +1407,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Default",
+          "title": "Cost Model",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1482,7 +1482,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Default",
+          "title": "Cost Model",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1587,7 +1587,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Cost Model",
+          "title": "Default",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1662,7 +1662,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Cost Model",
+          "title": "Default",
           "transformations": [
             {
               "id": "seriesToColumns",
