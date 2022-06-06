@@ -494,7 +494,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         "api.report.test.util.oci_daily_summary",
