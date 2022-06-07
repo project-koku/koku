@@ -27,7 +27,7 @@ from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
-from django.db.utils import d_DBError
+from django.db.utils import DatabaseError as d_DBError
 from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
 from psycopg2 import DatabaseError as p_DBError
