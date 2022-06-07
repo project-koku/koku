@@ -109,7 +109,7 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("end:", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
-    def test_get_report_with_manifest_and_dates(self, mock_report, rd):
+    def test_get_report_with_manifest_and_dates(self, rd, mock_report):
         """Test HCS reports using manifest"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
 
@@ -129,7 +129,7 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
-    def test_get_collect_hcs_report_finalization(self, mock_report, rd, provider):
+    def test_get_collect_hcs_report_finalization(self, provider, rd, mock_report):
         """Test hcs finalization"""
         from hcs.tasks import collect_hcs_report_finalization
 
@@ -146,7 +146,7 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
-    def test_get_collect_hcs_report_finalization_month(self, mock_report, rd, provider):
+    def test_get_collect_hcs_report_finalization_month(self, provider, rd, mock_report):
         """Test hcs finalization for a given month"""
         from hcs.tasks import collect_hcs_report_finalization
 
@@ -156,10 +156,68 @@ class TestHCSTasks(HCSTestCase):
         end_date = "2022-10-31"
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            collect_hcs_report_finalization(10)
+            collect_hcs_report_finalization(month=10)
 
             self.assertIn("[collect_hcs_report_finalization]:", _logs.output[0])
             self.assertIn("schema_name:", _logs.output[0])
             self.assertIn("provider_type:", _logs.output[0])
             self.assertIn("provider_uuid:", _logs.output[0])
             self.assertIn(f"dates: {start_date} - {end_date}", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider(self, provider, rd, mock_report):
+        """Test hcs finalization for a given provider_type"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_type = "AWS"
+        provider.type.return_value = p_type
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type)
+
+            self.assertIn(f"provider type provided: {p_type}", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider_negative(self, provider, rd, mock_report):
+        """Test hcs finalization for a given provider_type"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_type = "BOGUS"
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type)
+
+            self.assertIn(f"provider type: {p_type} is not an excepted HCS provider", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models.Provider.objects")
+    def test_get_collect_hcs_report_finalization_provider_uuid(self, provider, rd, mock_report):
+        """Test hcs finalization for a given provider_uuid"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_type = "AWS"
+        provider.type.return_value = p_type
+
+        p_u = "05e04f00-18db-4ab5-8960-88854c6f9d88"
+        provider.uuid.return_value = p_u
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_finalization(provider_uuid=p_u)
+
+            self.assertIn(f"excepted_provider: {p_type}", _logs.output[0])
+            self.assertIn(f"provider uuid provided: {p_u}", _logs.output[1])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider_uuid_negative(self, provider, rd, mock_report):
+        """Test hcs finalization for a given provider_uuid bad uuid"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_u = "11111111-0000-1111-0000-111111111111"
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_uuid=p_u)
+
+            self.assertIn(f"provider_uuid: {p_u} does not exist", _logs.output[1])
