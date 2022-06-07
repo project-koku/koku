@@ -270,8 +270,8 @@ def execute_delete_sql(query):
     try:
         return execute_compiled_sql(sql, params=params)
     except Exception as e:
-        LOG.debug(f"The following exception occurred {e}")
-        return 0
+        LOG.error(f"The following exception occurred {e}")
+        raise e
 
 
 def execute_update_sql(query, **updatespec):
