@@ -806,21 +806,14 @@ class ReportQueryHandler(QueryHandler):
         if not data_list:
             return data_list
         data_frame = pd.DataFrame(data_list)
-        # Create a data frame with the group_by item e.g. account and corresponding rank
-        # Using + 1 to start at rank 1, instead of 0
-        # rank_list = [(field, rank + 1) for rank, field in enumerate(ranks)]
+
         rank_data_frame = pd.DataFrame(ranks)
-        if "costs" in self._report_type:
-            rank_data_frame.drop(columns=["cost_total"], inplace=True, errors="ignore")
-        else:
-            rank_data_frame.drop(columns=["usage"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "usage", "account_alias"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.append("account_alias")
-        if self.is_aws and "account" not in group_by:
-            rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.append("usage_units")
