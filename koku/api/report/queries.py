@@ -808,12 +808,14 @@ class ReportQueryHandler(QueryHandler):
         data_frame = pd.DataFrame(data_list)
 
         rank_data_frame = pd.DataFrame(ranks)
-        rank_data_frame.drop(columns=["cost_total", "usage", "account_alias"], inplace=True, errors="ignore")
+        rank_data_frame.drop(columns=["cost_total", "usage"], inplace=True, errors="ignore")
 
         # Determine what to get values for in our rank data frame
         agg_fields = {"cost_units": ["max"]}
         if self.is_aws and "account" in group_by:
             drop_columns.append("account_alias")
+        if self.is_aws and "account" not in group_by:
+            rank_data_frame.drop(columns=["account_alias"], inplace=True, errors="ignore")
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.append("usage_units")
@@ -881,7 +883,6 @@ class ReportQueryHandler(QueryHandler):
             drop_columns.append("clusters")
 
         others_data_frame = others_data_frame.drop(columns=drop_columns, errors="ignore")
-
         others_data_frame = others_data_frame.groupby(groups, dropna=True).agg(aggs, axis=1)
         columns = others_data_frame.columns.droplevel(1)
         others_data_frame.columns = columns
