@@ -27,8 +27,10 @@ from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
+from django.db.utils import d_DBError
 from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
+from psycopg2 import DatabaseError as p_DBError
 from sqlparse import format as format_sql
 from sqlparse import split as sql_split
 
@@ -269,9 +271,12 @@ def execute_delete_sql(query):
     sql, params = get_delete_sql(query)
     try:
         return execute_compiled_sql(sql, params=params)
+    except (p_DBError, d_DBError) as dbe:
+        LOG.error(f"execute_delete_sql :: The following databse exception occurred: {dbe}")
+        raise dbe  # re-raising here to cancel transaction
     except Exception as e:
         LOG.error(f"execute_delete_sql :: The following exception occurred: {e}")
-        raise e
+        return 0
 
 
 def execute_update_sql(query, **updatespec):
