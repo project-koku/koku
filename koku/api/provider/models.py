@@ -197,6 +197,8 @@ class Provider(models.Model):
             using = router.db_for_write(self.__class__, isinstance=self)
             with schema_context(self.customer.schema_name):
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE -- SCHEMA {self.customer.schema_name}")
+                _type = self.type.lower()
+                self._normalized_type = _type if not _type.endswith("-local") else _type[: _type.index("-")]
                 with transaction.atomic():
                     self._cascade_delete()
                     self._delete_from_target(
@@ -208,14 +210,6 @@ class Provider(models.Model):
         else:
             LOG.warning("Customer link cannot be found! Using ORM delete!")
             super().delete()
-
-    def _get_normalized_type(self):
-        """Normalize the provider type: Return lowercase type name w/o '-local'"""
-        _normalized_type = getattr(self, "_normalized_type", None)
-        if _normalized_type is None:
-            _type = self.type.lower()
-            _normalized_type = self._normalized_type = _type if "-local" not in _type else _type[: _type.index("-")]
-        return _normalized_type
 
     def _get_sub_target_values(self, target_info, target_values):
         sub_target = get_model(target_info["table_name"])
@@ -233,19 +227,18 @@ class Provider(models.Model):
             target_table = self._meta.db_table
         if target_values is None:
             target_values = [self.pk]
-        _normalized_type = self._get_normalized_type()
         # If one of the targets is in this tuple, then we must recursively call _cascade_delete
         # because this is a second level of indirection to get to data:
         # Provider ---> <branch-table> ---> x...
         # Make sure that any table(s) in the public schema are first.
         _cascade_branch_tables = (
             "reporting_common_costusagereportmanifest",
-            f"reporting_{_normalized_type}costentrybill",
-            f"reporting_{_normalized_type}meter",
-            f"reporting_{_normalized_type}usagereportperiod",
+            f"reporting_{self._normalized_type}costentrybill",
+            f"reporting_{self._normalized_type}meter",
+            f"reporting_{self._normalized_type}usagereportperiod",
         )
 
-        for target_info in self._get_linked_table_names(_normalized_type, target_table, public_schema):
+        for target_info in self._get_linked_table_names(target_table, public_schema):
             _target_vals = tuple(target_info[k] for k in sorted(target_info))
             if _target_vals in seen:
                 continue
@@ -259,14 +252,14 @@ class Provider(models.Model):
                 public_schema = (
                     self.customer.schema_name if target_info["table_name"] in _cascade_branch_tables[1:] else "public"
                 )
-                LOG.info(f"DELETE CASCADE BRANCH TO {target_info['table_name']}")
+                LOG.debug(f"DELETE CASCADE BRANCH TO {target_info['table_name']}")
                 self._cascade_delete(
                     target_table=target_info["table_name"],
                     target_values=self._get_sub_target_values(target_info, target_values),
                     public_schema=public_schema,
                     seen=seen,
                 )
-                LOG.info("DELETE CASCADE BRANCH COPLETE")
+                LOG.debug("DELETE CASCADE BRANCH COPLETE")
             else:
                 public_schema = "public"
             self._delete_from_target(target_info, target_values)
@@ -292,7 +285,7 @@ update public.api_provider p
         with transaction.get_connection().cursor() as cur:
             cur.execute(_sql, params)
 
-    def _get_linked_table_names(self, normalized_type, target_table, public_schema):
+    def _get_linked_table_names(self, target_table, public_schema):
         """Given a table name and schema name and type,
         find the other tables that are related by foreign keys"""
         with transaction.get_connection().cursor() as cur:
@@ -340,13 +333,13 @@ select ftn.nspname as "table_schema",
                 "target_table": target_table,
                 "public_schema": public_schema,
                 "search_schema": self.customer.schema_name,
-                "type_fregex": f"_{normalized_type}",
-                "ocptype_fregex": f"_ocp({normalized_type}|all)",
+                "type_fregex": f"_{self._normalized_type}",
+                "ocptype_fregex": f"_ocp({self._normalized_type}|all)",
                 "rpt_common_fregex": "^reporting_common_",
                 "api_fregex": "^api_",
-                "ui_table_sregex": f"^reporting_{normalized_type}_",
+                "ui_table_sregex": f"^reporting_{self._normalized_type}_",
                 "ui_table_sval": 1,
-                "ocp_type_sregex": f"^reporting_ocp({normalized_type}|all)",
+                "ocp_type_sregex": f"^reporting_ocp({self._normalized_type}|all)",
                 "ocp_type_sval": 2,
                 "daily_summ_sregex": "_daily_summary",
                 "daily_summ_sval": 3,
