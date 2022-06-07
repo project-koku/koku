@@ -151,6 +151,7 @@ def get_report_files(  # noqa: C901
         None
 
     """
+    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month
@@ -160,8 +161,6 @@ def get_report_files(  # noqa: C901
         cache_key = f"{provider_uuid}:{report_file}"
         tracing_id = report_context.get("assembly_id", "no-tracing-id")
         WorkerCache().add_task_to_cache(cache_key)
-
-        context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
 
         try:
             report_dict = _get_report_files(
