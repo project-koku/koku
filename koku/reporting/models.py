@@ -114,6 +114,7 @@ from reporting.provider.oci.models import OCICostSummaryByAccountP
 from reporting.provider.oci.models import OCICostSummaryByServiceP
 from reporting.provider.oci.models import OCICostSummaryP
 from reporting.provider.oci.models import OCIDatabaseSummaryP
+from reporting.provider.oci.models import OCIEnabledTagKeys
 from reporting.provider.oci.models import OCINetworkSummaryP
 from reporting.provider.oci.models import OCIStorageSummaryByAccountP
 from reporting.provider.oci.models import OCIStorageSummaryP
