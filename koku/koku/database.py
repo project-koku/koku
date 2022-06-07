@@ -291,6 +291,14 @@ def set_constraints_immediate():
         cur.execute("set constraints all immediate;")
 
 
+def fast_table_exists(table_name):
+    sql = """select to_regclass(%s)::oid as _oid;"""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(sql, (table_name,))
+        rec = cur.fetchone()
+        return rec is not None and rec[0] is not None and rec[0] > 0
+
+
 def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_model=None, level=0):
     """
     Performs a cascading delete by walking the Django model relations and executing compiled SQL
@@ -323,8 +331,12 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     LOG.debug(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
+        related_model_exists = fast_table_exists(related_model._meta.db_table)
         if related_model in skip_relations:
             LOG.debug(f"SKIPPING RELATION {related_model.__name__} by directive")
+            continue
+        if not related_model_exists:
+            LOG.warning(f"SKIPPING RELATION {related_model.__name__} (table does not exist in current schema)")
             continue
 
         if model_relation.on_delete.__name__ == "SET_NULL":
