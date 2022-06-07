@@ -26,6 +26,7 @@ LOG = logging.getLogger(__name__)
 AWS_CACHE_PREFIX = "aws-view"
 AZURE_CACHE_PREFIX = "azure-view"
 GCP_CACHE_PREFIX = "gcp-view"
+OCI_CACHE_PREFIX = "oci-view"
 OPENSHIFT_CACHE_PREFIX = "openshift-view"
 OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
 OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
