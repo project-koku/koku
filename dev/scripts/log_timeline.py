@@ -93,9 +93,9 @@ class StdoutWriter:
 
 
 class Process:
-    def __init__(self, db_url, logs, force_init=False, dump=None, window="15 seconds", dump_debug=False):
+    def __init__(self, db_url, logs, clean=False, dump=None, window="15 seconds", dump_debug=False):
         self.__db_url = db_url
-        self.force_init = force_init
+        self.clean = clean
         self.logs = logs
         self.dump = dump
         self.window = window
@@ -164,7 +164,8 @@ create index log_timeline_ix2 on public._log_timeline (log_level)
         self.conn.commit()
 
     def init_table(self):
-        if self.force_init or not self.table_exists("_log_timeline"):
+        if self.clean or not self.table_exists("_log_timeline"):
+            self.clean = False
             self.create_table()
 
     def parse_ts(self, ts):
@@ -420,12 +421,12 @@ if __name__ == "__main__":
         help="DB connect url (table will be created in public schema",
     )
     parser.add_argument(
-        "--force-init",
+        "--clean",
         action="store_true",
-        dest="force_init",
+        dest="clean",
         required=False,
         default=False,
-        help="Destroy and recreate the database",
+        help="Drop and recreate the database table",
     )
     parser.add_argument(
         "--dump-debug",
@@ -463,7 +464,7 @@ if __name__ == "__main__":
     Process(
         args.db_url,
         args.logs,
-        force_init=args.force_init,
+        clean=args.clean,
         dump=args.dump,
         window=args.window,
         dump_debug=args.dump_debug,
