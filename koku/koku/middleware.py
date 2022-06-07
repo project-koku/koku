@@ -311,7 +311,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             LOG.info(stmt)
             cache_key = (account, org_id)
             try:
-                if account not in IdentityHeaderMiddleware.customer_cache:
+                if cache_key not in IdentityHeaderMiddleware.customer_cache:
                     customer = Customer.objects.filter(account_id=account).get()
                     IdentityHeaderMiddleware.customer_cache[cache_key] = customer
                     LOG.debug(f"Customer added to cache: {cache_key}")
