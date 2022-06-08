@@ -304,9 +304,7 @@ select log_ts - %(window)s::interval as start_time,
                     ends.append(rec["end_time"])
             return starts, ends
         else:
-            return [datetime.datetime(1900, 1, 1).replace(tzinfo=UTC)], [
-                datetime.datetime(1900, 1, 2).replace(tzinfo=UTC)
-            ]
+            return [datetime(1900, 1, 1).replace(tzinfo=UTC)], [datetime(1900, 1, 2).replace(tzinfo=UTC)]
 
     def get_error_window_cte_stmt(self):
         start_times, end_times = self.get_error_log_ts_start_end()
