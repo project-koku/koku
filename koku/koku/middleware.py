@@ -293,7 +293,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         req_id = None
 
         # TODO: COST-2620 followup, once DB changes are complete only use org_id
-        if username and email and (account or org_id):
+        if username and email and account:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
             # Check for customer creation & user creation
