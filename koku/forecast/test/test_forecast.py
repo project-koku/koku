@@ -16,7 +16,8 @@ from statsmodels.tools.sm_exceptions import ValueWarning
 
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
-from api.forecast.views import GCPForecastCostView
+from api.forecast.views import GCPCostForecastView
+from api.forecast.views import OCICostForecastView
 from api.forecast.views import OCPAllCostForecastView
 from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
@@ -29,6 +30,7 @@ from api.utils import DateHelper
 from forecast import AWSForecast
 from forecast import AzureForecast
 from forecast import GCPForecast
+from forecast import OCIForecast
 from forecast import OCPAllForecast
 from forecast import OCPAWSForecast
 from forecast import OCPAzureForecast
@@ -39,6 +41,8 @@ from reporting.provider.aws.models import AWSCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByAccountP
 from reporting.provider.gcp.models import GCPCostSummaryByProjectP
 from reporting.provider.gcp.models import GCPCostSummaryP
+from reporting.provider.oci.models import OCICostSummaryByAccountP
+from reporting.provider.oci.models import OCICostSummaryP
 from reporting.provider.ocp.models import OCPCostSummaryByNodeP
 from reporting.provider.ocp.models import OCPCostSummaryP
 from reporting.provider.ocp.models import OCPUsageLineItemDailySummary
@@ -678,7 +682,7 @@ class GCPForecastTest(IamTestCase):
         )
         mocked_table.len = mock_qset.len
 
-        params = self.mocked_query_params("?", AzureCostForecastView)
+        params = self.mocked_query_params("?", GCPCostForecastView)
         instance = GCPForecast(params)
 
         instance.cost_summary_table = mocked_table
@@ -705,30 +709,91 @@ class GCPForecastTest(IamTestCase):
 
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
-        params = self.mocked_query_params("?", GCPForecastCostView)
+        params = self.mocked_query_params("?", GCPCostForecastView)
         forecast = GCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryP)
 
-        params = self.mocked_query_params("?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}})
+        params = self.mocked_query_params("?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}})
         forecast = GCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByAccountP)
 
-        params = self.mocked_query_params("?", GCPForecastCostView, access={"gcp.project": {"read": ["1"]}})
+        params = self.mocked_query_params("?", GCPCostForecastView, access={"gcp.project": {"read": ["1"]}})
         forecast = GCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
         params = self.mocked_query_params(
-            "?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
+            "?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
         )
         forecast = GCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
         params = self.mocked_query_params(
-            "?", GCPForecastCostView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
+            "?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
         )
 
         forecast = GCPForecast(params)
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
+
+
+class OCIForecastTest(IamTestCase):
+    """Tests the OCIForecast class."""
+
+    def test_predict_flat(self):
+        """Test that predict() returns expected values for flat costs."""
+        dh = DateHelper()
+
+        expected = []
+        for n in range(0, 10):
+            expected.append(
+                {
+                    "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
+                    "total_cost": 5 + (0.01 * n),
+                    "infrastructure_cost": 3 + (0.01 * n),
+                    "supplementary_cost": 2 + (0.01 * n),
+                }
+            )
+        mock_qset = MockQuerySet(expected)
+
+        mocked_table = Mock()
+        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
+            mock_qset
+        )
+        mocked_table.len = mock_qset.len
+
+        params = self.mocked_query_params("?", OCICostForecastView)
+        instance = OCIForecast(params)
+
+        instance.cost_summary_table = mocked_table
+
+        results = instance.predict()
+
+        for result in results:
+            for val in result.get("values", []):
+                with self.subTest(values=val):
+                    self.assertIsInstance(val.get("date"), date)
+
+                    for item, cost, delta in [
+                        (val.get("cost"), 5, 1),
+                        (val.get("infrastructure"), 3, 1),
+                        (val.get("supplementary"), 2, 1),
+                    ]:
+                        with self.subTest(cost=cost, delta=delta, item=item):
+                            self.assertAlmostEqual(float(item.get("total").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_max").get("value")), cost, delta=delta)
+                            self.assertAlmostEqual(float(item.get("confidence_min").get("value")), cost, delta=delta)
+                            self.assertGreater(float(item.get("rsquared").get("value")), 0)
+                            for pval in item.get("pvalues").get("value"):
+                                self.assertGreaterEqual(float(pval), 0)
+
+    def test_cost_summary_table(self):
+        """Test that we select a valid table or view."""
+        params = self.mocked_query_params("?", OCICostForecastView)
+        forecast = OCIForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCICostSummaryP)
+
+        params = self.mocked_query_params("?", OCICostForecastView, access={"oci.payer_tenant_id": {"read": ["1"]}})
+        forecast = OCIForecast(params)
+        self.assertEqual(forecast.cost_summary_table, OCICostSummaryByAccountP)
 
 
 class OCPForecastTest(IamTestCase):
