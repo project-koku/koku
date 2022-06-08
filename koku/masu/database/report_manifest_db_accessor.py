@@ -221,7 +221,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         filters = {
             "provider_id": provider_uuid,
             "billing_period_start_datetime__date": bill_date,
-            "gcp_parition_date": partition_date,
+            "gcp_partition_date": partition_date,
             "manifest_completed_datetime__isnull": False,
         }
         manifests = CostUsageReportManifest.objects.filter(**filters).all()

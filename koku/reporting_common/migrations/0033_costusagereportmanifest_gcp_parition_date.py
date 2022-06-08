@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="costusagereportmanifest",
-            name="gcp_parition_date",
+            name="gcp_partition_date",
             field=models.DateField(null=True),
         ),
     ]

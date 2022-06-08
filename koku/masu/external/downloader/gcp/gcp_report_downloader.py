@@ -41,7 +41,7 @@ LOG = logging.getLogger(__name__)
 # This needs to be reworked, we no longer grab scan ranges so each file should be a day already.
 # I am note sure if this is needed anymore?
 def create_daily_archives(
-    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, last_export_time, context={}
+    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, new_export_time, context={}
 ):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -56,11 +56,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    download_hash = None
     daily_file_names = []
-    if last_export_time:
-        download_hash = hashlib.md5(str(last_export_time).encode())
-        download_hash = download_hash.hexdigest()
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
         dh = DateHelper()
         directory = os.path.dirname(filepath)
@@ -86,10 +82,7 @@ def create_daily_archives(
             for daily_data in daily_data_frames:
                 day = daily_data.get("date")
                 df = daily_data.get("data_frame")
-                if download_hash:
-                    day_file = f"{invoice_month}_{day}_{download_hash}.csv"
-                else:
-                    day_file = f"{invoice_month}_{day}.csv"
+                day_file = f"{invoice_month}_{day}_{new_export_time}.csv"
                 day_filepath = f"{directory}/{day_file}"
                 df.to_csv(day_filepath, index=False, header=True)
                 copy_local_report_file_to_s3_bucket(
@@ -200,6 +193,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         manifests_dict = {}
+        manifests = []
         # Check to see if we have any manifests within the date range.
         with ReportManifestDBAccessor() as manifest_accessor:
             manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self._provider_uuid, start_date)
@@ -207,24 +201,24 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # downloading this month, so we need to update our
             # scan range to include the full month.
             # TODO: SEE IF WE CAN MOVE THIS OUT OF THE WITH
-            if not manifests:
-                self.scan_start = start_date
-                end_of_month = start_date + relativedelta(months=1)
-                if isinstance(end_of_month, datetime.datetime):
-                    end_of_month = end_of_month.date()
-                if end_of_month < self.scan_end:
-                    self.scan_end = end_of_month
-                # This looks unnecessary, but it is used for day2day
-                # workflow testing with date override
-                today = DateAccessor().today().date()
-                if today < end_of_month:
-                    self.scan_end = today
-            else:
-                # day2day flow
-                for manifest in manifests:
-                    last_export_time = manifests_dict.get(manifest.gcp_parition_date)
-                    if not last_export_time or manifest.export_time > last_export_time:
-                        manifests_dict[manifest.gcp_parition_date] = manifest.export_time
+        if not manifests:
+            self.scan_start = start_date
+            end_of_month = start_date + relativedelta(months=1)
+            if isinstance(end_of_month, datetime.datetime):
+                end_of_month = end_of_month.date()
+            if end_of_month < self.scan_end:
+                self.scan_end = end_of_month
+            # This looks unnecessary, but it is used for day2day
+            # workflow testing with date override
+            today = DateAccessor().today().date()
+            if today < end_of_month:
+                self.scan_end = today
+        else:
+            # day2day flow
+            for manifest in manifests:
+                last_export_time = manifests_dict.get(manifest.gcp_partition_date)
+                if not last_export_time or manifest.export_time > last_export_time:
+                    manifests_dict[manifest.gcp_partition_date] = manifest.export_time
         return manifests_dict
 
     def bigquery_export_to_partition_mapping(self):
@@ -403,7 +397,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             with ReportManifestDBAccessor() as manifest_accessor:
                 manifest = manifest_accessor.get_manifest_by_id(manifest_id)
                 if manifest:
-                    manifest.gcp_parition_date = partition_date
+                    manifest.gcp_partition_date = partition_date
                     manifest.export_time = new_export_time
                     manifest.save()
 
@@ -454,7 +448,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             full_local_path,
             manifest_id,
             start_date,
-            last_export_time,
+            new_export_time,
             self.context,
         )
 
