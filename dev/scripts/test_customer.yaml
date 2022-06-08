@@ -109,7 +109,7 @@ customer:
         credentials:
       billing_source:
         data_source:
-          bucket: '/tmp/oci_local'
+          bucket: '/tmp/oci_local/bucket_1'
           bucket_namespace: 'local_namespace'
           bucket_region: 'local_region'
 koku:
