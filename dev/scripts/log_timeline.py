@@ -328,6 +328,7 @@ select case when w.err_range is null
                       else %(window_color)s
                  end::text
             end::text as _color,
+       null::text as _u_bound,
        log_ts,
        log_name,
        log_line,
