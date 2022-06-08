@@ -292,6 +292,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         is_admin = user.get("is_org_admin")
         req_id = None
 
+        # TODO: COST-2620 followup, once DB changes are complete only use org_id
         if username and email and (account or org_id):
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
@@ -309,6 +310,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 "is_admin": is_admin,
             }
             LOG.info(stmt)
+            # TODO: COST-2620 followup, once DB changes are complete only use org_id
             cache_key = (account, org_id)
             try:
                 if cache_key not in IdentityHeaderMiddleware.customer_cache:

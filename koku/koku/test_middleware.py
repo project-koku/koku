@@ -206,6 +206,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         user_data = self._create_user_data()
         account_id = "99999"
         del customer["account_id"]
+        del customer["org_id"]
         request_context = self._create_request_context(customer, user_data, create_customer=False, create_user=False)
         mock_request = request_context["request"]
         mock_request.path = "/api/v1/tags/aws/"
@@ -222,8 +223,9 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         """Test case where another request may create the customer in a race condition."""
         customer = self._create_customer_data()
         account_id = customer["account_id"]
-        orig_cust = IdentityHeaderMiddleware.create_customer(account_id)
-        dup_cust = IdentityHeaderMiddleware.create_customer(account_id)
+        org_id = customer["org_id"]
+        orig_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id)
+        dup_cust = IdentityHeaderMiddleware.create_customer(account_id, org_id)
         self.assertEqual(orig_cust, dup_cust)
 
     def test_race_condition_user(self):

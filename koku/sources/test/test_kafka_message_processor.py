@@ -143,7 +143,8 @@ class KafkaMessageProcessorTest(IamTestCase):
         super().setUpClass()
         post_save.disconnect(storage_callback, sender=Sources)
         account = "12345"
-        IdentityHeaderMiddleware.create_customer(account)
+        org_id = "3333333"
+        IdentityHeaderMiddleware.create_customer(account, org_id)
 
     def setUp(self):
         self.valid_creds = {

@@ -36,6 +36,7 @@ class KokuTestRunner(DiscoverRunner):
     """Koku Test Runner for Unit Tests."""
 
     account = "10001"
+    org_id = "1234567"
     schema = f"acct{account}"
     settings.HOSTNAME = "koku-worker-10-abcdef"
 
