@@ -32,6 +32,8 @@ from api.tags.azure.queries import AzureTagQueryHandler
 from api.tags.azure.view import AzureTagView
 from api.tags.gcp.queries import GCPTagQueryHandler
 from api.tags.gcp.view import GCPTagView
+from api.tags.oci.queries import OCITagQueryHandler
+from api.tags.oci.view import OCITagView
 from api.tags.ocp.queries import OCPTagQueryHandler
 from api.tags.ocp.view import OCPTagView
 from koku.cache import invalidate_view_cache_for_tenant_and_all_source_types
@@ -40,6 +42,7 @@ from masu.util.common import update_enabled_keys
 from reporting.models import AWSEnabledTagKeys
 from reporting.models import AzureEnabledTagKeys
 from reporting.models import GCPEnabledTagKeys
+from reporting.models import OCIEnabledTagKeys
 from reporting.models import OCPEnabledTagKeys
 
 LOG = logging.getLogger(__name__)
@@ -80,6 +83,15 @@ obtainTagKeysProvidersParams = {
         "tag_view": GCPTagView,
         "query_handler": GCPTagQueryHandler,
         "enabled_tag_keys": GCPEnabledTagKeys,
+    },
+    "oci": {
+        "provider": Provider.PROVIDER_OCI,
+        "title": "Oracle Cloud Infrastructure tags",
+        "leftLabel": "Available tags",
+        "rightLabel": "Tags for reporting",
+        "tag_view": OCITagView,
+        "query_handler": OCITagQueryHandler,
+        "enabled_tag_keys": OCIEnabledTagKeys,
     },
 }
 
