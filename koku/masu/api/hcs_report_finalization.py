@@ -31,7 +31,7 @@ def hcs_report_finalization(request):
     params = request.query_params
     month = params.get("month")
     year = params.get("year")
-    provider = params.get("provider")
+    provider_type = params.get("provider_type")
     provider_uuid = params.get("provider_uuid")
     schema_name = params.get("schema_name")
     tracing_id = str(uuid.uuid4())
@@ -53,7 +53,7 @@ def hcs_report_finalization(request):
 
     if request.method == "GET":
         async_result = collect_hcs_report_finalization.s(
-            month, year, provider, provider_uuid, schema_name, tracing_id
+            month, year, provider_type, provider_uuid, schema_name, tracing_id
         ).apply_async(queue=HCS_QUEUE)
         async_results.append({"month": finalization_month.strftime("%Y-%m"), "id": str(async_result)})
         return Response({report_data_msg_key: async_results})

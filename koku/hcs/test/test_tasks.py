@@ -55,7 +55,7 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
     def test_get_report_no_end_date(self, mock_report):
-        """Test no start end provided"""
+        """Test no start date provided"""
         from hcs.tasks import collect_hcs_report_data
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -77,7 +77,7 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
 
     def test_schema_no_acct_prefix(self, mock_report):
-        """Test no start end provided"""
+        """Test no schema name prefix provided"""
         from hcs.tasks import collect_hcs_report_data
 
         collect_hcs_report_data("10001", self.provider, self.provider_uuid, self.yesterday)
@@ -86,7 +86,7 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest(self, mock_report, rd):
-        """Test invalid provider"""
+        """Test report with manifest"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
 
         manifests = [
@@ -110,7 +110,7 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest_and_dates(self, rd, mock_report):
-        """Test HCS reports using manifest"""
+        """Test report with manifest and dates"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
 
         manifests = [
@@ -130,7 +130,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization(self, provider, rd, mock_report):
-        """Test hcs finalization"""
+        """Test report finalization"""
         from hcs.tasks import collect_hcs_report_finalization
 
         provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
@@ -147,7 +147,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization_month(self, provider, rd, mock_report):
-        """Test hcs finalization for a given month"""
+        """Test finalization providing month"""
         from hcs.tasks import collect_hcs_report_finalization
 
         provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
@@ -167,7 +167,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization_provider(self, provider, rd, mock_report):
-        """Test hcs finalization for a given provider_type"""
+        """Test finalization with providing a provider_type"""
         from hcs.tasks import collect_hcs_report_finalization
 
         p_type = "AWS"
@@ -181,7 +181,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization_provider_negative(self, provider, rd, mock_report):
-        """Test hcs finalization for a given provider_type"""
+        """Test finalization with providing a bogus provider_type"""
         from hcs.tasks import collect_hcs_report_finalization
 
         p_type = "BOGUS"
@@ -194,7 +194,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models.Provider.objects")
     def test_get_collect_hcs_report_finalization_provider_uuid(self, provider, rd, mock_report):
-        """Test hcs finalization for a given provider_uuid"""
+        """Test finalization with providing a provider_uuid"""
         from hcs.tasks import collect_hcs_report_finalization
 
         p_type = "AWS"
@@ -212,7 +212,7 @@ class TestHCSTasks(HCSTestCase):
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
     def test_get_collect_hcs_report_finalization_provider_uuid_negative(self, provider, rd, mock_report):
-        """Test hcs finalization for a given provider_uuid bad uuid"""
+        """Test hcs finalization for a given bad provider_uuid"""
         from hcs.tasks import collect_hcs_report_finalization
 
         p_u = "11111111-0000-1111-0000-111111111111"

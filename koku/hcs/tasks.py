@@ -135,8 +135,12 @@ def collect_hcs_report_data(
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
 def collect_hcs_report_finalization(  # noqa: C901
-    month=None, year=None, provider_type=None, provider_uuid=None, schemma_name=None, tracing_id=None
+    month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
+    if schema_name is not None and not enable_hcs_processing(schema_name):
+        LOG.info(log_json(tracing_id, f"schema_name provided: {schema_name} is not HCS enabled"))
+        return
+
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
@@ -154,7 +158,7 @@ def collect_hcs_report_finalization(  # noqa: C901
 
     if provider_type is None:
         excepted_providers = HCS_EXCEPTED_PROVIDERS
-    elif provider_type is not None and provider_type in HCS_EXCEPTED_PROVIDERS:
+    elif provider_type in HCS_EXCEPTED_PROVIDERS:
         excepted_providers = provider_type
         LOG.debug(log_json(tracing_id, f"provider type provided: {provider_type}"))
     else:
@@ -181,7 +185,7 @@ def collect_hcs_report_finalization(  # noqa: C901
             p_uuid = provider.uuid
             p_type = provider.type
 
-            if schemma_name is not None and schemma_name is not s_name:
+            if schema_name is not None and schema_name is not s_name:
                 continue
 
             stmt = (
