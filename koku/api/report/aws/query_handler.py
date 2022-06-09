@@ -594,13 +594,17 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 # Query parameter indicates count should be removed from DB queries
                 annotations.pop("count", None)
                 annotations.pop("count_units", None)
-
+            annotations_keys = list(self.report_annotations.keys())
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             if "account" in query_group_by:
+                print("\n\n\naccount in query group by: ")
+                print(query_group_by)
+                print(annotations_keys)
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
-
+                annotations_keys.append("account_alias")
+                print(annotations_keys)
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
@@ -639,7 +643,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     skip_columns.extend(["count", "count_units"])
                 aggs = {
                     col: ["max"] if "units" in col else ["sum"]
-                    for col in self.report_annotations
+                    for col in annotations_keys
                     if col not in skip_columns
                 }
 
