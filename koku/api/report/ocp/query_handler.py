@@ -5,12 +5,14 @@
 """OCP Query Handling for Reports."""
 import copy
 import datetime
+import decimal
 import logging
 from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 
+import pandas as pd
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
@@ -19,6 +21,7 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from reporting.models import OCPUsageLineItemDailySummary
 
 LOG = logging.getLogger(__name__)
 
@@ -128,10 +131,43 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
+            # example group by
+            # initial_group_by = query_group_by + [self._mapper.cost_units_key]
+            initial_group_by = query_group_by
+            if self.query_table == OCPUsageLineItemDailySummary:
+                # we may need to do this
+                # self.report_annotations.pop("source_uuid")
+                initial_group_by.append("source_uuid")
+            else:
+                initial_group_by.append("source_uuid_id")
+            annotations = self._mapper.report_type_map.get("annotations")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
-            query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            # query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
+            query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            df = pd.DataFrame(query_data)
+            columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
+            for column in columns:
+                print(column)
+                df[column] = df[column] * decimal.Decimal(100.0)
+                df["cost_units"] = "YEN"
+            skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+            if "count" not in df.columns:
+                skip_columns.extend(["count", "count_units"])
+            aggs = {
+                col: ["max"] if "units" in col else ["sum"]
+                for col in self.report_annotations
+                if col not in skip_columns
+            }
+            LOG.info(f"\n\n\n aggs: {aggs}")
+
+            grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            # import pdb;pdb.set_trace()
+            query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
