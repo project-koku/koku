@@ -195,7 +195,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             }
             for column in columns:
                 print(column)
-                df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]]["USD"], axis=1)
+                df[column] = df.apply(lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]]["USD"], axis=1)
                 # df[column] = df[column] * decimal.Decimal(100.0)
                 df["cost_units"] = "USD"
             skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
