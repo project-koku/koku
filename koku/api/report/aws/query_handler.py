@@ -605,8 +605,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
-            print("\n\n\n\nash: ")
-            print(query_data)
             if query_data:
                 import pandas as pd
                 from decimal import Decimal
