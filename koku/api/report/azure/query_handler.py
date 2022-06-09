@@ -5,6 +5,7 @@
 """Azure Query Handling for Reports."""
 import copy
 import logging
+from decimal import Decimal
 
 from django.db.models import ExpressionWrapper
 from django.db.models import F
@@ -183,14 +184,20 @@ class AzureReportQueryHandler(ReportQueryHandler):
             #     # daily_files = []
             #     invoice_filter = data_frame["invoice.month"] == invoice_month
             #     invoice_data = data_frame[invoice_filter]
-            for base_currency in df[self._mapper.cost_units_key].unique():
-                currency_filter = df[self._mapper.cost_units_key] == base_currency
-                currency_data = df[currency_filter]
-                print(currency_data)
-                for column in columns:
-                    print(column)
-                    df[column] = df[column] * decimal.Decimal(100.0)
-                    # df["cost_units"] = "YEN"
+            # for base_currency in df[self._mapper.cost_units_key].unique():
+            #     currency_filter = df[self._mapper.cost_units_key] == base_currency
+            #     currency_data = df[currency_filter]
+            #     print(currency_data)
+            exchange_rates = {
+                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
+                "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
+                "JPY": {"USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125), "CAD": Decimal(1.34)},
+            }
+            for column in columns:
+                print(column)
+                df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]]["USD"], axis=1)
+                # df[column] = df[column] * decimal.Decimal(100.0)
+                df["cost_units"] = "USD"
             skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
