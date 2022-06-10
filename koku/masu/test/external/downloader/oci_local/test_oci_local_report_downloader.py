@@ -91,7 +91,9 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         self.assertEqual(etag, self.etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag, _, __ = self.oci_local_report_downloader.download_file(self.csv_file_name)
+        full_file_path, second_run_etag, _, __, ___ = self.oci_local_report_downloader.download_file(
+            self.csv_file_name
+        )
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, self.testing_dir)
 

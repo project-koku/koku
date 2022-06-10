@@ -97,7 +97,7 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.assertIsNotNone(etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag, _, __ = self.azure_local_report_downloader.download_file(self.csv_key)
+        full_file_path, second_run_etag, _, __, ___ = self.azure_local_report_downloader.download_file(self.csv_key)
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, expected_full_path)
 
