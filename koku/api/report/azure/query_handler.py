@@ -180,14 +180,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                     "cost_usage",
                     "cost_markup",
                 ]
-                # for invoice_month in data_frame["invoice.month"].unique():
-                #     # daily_files = []
-                #     invoice_filter = data_frame["invoice.month"] == invoice_month
-                #     invoice_data = data_frame[invoice_filter]
-                # for base_currency in df[self._mapper.cost_units_key].unique():
-                #     currency_filter = df[self._mapper.cost_units_key] == base_currency
-                #     currency_data = df[currency_filter]
-                #     print(currency_data)
+
                 exchange_rates = {
                     "USD": {"USD": Decimal(1.0)},
                     "EUR": {
@@ -206,10 +199,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 for column in columns:
                     print(column)
                     df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]]["USD"], axis=1
+                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
+                        axis=1,
                     )
-                    # df[column] = df[column] * decimal.Decimal(100.0)
-                    df["cost_units"] = "USD"
+                    df["cost_units"] = self.currency
                 skip_columns = ["gcp_project_alias", "clusters"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
@@ -223,7 +216,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 columns = grouped_df.columns.droplevel(1)
                 grouped_df.columns = columns
                 grouped_df.reset_index(inplace=True)
-                # import pdb;pdb.set_trace()
                 query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data:

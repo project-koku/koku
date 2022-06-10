@@ -92,6 +92,7 @@ class ReportQueryHandler(QueryHandler):
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
+        self.currency = parameters.parameters.get("currency")
 
         self.query_filter = self._get_filter()
 

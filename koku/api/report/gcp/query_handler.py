@@ -217,12 +217,14 @@ class GCPReportQueryHandler(ReportQueryHandler):
                         "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
                         "CAD": Decimal(1.34),
                     },
-                    "AUD": {"USD": Decimal(0.7194244604)},
+                    "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
                 }
                 for column in columns:
                     print(column)
-                    df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]]["USD"], axis=1)
-                    df["cost_units"] = "USD"
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
+                    )
+                    df["cost_units"] = self.currency
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
