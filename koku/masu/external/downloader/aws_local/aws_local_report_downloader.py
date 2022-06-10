@@ -246,7 +246,7 @@ class AWSLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             if not manifest_accessor.get_s3_csv_cleared(manifest):
                 utils.remove_files_not_in_set_from_s3_bucket(self.tracing_id, s3_csv_path, manifest_id)
                 manifest_accessor.mark_s3_csv_cleared(manifest)
-        return full_file_path, s3_etag, file_creation_date, []
+        return full_file_path, s3_etag, file_creation_date, [], {}
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""

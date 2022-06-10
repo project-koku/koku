@@ -241,10 +241,10 @@ class Orchestrator:
             provider_uuid = account.get("provider_uuid")
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
-        if provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL, Provider.PROVIDER_GCP]:
-            self.prepare_continious_report_sources(account, provider_uuid)
-        else:
-            self.prepare_monthly_report_sources(account, provider_uuid)
+            if provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL, Provider.PROVIDER_GCP]:
+                self.prepare_continious_report_sources(account, provider_uuid)
+            else:
+                self.prepare_monthly_report_sources(account, provider_uuid)
 
     def prepare_monthly_report_sources(self, account, provider_uuid):
         """

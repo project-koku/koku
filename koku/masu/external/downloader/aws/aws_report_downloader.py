@@ -279,7 +279,7 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 manifest_accessor.mark_s3_csv_cleared(manifest)
         msg = f"Download complete for {key}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        return full_file_path, s3_etag, file_creation_date, []
+        return full_file_path, s3_etag, file_creation_date, [], {}
 
     def get_manifest_context_for_date(self, date):
         """
