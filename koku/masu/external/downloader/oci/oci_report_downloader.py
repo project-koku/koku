@@ -380,7 +380,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             raise OCIReportDownloaderError(err_msg)
 
-        return full_local_path, etag, file_creation_date, file_names
+        return full_local_path, etag, file_creation_date, file_names, {}
 
     def _get_local_directory_path(self):
         """
