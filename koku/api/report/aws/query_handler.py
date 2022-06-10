@@ -749,6 +749,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         query_data = query_data.annotate(**aggregates)
         columns = list(aggregates.keys())
+        if "usage" in columns:
+            columns.remove("usage")
         new_annotations = list(self.report_annotations.keys())
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")
@@ -791,7 +793,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if unit_key not in ["usage_units"]:
+            if unit_key not in ["usage_units", "count_units"]:
                 total_query[unit_key] = "USD"
                 # total_query[unit_key] = self.currency
 

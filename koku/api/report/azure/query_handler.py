@@ -287,19 +287,20 @@ class AzureReportQueryHandler(ReportQueryHandler):
         initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*initial_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
         if "count" in aggregates:
-            resource_ids = (
-                query_data.annotate(resource_id=Func(F("instance_ids"), function="unnest"))
-                .values_list("resource_id", flat=True)
+            instance_ids = (
+                query_data.annotate(instance_id=Func(F("instance_ids"), function="unnest"))
+                .values_list("instance_id", flat=True)
                 .distinct()
             )
-            counts = len(resource_ids)
-
+            counts = len(instance_ids)
+        query_data = query_data.values(*initial_group_by)
         query_data = query_data.annotate(**aggregates)
         columns = list(aggregates.keys())
+        if "usage" in columns:
+            columns.remove("usage")
         if query_data:
 
             df = pd.DataFrame(query_data)
@@ -344,7 +345,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             total_query = query_data.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if unit_key not in ["usage_units"]:
+            if unit_key not in ["usage_units", "count_units"]:
                 total_query[unit_key] = "USD"
 
         if counts:
