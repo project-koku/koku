@@ -188,7 +188,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.copy2(base_path, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names, date_range = create_monthly_archives(
+        file_names = create_monthly_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -198,7 +198,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_file_path, etag, file_creation_date, file_names, date_range
+        return full_file_path, etag, file_creation_date, file_names, {}
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""

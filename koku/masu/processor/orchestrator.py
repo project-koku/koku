@@ -265,16 +265,16 @@ class Orchestrator:
         for month in report_months:
             LOG.info("Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid)
             account["report_month"] = month
-            try:
-                _, reports_tasks_queued = self.start_manifest_processing(**account)
-            except ReportDownloaderError as err:
-                LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-                continue
-            except Exception as err:
-                # Broad exception catching is important here because any errors thrown can
-                # block all subsequent account processing.
-                LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
-                continue
+            # try:
+            _, reports_tasks_queued = self.start_manifest_processing(**account)
+            # except ReportDownloaderError as err:
+            #     LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+            #     continue
+            # except Exception as err:
+            #     # Broad exception catching is important here because any errors thrown can
+            #     # block all subsequent account processing.
+            #     LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+            #     continue
 
             # update labels
             if reports_tasks_queued and not accounts_labeled:
