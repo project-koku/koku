@@ -5,6 +5,7 @@
 """GCP Query Handling for Reports."""
 import copy
 import logging
+from decimal import Decimal
 
 from django.db.models import F
 from django.db.models import Value
@@ -171,17 +172,71 @@ class GCPReportQueryHandler(ReportQueryHandler):
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
-
             query_group_by = ["date"] + self._get_group_by()
+            initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
-
             annotations = self._mapper.report_type_map.get("annotations")
+
             for alias_key, alias_value in self.group_by_alias.items():
                 if alias_key in query_group_by:
                     annotations[f"{alias_key}_alias"] = F(alias_value)
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
+
+            if query_data:
+                import pandas as pd
+
+                df = pd.DataFrame(query_data)
+
+                columns = [
+                    "infra_total",
+                    "infra_raw",
+                    "infra_usage",
+                    "infra_markup",
+                    "sup_raw",
+                    "sup_usage",
+                    "sup_markup",
+                    "sup_total",
+                    "cost_total",
+                    "cost_raw",
+                    "cost_usage",
+                    "cost_markup",
+                ]
+
+                exchange_rates = {
+                    "EUR": {
+                        "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                        "CAD": Decimal(1.25),
+                    },
+                    "GBP": {
+                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                        "CAD": Decimal(1.34),
+                    },
+                    "JPY": {
+                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                        "CAD": Decimal(1.34),
+                    },
+                    "AUD": {"USD": Decimal(0.7194244604)},
+                }
+                for column in columns:
+                    print(column)
+                    df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]]["USD"], axis=1)
+                    df["cost_units"] = "USD"
+                skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+                if "count" not in df.columns:
+                    skip_columns.extend(["count", "count_units"])
+                aggs = {
+                    col: ["max"] if "units" in col else ["sum"]
+                    for col in self.report_annotations
+                    if col not in skip_columns
+                }
+
+                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                query_data = grouped_df.to_dict("records")
 
             if self._limit:
                 query_data = self._group_by_ranks(query, query_data)

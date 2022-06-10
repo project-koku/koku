@@ -162,7 +162,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_sum = self._build_sum(query)
 
             import pandas as pd
-            import decimal
 
             df = pd.DataFrame(query_data)
 
@@ -180,18 +179,14 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 "cost_usage",
                 "cost_markup",
             ]
-            # for invoice_month in data_frame["invoice.month"].unique():
-            #     # daily_files = []
-            #     invoice_filter = data_frame["invoice.month"] == invoice_month
-            #     invoice_data = data_frame[invoice_filter]
-            # for base_currency in df[self._mapper.cost_units_key].unique():
-            #     currency_filter = df[self._mapper.cost_units_key] == base_currency
-            #     currency_data = df[currency_filter]
-            #     print(currency_data)
+
             exchange_rates = {
                 "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
                 "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
-                "JPY": {"USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125), "CAD": Decimal(1.34)},
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
             }
             for column in columns:
                 print(column)

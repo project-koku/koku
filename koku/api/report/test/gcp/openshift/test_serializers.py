@@ -352,14 +352,14 @@ class OCPGCPQueryParamSerializerTest(TestCase):
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/storage/")
+        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/storage/")
         serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/storage/")
+        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/storage/")
         serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -367,7 +367,7 @@ class OCPGCPQueryParamSerializerTest(TestCase):
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/gcp/costs/")
+        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
         serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
