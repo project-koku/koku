@@ -585,6 +585,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
+            initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
@@ -593,18 +594,60 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 # Query parameter indicates count should be removed from DB queries
                 annotations.pop("count", None)
                 annotations.pop("count_units", None)
-
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
-
+            annotations_keys = list(self.report_annotations.keys())
+            query_data = query_data.values(*initial_group_by).annotate(**annotations)
             if "account" in query_group_by:
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
-
+                annotations_keys.append("account_alias")
                 if self.parameters.parameters.get("check_tags"):
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
+            if query_data:
+                import pandas as pd
+                from decimal import Decimal
+
+                df = pd.DataFrame(query_data)
+
+                columns = [
+                    "infra_total",
+                    "infra_raw",
+                    "infra_usage",
+                    "infra_markup",
+                    "sup_raw",
+                    "sup_usage",
+                    "sup_markup",
+                    "sup_total",
+                    "cost_total",
+                    "cost_raw",
+                    "cost_usage",
+                    "cost_markup",
+                ]
+                exchange_rates = {
+                    "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
+                    "EUR": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
+                    "AUD": {"USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125), "CAD": Decimal(1.34)},
+                }
+                for column in columns:
+                    print(column)
+                    df[column] = df.apply(lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]]["USD"], axis=1)
+                    df["cost_units"] = "USD"
+                skip_columns = ["gcp_project_alias", "clusters"]
+                if "count" not in df.columns:
+                    skip_columns.extend(["count", "count_units"])
+                aggs = {
+                    col: ["max"] if "units" in col else ["sum"]
+                    for col in annotations_keys
+                    if col not in skip_columns
+                }
+
+                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data and not org_unit_applied:
                 query_data = self._group_by_ranks(query, query_data)
