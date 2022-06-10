@@ -195,7 +195,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         with patch("masu.external.downloader.oci.oci_report_downloader.open"):
             with patch("masu.external.downloader.oci.oci_report_downloader.os.path.getmtime"):
                 with patch("masu.external.downloader.oci.oci_report_downloader.create_monthly_archives"):
-                    full_path, etag, date, _ = downloader.download_file(key)
+                    full_path, etag, date, _, __ = downloader.download_file(key)
                     mock_makedirs.assert_called()
                     self.assertEqual(full_path, expected_full_path)
 
