@@ -251,4 +251,4 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         msg = f"Returning full_file_path: {full_file_path}, etag: {etag}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
-        return full_file_path, etag, file_creation_date, []
+        return full_file_path, etag, file_creation_date, [], {}
