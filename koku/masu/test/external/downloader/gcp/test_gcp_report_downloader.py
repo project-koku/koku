@@ -193,7 +193,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
-                full_path, etag, date, _ = downloader.download_file(key)
+                full_path, etag, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(etag, self.etag)
                 self.assertEqual(date, self.today)
@@ -211,7 +211,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
-                full_path, etag, date, _ = downloader.download_file(key)
+                full_path, etag, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(etag, self.etag)
                 self.assertEqual(date, self.today)

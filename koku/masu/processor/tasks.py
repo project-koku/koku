@@ -280,7 +280,8 @@ def summarize_reports(reports_to_summarize, queue_name=None):
     """
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
-        reports_by_source[report.get("provider_uuid")].append(report)
+        if report:
+            reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
     for source, report_list in reports_by_source.items():
