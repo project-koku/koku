@@ -85,7 +85,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
     def test_download_file(self):
         """Test OCI-Local report download."""
 
-        full_file_path, etag, _, __ = self.oci_local_report_downloader.download_file(self.csv_file_name)
+        full_file_path, etag, _, __, ___ = self.oci_local_report_downloader.download_file(self.csv_file_name)
         self.assertEqual(full_file_path, self.testing_dir)
         self.assertIsNotNone(etag)
         self.assertEqual(etag, self.etag)
