@@ -138,7 +138,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
-        if query.exists():
+        if query:
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -219,8 +219,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
                     },
                     "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
                 }
+
                 for column in columns:
-                    print(column)
                     df[column] = df.apply(
                         lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
                     )
