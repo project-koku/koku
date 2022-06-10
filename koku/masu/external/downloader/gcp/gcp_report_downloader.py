@@ -454,7 +454,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, self.etag, dh.today, file_names, {}
+        return full_local_path, filename, dh.today, file_names, {}
 
     def _get_local_directory_path(self):
         """
