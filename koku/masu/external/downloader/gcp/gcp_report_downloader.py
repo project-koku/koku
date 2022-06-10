@@ -56,6 +56,7 @@ def create_daily_archives(
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
+    daily_file_names = []
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
         dh = DateHelper()
         directory = os.path.dirname(filepath)
@@ -64,20 +65,23 @@ def create_daily_archives(
         except Exception as error:
             LOG.error(f"File {filepath} could not be parsed. Reason: {str(error)}")
             raise error
-        invoice_month = data_frame["invoice.month"][0]
-        start_of_invoice = dh.invoice_month_start(invoice_month)
-        s3_csv_path = get_path_prefix(
-            account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-        )
-        day = data_frame.partition_date[0]
-        day_file = f"{invoice_month}_{day}_{new_export_time}.csv"
-        day_filepath = f"{directory}/{day_file}"
-        data_frame.to_csv(day_filepath, index=False, header=True)
-        copy_local_report_file_to_s3_bucket(
-            tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-        )
-        return [day_filepath]
-
+        # putting it in for loop handles crossover data, when we have distinct invoice_month
+        for invoice_month in data_frame["invoice.month"].unique():
+            invoice_filter = data_frame["invoice.month"] == invoice_month
+            invoice_partition_data = data_frame[invoice_filter]
+            partition_date = invoice_partition_data.partition_date.unique()[0]
+            start_of_invoice = dh.invoice_month_start(invoice_month)
+            s3_csv_path = get_path_prefix(
+                account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+            )
+            day_file = f"{invoice_month}_{partition_date}_{new_export_time}.csv"
+            day_filepath = f"{directory}/{day_file}"
+            invoice_partition_data.to_csv(day_filepath, index=False, header=True)
+            copy_local_report_file_to_s3_bucket(
+                tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+            )
+            daily_file_names.append(day_filepath)
+        return daily_file_names
 
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
