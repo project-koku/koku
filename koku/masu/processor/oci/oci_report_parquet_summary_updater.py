@@ -49,7 +49,7 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
                     last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
                     start_date = bill_date
                     end_date = bill_date.replace(day=last_day_of_month)
-                    LOG.info("Overriding start and end date to process full period.")
+                    LOG.info("Overriding start and end date to process full month.")
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
@@ -69,6 +69,9 @@ class OCIReportParquetSummaryUpdater(PartitionHandlerMixin):
             (str, str): A start date and end date.
 
         """
+        start_date, end_date = self._get_sql_inputs(start_date, end_date)
+        LOG.info("update_daily_tables for: %s-%s", str(start_date), str(end_date))
+
         return start_date, end_date
 
     def update_summary_tables(self, start_date, end_date):
