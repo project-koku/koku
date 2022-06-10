@@ -108,7 +108,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
         expected_start_date = dh.invoice_month_start(str(invoice_month))
-        expected_assembly_id = ":".join([str(provider_uuid), invoice_month])
+        expected_assembly_id = ":".join([str(provider_uuid), str(start_date)])
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
         result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
         expected_manifest_data = {
@@ -136,9 +136,8 @@ class OCIReportDownloaderTest(MasuTestCase):
         self.maxDiff = None
         dh = DateHelper()
         start_date = dh.this_month_start
-        invoice_month = start_date.strftime("%Y%m")
         p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{invoice_month}"
+        expected_assembly_id = f"{p_uuid}:{str(start_date)}"
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)
         with patch(
             "masu.external.downloader.oci.oci_report_downloader.OCIReportDownloader._process_manifest_db_record",
@@ -228,7 +227,7 @@ class OCIReportDownloaderTest(MasuTestCase):
                 f"{temp_dir}/cost_{uuid}.2022-04.csv",
             ]
 
-            daily_file_names = create_monthly_archives(
+            daily_file_names, date_range = create_monthly_archives(
                 "request_id", "account", self.oci_provider_uuid, file_name, temp_path, None
             )
 

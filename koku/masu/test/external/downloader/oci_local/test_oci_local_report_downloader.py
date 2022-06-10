@@ -111,7 +111,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_for_date(self):
         """Test OCI-local get manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date)])
         result_report_dict = self.oci_local_report_downloader.get_manifest_context_for_date(self.start_date)
         self.assertEqual(result_report_dict.get("assembly_id"), expected_assembly_id)
         result_files = result_report_dict.get("files")
