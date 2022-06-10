@@ -236,6 +236,8 @@ class Sources(RunTextFieldValidators, models.Model):
     # Customer Account ID
     account_id = models.TextField(null=True)
 
+    org_id = models.TextField(null=True)
+
     # Provider type (i.e. AWS, OCP, AZURE)
     source_type = models.TextField(null=False)
 

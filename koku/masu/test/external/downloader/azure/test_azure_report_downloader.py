@@ -177,7 +177,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag, _, __ = self.downloader.download_file(self.mock_data.export_key)
+        full_file_path, etag, _, __, ___ = self.downloader.download_file(self.mock_data.export_key)
         self.assertEqual(full_file_path, expected_full_path)
         self.assertEqual(etag, self.mock_data.export_etag)
 
@@ -194,7 +194,7 @@ class AzureReportDownloaderTest(MasuTestCase):
         expected_full_path = "{}/{}/azure/{}/{}".format(
             Config.TMP_DIR, self.customer_name.replace(" ", "_"), self.mock_data.container, self.mock_data.export_file
         )
-        full_file_path, etag, _, __ = self.downloader.download_file(
+        full_file_path, etag, _, __, ___ = self.downloader.download_file(
             self.mock_data.export_key, self.mock_data.export_etag
         )
         self.assertEqual(full_file_path, expected_full_path)

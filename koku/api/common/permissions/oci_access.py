@@ -3,17 +3,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Defines the OCI Access Permissions class."""
+from django.conf import settings
 from rest_framework import permissions
 
 
 class OCIAccessPermission(permissions.BasePermission):
     """Determines if a user can view OCI data."""
 
-    resource_type = "oci.tenant"
+    resource_type = "oci.payer_tenant_id"
 
     def has_permission(self, request, view):
         """Check permission to view OCI data."""
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return True
 
         resource_access = request.user.access
@@ -29,7 +30,7 @@ class OCIAccessPermission(permissions.BasePermission):
         return False
 
 
-class OCIProjectPermission(OCIAccessPermission):
+class OCITenantPermission(OCIAccessPermission):
     """Determines if a user can view OCI data."""
 
-    resource_type = "oci.project"
+    resource_type = "oci.payer_tenant_id"

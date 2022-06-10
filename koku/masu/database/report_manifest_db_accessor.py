@@ -112,7 +112,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def is_last_completed_datetime_null(self, manifest_id):
         """Determine if nulls exist in last_completed_datetime for manifest_id.
 
-        If the record does not exist, that is equivalent to a null completed dateimte.
+        If the record does not exist, that is equivalent to a null completed datetime.
         Return True if record either doesn't exist or if null `last_completed_datetime`.
         Return False otherwise.
 

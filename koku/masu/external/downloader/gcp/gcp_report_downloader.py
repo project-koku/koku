@@ -30,8 +30,7 @@ from masu.processor import enable_trino_processing
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
-
-# from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
+from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -82,6 +81,7 @@ def create_daily_archives(
             )
             daily_file_names.append(day_filepath)
         return daily_file_names
+
 
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
@@ -139,6 +139,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "credits",
             "invoice.month",
             "cost_type",
+            "resource.name",
+            "resource.global_name",
         ]
         self.table_name = ".".join(
             [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
@@ -327,6 +329,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
             for col in columns_list
         ]
+        # Swap out resource columns with NULLs when we are processing
+        # a non-resource-level BigQuery table
+        columns_list = [
+            f"NULL as {col.replace('.', '_')}"
+            if col in ("resource.name", "resource.global_name")
+            and RESOURCE_LEVEL_EXPORT_NAME not in self.data_source.get("table_id")
+            else col
+            for col in columns_list
+        ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
@@ -443,8 +454,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        # Note: using filename as our etag for now
-        return full_local_path, filename, dh.today, file_names
+        return full_local_path, self.etag, dh.today, file_names, {}
 
     def _get_local_directory_path(self):
         """
