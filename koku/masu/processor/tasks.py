@@ -7,6 +7,7 @@ import datetime
 import json
 import logging
 import os
+from collections import defaultdict
 from decimal import Decimal
 from decimal import InvalidOperation
 
@@ -22,6 +23,7 @@ import masu.prometheus_stats as worker_stats
 from api.common import log_json
 from api.iam.models import Tenant
 from api.provider.models import Provider
+from api.utils import get_months_in_date_range
 from koku import celery_app
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
@@ -198,6 +200,8 @@ def get_report_files(  # noqa: C901
             "provider_uuid": provider_uuid,
             "manifest_id": report_dict.get("manifest_id"),
             "tracing_id": tracing_id,
+            "start": report_dict.get("start"),
+            "end": report_dict.get("end"),
         }
 
         try:
@@ -274,8 +278,31 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         None
 
     """
-    reports_to_summarize = [report for report in reports_to_summarize if report]
-    reports_deduplicated = [dict(t) for t in {tuple(d.items()) for d in reports_to_summarize}]
+    reports_by_source = defaultdict(list)
+    for report in reports_to_summarize:
+        reports_by_source[report.get("provider_uuid")].append(report)
+
+    reports_deduplicated = []
+    for source, report_list in reports_by_source.items():
+        starts = []
+        ends = []
+        for report in report_list:
+            starts.append(report.get("start"))
+            ends.append(report.get("end"))
+        start = min(starts)
+        end = max(ends)
+
+        reports_deduplicated.append(
+            {
+                "manifest_id": report.get("manifest_id"),
+                "tracing_id": report.get("tracing_id"),
+                "schema_name": report.get("schema_name"),
+                "provider_type": report.get("provider_type"),
+                "provider_uuid": report.get("provider_uuid"),
+                "start": start,
+                "end": end,
+            }
+        )
 
     for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
@@ -287,27 +314,28 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         with ReportManifestDBAccessor() as manifest_accesor:
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
                 if report.get("start") and report.get("end"):
-                    LOG.info("using start and end dates from the manifest")
-                    start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
-                    end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
+                    LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
+                    months = get_months_in_date_range(report.get("start"), report.get("end"))
                 else:
                     LOG.info("generating start and end dates for manifest")
                     start_date = DateAccessor().today() - datetime.timedelta(days=2)
                     start_date = start_date.strftime("%Y-%m-%d")
                     end_date = DateAccessor().today().strftime("%Y-%m-%d")
+                    months = get_months_in_date_range(start_date, end_date)
                 msg = f"report to summarize: {str(report)}"
                 tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
-                update_summary_tables.s(
-                    report.get("schema_name"),
-                    report.get("provider_type"),
-                    report.get("provider_uuid"),
-                    start_date=start_date,
-                    end_date=end_date,
-                    manifest_id=report.get("manifest_id"),
-                    queue_name=queue_name,
-                    tracing_id=tracing_id,
-                ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
+                for month in months:
+                    update_summary_tables.s(
+                        report.get("schema_name"),
+                        report.get("provider_type"),
+                        report.get("provider_uuid"),
+                        start_date=month[0],
+                        end_date=month[1],
+                        manifest_id=report.get("manifest_id"),
+                        queue_name=queue_name,
+                        tracing_id=tracing_id,
+                    ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
 @celery_app.task(name="masu.processor.tasks.update_summary_tables", queue=UPDATE_SUMMARY_TABLES_QUEUE)  # noqa: C901

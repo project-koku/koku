@@ -128,11 +128,9 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        invoice_month = start_date.strftime("%Y%m")
-        assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
-
         dh = DateHelper()
-        start_date = dh.invoice_month_start(str(invoice_month))
+        start_date = dh.today
+        assembly_id = ":".join([str(self._provider_uuid), str(start_date)])
         file_names = self.files_list
         manifest_data = {
             "assembly_id": assembly_id,
