@@ -200,7 +200,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_file_path, etag, file_creation_date, file_names
+        return full_file_path, etag, file_creation_date, file_names, {}
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""

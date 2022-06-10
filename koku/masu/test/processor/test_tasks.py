@@ -352,6 +352,8 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
+        report_meta["start"] = str(DateHelper().yesterday)
+        report_meta["end"] = str(DateHelper().today)
 
         # add a report with start/end dates specified
         report2_meta = {}

@@ -89,13 +89,15 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
     def test_download_file(self):
         """Test GCP-Local report download."""
 
-        full_file_path, etag, _, __ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
+        full_file_path, etag, _, __, ___ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
         self.assertEqual(full_file_path, self.csv_file_path)
         self.assertIsNotNone(etag)
         self.assertEqual(etag, self.etag)
 
         # Download a second time, verify etag is returned
-        full_file_path, second_run_etag, _, __ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
+        full_file_path, second_run_etag, _, __, ___ = self.gcp_local_report_downloader.download_file(
+            self.csv_file_name
+        )
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, self.csv_file_path)
 
