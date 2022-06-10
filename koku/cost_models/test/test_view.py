@@ -19,7 +19,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.metrics import constants as metric_constants
 from api.provider.models import Provider
 from api.provider.serializers import ProviderSerializer
-from cost_models.models import CostModel
 from cost_models.models import CostModelAudit
 from cost_models.models import CostModelMap
 from cost_models.serializers import CostModelSerializer
@@ -55,20 +54,25 @@ class CostModelViewTests(IamTestCase):
                 "usage": {"usage_start": None, "usage_end": None},
             }
         ]
+        self.cost_model_name = "Test Cost Model for test_view.py"
+        # We have one preloaded cost model with bakery so the idx for
+        # the cost model we are creating in the results return is 1
+        self.results_idx = 1
         self.fake_data = {
-            "name": "Test Cost Model",
+            "name": self.cost_model_name,
             "description": "Test",
             "source_type": self.ocp_source_type,
             "source_uuids": [self.provider.uuid],
             "rates": [
                 {"metric": {"name": self.ocp_metric}, "cost_type": "Infrastructure", "tiered_rates": tiered_rates}
             ],
+            "currency": "USD",
         }
 
         with tenant_context(self.tenant):
             serializer = CostModelSerializer(data=self.fake_data, context=request_context)
             if serializer.is_valid(raise_exception=True):
-                with patch("cost_models.cost_model_manager.chain"):
+                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     instance = serializer.save()
                     self.fake_data_cost_model_uuid = instance.uuid
 
@@ -79,7 +83,7 @@ class CostModelViewTests(IamTestCase):
         remove_provider_data = self.fake_data.copy()
         remove_provider_data["source_uuids"] = []
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             client.put(url, data=remove_provider_data, format="json", **self.headers)
 
     def setUp(self):
@@ -93,7 +97,7 @@ class CostModelViewTests(IamTestCase):
         # create a cost model
         url = reverse("cost-models-list")
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.post(url, data=self.fake_data, format="json", **self.headers)
 
         # We already created this as part of initialize_request()
@@ -113,15 +117,13 @@ class CostModelViewTests(IamTestCase):
         url = reverse("cost-models-list")
         client = APIClient()
 
-        with tenant_context(self.tenant):
-            original_cost_model = CostModel.objects.all()[0]
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.post(url, data=self.fake_data, format="json", **self.headers)
         new_cost_model_uuid = response.data.get("uuid")
 
         # Test that the previous cost model for this provider is still associated.
         with tenant_context(self.tenant):
-            result = CostModelMap.objects.filter(cost_model_id=original_cost_model.uuid).all()
+            result = CostModelMap.objects.filter(cost_model_id=self.fake_data_cost_model_uuid).all()
             self.assertEqual(len(result), 1)
             # Test that the new cost model is not associated to the provider
             result = CostModelMap.objects.filter(cost_model_id=new_cost_model_uuid).all()
@@ -159,8 +161,7 @@ class CostModelViewTests(IamTestCase):
 
     def test_read_cost_model_success(self):
         """Test that we can read a cost model."""
-        cost_model = CostModel.objects.first()
-        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
         response = client.get(url, **self.headers)
 
@@ -188,13 +189,13 @@ class CostModelViewTests(IamTestCase):
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
-        url = "%s?name=Cost,Test" % reverse("cost-models-list")
+        url = "%s?name=test_view" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
 
         url = "%s?description=eSt" % reverse("cost-models-list")
         response = client.get(url, **self.headers)
@@ -202,7 +203,7 @@ class CostModelViewTests(IamTestCase):
         json_result = response.json()
         results = json_result.get("data")
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0]["name"], "Test Cost Model")
+        self.assertEqual(results[0]["name"], self.cost_model_name)
         self.assertEqual(results[0]["description"], "Test")
 
         url = "%s?description=Fo" % reverse("cost-models-list")
@@ -212,6 +213,25 @@ class CostModelViewTests(IamTestCase):
         results = json_result.get("data")
         self.assertEqual(len(results), 0)
 
+        url = "%s?currency=USD" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get("data")
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["currency"], "USD")
+
+        url = "%s?currency=JPY" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        json_result = response.json()
+        results = json_result.get("data")
+        self.assertEqual(len(results), 0)
+
+        url = "%s?currency=FAKE" % reverse("cost-models-list")
+        response = client.get(url, **self.headers)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_read_cost_model_invalid(self):
         """Test that reading an invalid cost_model returns an error."""
         url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
@@ -219,15 +239,13 @@ class CostModelViewTests(IamTestCase):
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-    @patch("cost_models.cost_model_manager.chain")
+    @patch("cost_models.cost_model_manager.update_cost_model_costs")
     def test_update_cost_model_success(self, _):
         """Test that we can update an existing rate."""
         new_value = round(Decimal(random.random()), 6)
         self.fake_data["rates"][0]["tiered_rates"][0]["value"] = new_value
 
-        with tenant_context(self.tenant):
-            cost_model = CostModel.objects.first()
-            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
         response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -251,7 +269,7 @@ class CostModelViewTests(IamTestCase):
         # Make sure the update with duplicate rate information fails
         client = APIClient()
         url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.put(url, self.fake_data, format="json", **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         result_rates = response.data.get("rates", [])
@@ -266,8 +284,7 @@ class CostModelViewTests(IamTestCase):
         test_data = self.fake_data
         test_data["rates"][0]["tiered_rates"][0]["value"] = round(Decimal(random.random()), 6)
         with tenant_context(self.tenant):
-            cost_model = CostModel.objects.first()
-            url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+            url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
             client = APIClient()
 
             response = client.patch(url, test_data, format="json", **self.headers)
@@ -285,10 +302,9 @@ class CostModelViewTests(IamTestCase):
 
     def test_delete_cost_model_success(self):
         """Test that we can delete an existing rate."""
-        cost_model = CostModel.objects.first()
-        url = reverse("cost-models-detail", kwargs={"uuid": cost_model.uuid})
+        url = reverse("cost-models-detail", kwargs={"uuid": self.fake_data_cost_model_uuid})
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -300,7 +316,7 @@ class CostModelViewTests(IamTestCase):
         """Test that deleting an invalid cost model returns an error."""
         url = reverse("cost-models-detail", kwargs={"uuid": uuid4()})
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
@@ -308,7 +324,7 @@ class CostModelViewTests(IamTestCase):
         """Test that deleting an invalid cost model returns an error."""
         url = reverse("cost-models-detail", kwargs={"uuid": "not-a-uuid"})
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
@@ -322,11 +338,18 @@ class CostModelViewTests(IamTestCase):
         for keyname in ["meta", "links", "data"]:
             self.assertIn(keyname, response.data)
         self.assertIsInstance(response.data.get("data"), list)
-        self.assertEqual(len(response.data.get("data")), 1)
+        self.assertGreater(len(response.data.get("data")), 0)
 
-        cost_model = response.data.get("data")[0]
-        self.assertIsNotNone(cost_model.get("uuid"))
-        self.assertIsNotNone(cost_model.get("sources"))
+        cost_model = None
+        for model in response.data.get("data"):
+            self.assertIsNotNone(model.get("uuid"))
+            self.assertIsNotNone(model.get("sources"))
+
+            # only the fake cost model will work with the rest of the assertions, so grab the correct model:
+            if model.get("uuid") == str(self.fake_data_cost_model_uuid):
+                cost_model = model
+
+        self.assertIsNotNone(cost_model)
         self.assertEqual(
             self.fake_data["rates"][0]["metric"]["name"], cost_model.get("rates", [])[0].get("metric", {}).get("name")
         )
@@ -415,7 +438,7 @@ class CostModelViewTests(IamTestCase):
 
         url = reverse("cost-models-list")
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.post(url, data=self.fake_data, format="json", **admin_request_context["request"].META)
         cost_model_uuid = response.data.get("uuid")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -457,7 +480,7 @@ class CostModelViewTests(IamTestCase):
             url = reverse("cost-models-list")
             client = APIClient()
 
-            with patch("cost_models.cost_model_manager.chain"):
+            with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                 response = client.post(
                     url, data=self.fake_data, format="json", **admin_request_context["request"].META
                 )
@@ -498,7 +521,7 @@ class CostModelViewTests(IamTestCase):
                 rate_data["source_uuids"] = []
                 rate_data["rates"][0]["metric"] = test_case.get("metric")
                 caches["rbac"].clear()
-                with patch("cost_models.cost_model_manager.chain"):
+                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.post(url, data=rate_data, format="json", **request_context["request"].META)
 
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
@@ -533,7 +556,7 @@ class CostModelViewTests(IamTestCase):
                 rate_data["source_uuids"] = []
                 url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
                 caches["rbac"].clear()
-                with patch("cost_models.cost_model_manager.chain"):
+                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.put(url, data=rate_data, format="json", **request_context["request"].META)
 
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
@@ -566,7 +589,7 @@ class CostModelViewTests(IamTestCase):
             with patch.object(RbacService, "get_access_for_user", return_value=test_case.get("access")):
                 url = reverse("cost-models-detail", kwargs={"uuid": test_case.get("cost_model_uuid")})
                 caches["rbac"].clear()
-                with patch("cost_models.cost_model_manager.chain"):
+                with patch("cost_models.cost_model_manager.update_cost_model_costs"):
                     response = client.delete(url, **request_context["request"].META)
                 self.assertEqual(response.status_code, test_case.get("expected_response"))
 
@@ -585,11 +608,12 @@ class CostModelViewTests(IamTestCase):
             "source_type": self.ocp_source_type,
             "source_uuids": [],
             "rates": [{"metric": {"name": self.ocp_metric}, "tiered_rates": tiered_rates}],
+            "currency": "USD",
         }
 
         url = reverse("cost-models-list")
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.post(url, data=fake_data, format="json", **self.headers)
         cost_model_uuid = response.data.get("uuid")
 
@@ -599,14 +623,14 @@ class CostModelViewTests(IamTestCase):
 
         fake_data["source_uuids"] = [self.provider.uuid]
         url = reverse("cost-models-detail", kwargs={"uuid": cost_model_uuid})
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.put(url, data=fake_data, format="json", **self.headers)
             self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         with tenant_context(self.tenant):
             audit = CostModelAudit.objects.last()
             self.assertEqual(audit.operation, "INSERT")
 
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.delete(url, format="json", **self.headers)
 
         with tenant_context(self.tenant):
@@ -622,7 +646,7 @@ class CostModelViewTests(IamTestCase):
         # self.fake_date["rates"] = rates
         url = reverse("cost-models-list")
         client = APIClient()
-        with patch("cost_models.cost_model_manager.chain"):
+        with patch("cost_models.cost_model_manager.update_cost_model_costs"):
             response = client.post(url, data=self.fake_data, format="json", **self.headers)
         data = response.data
 

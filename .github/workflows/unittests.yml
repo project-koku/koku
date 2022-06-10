@@ -11,7 +11,7 @@ jobs:
   setup:
     runs-on: ubuntu-20.04
     outputs:
-      run-tests: ${{ steps.check-files.outputs.run-tests }}
+      run-tests: ${{ steps.check-files-or-fork.outputs.run-tests }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -23,18 +23,22 @@ jobs:
         uses: tj-actions/changed-files@v13
         with:
           files: |
-            db_functions
-            koku
+            db_functions/
+            koku/
             .github/postgres
             .github/scripts/check_migrations.sh
             .github/workflows/unittests.yml
             Pipfile.lock
 
-      - id: check-files
+      - id: check-files-or-fork
         run: |
-          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ]; then
+          if [ ! -z "${{ steps.changed-files.outputs.all_changed_and_modified_files }}" ] || [ "${{ github.event.pull_request.head.repo.full_name }}" != "project-koku/koku" ]; then
             echo "::set-output name=run-tests::true"
           fi
+
+      - run: echo ${{ needs.setup.outputs.run-tests }}
+      - run: echo ${{ github.event.pull_request.head.repo.full_name }}
+
 
   unit-tests:
     needs: setup
@@ -104,9 +108,13 @@ jobs:
           DATABASE_PASSWORD: postgres
           POSTGRES_SQL_SERVICE_HOST: localhost
           POSTGRES_SQL_SERVICE_PORT: ${{ job.services.postgres.ports[5432] }}
-          ACCOUNT_ENHANCED_METRICS: True
-          PROMETHEUS_MULTIPROC_DIR: /tmp
           HIVE_DATABASE_PASSWORD: hivedbpw
+          ACCOUNT_ENHANCED_METRICS: True
+          ENABLE_TRINO_SOURCE_TYPE: GCP
+          PROMETHEUS_MULTIPROC_DIR: /tmp
+          TRINO_DATE_STEP: 31
+          MIDDLEWARE_TIME_TO_LIVE: 0
+          ENHANCED_ORG_ADMIN: True
 
       - name: Convert coverage report to XML
         run: pipenv run coverage xml

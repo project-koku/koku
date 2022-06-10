@@ -16,6 +16,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.report.azure.provider_map import AzureProviderMap
+from api.report.queries import check_if_valid_date_str
 from api.report.queries import ReportQueryHandler
 
 LOG = logging.getLogger(__name__)
@@ -66,11 +67,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
         units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback, output_field=CharField())),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-            annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+            annotations["usage_units"] = Coalesce(
+                self._mapper.usage_units_key, Value(units_fallback, output_field=CharField())
+            )
 
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
@@ -166,18 +169,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 query_data = self.add_deltas(query_data, query_sum)
 
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-
-            def check_if_valid_date_str(date_str):
-                """Check to see if a valid date has been passed in."""
-                import ciso8601
-
-                try:
-                    ciso8601.parse_datetime(date_str)
-                except ValueError:
-                    return False
-                except TypeError:
-                    return False
-                return True
 
             order_date = None
             for i, param in enumerate(query_order_by):

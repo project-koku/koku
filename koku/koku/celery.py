@@ -215,16 +215,13 @@ app.conf.beat_schedule["remove_stale_tenants"] = {
     "schedule": crontab(hour=0, minute=0),
 }
 
-# Beat used to get Hybrid Committed Spend(HCS) data
-hcs_status_schedule = crontab(hour=0, minute=0)
-print(f"HCS status schedule: {hcs_status_schedule}")
-
-app.conf.beat_schedule["collect_hcs_report_data"] = {
-    "task": "hcs.tasks.collect_hcs_report_data",
-    "schedule": hcs_status_schedule,
+# Beat used for HCS report finalization
+app.conf.beat_schedule["finalize_hcs_reports"] = {
+    "task": "hcs.tasks.collect_hcs_report_finalization",
+    "schedule": crontab(0, 0, day_of_month="15"),
 }
 
-# Celery timeout if broker is unavaiable to avoid blocking indefintely
+# Celery timeout if broker is unavailable to avoid blocking indefinitely
 app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "interval_step": 0.5, "interval_max": 3}
 
 app.autodiscover_tasks()
@@ -255,7 +252,12 @@ def init_worker(**kwargs):
     from koku.feature_flags import UNLEASH_CLIENT
 
     LOG.info("Initializing UNLEASH_CLIENT for celery worker.")
+    unleash_init_start = datetime.utcnow()
     UNLEASH_CLIENT.initialize_client()
+    LOG.info(
+        "UNLEASH_CLIENT initialized for celery worker in "
+        f"{(datetime.utcnow() - unleash_init_start).total_seconds()} seconds."
+    )
 
 
 @worker_process_shutdown.connect

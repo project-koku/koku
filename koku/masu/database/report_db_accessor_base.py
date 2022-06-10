@@ -5,6 +5,7 @@
 """Database accessor for report data."""
 import logging
 import os
+import time
 import uuid
 from decimal import Decimal
 from decimal import InvalidOperation
@@ -341,30 +342,56 @@ class ReportDBAccessorBase(KokuDBAccess):
                 value = None
         return value
 
-    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None):
+    def _execute_raw_sql_query(self, table, sql, start=None, end=None, bind_params=None, operation="UPDATE"):
         """Run a SQL statement via a cursor."""
         if start and end:
-            LOG.info("Updating %s from %s to %s.", table, start, end)
+            LOG.info("Triggering %s on %s from %s to %s.", operation, table, start, end)
         else:
-            LOG.info("Updating %s", table)
+            LOG.info("Triggering %s %s", operation, table)
 
         with connection.cursor() as cursor:
             cursor.db.set_schema(self.schema)
             try:
+                t1 = time.time()
                 cursor.execute(sql, params=bind_params)
+                t2 = time.time()
             except OperationalError as exc:
                 db_exc = get_extended_exception_by_type(exc)
                 LOG.error(log_json(os.getpid(), str(db_exc), context=db_exc.as_dict()))
                 raise db_exc
 
-        LOG.info("Finished updating %s.", table)
+        LOG.info("Finished %s on %s in %f seconds.", operation, table, t2 - t1)
 
-    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None):
-        """Execute a single presto query"""
-        presto_conn = kpdb.connect(schema=schema)
-        presto_cur = presto_conn.cursor()
-        presto_cur.execute(sql, bind_params)
-        return presto_cur.fetchall()
+    def _execute_presto_raw_sql_query(self, schema, sql, bind_params=None, log_ref=None, attempts_left=0):
+        """Execute a single presto query returning only the fetchall results"""
+        results, _ = self._execute_presto_raw_sql_query_with_description(
+            schema, sql, bind_params, log_ref, attempts_left
+        )
+        return results
+
+    def _execute_presto_raw_sql_query_with_description(
+        self, schema, sql, bind_params=None, log_ref=None, attempts_left=0
+    ):
+        """Execute a single presto query and return cur.fetchall and cur.description"""
+        try:
+            t1 = time.time()
+            presto_conn = kpdb.connect(schema=schema)
+            presto_cur = presto_conn.cursor()
+            presto_cur.execute(sql, bind_params)
+            results = presto_cur.fetchall()
+            description = presto_cur.description
+            t2 = time.time()
+            if log_ref:
+                msg = f"{log_ref} for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
+            else:
+                msg = f"Trino query for {schema} \n\twith params {bind_params} \n\tcompleted in {t2 - t1} seconds."
+            LOG.info(msg)
+            return results, description
+        except Exception as ex:
+            if attempts_left == 0:
+                msg = f"Failing SQL {sql} \n\t and bind_params {bind_params}"
+                LOG.error(msg)
+            raise ex
 
     def _execute_presto_multipart_sql_query(
         self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
@@ -448,10 +475,34 @@ class ReportDBAccessorBase(KokuDBAccess):
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
 
+    def delete_line_item_daily_summary_entries_for_date_range_raw(
+        self, source_uuid, start_date, end_date, filters, table=None
+    ):
+
+        if table is None:
+            table = self.line_item_daily_summary_table
+        msg = f"Deleting records from {table._meta.db_table} for source {source_uuid} from {start_date} to {end_date}"
+        LOG.info(msg)
+
+        sql = f"""
+            DELETE FROM {self.schema}.{table._meta.db_table}
+            WHERE usage_start >= %(start_date)s::date
+                AND usage_start <= %(end_date)s::date
+        """
+        if filters:
+            filter_list = [f"AND {k} = %({k})s" for k in filters]
+            sql += "\n".join(filter_list)
+        else:
+            filters = {}
+        filters["start_date"] = start_date
+        filters["end_date"] = end_date
+
+        self._execute_raw_sql_query(table, sql, start_date, end_date, bind_params=filters, operation="DELETE")
+
     def table_exists_trino(self, table_name):
         """Check if table exists."""
         table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql)
+        table = self._execute_presto_raw_sql_query(self.schema, table_check_sql, log_ref="table_exists_trino")
         if table:
             return True
         return False

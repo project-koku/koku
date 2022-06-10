@@ -40,6 +40,9 @@ class FakePrestoCur(trino.dbapi.Cursor):
     def fetchall(self):
         return [["eek"]]
 
+    def description(self):
+        pass
+
 
 class FakePrestoConn(trino.dbapi.Connection):
     def __init__(self, *args, **kwargs):
@@ -89,8 +92,7 @@ class IamTestCase(TestCase):
     def _create_customer_data(cls, account=KokuTestRunner.account):
         """Create customer data."""
         schema = KokuTestRunner.schema
-        customer = {"account_id": account, "schema_name": schema}
-        return customer
+        return {"account_id": account, "schema_name": schema}
 
     @classmethod
     def _create_user_data(cls):
@@ -104,8 +106,7 @@ class IamTestCase(TestCase):
             "openshift.project": {"read": ["*"]},
             "openshift.node": {"read": ["*"]},
         }
-        user_data = {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
-        return user_data
+        return {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
 
     @classmethod
     def _create_customer(cls, account, create_tenant=False):
@@ -167,15 +168,13 @@ class IamTestCase(TestCase):
             request.user = tempUser
         else:
             request.user = user_data["username"]
-        request_context = {"request": request}
-        return request_context
+        return {"request": request}
 
     def create_mock_customer_data(self):
         """Create randomized data for a customer test."""
         account = self.fake.ean8()
         schema = f"acct{account}"
-        customer = {"account_id": account, "schema_name": schema}
-        return customer
+        return {"account_id": account, "schema_name": schema}
 
     def mocked_query_params(self, url, view, path=None, access=None):
         """Create QueryParameters using a mocked Request."""
@@ -186,8 +185,7 @@ class IamTestCase(TestCase):
         m_request.user = user
         if path:
             m_request.path = path
-        query_params = QueryParameters(m_request, view)
-        return query_params
+        return QueryParameters(m_request, view)
 
 
 class RbacPermissions:
@@ -212,7 +210,6 @@ class RbacPermissions:
 
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            original_id = args[0].headers[RH_IDENTITY_HEADER]
             user = self.user
             user["access"] = self.access
 
@@ -228,15 +225,12 @@ class RbacPermissions:
 
             with override_settings(DEVELOPMENT=True):
                 with override_settings(DEVELOPMENT_IDENTITY=identity):
-                    with override_settings(MIDDLEWARE=middleware):
-                        request_context = IamTestCase._create_request_context(self.customer, user)
-                        # clear the intial IamTestCase class header so it does not go through DevMiddleware
-                        args[0].headers[RH_IDENTITY_HEADER] = None
-                        middleware = DevelopmentIdentityHeaderMiddleware()
-                        middleware.process_request(request_context["request"])
-                        result = function(*args, **kwargs)
-                        # after we have our result, we need to reset the IamTestCase class header
-                        args[0].headers[RH_IDENTITY_HEADER] = original_id
+                    with override_settings(FORCE_HEADER_OVERRIDE=True):
+                        with override_settings(MIDDLEWARE=middleware):
+                            request_context = IamTestCase._create_request_context(self.customer, user)
+                            middleware = DevelopmentIdentityHeaderMiddleware()
+                            middleware.process_request(request_context["request"])
+                            result = function(*args, **kwargs)
             return result
 
         return wrapper

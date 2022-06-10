@@ -2,14 +2,14 @@
 Koku README
 ===========
 
-|license| |Unittests| |codecov| |Docs|
+|license| |Unittests| |codecov|
 
 About
 =====
 
 Koku's goal is to provide an open source solution for cost management of cloud and hybrid cloud environments. This solution is offered via a web interface that exposes resource consumption and cost data in easily digestible and filterable views. The project also aims to provide insight into this data and ultimately provide suggested optimizations for reducing cost and eliminating unnecessary resource usage.
 
-Full documentation is available through readthedocs_.
+Full documentation is available in `docs folder`_.
 
 To submit an issue please visit https://issues.redhat.com/projects/COST/
 
@@ -17,6 +17,8 @@ Getting Started
 ===============
 
 This project is developed using Python 3.8. Make sure you have at least this version installed.
+
+| *Note*: M1 Mac users should follow the `M1 Mac Setup`_.
 
 Prerequisites
 -------------
@@ -65,7 +67,7 @@ This project is developed using the Django web framework. Many configuration set
 
 5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
-    pip3 install pipenv==2018.11.26
+    pip3 install pipenv==2022.4.8
 
 6. Then project dependencies and a virtual environment can be created using ::
 
@@ -177,7 +179,7 @@ If you need to run PostgreSQL using SSL for local development:
 
 1. Ensure that you have ``openssl`` installed.
 2. Ensure that you have the ``KOKU_PATH`` environment set to the koku source root directory.
-3. Execute ``${KOKU_PATH}/scripts/genssc`` and follow the prompts to create local a self-signed certificate for PostgreSQL.
+3. Execute ``${KOKU_PATH}/dev/scripts/genssc`` and follow the prompts to create local a self-signed certificate for PostgreSQL.
 4. In the ``docker-compose.yml`` file, there are two commented sections labeled "PostgreSQL SSL". Follow the directions in these comments to enable the volume mounts and command options to use SSL.
 
 See  https://access.redhat.com/containers/?tab=overview#/registry.access.redhat.com/rhel8/postgresql-12
@@ -334,15 +336,16 @@ Contributing
 
 Please refer to Contributing_.
 
-.. _readthedocs: http://koku.readthedocs.io/en/latest/
+.. _`docs folder`: https://github.com/project-koku/koku/tree/main/docs
 .. _`Install Docker for Mac`: https://docs.docker.com/v17.12/docker-for-mac/install/
 .. _`Install brew`: https://brew.sh/
 .. _tutorial: https://www.postgresql.org/docs/12/tutorial-start.html
-.. _`Working with Openshift`: https://koku.readthedocs.io/en/latest/openshift.html
-.. _Contributing: https://koku.readthedocs.io/en/latest/CONTRIBUTING.html
+.. _`Working with Openshift`: https://github.com/project-koku/koku/blob/main/docs/openshift.rst
+.. _Contributing: https://github.com/project-koku/koku/blob/main/CONTRIBUTING.rst
 .. _pre-commit: https://pre-commit.com
 .. _Black: https://github.com/psf/black
 .. _Flake8: http://flake8.pycqa.org
+.. _`M1 Mac Setup`: https://github.com/project-koku/koku/blob/main/docs/koku_setup_on_m1.rst
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/main/LICENSE
@@ -350,5 +353,3 @@ Please refer to Contributing_.
    :target: https://github.com/project-koku/koku/actions
 .. |codecov| image:: https://codecov.io/gh/project-koku/koku/branch/main/graph/badge.svg
    :target: https://codecov.io/gh/project-koku/koku
-.. |Docs| image:: https://readthedocs.org/projects/koku/badge/
-   :target: https://koku.readthedocs.io/en/latest

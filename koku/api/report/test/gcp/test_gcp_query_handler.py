@@ -215,9 +215,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_by_filtered_service(self):
         """Test execute_query monthly breakdown by filtered service."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -535,9 +533,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_filter_region(self):
         """Test execute_query for current month on monthly filtered by region."""
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -562,9 +558,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
         """Test execute_query on monthly filtered by region for csv."""
         mock_accept.return_value = "text/csv"
-        url = (
-            "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[region]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, GCPCostView)
         handler = GCPReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -639,7 +633,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     account_id=account.get("account"),
                     usage_start__gte=self.dh.this_month_start,
                     usage_start__lte=self.dh.today,
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 current_total = Decimal(curr.get("value"))
 
                 prev = GCPCostEntryLineItemDailySummary.objects.filter(
@@ -647,7 +641,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     account_id=account.get("account"),
                     usage_start__gte=self.dh.last_month_start,
                     usage_start__lte=self.dh.today - relativedelta(months=1),
-                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+                ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
                 prev_total = Decimal(prev.get("value", Decimal(0)))
 
             expected_delta_value = Decimal(current_total - prev_total)
@@ -668,14 +662,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
                 invoice_month__in=current_invoice_month,
                 usage_start__gte=self.dh.this_month_start,
                 usage_start__lte=self.dh.today,
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             current_total = Decimal(curr.get("value"))
 
             prev = GCPCostEntryLineItemDailySummary.objects.filter(
                 invoice_month__in=last_invoice_month,
                 usage_start__gte=self.dh.last_month_start,
                 usage_start__lte=self.dh.today - relativedelta(months=1),
-            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost")))
+            ).aggregate(value=Sum(F("unblended_cost") + F("markup_cost") + F("credit_amount")))
             prev_total = Decimal(prev.get("value"))
 
         expected_delta_value = Decimal(current_total - prev_total)
@@ -936,7 +930,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
                                     if "values" in item.keys():
                                         value = item["values"][0]
                                         source_uuid_list.extend(value.get("source_uuid"))
-        self.assertNotEquals(source_uuid_list, [])
+        self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
             self.assertIn(source_uuid, expected_source_uuids)
 
@@ -1109,7 +1103,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for element in data:
             lst = [service.get("service") for service in element.get("services", [])]
             if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+                self.assertCountEqual(correctlst, lst)
 
     def test_gcp_date_incorrect_date(self):
         wrong_date = "200BC"

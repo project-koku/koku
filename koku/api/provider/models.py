@@ -60,11 +60,13 @@ class Provider(models.Model):
     PROVIDER_AZURE = "Azure"
     PROVIDER_GCP = "GCP"
     PROVIDER_IBM = "IBM"
+    PROVIDER_OCI = "OCI"
     # Local Providers are for local development and testing
     PROVIDER_AWS_LOCAL = "AWS-local"
     PROVIDER_AZURE_LOCAL = "Azure-local"
     PROVIDER_GCP_LOCAL = "GCP-local"
     PROVIDER_IBM_LOCAL = "IBM-local"
+    PROVIDER_OCI_LOCAL = "OCI-local"
     # The following constants are not provider types
     OCP_ALL = "OCP_All"
     OCP_AWS = "OCP_AWS"
@@ -77,10 +79,12 @@ class Provider(models.Model):
         "azure": PROVIDER_AZURE,
         "gcp": PROVIDER_GCP,
         "ibm": PROVIDER_IBM,
+        "oci": PROVIDER_OCI,
         "aws-local": PROVIDER_AWS_LOCAL,
         "azure-local": PROVIDER_AZURE_LOCAL,
         "gcp-local": PROVIDER_GCP_LOCAL,
         "ibm-local": PROVIDER_IBM_LOCAL,
+        "oci-local": PROVIDER_OCI_LOCAL,
         "ocp-aws": OCP_AWS,
         "ocp-azure": OCP_AZURE,
     }
@@ -91,20 +95,24 @@ class Provider(models.Model):
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
         (PROVIDER_IBM, PROVIDER_IBM),
+        (PROVIDER_OCI, PROVIDER_OCI),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
         (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
+        (PROVIDER_OCI_LOCAL, PROVIDER_OCI_LOCAL),
     )
     CLOUD_PROVIDER_CHOICES = (
         (PROVIDER_AWS, PROVIDER_AWS),
         (PROVIDER_AZURE, PROVIDER_AZURE),
         (PROVIDER_GCP, PROVIDER_GCP),
         (PROVIDER_IBM, PROVIDER_IBM),
+        (PROVIDER_OCI, PROVIDER_OCI),
         (PROVIDER_AWS_LOCAL, PROVIDER_AWS_LOCAL),
         (PROVIDER_AZURE_LOCAL, PROVIDER_AZURE_LOCAL),
         (PROVIDER_GCP_LOCAL, PROVIDER_GCP_LOCAL),
         (PROVIDER_IBM_LOCAL, PROVIDER_IBM_LOCAL),
+        (PROVIDER_OCI_LOCAL, PROVIDER_OCI_LOCAL),
     )
 
     # These lists are intended for use for provider type checking
@@ -171,9 +179,18 @@ class Provider(models.Model):
             # Local import of task function to avoid potential import cycle.
             from masu.celery.tasks import check_report_updates
 
+            QUEUE = None
+            if self.customer.schema_name == settings.QE_SCHEMA:
+                QUEUE = "priority"
+                LOG.info("Setting queue to priority for QE testing")
+
             LOG.info(f"Starting data ingest task for Provider {self.uuid}")
             # Start check_report_updates task after Provider has been committed.
-            transaction.on_commit(lambda: check_report_updates.delay(provider_uuid=self.uuid))
+            transaction.on_commit(
+                lambda: check_report_updates.s(provider_uuid=self.uuid, queue_name=QUEUE)
+                .set(queue="priority")
+                .apply_async()
+            )
 
     def delete(self, *args, **kwargs):
         if self.customer:
@@ -218,6 +235,8 @@ class Sources(RunTextFieldValidators, models.Model):
     # Koku Specific data.
     # Customer Account ID
     account_id = models.TextField(null=True)
+
+    org_id = models.TextField(null=True)
 
     # Provider type (i.e. AWS, OCP, AZURE)
     source_type = models.TextField(null=False)

@@ -7,7 +7,6 @@ import copy
 import logging
 import uuid
 
-from celery import chain
 from django.db import transaction
 
 from api.provider.models import Provider
@@ -15,7 +14,6 @@ from api.utils import DateHelper
 from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from masu.processor.tasks import PRIORITY_QUEUE
-from masu.processor.tasks import refresh_materialized_views
 from masu.processor.tasks import update_cost_model_costs
 
 
@@ -47,7 +45,6 @@ class CostModelManager:
     def create(self, **data):
         """Create cost model and optionally associate to providers."""
         cost_model_data = copy.deepcopy(data)
-
         provider_uuids = cost_model_data.pop("provider_uuids", [])
         self._model = CostModel.objects.create(**cost_model_data)
         self.update_provider_uuids(provider_uuids)
@@ -87,13 +84,14 @@ class CostModelManager:
             except Provider.DoesNotExist:
                 LOG.info(f"Provider {provider_uuid} does not exist. Skipping cost-model update.")
             else:
-                schema_name = provider.customer.schema_name
-                # Because this is triggered from the UI, we use the priority queue
-                LOG.info(
-                    f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
-                    + f"with tracing_id {tracing_id}"
-                )
-                chain(
+                if provider.active:
+                    schema_name = provider.customer.schema_name
+                    # Because this is triggered from the UI, we use the priority queue
+                    LOG.info(
+                        f"provider {provider_uuid} update for cost model {self._cost_model_uuid} "
+                        + f"with tracing_id {tracing_id}"
+                    )
+
                     update_cost_model_costs.s(
                         schema_name,
                         provider.uuid,
@@ -101,15 +99,7 @@ class CostModelManager:
                         end_date,
                         tracing_id=tracing_id,
                         queue_name=PRIORITY_QUEUE,
-                    ).set(queue=PRIORITY_QUEUE),
-                    refresh_materialized_views.si(
-                        schema_name,
-                        provider.type,
-                        provider_uuid=provider.uuid,
-                        tracing_id=tracing_id,
-                        queue_name=PRIORITY_QUEUE,
-                    ).set(queue=PRIORITY_QUEUE),
-                ).apply_async()
+                    ).set(queue=PRIORITY_QUEUE).apply_async()
 
     def update(self, **data):
         """Update the cost model object."""
@@ -118,6 +108,7 @@ class CostModelManager:
         self._model.rates = data.get("rates", self._model.rates)
         self._model.markup = data.get("markup", self._model.markup)
         self._model.distribution = data.get("distribution", self._model.distribution)
+        self._model.currency = data.get("currency", self._model.currency)
         self._model.save()
 
     def get_provider_names_uuids(self):

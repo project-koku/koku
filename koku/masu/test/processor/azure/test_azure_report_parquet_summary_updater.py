@@ -76,7 +76,7 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(end, expected_end)
 
     @patch(
-        "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+        "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch(
         "masu.processor.azure.azure_report_parquet_summary_updater.AzureReportDBAccessor.populate_tags_summary_table"
@@ -104,7 +104,9 @@ class AzureReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_delete.assert_called_with(self.azure_provider.uuid, expected_start, expected_end)
+        mock_delete.assert_called_with(
+            self.azure_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
         mock_presto.assert_called_with(
             expected_start, expected_end, self.azure_provider.uuid, current_bill_id, markup_value
         )

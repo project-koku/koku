@@ -128,7 +128,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             )
             expected_markup = expected_markup.get("markup")
 
-        self.accessor.populate_markup_cost(0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(decimal.Decimal(0.1), start_date, end_date, bill_ids)
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -347,28 +347,21 @@ class GCPReportDBAccessorTest(MasuTestCase):
 
         mock_trino.assert_called()
 
-    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
-    def test_populate_ocp_gcp_ui_summary_tables(self, mock_presto):
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
+    def test_populate_ocp_gcp_ui_summary_tables(self, mock_sql):
         """Test that we construst our SQL and query using Presto."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
-        year = start_date.strftime("%Y")
-        month = start_date.strftime("%m")
-        days = DateHelper().list_days(start_date, end_date)
-        days_str = "','".join([str(day.day) for day in days])
         summary_sql_params = {
             "schema": self.schema,
             "start_date": start_date,
-            "year": year,
-            "month": month,
-            "days": days_str,
             "end_date": end_date,
             "gcp_source_uuid": self.gcp_provider_uuid,
-            "ocp_source_uuid": self.ocp_provider_uuid,
+            "ocp_source_uuid": self.ocp_on_gcp_ocp_provider,
         }
         self.accessor.populate_ocp_on_gcp_ui_summary_tables(summary_sql_params)
-        mock_presto.assert_called()
+        mock_sql.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_raw_sql_query")
     def test_populate_ocp_on_gcp_tags_summary_table(self, mock_presto):
@@ -392,4 +385,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 [1], self.gcp_provider_uuid, self.ocp_provider_uuid, "2022", "01"
             )
         mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

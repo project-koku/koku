@@ -113,7 +113,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
         """Test that bills_for_provider_uuid returns the right bills."""
         bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date=self.dh.this_month_start)
         with schema_context(self.schema):
-            self.assertEquals(len(bills), 1)
+            self.assertEqual(len(bills), 1)
 
     def test_populate_line_item_daily_summary_table(self):
         """Test that the daily summary table is populated."""
@@ -215,7 +215,9 @@ class AzureReportDBAccessorTest(MasuTestCase):
 
         query = self.accessor._get_db_obj_query(summary_table_name)
 
-        self.accessor.populate_markup_cost(self.azure_provider_uuid, 0.1, start_date, end_date, bill_ids)
+        self.accessor.populate_markup_cost(
+            self.azure_provider_uuid, decimal.Decimal(0.1), start_date, end_date, bill_ids
+        )
         with schema_context(self.schema):
             query = (
                 self.accessor._get_db_obj_query(summary_table_name)
@@ -491,4 +493,6 @@ class AzureReportDBAccessorTest(MasuTestCase):
                 [1], self.azure_provider_uuid, self.ocp_provider_uuid, "2022", "01"
             )
         mock_trino.assert_called()
+        # Confirms that the error log would be logged on last attempt
+        self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)

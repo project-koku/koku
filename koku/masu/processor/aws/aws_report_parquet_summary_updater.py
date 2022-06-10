@@ -110,7 +110,12 @@ class AWSReportParquetSummaryUpdater(PartitionHandlerMixin):
                     start,
                     end,
                 )
-                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                filters = {
+                    "cost_entry_bill_id": current_bill_id
+                }  # Use cost_entry_bill_id to leverage DB index on DELETE
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                    self._provider.uuid, start, end, filters
+                )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, self._provider.uuid, current_bill_id, markup_value
                 )

@@ -331,7 +331,7 @@ def rewind_consumer_to_retry(consumer, topic_partition):
 
 def backoff(interval, maximum=120):
     """Exponential back-off."""
-    wait = min(maximum, (2 ** interval)) + random.random()
+    wait = min(maximum, (2**interval)) + random.random()
     LOG.info("Sleeping for %.2f seconds.", wait)
     time.sleep(wait)
 
@@ -373,7 +373,7 @@ def sources_integration_thread():  # pragma: no cover
         # Without this initial connection/ID number, the consumer cannot start
         try:
             cost_management_type_id = SourcesHTTPClient(
-                Config.SOURCES_FAKE_HEADER
+                Config.SOURCES_PROBE_HEADER
             ).get_cost_management_application_type_id()
             LOG.info("Connected to Sources REST API.")
         except SourcesHTTPClientError as error:

@@ -26,6 +26,7 @@ LOG = logging.getLogger(__name__)
 AWS_CACHE_PREFIX = "aws-view"
 AZURE_CACHE_PREFIX = "azure-view"
 GCP_CACHE_PREFIX = "gcp-view"
+OCI_CACHE_PREFIX = "oci-view"
 OPENSHIFT_CACHE_PREFIX = "openshift-view"
 OPENSHIFT_AWS_CACHE_PREFIX = "openshift-aws-view"
 OPENSHIFT_AZURE_CACHE_PREFIX = "openshift-azure-view"
@@ -72,7 +73,7 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
 
 
 def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
-    """"Invalidate our view cache for a specific tenant and source type."""
+    """ "Invalidate our view cache for a specific tenant and source type."""
     cache_key_prefixes = ()
     if source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         cache_key_prefixes = (AWS_CACHE_PREFIX, OPENSHIFT_AWS_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
@@ -94,7 +95,7 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
 
 
 def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):
-    """"Invalidate our view cache for a specific tenant and a list source types."""
+    """ "Invalidate our view cache for a specific tenant and a list source types."""
     for source_type in source_types:
         if source_type in Provider.PROVIDER_LIST:
             invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
@@ -103,7 +104,7 @@ def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types)
 
 
 def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
-    """"Invalidate our view cache for a specific tenant and all (non local) source types."""
+    """ "Invalidate our view cache for a specific tenant and all (non local) source types."""
     non_local_providers = [provider for provider in Provider.PROVIDER_LIST if "-local" not in provider]
 
     for source_type in non_local_providers:

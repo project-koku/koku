@@ -32,6 +32,7 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import date_range_pair
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
+from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 from reporting_common.models import CostUsageReportStatus
 
 DATA_DIR = Config.TMP_DIR
@@ -77,7 +78,7 @@ def create_daily_archives(
                 {"data_frame": invoice_data[invoice_data.partition_date.str.contains(cur_day)], "date": cur_day}
                 for cur_day in days
             ]
-            start_of_invoice = dh.gcp_invoice_month_start(invoice_month)
+            start_of_invoice = dh.invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
@@ -153,6 +154,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             "credits",
             "invoice.month",
             "cost_type",
+            "resource.name",
+            "resource.global_name",
         ]
         self.table_name = ".".join(
             [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
@@ -175,7 +178,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
     def _generate_default_scan_range(self, range_length=3):
         """
-            Generates the first date of the date range.
+        Generates the first date of the date range.
         """
         today = DateAccessor().today().date()
         scan_start = today - datetime.timedelta(days=range_length)
@@ -322,9 +325,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         relevant_file_names = list()
         for start, end in date_range_pair(self.scan_start, self.scan_end):
-            # When the days are the same nothing is downloaded.
-            if start == end:
-                continue
             end = end + relativedelta(days=1)
             relevant_file_names.append(f"{invoice_month}_{self.etag}_{start}:{end}.csv")
         return relevant_file_names
@@ -344,6 +344,19 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def build_query_select_statement(self):
         """Helper to build query select statement."""
         columns_list = self.gcp_big_query_columns.copy()
+        columns_list = [
+            f"TO_JSON_STRING({col})" if col in ("labels", "system_labels", "project.labels") else col
+            for col in columns_list
+        ]
+        # Swap out resource columns with NULLs when we are processing
+        # a non-resource-level BigQuery table
+        columns_list = [
+            f"NULL as {col.replace('.', '_')}"
+            if col in ("resource.name", "resource.global_name")
+            and RESOURCE_LEVEL_EXPORT_NAME not in self.data_source.get("table_id")
+            else col
+            for col in columns_list
+        ]
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
@@ -441,7 +454,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 writer.writerow(column_list)
                 for row in query_job:
                     writer.writerow(row)
-        except (OSError, IOError) as exc:
+        except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
                 f"\n  Provider: {self._provider_uuid}"
@@ -466,7 +479,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, self.etag, dh.today, file_names
+        return full_local_path, self.etag, dh.today, file_names, {}
 
     def _get_local_directory_path(self):
         """

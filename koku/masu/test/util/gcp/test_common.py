@@ -25,11 +25,11 @@ class TestGCPUtils(MasuTestCase):
         """Test that bill IDs are returned for an GCP provider."""
         with schema_context(self.schema):
             expected_bill_ids = GCPCostEntryBill.objects.values_list("id")
-            expected_bill_ids = sorted([bill_id[0] for bill_id in expected_bill_ids])
+            expected_bill_ids = sorted(bill_id[0] for bill_id in expected_bill_ids)
         bills = utils.get_bills_from_provider(self.gcp_provider_uuid, self.schema)
 
         with schema_context(self.schema):
-            bill_ids = sorted([bill.id for bill in bills])
+            bill_ids = sorted(bill.id for bill in bills)
 
         self.assertEqual(bill_ids, expected_bill_ids)
 
@@ -117,7 +117,7 @@ class TestGCPUtils(MasuTestCase):
 
     def test_process_gcp_labels(self):
         """Test that labels are formatted properly."""
-        label_string = "[{'key': 'key_one', 'value': 'value_one'}, {'key': 'key_two', 'value': 'value_two'}]"
+        label_string = '[{"key": "key_one", "value": "value_one"}, {"key": "key_two", "value": "value_two"}]'
 
         expected = '{"key_one": "value_one", "key_two": "value_two"}'
         label_result = utils.process_gcp_labels(label_string)

@@ -49,12 +49,15 @@ class ProviderBuilder:
             db_dict = {}
         return db_dict
 
-    def _build_credentials_auth(self, authentication):
-        credentials = authentication.get("credentials")
-        if credentials and isinstance(credentials, dict):
-            auth = {"credentials": credentials}
+    def _build_credentials_auth(self, provider_type, authentication):
+        if provider_type == Provider.PROVIDER_OCI or provider_type == Provider.PROVIDER_OCI_LOCAL:
+            auth = {}
         else:
-            raise ProviderBuilderError("Missing credentials")
+            credentials = authentication.get("credentials")
+            if credentials and isinstance(credentials, dict):
+                auth = {"credentials": credentials}
+            else:
+                raise ProviderBuilderError("Missing credentials")
         return auth
 
     def _build_provider_data_source(self, billing_source):
@@ -120,7 +123,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self._build_credentials_auth(source.authentication),
+            "authentication": self._build_credentials_auth(provider_type, source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
         }
         if source.source_uuid:
@@ -147,7 +150,7 @@ class ProviderBuilder:
         json_data = {
             "name": source.name,
             "type": provider_type.lower(),
-            "authentication": self._build_credentials_auth(source.authentication),
+            "authentication": self._build_credentials_auth(provider_type, source.authentication),
             "billing_source": self.get_billing_source_for_provider(provider_type, source.billing_source),
             "paused": source.paused,
         }
@@ -160,7 +163,7 @@ class ProviderBuilder:
         invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         return instance
 
-    def destroy_provider(self, provider_uuid):
+    def destroy_provider(self, provider_uuid, retry_count=None):
         """Call to destroy provider."""
         connection.set_schema_to_public()
         _, customer, user = self._create_context()
@@ -171,6 +174,6 @@ class ProviderBuilder:
         except ProviderManagerError:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
-            manager.remove(user=user, from_sources=True)
+            manager.remove(user=user, from_sources=True, retry_count=retry_count)
             invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         connection.set_schema_to_public()

@@ -70,9 +70,9 @@ class AWSProviderTestCase(TestCase):
         iam_arn = "arn:aws:s3:::my_s3_bucket"
         credentials = _get_sts_access(iam_arn)
         sts_client.assume_role.assert_called()
-        self.assertEquals(credentials.get("aws_access_key_id"), expected_access_key)
-        self.assertEquals(credentials.get("aws_secret_access_key"), expected_secret_access_key)
-        self.assertEquals(credentials.get("aws_session_token"), expected_session_token)
+        self.assertEqual(credentials.get("aws_access_key_id"), expected_access_key)
+        self.assertEqual(credentials.get("aws_secret_access_key"), expected_secret_access_key)
+        self.assertEqual(credentials.get("aws_session_token"), expected_session_token)
 
     @patch("providers.aws.provider.boto3.client")
     def test_get_sts_access_fail(self, mock_boto3_client):
@@ -253,10 +253,9 @@ class AWSProviderTestCase(TestCase):
         ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=True)
-    @patch("providers.aws.provider._check_org_access", return_value=True)
     @patch("providers.aws.provider._check_cost_report_access", return_value=True)
     def test_cost_usage_source_is_reachable(
-        self, mock_get_sts_access, mock_check_s3_access, mock_check_org_access, mock_check_cost_report_access
+        self, mock_get_sts_access, mock_check_s3_access, mock_check_cost_report_access
     ):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
@@ -308,10 +307,7 @@ class AWSProviderTestCase(TestCase):
         ),
     )
     @patch("providers.aws.provider._check_s3_access", return_value=False)
-    @patch("providers.aws.provider._check_org_access", return_value=True)
-    def test_cost_usage_source_is_reachable_no_bucket_exists(
-        self, mock_get_sts_access, mock_check_s3_access, mock_check_org_access
-    ):
+    def test_cost_usage_source_is_reachable_no_bucket_exists(self, mock_get_sts_access, mock_check_s3_access):
         """Verify that the cost usage source is authenticated and created."""
         provider_interface = AWSProvider()
         with self.assertRaises(ValidationError):

@@ -77,7 +77,7 @@ class OCPUtilTests(MasuTestCase):
         try:
             UUID(provider_uuid)
         except ValueError:
-            self.fail("{} is not a valid uuid.".format(str(provider_uuid)))
+            self.fail(f"{str(provider_uuid)} is not a valid uuid.")
 
     def test_get_provider_uuid_from_invalid_cluster_id(self):
         """Test that the provider uuid is not returned for an invalid cluster ID."""
@@ -230,6 +230,26 @@ class OCPUtilTests(MasuTestCase):
                 "tag": json.dumps({"key": "value", "other_key": "other_value"}),
                 "expected": '"key": "value","other_key": "other_value"',
             },
+        ]
+
+        for tag_dict in tag_dicts:
+            td = tag_dict.get("tag")
+            expected = tag_dict.get("expected")
+            result = utils.match_openshift_labels(td, matched_tags)
+            self.assertEqual(result, expected)
+
+    def test_match_openshift_labels_null_value(self):
+        """Test that a label match doesn't return null tag values."""
+        matched_tags = [{"key": "value"}, {"other_key": "other_value"}]
+
+        tag_dicts = [
+            {"tag": json.dumps({"key": "value"}), "expected": '"key": "value"'},
+            {"tag": json.dumps({"key": "other_value"}), "expected": ""},
+            {
+                "tag": json.dumps({"key": "value", "other_key": "other_value"}),
+                "expected": '"key": "value","other_key": "other_value"',
+            },
+            {"tag": json.dumps({"key": "value", "other_key": None}), "expected": '"key": "value"'},
         ]
 
         for tag_dict in tag_dicts:

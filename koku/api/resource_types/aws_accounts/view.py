@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for AWS accounts."""
+from django.conf import settings
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
@@ -13,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.aws_access import AwsAccessPermission
 from api.resource_types.serializers import ResourceTypeSerializer
 from reporting.provider.aws.models import AWSCostSummaryByAccountP
@@ -40,6 +42,7 @@ class AWSAccountView(generics.ListAPIView):
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value", "alias"]
     search_fields = ["value", "alias"]
+    pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
@@ -67,7 +70,7 @@ class AWSAccountView(generics.ListAPIView):
                             .distinct()
                         )
 
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         elif request.user.access:
             user_access = request.user.access.get("aws.account", {}).get("read", [])

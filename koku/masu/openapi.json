@@ -31,6 +31,10 @@
       "description": "Operations about HCS report data"
     },
     {
+      "name": "HCS Report Finalization",
+      "description": "Operations about HCS report finalization"
+    },
+    {
       "name": "Update Cost Model Cost",
       "description": "Operations about updating cost model costs"
     },
@@ -224,7 +228,7 @@
             "name": "provider_uuid",
             "in": "query",
             "description": "The provider UUID",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
               "format": "uuid",
@@ -255,7 +259,7 @@
             "name": "start_date",
             "in": "query",
             "description": "The date to begin summarizing",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date",
@@ -276,7 +280,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Data summary task has been queued",
+            "description": "HCS report task has been queued",
             "content": {
               "application/json": {
                 "schema": {
@@ -288,6 +292,64 @@
         },
         "tags": [
           "HCS Report Data"
+        ]
+      }
+    },
+    "/hcs_report_finalization/": {
+      "get": {
+        "operationId": "getHCSReportFinalization",
+        "description": "Finalize HCS report data.",
+        "parameters": [
+          {
+            "name": "tracing_id",
+            "in": "query",
+            "description": "The tracing UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "description": "The month you want to finalize",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12,
+              "example": 4
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "description": "The year you want to finalize, If no month is given then the previous month from today's date will be used",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2050,
+              "example": 2021
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HCS Finalization task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "HCS Report Finalization"
         ]
       }
     },
@@ -812,7 +874,286 @@
         ]
       }
     },
-    "/gcp_invoice_monthly_cost/": {
+    "/db-performance/db-version/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbVersion",
+          "description": "Returns a HTML document showing the database version.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database version.",
+              "content": {
+                  "text/html": {}
+              }
+            }
+          },
+          "tags": [
+            "db-performance",
+            "db-version"
+          ]
+        }
+      },
+      "/db-performance/db-settings/": {
+        "get": {
+          "summary": "Returns a table showing the PostgreSQL database software version.",
+          "operationId": "dbPerformanceDbSettings",
+          "description": "Returns a HTML document showing the database software settings.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing the database software settings.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "db-settings"
+          ]
+        }
+      },
+      "/db-performance/stat-statements/": {
+        "get": {
+          "summary": "Returns a table showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "operationId": "dbPerformanceStatStatements",
+          "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-statements"
+          ]
+        }
+      },
+      "/db-performance/stat-activity/": {
+        "get": {
+          "summary": "Returns a table showing current connection activity.",
+          "operationId": "dbPerformanceStatActivity",
+          "description": "Returns a HTML document showing current connection activity.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set. The default is 500.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records. The default is no offset.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "pid",
+              "in": "query",
+              "description": "Narrow results to supplied pid values",
+              "required": false,
+              "schema": {
+                "type": "array",
+                "items": {
+                    "type": "integer",
+                    "format": "int32",
+                    "minimum": 1
+                }
+              }
+            },
+            {
+              "name": "state",
+              "in": "query",
+              "description": "Narrow results to supplied state values. These include: active, idle, idle in transaction",
+              "required": false,
+              "schema": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "minlength": 4,
+                    "maxlength": 100
+                }
+              }
+            },
+            {
+              "name": "include_self",
+              "in": "query",
+              "description": "If true, include the pid of the connection running the DB Performance queries",
+              "required": false,
+              "schema": {
+                "type": "boolean"
+              }
+            },
+            {
+              "name": "records_per_db",
+              "in": "query",
+              "description": "If there are multiple databases hosted by the engine, then how many records per db to include up to the limit. The default is 100.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing current connection activity.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-activity"
+          ]
+        }
+      },
+      "/db-performance/lock-info/": {
+        "get": {
+          "summary": "Returns a table showing any detected blocking locks.",
+          "operationId": "dbPerformanceLockInfo",
+          "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "lock-info"
+          ]
+        }
+      },
+      "/db-performance/explain-query/": {
+        "get": {
+          "summary": "Returns a HTML document interface to submit a query for the database to explain.",
+          "operationId": "dbPerformanceExplainQuery",
+          "description": "Returns a HTML document interface to submit a query for the database to explain.",
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document interface to submit a query for the database to explain.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "explain-query",
+            "interface"
+          ]
+        },
+        "post": {
+          "summary": "Returns JSON containing each query and explanation submitted.",
+          "operationId": "dbPerformanceExplainQueryPost",
+          "description": "Returns JSON containing each query and explanation submitted.",
+          "parameters": [
+            {
+              "name": "sql_statement",
+              "in": "body",
+              "description": "The text of the SQL statement to explain.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "example": "select col from table where filter = 'value';"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/dbPerformanceExplainQueryPost"
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Return Plans.",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/dbPerformanceExplainQueryPostResponse"
+                  }
+                }
+              }
+            }
+          },
+          "tags": [
+            "db-performance",
+            "explain-query",
+            "action"
+          ]
+        }
+      },
+      "/gcp_invoice_monthly_cost/": {
       "get": {
         "summary": "Returns dictionary with cost mappings for continuity checks",
         "operationId": "gcpInvoiceMonthlyCost",
@@ -1208,6 +1549,26 @@
           "action": {
             "type": "string",
             "enum": ["create", "delete"]
+          }
+        }
+      },
+      "dbPerformanceExplainQueryPost":{
+        "type": "object",
+        "properties": {
+          "sql_statement": {
+            "type": "string",
+            "example": "select col from table where filter = 'value';"
+          }
+        }
+      },
+      "dbPerformanceExplainQueryPostResponse":{
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "query_plan": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1822,6 +2183,13 @@
             "items": {
               "$ref": "#/components/schemas/Provider"
             }
+          },
+          "additional_context": {
+            "type": "object",
+            "description": "Dictionary containing context information.",
+            "example": {
+              "crawl_hierarchy": "False"
+            }
           }
         }
       },
@@ -1929,8 +2297,7 @@
             "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
           }
         }
-      },
-
+      }
     }
   }
 }

@@ -20,7 +20,7 @@ from django.conf import settings
 from tenant_schemas.utils import schema_context
 
 from api.common import log_json
-from api.models import Provider
+from api.provider.models import Provider
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor import enable_trino_processing
@@ -115,7 +115,7 @@ def month_date_range(for_date_time):
     start_month = start_month.replace(day=1)
     end_month = start_month + relativedelta(months=+1)
     timeformat = "%Y%m%d"
-    return "{}-{}".format(start_month.strftime(timeformat), end_month.strftime(timeformat))
+    return f"{start_month.strftime(timeformat)}-{end_month.strftime(timeformat)}"
 
 
 def get_assembly_id_from_cur_key(key):
@@ -163,6 +163,15 @@ def get_local_file_name(cur_key):
     return local_file_name
 
 
+def get_provider_uuid_from_arn(role_arn):
+    """Returns provider_uuid given the arn."""
+    aws_creds = {"role_arn": f"{role_arn}"}
+    query = Provider.objects.filter(authentication_id__credentials=aws_creds)
+    if query.first():
+        return query.first().uuid
+    return None
+
+
 def get_account_alias_from_role_arn(role_arn, session=None):
     """
     Get account ID for given RoleARN.
@@ -174,20 +183,31 @@ def get_account_alias_from_role_arn(role_arn, session=None):
         (String): Account ID
 
     """
+    provider_uuid = get_provider_uuid_from_arn(role_arn)
+    context_key = "aws_list_account_aliases"
     if not session:
         session = get_assume_role_session(role_arn)
     iam_client = session.client("iam")
 
     account_id = role_arn.split(":")[-2]
     alias = account_id
-    try:
-        alias_response = iam_client.list_account_aliases()
-        alias_list = alias_response.get("AccountAliases", [])
-        # Note: Boto3 docs states that you can only have one alias per account
-        # so the pop() should be ok...
-        alias = alias_list.pop() if alias_list else None
-    except ClientError as err:
-        LOG.info("Unable to list account aliases.  Reason: %s", str(err))
+
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        context = provider_accessor.get_additional_context()
+        list_aliases = context.get(context_key, True)
+
+    if list_aliases:
+        try:
+            alias_response = iam_client.list_account_aliases()
+            alias_list = alias_response.get("AccountAliases", [])
+            # Note: Boto3 docs states that you can only have one alias per account
+            # so the pop() should be ok...
+            alias = alias_list.pop() if alias_list else None
+        except ClientError as err:
+            LOG.info("Unable to list account aliases.  Reason: %s", str(err))
+            context[context_key] = False
+            with ProviderDBAccessor(provider_uuid) as provider_accessor:
+                provider_accessor.set_additional_context(context)
 
     return (account_id, alias)
 
@@ -203,21 +223,29 @@ def get_account_names_by_organization(role_arn, session=None):
         (list): Dictionaries of accounts with id, name keys
 
     """
+    context_key = "crawl_hierarchy"
+    provider_uuid = get_provider_uuid_from_arn(role_arn)
     if not session:
         session = get_assume_role_session(role_arn)
-    org_client = session.client("organizations")
     all_accounts = []
-    try:
-        paginator = org_client.get_paginator("list_accounts")
-        response_iterator = paginator.paginate()
-        for response in response_iterator:
-            accounts = response.get("Accounts", [])
-            for account in accounts:
-                account_id = account.get("Id")
-                name = account.get("Name")
-                all_accounts.append({"id": account_id, "name": name})
-    except ClientError as err:
-        LOG.info("Unable to list accounts using organization API.  Reason: %s", str(err))
+
+    with ProviderDBAccessor(provider_uuid) as provider_accessor:
+        context = provider_accessor.get_additional_context()
+        crawlable = context.get(context_key, True)
+
+    if crawlable:
+        try:
+            org_client = session.client("organizations")
+            paginator = org_client.get_paginator("list_accounts")
+            response_iterator = paginator.paginate()
+            for response in response_iterator:
+                accounts = response.get("Accounts", [])
+                for account in accounts:
+                    account_id = account.get("Id")
+                    name = account.get("Name")
+                    all_accounts.append({"id": account_id, "name": name})
+        except ClientError as err:
+            LOG.info("Unable to list accounts using organization API.  Reason: %s", str(err))
 
     return all_accounts
 
@@ -323,6 +351,43 @@ def copy_local_report_file_to_s3_bucket(
             copy_data_to_s3_bucket(request_id, s3_path, local_filename, fin, manifest_id, context)
 
 
+def copy_hcs_data_to_s3_bucket(request_id, path, filename, data, finalize=False, context={}):
+    """
+    Copies HCS data to s3 bucket location
+    """
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
+        return None
+
+    upload = None
+    upload_key = f"{path}/{filename}"
+    extra_args = {"Metadata": {"finalized": str(finalize)}}
+
+    try:
+        s3_resource = get_s3_resource()
+        s3_obj = {"bucket_name": settings.S3_BUCKET_NAME, "key": upload_key}
+        upload = s3_resource.Object(**s3_obj)
+        upload.upload_fileobj(data, ExtraArgs=extra_args)
+    except (EndpointConnectionError, ClientError) as err:
+        msg = f"Unable to copy data to {upload_key} in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
+        LOG.info(log_json(request_id, msg, context))
+    return upload
+
+
+def copy_local_hcs_report_file_to_s3_bucket(
+    request_id, s3_path, full_file_path, local_filename, finalize=False, context={}
+):
+    """
+    Copies local report file to s3 bucket
+    """
+    if s3_path and settings.ENABLE_S3_ARCHIVING:
+        LOG.info(f"copy_local_HCS_report_file_to_s3_bucket: {s3_path} {full_file_path}")
+        with open(full_file_path, "rb") as fin:
+            copy_hcs_data_to_s3_bucket(request_id, s3_path, local_filename, fin, finalize, context)
+
+
 def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
@@ -402,7 +467,10 @@ def aws_generate_daily_data(data_frame):
         [
             "lineitem_resourceid",
             pd.Grouper(key="lineitem_usagestartdate", freq="D"),
+            "bill_payeraccountid",
             "lineitem_usageaccountid",
+            "lineitem_legalentity",
+            "bill_billingentity",
             "lineitem_productcode",
             "lineitem_availabilityzone",
             "product_productfamily",
@@ -425,6 +493,8 @@ def aws_generate_daily_data(data_frame):
             "pricing_publicondemandcost": ["sum"],
             "pricing_publicondemandrate": ["max"],
             "savingsplan_savingsplaneffectivecost": ["sum"],
+            "product_productname": ["max"],
+            "bill_invoiceid": ["max"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)

@@ -179,7 +179,7 @@ class AWSProviderMap(ProviderMap):
                                 Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
                                 + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(Max("currency_code"), Value("USD")),
+                            "cost_units": Coalesce(Max("currency_code"), Value("USD"), output_field=CharField()),
                             "count": Max("resource_count"),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
@@ -341,14 +341,25 @@ class AWSProviderMap(ProviderMap):
                 ("account", "service"): AWSCostSummaryByServiceP,
                 ("product_family",): AWSCostSummaryByServiceP,
                 ("account", "product_family"): AWSCostSummaryByServiceP,
+                ("account", "org_unit_id"): AWSCostSummaryByAccountP,
+                ("org_unit_id",): AWSCostSummaryByAccountP,
+                ("org_unit_single_level",): AWSCostSummaryByAccountP,
+                ("account", "org_unit_single_level"): AWSCostSummaryByAccountP,
             },
             "instance_type": {
                 "default": AWSComputeSummaryP,
                 ("account",): AWSComputeSummaryByAccountP,
                 ("instance_type",): AWSComputeSummaryP,
                 ("account", "instance_type"): AWSComputeSummaryByAccountP,
+                ("account", "org_unit_id"): AWSComputeSummaryByAccountP,
+                ("org_unit_id",): AWSComputeSummaryByAccountP,
             },
-            "storage": {"default": AWSStorageSummaryP, ("account",): AWSStorageSummaryByAccountP},
+            "storage": {
+                "default": AWSStorageSummaryP,
+                ("account",): AWSStorageSummaryByAccountP,
+                ("account", "org_unit_id"): AWSStorageSummaryByAccountP,
+                ("org_unit_id",): AWSStorageSummaryByAccountP,
+            },
             "database": {
                 "default": AWSDatabaseSummaryP,
                 ("service",): AWSDatabaseSummaryP,

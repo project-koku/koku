@@ -26,8 +26,6 @@ class FilterSerializer(serializers.Serializer):
     resolution = serializers.ChoiceField(choices=RESOLUTION_CHOICES, required=False)
     time_scope_value = serializers.ChoiceField(choices=TIME_CHOICES, required=False)
     time_scope_units = serializers.ChoiceField(choices=TIME_UNIT_CHOICES, required=False)
-    limit = serializers.IntegerField(required=False, min_value=1)
-    offset = serializers.IntegerField(required=False, min_value=0)
 
     def validate(self, data):
         """Validate incoming data.
@@ -112,7 +110,7 @@ class OrgQueryParamSerializer(ParamSerializer):
         if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
 
-        error = "Parameter start_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = f"Parameter start_date must be from {dh.last_month_start.date()} to {dh.today.date()}"
         raise serializers.ValidationError(error)
 
     def validate_end_date(self, value):
@@ -120,7 +118,7 @@ class OrgQueryParamSerializer(ParamSerializer):
         dh = DateHelper()
         if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
             return value
-        error = "Parameter end_date must be from {} to {}".format(dh.last_month_start.date(), dh.today.date())
+        error = f"Parameter end_date must be from {dh.last_month_start.date()} to {dh.today.date()}"
         raise serializers.ValidationError(error)
 
 

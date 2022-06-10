@@ -160,7 +160,7 @@ def download_payload(request_id, url, context={}):
         temp_file_hdl = open(temp_file, "wb")
         temp_file_hdl.write(download_response.content)
         temp_file_hdl.close()
-    except (OSError, IOError) as error:
+    except OSError as error:
         shutil.rmtree(temp_dir)
         msg = f"Unable to write file. Error: {str(error)}"
         LOG.warning(log_json(request_id, msg, context))
@@ -490,30 +490,50 @@ def summarize_manifest(report_meta, manifest_uuid):
     schema_name = report_meta.get("schema_name")
     manifest_id = report_meta.get("manifest_id")
     provider_uuid = report_meta.get("provider_uuid")
-    schema_name = report_meta.get("schema_name")
     provider_type = report_meta.get("provider_type")
     start_date = report_meta.get("start")
     end_date = report_meta.get("end")
 
+    context = {"account": report_meta.get("schema_name"), "provider_uuid": str(provider_uuid)}
+
     with ReportManifestDBAccessor() as manifest_accesor:
         if manifest_accesor.manifest_ready_for_summary(manifest_id):
-            report_meta = {
+            new_report_meta = {
                 "schema_name": schema_name,
                 "provider_type": provider_type,
                 "provider_uuid": provider_uuid,
                 "manifest_id": manifest_id,
             }
             if start_date and end_date:
+                if "0001-01-01 00:00:00+00:00" in [str(start_date), str(end_date)]:
+                    cr_status = report_meta.get("cr_status", {})
+                    context["cluster_id"] = cr_status.get("clusterID", "no-cluster-id")
+                    data_collection_message = cr_status.get("reports", {}).get("data_collection_message", "")
+                    if data_collection_message:
+                        # remove potentially sensitive info from the error message
+                        msg = (
+                            f'data collection error [operator]: {re.sub("{[^}]+}", "{***}", data_collection_message)}'
+                        )
+                        cr_status["reports"]["data_collection_message"] = msg
+                        # The full CR status is logged below, but we should limit our alert to just the query.
+                        # We can check the full manifest to get the full error.
+                        LOG.error(msg)
+                        LOG.info(log_json(manifest_uuid, msg, context))
+                    LOG.info(
+                        log_json(manifest_uuid, f"CR Status for invalid manifest: {json.dumps(cr_status)}", context)
+                    )
+                    return  # an invalid payload will fail to summarize, so return before we try
                 LOG.info(
                     log_json(
                         manifest_uuid,
                         f"Summarizing OCP reports from {str(start_date)}-{str(end_date)} for provider: {provider_uuid}",
+                        context,
                     )
                 )
-                report_meta["start"] = start_date
-                report_meta["end"] = end_date
-                report_meta["manifest_uuid"] = manifest_uuid
-            async_id = summarize_reports.s([report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
+                new_report_meta["start"] = start_date
+                new_report_meta["end"] = end_date
+                new_report_meta["manifest_uuid"] = manifest_uuid
+            async_id = summarize_reports.s([new_report_meta], OCP_QUEUE).apply_async(queue=OCP_QUEUE)
     return async_id
 
 

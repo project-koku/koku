@@ -6,6 +6,7 @@
 import logging
 import random
 from unittest.mock import patch
+from uuid import uuid4
 
 import faker
 
@@ -21,6 +22,8 @@ from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.external.downloader.aws import fake_arn
 
+LOG = logging.getLogger(__name__)
+
 
 class FakeDownloader:
     """Fake Downloader for tests."""
@@ -34,7 +37,7 @@ class FakeDownloader:
         for _ in range(1, random.randint(5, 50)):
             fake_files.append(
                 {
-                    "file": "{}/{}/aws/{}-{}.csv".format(path, self.fake.word(), self.fake.word(), self.fake.word()),
+                    "file": f"{path}/{self.fake.word()}/aws/{self.fake.word()}-{self.fake.word()}.csv",
                     "compression": random.choice(["GZIP", "PLAIN"]),
                 }
             )
@@ -55,6 +58,7 @@ class OrchestratorTest(MasuTestCase):
         self.azure_data_source = self.azure_provider.billing_source.data_source
         self.gcp_credentials = self.gcp_provider.authentication.credentials
         self.gcp_data_source = self.gcp_provider.billing_source.data_source
+        self.oci_data_source = self.oci_provider.billing_source.data_source
         self.ocp_credentials = [name[0] for name in Provider.objects.values_list("authentication__credentials")]
         self.ocp_data_source = {}
         self.mock_accounts = [
@@ -67,7 +71,7 @@ class OrchestratorTest(MasuTestCase):
             }
         ]
 
-    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
     def test_initializer(self, mock_inspect):  # noqa: C901
         """Test to init."""
         orchestrator = Orchestrator()
@@ -93,10 +97,14 @@ class OrchestratorTest(MasuTestCase):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                    self.assertEqual(account.get("data_source"), self.oci_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
 
-        if len(orchestrator._polling_accounts) != 3:
+        # Result is 4 because that matches the number of non OCP sources
+        if len(orchestrator._polling_accounts) != 4:
             self.fail("Unexpected number of listener test accounts")
 
         for account in orchestrator._polling_accounts:
@@ -112,6 +120,9 @@ class OrchestratorTest(MasuTestCase):
                 elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                     self.assertEqual(account.get("credentials"), self.gcp_credentials)
                     self.assertEqual(account.get("data_source"), self.gcp_data_source)
+                    self.assertEqual(account.get("customer_name"), self.schema)
+                elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                    self.assertEqual(account.get("data_source"), self.oci_data_source)
                     self.assertEqual(account.get("customer_name"), self.schema)
                 else:
                     self.fail("Unexpected provider")
@@ -174,7 +185,7 @@ class OrchestratorTest(MasuTestCase):
             orchestrator = Orchestrator()
             results = orchestrator.remove_expired_report_data()
             self.assertTrue(results)
-            self.assertEqual(len(results), 5)
+            self.assertEqual(len(results), 8)
             async_id = results.pop().get("async_id")
             self.assertIn(expected.format(async_id), logger.output)
 
@@ -312,6 +323,67 @@ class OrchestratorTest(MasuTestCase):
                 mock_task.assert_called()
             else:
                 mock_task.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.group")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_priority_queue(
+        self, mock_download_manifest, mock_task, mock_group, mock_inspect
+    ):
+        """Test start_manifest_processing using priority queue."""
+        test_queues = [
+            {
+                "name": "qe-account",
+                "provider_uuid": str(uuid4()),
+                "queue-name": "priority",
+                "summary-expected": "priority",
+                "hcs-expected": "priority",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": None,
+                "queue-name": "priority",
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": str(uuid4()),
+                "queue-name": None,
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
+            {
+                "name": "qe-account",
+                "provider_uuid": None,
+                "queue-name": None,
+                "summary-expected": "summary",
+                "hcs-expected": "hcs",
+            },
+        ]
+        mock_manifest = {
+            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
+        }
+        for test in test_queues:
+            with self.subTest(test=test.get("name")):
+                mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
+                orchestrator = Orchestrator(provider_uuid=test.get("provider_uuid"), queue_name=test.get("queue-name"))
+                account = self.mock_accounts[0]
+                orchestrator.start_manifest_processing(
+                    account.get("customer_name"),
+                    account.get("credentials"),
+                    account.get("data_source"),
+                    "AWS-local",
+                    account.get("schema_name"),
+                    account.get("provider_uuid"),
+                    DateAccessor().get_billing_months(1)[0],
+                )
+                summary_actual_queue = mock_task.call_args.args[0].options.get("queue")
+                hcs_actual_queue = mock_task.call_args.args[1].options.get("queue")
+
+                self.assertEqual(summary_actual_queue, test.get("summary-expected"))
+                self.assertEqual(hcs_actual_queue, test.get("hcs-expected"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")

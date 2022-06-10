@@ -8,6 +8,7 @@ import datetime
 import logging
 from datetime import timedelta
 
+import ciso8601
 import pint
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -339,14 +340,14 @@ class DateHelper:
         rel_month_delta = relativedelta(months=month_seek)
         return self.month_end(dt + rel_month_delta)
 
-    def gcp_invoice_month_start(self, date_str):
-        """Find the beginning of the month for gcp invoice month.
+    def invoice_month_start(self, date_str):
+        """Find the beginning of the month for invoice month.
 
-        GCP invoice month format is {year}{month}.
+        Invoice month format is {year}{month}.
         Ex. 202011
 
         Args:
-            date_str: GCP invoice month format
+            date_str: invoice month format
 
         Returns:
             (datetime.datetime)
@@ -354,8 +355,8 @@ class DateHelper:
         if not isinstance(date_str, str):
             date_str = str(date_str)
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
-        gcp_month_start = self.month_start(date_obj)
-        return gcp_month_start
+        month_start = self.month_start(date_obj)
+        return month_start
 
     def gcp_find_invoice_months_in_date_range(self, start, end):
         """Finds all the invoice months in a given date range.
@@ -384,6 +385,28 @@ class DateHelper:
 def materialized_view_month_start(dh=DateHelper()):
     """Datetime of midnight on the first of the month where materialized summary starts."""
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
+
+
+def get_months_in_date_range(start_date, end_date):
+    """returns the month periods in a given date range"""
+    start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+    end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
+    months = DateHelper().list_month_tuples(start_date, end_date)
+    num_months = len(months)
+    first_month = months[0]
+    months[0] = (start_date, first_month[1])
+
+    last_month = months[num_months - 1]
+    months[num_months - 1] = (last_month[0], end_date)
+
+    # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+    for i, month in enumerate(months):
+        start, end = month
+        start_date = start.date().strftime("%Y-%m-%d")
+        end_date = end.date().strftime("%Y-%m-%d")
+        months[i] = (start_date, end_date)
+
+    return months
 
 
 class UnitConverter:

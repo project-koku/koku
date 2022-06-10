@@ -6,9 +6,13 @@
 import logging
 
 from celery import chord
+from celery import group
 
 from api.common import log_json
 from api.models import Provider
+from api.utils import DateHelper
+from hcs.tasks import collect_hcs_report_data_from_manifest
+from hcs.tasks import HCS_QUEUE
 from masu.config import Config
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.external.account_label import AccountLabel
@@ -21,9 +25,9 @@ from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
 from masu.processor.tasks import record_report_status
-from masu.processor.tasks import REFRESH_MATERIALIZED_VIEWS_QUEUE
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import summarize_reports
+from masu.processor.tasks import SUMMARIZE_REPORTS_QUEUE
 from masu.processor.worker_cache import WorkerCache
 
 LOG = logging.getLogger(__name__)
@@ -39,7 +43,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None):
         """
         Orchestrator for processing.
 
@@ -47,9 +51,12 @@ class Orchestrator:
             billing_source (String): Individual account to retrieve.
 
         """
-        self._accounts, self._polling_accounts = self.get_accounts(billing_source, provider_uuid)
         self.worker_cache = WorkerCache()
+        self.billing_source = billing_source
         self.bill_date = bill_date
+        self.provider_uuid = provider_uuid
+        self.queue_name = queue_name
+        self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -132,6 +139,15 @@ class Orchestrator:
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
             (Boolean) - Whether we are processing this manifest
         """
+        # Switching initial ingest to use priority queue for QE tests based on QE_SCHEMA flag
+        if self.queue_name is not None and self.provider_uuid is not None:
+            SUMMARY_QUEUE = self.queue_name
+            REPORT_QUEUE = self.queue_name
+            HCS_Q = self.queue_name
+        else:
+            SUMMARY_QUEUE = SUMMARIZE_REPORTS_QUEUE
+            REPORT_QUEUE = GET_REPORT_FILES_QUEUE
+            HCS_Q = HCS_QUEUE
         reports_tasks_queued = False
         downloader = ReportDownloader(
             customer_name=customer_name,
@@ -179,12 +195,17 @@ class Orchestrator:
             report_context["key"] = report_file
             report_context["request_id"] = tracing_id
 
-            if provider_type == Provider.PROVIDER_OCP or i == last_report_index:
+            if (
+                provider_type
+                in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP, Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]
+                or i == last_report_index
+            ):
                 # This create_table flag is used by the ParquetReportProcessor
                 # to create a Hive/Trino table.
                 # To reduce the number of times we check Trino/Hive tables, we just do this
                 # on the final file of the set.
                 report_context["create_table"] = True
+
             # add the tracing id to the report context
             # This defaults to the celery queue
             report_tasks.append(
@@ -197,22 +218,40 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                ).set(queue=GET_REPORT_FILES_QUEUE)
+                ).set(queue=REPORT_QUEUE)
             )
             LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         if report_tasks:
             reports_tasks_queued = True
-            async_id = chord(report_tasks, summarize_reports.s().set(queue=REFRESH_MATERIALIZED_VIEWS_QUEUE))()
-            LOG.debug(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+            hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+            summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+
+            async_id = chord(report_tasks, group(summary_task, hcs_task))()
+            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+
         return manifest, reports_tasks_queued
 
     def prepare(self):
         """
-        Prepare a processing request for each account.
+        Select the correct prepare function based on source type for processing each account.
+
+        """
+        for account in self._polling_accounts:
+            provider_uuid = account.get("provider_uuid")
+            with ProviderDBAccessor(provider_uuid) as provider_accessor:
+                provider_type = provider_accessor.get_type()
+            if provider_type in ["Place_holder Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL"]:
+                self.prepare_continious_report_sources(account, provider_uuid)
+            else:
+                self.prepare_monthly_report_sources(account, provider_uuid)
+
+    def prepare_monthly_report_sources(self, account, provider_uuid):
+        """
+        Prepare processing for source types that have monthly billing reports AWS/Azure.
 
         Scans the database for providers that have reports that need to be processed.
-        Any report it finds is queued to the appropriate celery task to download
+        Any report it finds are queued to the appropriate celery task to download
         and process those reports.
 
         Args:
@@ -220,42 +259,64 @@ class Orchestrator:
 
         Returns:
             (celery.result.AsyncResult) Async result for download request.
-
         """
-        for account in self._polling_accounts:
-            accounts_labeled = False
-            provider_uuid = account.get("provider_uuid")
-            report_months = self.get_reports(provider_uuid)
-            for month in report_months:
-                LOG.info(
-                    "Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid
-                )
-                account["report_month"] = month
-                try:
-                    _, reports_tasks_queued = self.start_manifest_processing(**account)
-                except ReportDownloaderError as err:
-                    LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-                    continue
-                except Exception as err:
-                    # Broad exception catching is important here because any errors thrown can
-                    # block all subsequent account processing.
-                    LOG.error(
-                        f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}."
-                    )
-                    continue
+        accounts_labeled = False
+        report_months = self.get_reports(provider_uuid)
+        for month in report_months:
+            LOG.info("Getting %s report files for account (provider uuid): %s", month.strftime("%B %Y"), provider_uuid)
+            account["report_month"] = month
+            try:
+                _, reports_tasks_queued = self.start_manifest_processing(**account)
+            except ReportDownloaderError as err:
+                LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+                continue
+            except Exception as err:
+                # Broad exception catching is important here because any errors thrown can
+                # block all subsequent account processing.
+                LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
+                continue
 
-                # update labels
-                if reports_tasks_queued and not accounts_labeled:
-                    LOG.info("Running AccountLabel to get account aliases.")
-                    labeler = AccountLabel(
-                        auth=account.get("credentials"),
-                        schema=account.get("schema_name"),
-                        provider_type=account.get("provider_type"),
-                    )
-                    account_number, label = labeler.get_label_details()
-                    accounts_labeled = True
-                    if account_number:
-                        LOG.info("Account: %s Label: %s updated.", account_number, label)
+            # update labels
+            if reports_tasks_queued and not accounts_labeled:
+                LOG.info("Running AccountLabel to get account aliases.")
+                labeler = AccountLabel(
+                    auth=account.get("credentials"),
+                    schema=account.get("schema_name"),
+                    provider_type=account.get("provider_type"),
+                )
+                account_number, label = labeler.get_label_details()
+                accounts_labeled = True
+                if account_number:
+                    LOG.info("Account: %s Label: %s updated.", account_number, label)
+
+        return
+
+    def prepare_continious_report_sources(self, account, provider_uuid):
+        """
+        Prepare processing for source types that have continious reports GCP/OCI.
+
+        Scans the database for providers that have reports that need to be processed.
+        Any report it finds are queued to the appropriate celery task to download
+        and process those reports.
+
+        Args:
+            None
+
+        Returns:
+            (celery.result.AsyncResult) Async result for download request.
+        """
+        LOG.info("Getting latest report files for account (provider uuid): %s", provider_uuid)
+        dh = DateHelper()
+        start_date = dh.today
+        account["report_month"] = start_date
+        try:
+            _, reports_tasks_queued = self.start_manifest_processing(**account)
+        except ReportDownloaderError as err:
+            LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
+        except Exception as err:
+            # Broad exception catching is important here because any errors thrown can
+            # block all subsequent account processing.
+            LOG.error(f"Unexpected manifest processing error for provider: {provider_uuid}. Error: {str(err)}.")
 
         return
 

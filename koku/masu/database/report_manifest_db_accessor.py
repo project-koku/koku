@@ -43,13 +43,29 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def mark_manifest_as_updated(self, manifest):
         """Update the updated timestamp."""
         if manifest:
-            manifest.manifest_updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            updated_datetime = self.date_accessor.today_with_timezone("UTC")
+            msg = (
+                f"Marking manifest {manifest.id} "
+                f"\nassembly_id {manifest.assembly_id} "
+                f"\nfor provider {manifest.provider_id} "
+                f"\nmanifest_completed_datetime: {updated_datetime}."
+            )
+            LOG.info(msg)
+            manifest.manifest_updated_datetime = updated_datetime
             manifest.save()
 
     def mark_manifest_as_completed(self, manifest):
         """Update the updated timestamp."""
         if manifest:
-            manifest.manifest_completed_datetime = self.date_accessor.today_with_timezone("UTC")
+            completed_datetime = self.date_accessor.today_with_timezone("UTC")
+            msg = (
+                f"Marking manifest {manifest.id} "
+                f"\nassembly_id {manifest.assembly_id} "
+                f"\nfor provider {manifest.provider_id} "
+                f"\nmanifest_completed_datetime: {completed_datetime}."
+            )
+            LOG.info(msg)
+            manifest.manifest_completed_datetime = completed_datetime
             manifest.save()
 
     def update_number_of_files_for_manifest(self, manifest):
@@ -96,7 +112,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
     def is_last_completed_datetime_null(self, manifest_id):
         """Determine if nulls exist in last_completed_datetime for manifest_id.
 
-        If the record does not exist, that is equivalent to a null completed dateimte.
+        If the record does not exist, that is equivalent to a null completed datetime.
         Return True if record either doesn't exist or if null `last_completed_datetime`.
         Return False otherwise.
 
@@ -206,3 +222,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
         manifests = CostUsageReportManifest.objects.filter(**filters).all()
         max_export = manifests.aggregate(Max("export_time"))
         return max_export.get("export_time__max")
+
+    def get_last_reports_for_manifests(self, provider_uuid, bill_date):
+        """Return the last reports downloaded for manifests given provider."""
+        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
+        manifests = CostUsageReportManifest.objects.filter(**filters).all()
+        last_reports = manifests.aggregate("last_reports")
+        return last_reports

@@ -4,6 +4,7 @@
 #
 """Management capabilities for Provider functionality."""
 import logging
+from datetime import timedelta
 from functools import partial
 
 from django.conf import settings
@@ -22,7 +23,6 @@ from api.utils import DateHelper
 from cost_models.models import CostModelMap
 from koku.database import execute_delete_sql
 from masu.processor import enable_trino_processing
-from masu.processor.tasks import refresh_materialized_views
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.azure.models import AzureCostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
@@ -41,12 +41,21 @@ class ProviderManagerError(Exception):
         self.message = message
 
 
+class ProviderProcessingError(Exception):
+    """General Exception class for ProviderManager errors."""
+
+    def __init__(self, message):
+        """Set custom error message for ProviderManager errors."""
+        self.message = message
+
+
 class ProviderManager:
     """Provider Manager to manage operations related to backend providers."""
 
     def __init__(self, uuid):
         """Establish provider manager database objects."""
         self._uuid = uuid
+        self.date_helper = DateHelper()
         try:
             self.model = Provider.objects.get(uuid=self._uuid)
         except (ObjectDoesNotExist, ValidationError) as exc:
@@ -78,7 +87,7 @@ class ProviderManager:
         """Get current month data avaiability status."""
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=DateHelper().this_month_start,
+            billing_period_start_datetime=self.date_helper.this_month_start,
             manifest_completed_datetime__isnull=False,
         ).exists()
 
@@ -86,7 +95,7 @@ class ProviderManager:
         """Get current month data avaiability status."""
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=DateHelper().last_month_start,
+            billing_period_start_datetime=self.date_helper.last_month_start,
             manifest_completed_datetime__isnull=False,
         ).exists()
 
@@ -96,14 +105,30 @@ class ProviderManager:
             provider=self._uuid, manifest_completed_datetime__isnull=False
         ).exists()
 
+    def get_is_provider_processing(self):
+        """Return a bool determining if the source is currently processing."""
+        today = self.date_helper.today.date()
+        days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
+        return CostUsageReportManifest.objects.filter(
+            provider=self._uuid,
+            billing_period_start_datetime=self.date_helper.this_month_start,
+            manifest_creation_datetime__date__in=days_to_check,
+            manifest_completed_datetime__isnull=True,
+        ).exists()
+
     def get_infrastructure_info(self):
         """Get the type/uuid of the infrastructure that the provider is running on."""
-        if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
-            return {
-                "type": self.model.infrastructure.infrastructure_type,
-                "uuid": self.model.infrastructure.infrastructure_provider_id,
-            }
+        if self.model:
+            if self.model.infrastructure and self.model.infrastructure.infrastructure_type:
+                return {
+                    "type": self.model.infrastructure.infrastructure_type,
+                    "uuid": self.model.infrastructure.infrastructure_provider_id,
+                }
         return {}
+
+    def get_additional_context(self):
+        """Returns additional context information."""
+        return self.model.additional_context if self.model else {}
 
     def is_removable_by_user(self, current_user):
         """Determine if the current_user can remove the provider."""
@@ -145,51 +170,75 @@ class ProviderManager:
             months.append(month.billing_period_start_datetime)
         data_updated_date = self.model.data_updated_timestamp
         data_updated_date = data_updated_date.strftime(DATE_TIME_FORMAT) if data_updated_date else data_updated_date
-        provider_stats = {"data_updated_date": data_updated_date}
-
+        provider_stats = {"data_updated_date": data_updated_date, "ocp_on_cloud_data_updated_date": None}
         for month in sorted(months, reverse=True):
             stats_key = str(month.date())
-            provider_stats[stats_key] = []
+            provider_stats[stats_key] = {}
+            provider_stats[stats_key]["manifests"] = []
             month_stats = []
             stats_query = CostUsageReportManifest.objects.filter(
                 provider=self.model, billing_period_start_datetime=month
             ).order_by("manifest_creation_datetime")
 
+            if self.model.type in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
+                clusters = Provider.objects.filter(infrastructure__infrastructure_provider_id=self.model.uuid).all()
+                report_periods = OCPUsageReportPeriod.objects.filter(
+                    provider__in=clusters, report_period_start=month
+                ).all()
+                ocp_on_cloud_updates = []
+                with tenant_context(tenant):
+                    for rp in report_periods:
+                        updated_date_str = (
+                            rp.ocp_on_cloud_updated_datetime.strftime(DATE_TIME_FORMAT)
+                            if rp.ocp_on_cloud_updated_datetime
+                            else ""
+                        )
+                        ocp_on_cloud_updates.append(
+                            {"ocp_source_uuid": str(rp.provider_id), "ocp_on_cloud_updated_datetime": updated_date_str}
+                        )
+                        if (
+                            provider_stats["ocp_on_cloud_data_updated_date"] is None
+                            or updated_date_str > provider_stats["ocp_on_cloud_data_updated_date"]
+                        ):
+                            provider_stats["ocp_on_cloud_data_updated_date"] = updated_date_str
+                provider_stats[stats_key]["ocp_on_cloud"] = ocp_on_cloud_updates
+
             for provider_manifest in stats_query.reverse()[:3]:
-                status = {}
-                report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
-                status["assembly_id"] = provider_manifest.assembly_id
-                status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
+                month_stats.append(self.generate_manifest_status(provider_manifest))
 
-                num_processed_files = CostUsageReportStatus.objects.filter(
-                    manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
-                ).count()
-                status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
-
-                last_process_start_date = None
-                last_process_complete_date = None
-                last_manifest_complete_datetime = None
-                if provider_manifest.manifest_completed_datetime:
-                    last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(
-                        DATE_TIME_FORMAT
-                    )
-                if provider_manifest.manifest_modified_datetime:
-                    manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(
-                        DATE_TIME_FORMAT
-                    )
-                if report_status and report_status.last_started_datetime:
-                    last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
-                if report_status and report_status.last_completed_datetime:
-                    last_process_complete_date = report_status.last_completed_datetime.strftime(DATE_TIME_FORMAT)
-                status["last_process_start_date"] = last_process_start_date
-                status["last_process_complete_date"] = last_process_complete_date
-                status["last_manifest_complete_date"] = last_manifest_complete_datetime
-                status["manifest_modified_datetime"] = manifest_modified_datetime
-                month_stats.append(status)
-
-            provider_stats[stats_key] = month_stats
+            provider_stats[stats_key]["manifests"] = month_stats
 
         return provider_stats
+
+    def generate_manifest_status(self, provider_manifest):
+        """Write status for a specific manifest."""
+        status = {}
+        report_status = CostUsageReportStatus.objects.filter(manifest=provider_manifest).first()
+        status["assembly_id"] = provider_manifest.assembly_id
+        status["billing_period_start"] = provider_manifest.billing_period_start_datetime.date()
+
+        num_processed_files = CostUsageReportStatus.objects.filter(
+            manifest_id=provider_manifest.id, last_completed_datetime__isnull=False
+        ).count()
+        status["files_processed"] = f"{num_processed_files}/{provider_manifest.num_total_files}"
+
+        last_process_start_date = None
+        last_process_complete_date = None
+        last_manifest_complete_datetime = None
+        if provider_manifest.manifest_completed_datetime:
+            last_manifest_complete_datetime = provider_manifest.manifest_completed_datetime.strftime(DATE_TIME_FORMAT)
+        if provider_manifest.manifest_modified_datetime:
+            manifest_modified_datetime = provider_manifest.manifest_modified_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.last_started_datetime:
+            last_process_start_date = report_status.last_started_datetime.strftime(DATE_TIME_FORMAT)
+        if report_status and report_status.last_completed_datetime:
+            last_process_complete_date = report_status.last_completed_datetime.strftime(DATE_TIME_FORMAT)
+        status["last_process_start_date"] = last_process_start_date
+        status["last_process_complete_date"] = last_process_complete_date
+        status["last_manifest_complete_date"] = last_manifest_complete_datetime
+        status["manifest_modified_datetime"] = manifest_modified_datetime
+
+        return status
 
     def get_cost_models(self, tenant):
         """Get the cost models associated with this provider."""
@@ -205,7 +254,7 @@ class ProviderManager:
             raise ProviderManagerError(err_msg)
 
     @transaction.atomic
-    def remove(self, request=None, user=None, from_sources=False):
+    def remove(self, request=None, user=None, from_sources=False, retry_count=None):
         """Remove the provider with current_user."""
         current_user = user
         if current_user is None and request and request.user:
@@ -213,6 +262,10 @@ class ProviderManager:
         if self.sources_model and not from_sources:
             err_msg = f"Provider {self._uuid} must be deleted via Sources Integration Service"
             raise ProviderManagerError(err_msg)
+        if from_sources and self.get_is_provider_processing():
+            err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
+            if retry_count is not None and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
+                raise ProviderProcessingError(err_msg)
 
         if self.is_removable_by_user(current_user):
             self.model.delete()
@@ -271,8 +324,3 @@ def provider_post_delete_callback(*args, **kwargs):
         LOG.info("Deleting any archived data")
         delete_func = partial(delete_archived_data.delay, provider.customer.schema_name, provider.type, provider.uuid)
         transaction.on_commit(delete_func)
-
-    LOG.info("Refreshing materialized views post-provider-delete uuid=%s.", provider.uuid)
-    refresh_materialized_views(
-        provider.customer.schema_name, provider.type, provider_uuid=provider.uuid, synchronous=True
-    )

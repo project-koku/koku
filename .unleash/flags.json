@@ -35,6 +35,25 @@
             ],
             "variants": [],
             "createdAt": "2021-09-14T21:22:00.756Z"
+        },
+        {
+            "name": "hcs-data-processor",
+            "description": "any account listed in this strategy will be allowed to generate HCS report data",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-02-22T15:48:54.492Z"
         }
     ],
     "strategies": [

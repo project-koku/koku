@@ -585,8 +585,8 @@ class AWSReportViewTest(IamTestCase):
                 for instance_type in day.get("instance_types", []):
                     values = instance_type.get("values", [])
                     if values:
-                        current_delta = values[0].get("delta_value")
-                        if previous_delta:
+                        current_delta = values[0].get("delta_percent")
+                        if previous_delta and current_delta:
                             self.assertLessEqual(previous_delta, current_delta)
                             compared_deltas = True
                             previous_delta = current_delta
@@ -596,7 +596,7 @@ class AWSReportViewTest(IamTestCase):
 
     def test_others_count(self):
         """Test that the others count works with a small limit."""
-        qs_list = ["?filter[limit]=1"]
+        qs_list = ["?filter[limit]=1&group_by[region]=*"]
         for qs in qs_list:
             url = reverse("reports-aws-instance-type") + qs
             response = self.client.get(url, **self.headers)

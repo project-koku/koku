@@ -55,9 +55,7 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_10_day_only_keys(self):
         """Test that execute_query() succeeds with 10 day parameters, keys-only."""
-        url = (
-            "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"
-        )  # noqa: E501
+        url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily&key_only=True"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -133,12 +131,12 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_for_key_filter(self):
         """Test that the execute query runs properly with key query."""
-        key = "version"
+        key = "app"
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = OCPAWSTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
+            tags = OCPAWSTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
             tag_values = [value for tag in tags for value in tag.get("values")]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tags()
@@ -147,14 +145,16 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_for_value_filter(self):
         """Test that the execute query runs properly with value query."""
-        key = "version"
-        value = "prod"
+        key = "app"
+        with tenant_context(self.tenant):
+            tag = OCPAWSTagsValues.objects.filter(key__exact=key).values("value").first()
+        value = tag.get("value")
         url = f"?filter[value]={value}"
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         handler = OCPAWSTagQueryHandler(query_params)
         handler.key = key
         with tenant_context(self.tenant):
-            tags = OCPAWSTagsValues.objects.filter(key__exact="version", value="prod").values("value").distinct().all()
+            tags = OCPAWSTagsValues.objects.filter(key__exact=key, value=value).values("value").distinct().all()
             tag_values = [tag.get("value") for tag in tags]
         expected = {"key": key, "values": tag_values}
         result = handler.get_tag_values()
@@ -163,9 +163,11 @@ class OCPAWSTagQueryHandlerTest(IamTestCase):
 
     def test_execute_query_for_value_filter_partial_match(self):
         """Test that the execute query runs properly with value query."""
-        key = "version"
-        value = "a"
-        url = f"/version/?filter[value]={value}"
+        key = "app"
+        with tenant_context(self.tenant):
+            tag = OCPAWSTagsValues.objects.filter(key__exact=key).values("value").first()
+        value = tag.get("value")[0]  # get first letter of value
+        url = f"/{key}/?filter[value]={value}"
         query_params = self.mocked_query_params(url, OCPAWSTagView)
         # the mocked query parameters dont include the key from the url so it needs to be added
         query_params.kwargs = {"key": key}

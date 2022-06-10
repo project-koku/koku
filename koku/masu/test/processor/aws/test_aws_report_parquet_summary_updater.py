@@ -76,7 +76,7 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(end, expected_end)
 
     @patch(
-        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+        "masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch("masu.processor.aws.aws_report_parquet_summary_updater.AWSReportDBAccessor.populate_tags_summary_table")
     @patch(
@@ -103,7 +103,9 @@ class AWSReportParquetSummaryUpdaterTest(MasuTestCase):
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
 
-        mock_delete.assert_called_with(self.aws_provider.uuid, expected_start, expected_end)
+        mock_delete.assert_called_with(
+            self.aws_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
         mock_presto.assert_called_with(
             expected_start, expected_end, self.aws_provider.uuid, current_bill_id, markup_value
         )

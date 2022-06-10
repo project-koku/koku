@@ -32,8 +32,8 @@ from api.views import cloud_accounts
 from api.views import CostModelResourceTypesView
 from api.views import DataExportRequestViewSet
 from api.views import GCPAccountView
+from api.views import GCPCostForecastView
 from api.views import GCPCostView
-from api.views import GCPForecastCostView
 from api.views import GCPInstanceTypeView
 from api.views import GCPProjectsView
 from api.views import GCPRegionView
@@ -42,6 +42,14 @@ from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
 from api.views import metrics
+from api.views import OCICostForecastView
+from api.views import OCICostView
+from api.views import OCIInstanceTypeView
+from api.views import OCIRegionView
+from api.views import OCIServiceView
+from api.views import OCIStorageView
+from api.views import OCITagView
+from api.views import OCITenantidView
 from api.views import OCPAllCostForecastView
 from api.views import OCPAllCostView
 from api.views import OCPAllInstanceTypeView
@@ -64,7 +72,6 @@ from api.views import OCPCpuView
 from api.views import OCPGCPCostForecastView
 from api.views import OCPGCPCostView
 from api.views import OCPGCPInstanceTypeView
-from api.views import OCPGCPNamespaceView
 from api.views import OCPGCPStorageView
 from api.views import OCPGCPTagView
 from api.views import OCPMemoryView
@@ -81,6 +88,7 @@ from api.views import UserCostTypeSettings
 from koku.cache import AWS_CACHE_PREFIX
 from koku.cache import AZURE_CACHE_PREFIX
 from koku.cache import GCP_CACHE_PREFIX
+from koku.cache import OCI_CACHE_PREFIX
 from koku.cache import OPENSHIFT_ALL_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AWS_CACHE_PREFIX
 from koku.cache import OPENSHIFT_AZURE_CACHE_PREFIX
@@ -115,6 +123,11 @@ urlpatterns = [
         "tags/gcp/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
         name="gcp-tags",
+    ),
+    path(
+        "tags/oci/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OCI_CACHE_PREFIX)(OCITagView.as_view()),
+        name="oci-tags",
     ),
     path(
         "tags/openshift/",
@@ -168,6 +181,11 @@ urlpatterns = [
         "tags/gcp/<key>/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPTagView.as_view()),
         name="gcp-tags-key",
+    ),
+    path(
+        "tags/oci/<key>/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OCI_CACHE_PREFIX)(OCITagView.as_view()),
+        name="oci-tags-key",
     ),
     path(
         "tags/openshift/infrastructures/all/<key>/",
@@ -322,7 +340,8 @@ urlpatterns = [
     path("user-access/", UserAccessView.as_view(), name="user-access"),
     path("resource-types/aws-accounts/", AWSAccountView.as_view(), name="aws-accounts"),
     path("resource-types/gcp-accounts/", GCPAccountView.as_view(), name="gcp-accounts"),
-    path("resource-types/gcp-projects/", OCPGCPNamespaceView.as_view(), name="gcp-projects"),
+    path("resource-types/gcp-projects/", GCPProjectsView.as_view(), name="gcp-projects"),
+    # TODO gcp-gcp-projects should be removed after UI is pushed to prod.
     path("resource-types/gcp-gcp-projects/", GCPProjectsView.as_view(), name="gcp-gcp-projects"),
     path("resource-types/gcp-regions/", GCPRegionView.as_view(), name="gcp-regions"),
     path("resource-types/gcp-services/", GCPServiceView.as_view(), name="gcp-services"),
@@ -340,12 +359,16 @@ urlpatterns = [
         AzureSubscriptionGuidView.as_view(),
         name="azure-subscription-guids",
     ),
+    path("resource-types/oci-payer-tenant-ids/", OCITenantidView.as_view(), name="oci-payer-tenant-ids"),
+    path("resource-types/oci-regions/", OCIRegionView.as_view(), name="oci-regions"),
+    path("resource-types/oci-services/", OCIServiceView.as_view(), name="oci-services"),
     path("resource-types/openshift-clusters/", OCPClustersView.as_view(), name="openshift-clusters"),
     path("resource-types/openshift-projects/", OCPProjectsView.as_view(), name="openshift-projects"),
     path("resource-types/openshift-nodes/", OCPNodesView.as_view(), name="openshift-nodes"),
     path("resource-types/cost-models/", CostModelResourceTypesView.as_view(), name="cost-models"),
     path("forecasts/aws/costs/", AWSCostForecastView.as_view(), name="aws-cost-forecasts"),
-    path("forecasts/gcp/costs/", GCPForecastCostView.as_view(), name="gcp-cost-forecasts"),
+    path("forecasts/gcp/costs/", GCPCostForecastView.as_view(), name="gcp-cost-forecasts"),
+    path("forecasts/oci/costs/", OCICostForecastView.as_view(), name="oci-cost-forecasts"),
     path("forecasts/azure/costs/", AzureCostForecastView.as_view(), name="azure-cost-forecasts"),
     path("forecasts/openshift/costs/", OCPCostForecastView.as_view(), name="openshift-cost-forecasts"),
     path(
@@ -384,6 +407,23 @@ urlpatterns = [
         "reports/gcp/storage/",
         cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=GCP_CACHE_PREFIX)(GCPStorageView.as_view()),
         name="reports-gcp-storage",
+    ),
+    path(
+        "reports/oci/costs/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OCI_CACHE_PREFIX)(OCICostView.as_view()),
+        name="reports-oci-costs",
+    ),
+    path(
+        "reports/oci/instance-types/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OCI_CACHE_PREFIX)(
+            OCIInstanceTypeView.as_view()
+        ),
+        name="reports-oci-instance-type",
+    ),
+    path(
+        "reports/oci/storage/",
+        cache_page(timeout=settings.CACHE_MIDDLEWARE_SECONDS, key_prefix=OCI_CACHE_PREFIX)(OCIStorageView.as_view()),
+        name="reports-oci-storage",
     ),
     path(
         "reports/openshift/infrastructures/gcp/costs/",

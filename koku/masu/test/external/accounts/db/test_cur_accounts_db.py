@@ -11,6 +11,24 @@ from masu.test import MasuTestCase
 class CURAccountsDBTest(MasuTestCase):
     """Test Cases for the CURAccountsDB object."""
 
+    def test_handle_missing_foreign_data(self):
+        p = Provider.objects.first()
+        p.customer = None
+        p.billing_source = None
+        p.authentication = None
+        exc = None
+
+        try:
+            info = CURAccountsDB.get_account_information(p)
+        except Exception as e:
+            exc = e
+
+        self.assertIsNone(exc)
+        self.assertIsNone(info["customer_name"])
+        self.assertIsNone(info["credentials"])
+        self.assertIsNone(info["data_source"])
+        self.assertIsNone(info["schema_name"])
+
     def test_get_accounts_from_source(self):
         """Test to get all accounts."""
         accounts = CURAccountsDB().get_accounts_from_source()
@@ -26,8 +44,10 @@ class CURAccountsDBTest(MasuTestCase):
                 self.assertIn(
                     account.get("credentials"),
                     [
+                        self.ocp_provider.authentication.credentials,  # OCP-on-Prem
                         self.ocp_on_aws_ocp_provider.authentication.credentials,
                         self.ocp_on_azure_ocp_provider.authentication.credentials,
+                        self.ocp_on_gcp_ocp_provider.authentication.credentials,
                     ],
                 )
                 self.assertTrue(
@@ -42,6 +62,9 @@ class CURAccountsDBTest(MasuTestCase):
             elif account.get("provider_type") in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
                 self.assertEqual(account.get("credentials"), self.gcp_provider.authentication.credentials)
                 self.assertEqual(account.get("data_source"), self.gcp_provider.billing_source.data_source)
+                self.assertEqual(account.get("customer_name"), self.schema)
+            elif account.get("provider_type") in (Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL):
+                self.assertEqual(account.get("data_source"), self.oci_provider.billing_source.data_source)
                 self.assertEqual(account.get("customer_name"), self.schema)
             else:
                 self.fail("Unexpected provider")

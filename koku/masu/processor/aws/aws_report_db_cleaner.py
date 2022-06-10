@@ -10,7 +10,6 @@ from tenant_schemas.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql
-from koku.database import get_model
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
 from reporting.models import PartitionedTable
 from reporting.provider.aws.models import UI_SUMMARY_TABLES
@@ -77,8 +76,8 @@ class AWSReportDBCleaner:
                     all_period_start.add(str(bill.billing_period_start))
 
                 LOG.info(
-                    f"Deleting data related to billing account ids {sorted(all_account_ids)} "
-                    f"for billing periods starting {sorted(all_period_start)}"
+                    f"Deleting data related to billing account ids {all_account_ids} "
+                    f"for billing periods starting {all_period_start}"
                 )
                 if not simulate:
                     cascade_delete(bill_objects.query.model, bill_objects)
@@ -108,7 +107,6 @@ class AWSReportDBCleaner:
                 accessor.ocpall_line_item_project_daily_summary_table._meta.db_table,
             ]
             table_names.extend(UI_SUMMARY_TABLES)
-            table_models = [get_model(tn) for tn in table_names]
 
         with schema_context(self._schema):
             if not simulate:
@@ -127,12 +125,9 @@ class AWSReportDBCleaner:
                 )
                 LOG.info(f"Deleted {del_count} table partitions")
 
-                # Using skip_relations here as we have already dropped partitions above
-                cascade_delete(all_bill_objects.query.model, all_bill_objects, skip_relations=table_models)
-
             LOG.info(
-                f"Deleting data related to billing account ids {sorted(all_account_ids)} "
-                f"for billing periods starting {sorted(all_period_start)}"
+                f"Deleting data related to billing account ids {all_account_ids} "
+                f"for billing periods starting {all_period_start}"
             )
 
         return removed_items

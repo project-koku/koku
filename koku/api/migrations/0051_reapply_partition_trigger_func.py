@@ -10,7 +10,7 @@ from koku.migration_sql_helpers import find_db_functions_dir
 def reapply_partition_manager_func(apps, schema_editor):
     func_file = "partitioned_manager_trigger_function.sql"
     func_path = os.path.join(find_db_functions_dir(), func_file)
-    func_sql = open(func_path, "rt").read()
+    func_sql = open(func_path).read()
     # The file also contains a DROP FUNCTION statement. Let's get rid of that troublesome thing for this migration
     func_sql = re.sub(r"DROP FUNCTION IF EXISTS.+", "-- THE DROP HAS BEEN ERASED --", func_sql)
 

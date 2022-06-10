@@ -79,7 +79,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501
     )
     @patch(
-        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range"  # noqa: E501
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
     )
     @patch(
         "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.update_line_item_daily_summary_with_enabled_tags"  # noqa: E501
@@ -110,7 +110,9 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         start_return, end_return = self.updater.update_summary_tables(start, end)
-        mock_delete.assert_called_with(self.gcp_provider.uuid, expected_start, expected_end)
+        mock_delete.assert_called_with(
+            self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
+        )
         mock_presto.assert_called_with(
             expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value
         )
@@ -119,3 +121,24 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
+
+    def test_determine_if_full_summary_update_needed_false(self):
+        """
+        Test that false is return if the manifest is already present in the db.
+        """
+        # Grab existing bill
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, _ = self.updater._get_sql_inputs(start_str, end_str)
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.gcp_provider_uuid, start)
+        updater = GCPReportParquetSummaryUpdater(self.schema_name, self.gcp_provider, manifests.first())
+        with GCPReportDBAccessor(self.schema) as accessor:
+            with schema_context(self.schema):
+                existing_bills = accessor.bills_for_provider_uuid(self.gcp_provider.uuid, start)
+                existing_bill = existing_bills.first()
+                # the summary_data_creation_datetime is how we decide if it is a new bill or not.
+                existing_bill.summary_data_creation_datetime = start
+                existing_bill.save()
+                result = updater._determine_if_full_summary_update_needed(existing_bill)
+                self.assertFalse(result)

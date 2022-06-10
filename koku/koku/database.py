@@ -27,8 +27,10 @@ from django.db.models import ForeignKey
 from django.db.models.aggregates import Func
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.sql.compiler import SQLDeleteCompiler
+from django.db.utils import DatabaseError as d_DBError
 from django.db.utils import ProgrammingError
 from jinjasql import JinjaSql
+from psycopg2 import DatabaseError as p_DBError
 from sqlparse import format as format_sql
 from sqlparse import split as sql_split
 
@@ -269,8 +271,11 @@ def execute_delete_sql(query):
     sql, params = get_delete_sql(query)
     try:
         return execute_compiled_sql(sql, params=params)
+    except (p_DBError, d_DBError) as dbe:
+        LOG.error(f"execute_delete_sql :: The following databse exception occurred: {dbe}")
+        raise dbe  # re-raising here to cancel transaction
     except Exception as e:
-        LOG.debug(f"The following exception occurred {e}")
+        LOG.error(f"execute_delete_sql :: The following exception occurred: {e}")
         return 0
 
 
@@ -284,6 +289,14 @@ def set_constraints_immediate():
     with transaction.get_connection().cursor() as cur:
         LOG.debug("Setting constaints to execute immediately")
         cur.execute("set constraints all immediate;")
+
+
+def fast_table_exists(table_name):
+    sql = """select to_regclass(%s)::oid as _oid;"""
+    with transaction.get_connection().cursor() as cur:
+        cur.execute(sql, (table_name,))
+        rec = cur.fetchone()
+        return rec is not None and rec[0] is not None and rec[0] > 0
 
 
 def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_model=None, level=0):
@@ -318,8 +331,12 @@ def cascade_delete(from_model, instance_pk_query, skip_relations=None, base_mode
     LOG.debug(f"Level {level} Delete Cascade for {base_model.__name__}: Checking relations for {from_model.__name__}")
     for model_relation in from_model._meta.related_objects:
         related_model = model_relation.related_model
+        related_model_exists = fast_table_exists(related_model._meta.db_table)
         if related_model in skip_relations:
             LOG.debug(f"SKIPPING RELATION {related_model.__name__} by directive")
+            continue
+        if not related_model_exists:
+            LOG.warning(f"SKIPPING RELATION {related_model.__name__} (table does not exist in current schema)")
             continue
 
         if model_relation.on_delete.__name__ == "SET_NULL":
@@ -528,6 +545,12 @@ DELETE
     if not hasattr(schema_editor, "o_delete_model"):
         setattr(schema_editor, "o_delete_model", schema_editor.delete_model)
         setattr(schema_editor, "delete_model", types.MethodType(p_delete_model, schema_editor))
+
+    # Make sure that the models are re-loaded here
+    # so that we have the most up-to-date data at this point
+    with DB_MODELS_LOCK:
+        DB_MODELS.clear()
+        _load_db_models()
 
 
 def set_pg_extended_mode(apps, schema_editor):

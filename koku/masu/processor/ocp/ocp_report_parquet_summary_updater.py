@@ -14,6 +14,7 @@ from tenant_schemas.utils import schema_context
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
 from masu.util.common import determine_if_full_summary_update_needed
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
@@ -126,7 +127,10 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     end,
                 )
                 # This will process POD and STORAGE together
-                accessor.delete_line_item_daily_summary_entries_for_date_range(self._provider.uuid, start, end)
+                filters = {"report_period_id": report_period_id}  # Use report_period_id to leverage DB index on DELETE
+                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
+                    self._provider.uuid, start, end, filters
+                )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
                 )
@@ -151,4 +155,19 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             report_period.summary_data_updated_datetime = self._date_accessor.today_with_timezone("UTC")
             report_period.save()
 
+            self.check_cluster_infrastructure(start_date, end_date)
+
         return start_date, end_date
+
+    def check_cluster_infrastructure(self, start_date, end_date):
+        LOG.info("Checking if OpenShift cluster %s is running on cloud infrastructure.", self._provider.uuid)
+        updater_base = OCPCloudUpdaterBase(self._schema, self._provider, self._manifest)
+        infra_map = updater_base.get_infra_map_from_providers()
+        if not infra_map:
+            # Check the cluster to see if it is running on cloud infrastructure
+            infra_map = updater_base._generate_ocp_infra_map_from_sql_trino(start_date, end_date)
+        if infra_map:
+            for ocp_source, infra_tuple in infra_map.items():
+                LOG.info(
+                    "OpenShift cluster %s is running on %s source %s.", ocp_source, infra_tuple[1], infra_tuple[0]
+                )
