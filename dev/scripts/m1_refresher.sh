@@ -2,6 +2,10 @@
 
 DEV_SCRIPTS_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 COMPOSE_FILE="testing/compose_files/docker-compose-m1.yml"
+CFG_FILE="$DEV_SCRIPTS_PATH/../../.env"
+
+# export env variables
+export $(grep -v -e "^#" -e "^DEVELOPMENT_IDENTITY" $CFG_FILE | xargs)
 
 # import common functions
 source $DEV_SCRIPTS_PATH/common/logging.sh
