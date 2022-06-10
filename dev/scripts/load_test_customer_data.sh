@@ -25,6 +25,7 @@ usage() {
     log-info "\t AWS          build and populate test customer data for AWS"
     log-info "\t Azure        build and populate test customer data for Azure"
     log-info "\t GCP          build and populate test customer data for GCP"
+    log-info "\t OCI          build and populate test customer data for OCI"
     log-info "\t ONPREM       build and populate test customer data for ONPREM"
     log-info "\t all          build and populate all"
     log-info "[start date]    defaults to (today - 30 days)"
