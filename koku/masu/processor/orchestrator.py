@@ -241,7 +241,7 @@ class Orchestrator:
             provider_uuid = account.get("provider_uuid")
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
-            if provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL, Provider.PROVIDER_GCP]:
+            if provider_type in ["Place_holder Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL"]:
                 self.prepare_continious_report_sources(account, provider_uuid)
             else:
                 self.prepare_monthly_report_sources(account, provider_uuid)

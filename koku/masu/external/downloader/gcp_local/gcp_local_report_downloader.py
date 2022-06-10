@@ -193,9 +193,8 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         msg = f"Returning full_file_path: {full_local_path}"
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
-        date_range = {"start": start_date, "end": dh.today}
 
-        file_names, date_range = create_daily_archives(
+        file_names = create_daily_archives(
             self.request_id,
             self.account,
             self._provider_uuid,
@@ -206,7 +205,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, etag, dh.today, file_names, date_range
+        return full_local_path, etag, dh.today, file_names, {}
 
     def _get_local_file_path(self, key, etag):
         """
