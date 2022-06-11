@@ -7,12 +7,12 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime
 from unittest.mock import patch
 
 from faker import Faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.oci_local.oci_local_report_downloader import OCILocalReportDownloader
@@ -43,8 +43,8 @@ class OCILocalReportDownloaderTest(MasuTestCase):
     def setUp(self):
         """Set up each test."""
         super().setUp()
-        self.start_date = datetime(year=2020, month=11, day=8).date()
-        self.invoice = "202011"
+        dh = DateHelper()
+        self.start_date = dh.today
         self.etag = "reports_cost-csv_0001000000603747.csv"
         test_report = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
         self.local_storage = tempfile.mkdtemp()
@@ -156,7 +156,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
 
     def test_generate_monthly_pseudo_manifest(self):
         """Test generating the monthly manifest."""
-        expected_assembly_id = ":".join([str(self.oci_provider_uuid), self.invoice])
+        expected_assembly_id = ":".join([str(self.oci_provider_uuid), str(self.start_date)])
         result_manifest_data = self.oci_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
         self.assertTrue(result_manifest_data)
         self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
