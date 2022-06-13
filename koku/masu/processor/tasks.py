@@ -288,10 +288,11 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         starts = []
         ends = []
         for report in report_list:
-            starts.append(report.get("start"))
-            ends.append(report.get("end"))
-        start = min(starts)
-        end = max(ends)
+            if report.get("start") and report.get("end"):
+                starts.append(report.get("start"))
+                ends.append(report.get("end"))
+            start = min(starts) if starts != [] else None
+            end = max(ends) if ends != [] else None
 
         reports_deduplicated.append(
             {
