@@ -5,11 +5,14 @@
 """Azure Query Handling for Reports."""
 import copy
 import logging
+from collections import defaultdict
 from decimal import Decimal
 
+import pandas as pd
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
+from django.db.models.expressions import Func
 from django.db.models.fields import CharField
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
@@ -162,8 +165,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_sum = self._build_sum(query)
 
             if query_data:
-                import pandas as pd
-
                 df = pd.DataFrame(query_data)
 
                 columns = [
@@ -180,7 +181,6 @@ class AzureReportQueryHandler(ReportQueryHandler):
                     "cost_usage",
                     "cost_markup",
                 ]
-
                 exchange_rates = {
                     "USD": {"USD": Decimal(1.0)},
                     "EUR": {
@@ -286,15 +286,69 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
+        if "count" in aggregates:
+            instance_ids = (
+                query_data.annotate(instance_id=Func(F("instance_ids"), function="unnest"))
+                .values_list("instance_id", flat=True)
+                .distinct()
+            )
+            counts = len(instance_ids)
+        query_data = query_data.values(*initial_group_by)
+        query_data = query_data.annotate(**aggregates)
+        columns = list(aggregates.keys())
+        if "usage" in columns:
+            columns.remove("usage")
+        if query_data:
 
-        total_query = query.aggregate(**aggregates)
+            df = pd.DataFrame(query_data)
+            exchange_rates = {
+                "USD": {"USD": Decimal(1.0)},
+                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
+                "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
+            }
+            for column in columns:
+                df[column] = df.apply(
+                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]]["USD"], axis=1
+                )
+                df["cost_units"] = "USD"
+            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
+            if "count" not in df.columns:
+                skip_columns.extend(["count", "count_units"])
+            aggs = {
+                col: ["max"] if "units" in col else ["sum"]
+                for col in self.report_annotations
+                if col not in skip_columns
+            }
+            grouped_df = df.groupby(["currency"]).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            total_query = grouped_df.to_dict("records")
+            dct = defaultdict(Decimal)
+
+            for element in total_query:
+                for key, value in element.items():
+                    if type(value) != str:
+                        dct[key] += value
+                    else:
+                        dct[key] = value
+            dct.pop("currency")
+            total_query = dct
+        else:
+            total_query = query_data.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
+            if unit_key not in ["usage_units", "count_units"]:
+                total_query[unit_key] = "USD"
 
         if counts:
             total_query["count"] = counts
