@@ -24,6 +24,8 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.models import OCPUsageLineItemDailySummary
 
+# TODO: remove this import after debugging
+
 LOG = logging.getLogger(__name__)
 
 
@@ -157,27 +159,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value
-            initial_group_by = query_group_by
+            initial_group_by = copy.deepcopy(query_group_by)
             source_column = "source_uuid" if self.query_table == OCPUsageLineItemDailySummary else "source_uuid_id"
-            # if self.query_table == OCPUsageLineItemDailySummary:
-            #     # we may need to do this
-            #     # self.report_annotations.pop("source_uuid")
-            #     source_column = "source_uuid"
-
+            if self.query_table == OCPUsageLineItemDailySummary:
+                self.report_annotations.pop("source_uuid")
             initial_group_by.append(source_column)
             annotations = self._mapper.report_type_map.get("annotations")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
             # TEMPORARILY HARD CODE RATES:
+            # simplified them cause im lazy
             exchange_rates = {
-                "USD": {"USD": Decimal(1.0)},
-                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
-                "AUD": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
+                "JPY": {"USD": Decimal(1.25)},
+                "EUR": {"USD": Decimal(0.5)},
+                "AUD": {"USD": Decimal(0.25)},
             }
 
             # query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
@@ -187,10 +183,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 df = pd.DataFrame(query_data)
                 columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
                 for column in columns:
+                    # temp currency version
                     tmp_c = "USD"
-                    df.apply(
-                        lambda row: row[column]
-                        * exchange_rates[source_mapping.get(str(row[source_column]), "USD")][tmp_c],
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[source_mapping.get(row[source_column], "USD")][tmp_c],
                         axis=1,
                     )
                     df["cost_units"] = tmp_c
