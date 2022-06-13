@@ -236,6 +236,7 @@ class Provider(models.Model):
             f"reporting_{self._normalized_type}costentrybill",
             f"reporting_{self._normalized_type}meter",
             f"reporting_{self._normalized_type}usagereportperiod",
+            "reporting_ocp_clusters",
         )
 
         for target_info in self._get_linked_table_names(target_table, public_schema):
