@@ -767,9 +767,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             }
             for column in columns:
                 df[column] = df.apply(
-                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]]["USD"], axis=1
+                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
                 )
-                df["cost_units"] = "USD"
+                df["cost_units"] = self.currency
             skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
@@ -795,8 +795,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
             if unit_key not in ["usage_units", "count_units"]:
-                total_query[unit_key] = "USD"
-                # total_query[unit_key] = self.currency
+                total_query[unit_key] = self.currency
 
         if counts:
             total_query["count"] = counts

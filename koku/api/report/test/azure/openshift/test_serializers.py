@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Azure Provider serializers."""
-from unittest import TestCase
 from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.azure.openshift.serializers import OCPAzureFilterSerializer
 from api.report.azure.openshift.serializers import OCPAzureGroupBySerializer
 from api.report.azure.openshift.serializers import OCPAzureOrderBySerializer
@@ -17,7 +17,7 @@ from api.report.azure.openshift.serializers import OCPAzureQueryParamSerializer
 FAKE = Faker()
 
 
-class OCPAzureFilterSerializerTest(TestCase):
+class OCPAzureFilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -131,7 +131,7 @@ class OCPAzureFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPAzureGroupBySerializerTest(TestCase):
+class OCPAzureGroupBySerializerTest(IamTestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -203,7 +203,7 @@ class OCPAzureGroupBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPAzureOrderBySerializerTest(TestCase):
+class OCPAzureOrderBySerializerTest(IamTestCase):
     """Tests for the order_by serializer."""
 
     def test_order_by_project(self):
@@ -238,7 +238,7 @@ class OCPAzureOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPAzureQueryParamSerializerTest(TestCase):
+class OCPAzureQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_azure_params_success(self):
@@ -253,8 +253,8 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             },
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
@@ -270,8 +270,8 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             },
             "units": "byte",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -286,8 +286,8 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -302,23 +302,23 @@ class OCPAzureQueryParamSerializerTest(TestCase):
                 "subscription_guid": [FAKE.uuid4()],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_units(self):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -326,37 +326,45 @@ class OCPAzureQueryParamSerializerTest(TestCase):
         """Test that tag keys are validated as fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
         """Test that invalid tag keys are not valid fields."""
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_valid_delta_costs(self):
         """Test successful handling of valid delta for cost requests."""
         query_params = {"delta": "cost"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+        )
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_valid_delta_usage(self):
         """Test successful handling of valid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/storage/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/storage/"
+        user_data = self._create_user_data()
+        alt_request_context = self._create_request_context(
+            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+        )
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_invalid_delta_costs(self):
         """Test failure while handling invalid delta for cost requests."""
         query_params = {"delta": "cost_bad"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/storage/")
+        req = Mock(path="/api/cost-management/v1/reports/azure/storage/")
         serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -364,7 +372,7 @@ class OCPAzureQueryParamSerializerTest(TestCase):
     def test_invalid_delta_usage(self):
         """Test failure while handling invalid delta for usage requests."""
         query_params = {"delta": "usage"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
+        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
         serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
@@ -373,16 +381,16 @@ class OCPAzureQueryParamSerializerTest(TestCase):
         """Test that order_by[service_name] works with a matching group-by."""
         query_params = {"group_by": {"service_name": "asc"}, "order_by": {"service_name": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -396,8 +404,8 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -411,8 +419,8 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
-        serializer = OCPAzureQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
+        serializer = OCPAzureQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -423,10 +431,10 @@ class OCPAzureQueryParamSerializerTest(TestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/infrastructures/azure/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPAzureQueryParamSerializer(data=param, context={"request": req})
+                    serializer = OCPAzureQueryParamSerializer(data=param, context=self.request_context)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)

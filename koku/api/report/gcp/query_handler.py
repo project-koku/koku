@@ -5,8 +5,10 @@
 """GCP Query Handling for Reports."""
 import copy
 import logging
+from collections import defaultdict
 from decimal import Decimal
 
+import pandas as pd
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -185,25 +187,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_sum = self._build_sum(query)
 
             if query_data:
-                import pandas as pd
-
                 df = pd.DataFrame(query_data)
-
-                columns = [
-                    "infra_total",
-                    "infra_raw",
-                    "infra_usage",
-                    "infra_markup",
-                    "sup_raw",
-                    "sup_usage",
-                    "sup_markup",
-                    "sup_total",
-                    "cost_total",
-                    "cost_raw",
-                    "cost_usage",
-                    "cost_markup",
-                ]
-
+                aggregates = self._mapper.report_type_map.get("aggregates")
+                columns = list(aggregates.keys())
                 exchange_rates = {
                     "EUR": {
                         "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
@@ -218,6 +204,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                         "CAD": Decimal(1.34),
                     },
                     "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+                    "USD": {"USD": Decimal(1.0)},
                 }
 
                 for column in columns:
@@ -225,7 +212,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                         lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
                     )
                     df["cost_units"] = self.currency
-                skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+                skip_columns = ["clusters", "usage_units"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
                 aggs = {
@@ -308,14 +295,64 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
         query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*query_group_by)
+        query_data = query_data.values(*initial_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
-        total_query = query.aggregate(**aggregates)
+        query_data = query_data.annotate(**aggregates)
+        columns = list(aggregates.keys())
+        if query_data:
+            df = pd.DataFrame(query_data)
+            exchange_rates = {
+                "EUR": {
+                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                    "CAD": Decimal(1.25),
+                },
+                "GBP": {
+                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                    "CAD": Decimal(1.34),
+                },
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
+                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+                "USD": {"USD": Decimal(1.0)},
+            }
+            for column in columns:
+                df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
+                df["cost_units"] = self.currency
+            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias", "usage_units"]
+            if "count" not in df.columns:
+                skip_columns.extend(["count", "count_units"])
+            aggs = {
+                col: ["max"] if "units" in col else ["sum"]
+                for col in self.report_annotations
+                if col not in skip_columns
+            }
+            grouped_df = df.groupby(["currency"]).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            total_query = grouped_df.to_dict("records")
+            dct = defaultdict(Decimal)
+
+            for element in total_query:
+                for key, value in element.items():
+                    if type(value) != str:
+                        dct[key] += value
+                    else:
+                        dct[key] = value
+            dct.pop("currency")
+            total_query = dct
+        else:
+            total_query = query_data.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
+            if unit_key not in ["usage_units", "count_units"]:
+                total_query[unit_key] = self.currency
 
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 

@@ -199,12 +199,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     if col not in skip_columns
                 }
 
-            grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            # import pdb;pdb.set_trace()
-            query_data = grouped_df.to_dict("records")
+                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                # import pdb;pdb.set_trace()
+                query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
