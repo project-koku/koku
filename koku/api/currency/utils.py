@@ -3,11 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import logging
-from decimal import Decimal
 
+from api.currency.models import ExchangeRateDictionary
 from api.currency.models import ExchangeRates
 
-# from api.currency.models import ExchangeRateDictionary
+# from decimal import Decimal
 
 LOG = logging.getLogger(__name__)
 
@@ -22,27 +22,47 @@ def _get_exchange_rate(base_currency, target_currency):
         except Exception as e:
             LOG.error(e)
             return 1
-    return Decimal(exchange_rates[target_currency] / exchange_rates[base_currency])
+    return float(exchange_rates[target_currency] / exchange_rates[base_currency])
 
 
-def build_exchange_dictionary(rates, row=0, exchange_rates={}):
+def build_exchange_dictionary(rates, index=0, exchange_rates={}):
     """Build the exchange rates dictionary"""
-    current_currency = rates.get().values()
-    print("currency : ", current_currency)
-    # currency_dict = {}
-    # for code, rate in rates:
-    #     if current_currency == 'USD':
-    #         currency_dict[current_currency].append({code : rate})
-    #     else:
-    #         if code == 'USD':
-    #             currency_dict[current_currency].append({code : 1/rate})
-    #         else:
-    #             currency_dict[current_currency].append({code : _get_exchange_rate(current_currency, rate)})
-    # exchange_rates.append(currency_dict)
-    # row += 1
-    # if rates[row]:
-    #     build_exchange_dictionary(rates, row, exchange_rates)
+    currency_dict = {}
+    base_currency_list = list(rates.keys())
+    base_currency = base_currency_list[index]
+    for code in rates:
+        if code == "USD":
+            currency_dict[code] = rates[code]
+        else:
+            if code == "USD":
+                currency_dict[code] = 1 / rates[code]
+            else:
+                currency_dict[code] = _get_exchange_rate(base_currency, code)
+    exchange_rates[base_currency] = currency_dict
+    print("\n\nEXCHANGE: ", exchange_rates)
+    index += 1
+    if index < len(base_currency_list):
+        build_exchange_dictionary(rates, index, exchange_rates)
 
-    # print("DICTIONARY: ", exchange_rates)
-    # ExchangeRateDictionary.currency_exchange_dictionary = exchange_rates
-    # ExchangeRateDictionary.save()
+    return exchange_rates
+
+
+def exchange_dictionary(rates):
+    """Posts exchange rates dictionary to DB"""
+    try:
+        exchange_rate_dict = ExchangeRateDictionary.objects.all().first()
+        LOG.info("Updating currency Exchange rate mapping dict")
+    except ExchangeRateDictionary.DoesNotExist:
+        LOG.info("Creating the exchange rate mapping dict")
+        exchange_rate_dict = ExchangeRates()
+    exchange_rate_dict.exchange_rate = build_exchange_dictionary(rates)
+    exchange_rate_dict.save()
+    # print("RATES", rates)
+    # exchange_dictionary = build_exchange_dictionary(rates)
+    # print("\n\nBRUH: ", exchange_dictionary)
+    # exchange_dict = ExchangeRateDictionary.objects.all().first()
+    # if not exchange_dict:
+    #     ExchangeRateDictionary.objects.create(currency_exchange_dictionary=exchange_dictionary)
+    # else:
+    #     exchange_dict = ExchangeRateDictionary(currency_exchange_dictionary = exchange_dictionary)
+    #     exchange_dict.save(currency_exchange_dictionary = exchange_dictionary)

@@ -19,4 +19,4 @@ class ExchangeRates(models.Model):
 class ExchangeRateDictionary(models.Model):
     """Model provides exchange rates utilized in conversion process (Change this description)"""
 
-    currency_exchange_dictionary = models.JSONField()
+    currency_exchange_dictionary = models.JSONField(null=True)
