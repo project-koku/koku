@@ -8,6 +8,7 @@ import datetime
 import logging
 from datetime import timedelta
 
+import ciso8601
 import pint
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -384,6 +385,28 @@ class DateHelper:
 def materialized_view_month_start(dh=DateHelper()):
     """Datetime of midnight on the first of the month where materialized summary starts."""
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
+
+
+def get_months_in_date_range(start_date, end_date):
+    """returns the month periods in a given date range"""
+    start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+    end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
+    months = DateHelper().list_month_tuples(start_date, end_date)
+    num_months = len(months)
+    first_month = months[0]
+    months[0] = (start_date, first_month[1])
+
+    last_month = months[num_months - 1]
+    months[num_months - 1] = (last_month[0], end_date)
+
+    # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
+    for i, month in enumerate(months):
+        start, end = month
+        start_date = start.date().strftime("%Y-%m-%d")
+        end_date = end.date().strftime("%Y-%m-%d")
+        months[i] = (start_date, end_date)
+
+    return months
 
 
 class UnitConverter:

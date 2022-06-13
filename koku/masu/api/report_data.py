@@ -4,11 +4,8 @@
 #
 """View for report_data endpoint."""
 # flake8: noqa
-import datetime
 import logging
 
-import ciso8601
-import pytz
 from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
@@ -19,7 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from api.utils import DateHelper
+from api.utils import get_months_in_date_range
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import PRIORITY_QUEUE
 from masu.processor.tasks import QUEUE_LIST
@@ -67,22 +64,7 @@ def report_data(request):
             errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
-        end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
-        months = DateHelper().list_month_tuples(start_date, end_date)
-        num_months = len(months)
-        first_month = months[0]
-        months[0] = (start_date, first_month[1])
-
-        last_month = months[num_months - 1]
-        months[num_months - 1] = (last_month[0], end_date)
-
-        # need to format all the datetimes into strings with the format "%Y-%m-%d" for the celery task
-        for i, month in enumerate(months):
-            start, end = month
-            start_date = start.date().strftime("%Y-%m-%d")
-            end_date = end.date().strftime("%Y-%m-%d")
-            months[i] = (start_date, end_date)
+        months = get_months_in_date_range(start_date, end_date)
 
         if not all_providers:
             if schema_name is None:
