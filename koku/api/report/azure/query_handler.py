@@ -163,24 +163,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
-
             if query_data:
                 df = pd.DataFrame(query_data)
-
-                columns = [
-                    "infra_total",
-                    "infra_raw",
-                    "infra_usage",
-                    "infra_markup",
-                    "sup_raw",
-                    "sup_usage",
-                    "sup_markup",
-                    "sup_total",
-                    "cost_total",
-                    "cost_raw",
-                    "cost_usage",
-                    "cost_markup",
-                ]
+                aggregates = self._mapper.report_type_map.get("aggregates")
+                columns = list(aggregates.keys())
                 exchange_rates = {
                     "USD": {"USD": Decimal(1.0)},
                     "EUR": {
