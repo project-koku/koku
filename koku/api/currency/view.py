@@ -12,6 +12,7 @@ from rest_framework.settings import api_settings
 
 from api.common.pagination import ListPaginator
 from api.currency.currencies import CURRENCIES
+from api.currency.models import ExchangeRateDictionary
 
 
 @api_view(("GET",))
@@ -30,3 +31,12 @@ def get_currency(request):
 
     """
     return ListPaginator(CURRENCIES, request).paginated_response
+
+
+@api_view(("GET",))
+@permission_classes((permissions.AllowAny,))
+@renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
+def get_exchange_rates(request):
+    """Get the currency exchange rates between all currencies"""
+    exchange_rates = ExchangeRateDictionary.objects.get("currency_exchange_dictionary").all()
+    return (ListPaginator(exchange_rates, request)).paginated_response

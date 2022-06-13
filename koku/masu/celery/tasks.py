@@ -18,6 +18,7 @@ from tenant_schemas.utils import schema_context
 
 from api.currency.currencies import CURRENCIES
 from api.currency.models import ExchangeRates
+from api.currency.utils import build_exchange_dictionary
 from api.dataexport.models import DataExportRequest
 from api.dataexport.syncer import AwsS3Syncer
 from api.dataexport.syncer import SyncedFileInColdStorageError
@@ -311,6 +312,7 @@ def get_daily_currency_rates():
             rate_metrics[curr_type] = value
             exchange.exchange_rate = value
             exchange.save()
+    build_exchange_dictionary(rate_metrics)
     return rate_metrics
 
 
