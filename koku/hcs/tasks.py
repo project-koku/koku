@@ -170,10 +170,9 @@ def collect_hcs_report_finalization(  # noqa: C901
 
     for excepted_provider in excepted_providers:
         LOG.debug(log_json(tracing_id, f"excepted_provider: {excepted_provider}"))
-        providers = ()
         if provider_uuid is not None:
             try:
-                providers = Provider.objects.filter(uuid=provider_uuid).get()
+                providers = Provider.objects.filter(uuid=provider_uuid).all()
                 LOG.debug(log_json(tracing_id, f"provider uuid provided: {provider_uuid}"))
             except Provider.DoesNotExist:
                 LOG.info(log_json(tracing_id, f"provider_uuid: {provider_uuid} does not exist"))
