@@ -212,7 +212,8 @@ class TestHCSTasks(HCSTestCase):
         provider.type.return_value = p_type
 
         p_u = "05e04f00-18db-4ab5-8960-88854c6f9d88"
-        provider.uuid.return_value = p_u
+        # provider.uuid.return_value = p_u
+        provider.uuid.return_value = provider(side_effect=Provider.objects.filter(uuid=p_u))
 
         with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
             collect_hcs_report_finalization(provider_uuid=p_u)
@@ -232,7 +233,7 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization(provider_uuid=p_u)
 
-            self.assertIn(f"provider_uuid: {p_u} does not exist", _logs.output[1])
+            self.assertIn(f"provider_uuid: {p_u} does not exist", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
