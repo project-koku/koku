@@ -157,7 +157,6 @@ class Orchestrator:
             provider_uuid=provider_uuid,
             report_name=None,
         )
-        # TODO: I was working on returning more than one manifest.
         # only gcp returns more than one manifest at the moment.
         manifest_list = downloader.download_manifest(report_month)
         for manifest in manifest_list:
@@ -240,7 +239,7 @@ class Orchestrator:
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
                 LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
 
-        return reports_tasks_queued
+        return manifest_list, reports_tasks_queued
 
     def prepare(self):
         """
@@ -252,7 +251,12 @@ class Orchestrator:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
 
-            if provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
+            if provider_type in [
+                Provider.PROVIDER_OCI,
+                Provider.PROVIDER_OCI_LOCAL,
+                Provider.PROVIDER_GCP,
+                Provider.PROVIDER_GCP_LOCAL,
+            ]:
 
                 self.prepare_continious_report_sources(account, provider_uuid)
             else:

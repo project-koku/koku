@@ -36,9 +36,6 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-# TODO: DOSTON
-# This needs to be reworked, we no longer grab scan ranges so each file should be a day already.
-# I am note sure if this is needed anymore?
 def create_daily_archives(
     tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, new_export_time, context={}
 ):
@@ -169,10 +166,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         scan_end = today + relativedelta(days=1)
         return scan_start, scan_end
 
-    # TODO: our old etag system does not make sense with the new layout.
-    # For now I am replacing it with the file
-    # def _generate_etag(self): (FUNCTION REMOVED)
-
     def retrieve_current_manifests(self, start_date):
         """
         Checks for manifests with same bill_date & provider and determines
@@ -190,22 +183,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         # Check to see if we have any manifests within the date range.
         with ReportManifestDBAccessor() as manifest_accessor:
             manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self._provider_uuid, start_date)
-            # if it is an empty list, that means it is the first time we are
-            # downloading this month, so we need to update our
-            # scan range to include the full month.
-            # TODO: SEE IF WE CAN MOVE THIS OUT OF THE WITH
         if not manifests:
-            self.scan_start = start_date
-            end_of_month = start_date + relativedelta(months=1)
-            if isinstance(end_of_month, datetime.datetime):
-                end_of_month = end_of_month.date()
-            if end_of_month < self.scan_end:
-                self.scan_end = end_of_month
-            # This looks unnecessary, but it is used for day2day
-            # workflow testing with date override
-            today = DateAccessor().today().date()
-            if today < end_of_month:
-                self.scan_end = today
+            # initial ingest
+            months_delta = Config.INITIAL_INGEST_NUM_MONTHS
+            ingest_month = start_date + relativedelta(months=-months_delta)
+            ingest_month = ingest_month.replace(day=1)
+            self.scan_start = ingest_month
+            self.scan_end = start_date
         else:
             # day2day flow
             for manifest in manifests:
@@ -257,7 +241,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # if the manifest export time does not match bigquery we have new data
                 # for that partion time and new manifest should be created.
                 manifest_kwargs = {}
-                file_name = f"{self.scan_start.strftime('%Y%m')}_{bigquery_pd}?{bigquery_et}.csv"
+                bill_date = bigquery_pd.replace(day=1)
+                invoice_month = bill_date.strftime("%Y%m")
+                file_name = f"{invoice_month}_{bigquery_pd}?{bigquery_et}.csv"
                 if manifest_export_time:
                     manifest_kwargs["last_reports"] = {"last_export": manifest_export_time}
                 manifest_metadata = {
@@ -266,14 +252,13 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     "new_et": bigquery_et,
                     "previous_et": manifest_export_time,
                     "partition_date": bigquery_pd,
-                    "bill_date": self.scan_start.replace(day=1),
+                    "bill_date": bill_date,
                     "files": [file_name],
                     "kwargs": manifest_kwargs,
                 }
                 new_manifests.append(manifest_metadata)
         return new_manifests
 
-    # This is the function called by the task
     def get_manifest_context_for_date(self, date):
         """
         Get the manifest context for a provided date.
@@ -290,6 +275,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dh = DateHelper()
+        if isinstance(date, datetime.datetime):
+            date = date.date()
         current_manifests = self.retrieve_current_manifests(date)
         bigquery_mapping = self.bigquery_export_to_partition_mapping()
         new_manifest_list = self.create_new_manifests(current_manifests, bigquery_mapping)
@@ -341,16 +328,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         columns_list.append("DATE(_PARTITIONTIME) as partition_time")
         return ",".join(columns_list)
 
-    # TODO: DOSTON
-    # TESTING
-    # Test how the new queries handle cross over data.
-    # Test the day to day flow using stepping:
-    #     https://github.com/myersCody/cody_notes/blob/main/cloud_providers/gcp/day_to_day_flow.md
-    # PROCESSING
-    # We may have to tweak the processing side, we may only want to resummarize the parition_date.
-    # Because it probably resummarizes the entire month each time
-    # LOOK AT: _determine_if_full_summary_update_needed in:
-    # koku/masu/processor/gcp/gcp_report_parquet_summary_updater.py
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
         """
         Download a file from GCP storage bucket.
@@ -368,7 +345,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         try:
             filename = os.path.splitext(key)[0]
-            LOG.info(filename)
             date_range = filename.split("_")[-1]
             partition_date, new_export_time = date_range.split("?")
             bill_start = ciso8601.parse_datetime(partition_date).date().replace(day=1)
@@ -376,7 +352,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 last_export_time = manifest_accessor.get_max_export_time_for_manifests(
                     self._provider_uuid, bill_start, partition_date
                 )
-
             if last_export_time:
                 query = f"""
                     SELECT {self.build_query_select_statement()}
@@ -485,51 +460,3 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
         return full_local_path
-
-
-# Current State: Initial Download
-# Using:  http://127.0.0.1:5042/api/cost-management/v1/
-# gcp_invoice_monthly_cost/?provider_uuid=
-# 3d88ef55-e7c7-44cd-8997-5eaa9e842ce2
-# {
-#     "monthly_invoice_cost_mapping": {
-#         "previous": 1.4000000000000083,
-#         "current": 0.0052819999999999916
-#     }
-# }
-
-# (koku) bash-3.2$ trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
-# trino:acct10001> select sum(cost) from gcp_line_items WHERE invoice_month='202205';
-#        _col0
-# --------------------
-#  1.4000000000000083
-# (1 row)
-
-# trino:acct10001> select sum(cost) from gcp_line_items WHERE invoice_month='202206';
-#          _col0
-# -----------------------
-#  0.0052819999999999916
-# (1 row)
-
-# Using Trino our cost match exactly. However, when we go to the API:
-
-# Current Month:
-# http://localhost:8000/api/cost-management/v1/reports/
-# gcp/costs/?filter%5Btime_scope_value%5D=-1&filter%5Btime_scope_units%5D=
-# month&filter%5Bresolution%5D=monthly
-# "total": {
-#                     "value": 0.005282,
-#                     "units": "USD"
-#                 }
-
-# Previous Month:
-# http://localhost:8000/api/cost-management/v1/reports/gcp/
-# costs/?filter%5Btime_scope_value%5D=-2&filter%5Btime_scope_units%5D=
-# month&filter%5Bresolution%5D=monthly
-# "total": {
-#                     "value": 0.321132,
-#                     "units": "USD"
-#                 }
-
-# Since data is correct in trino that means there is a bug on the
-# data summarization side of things causing the costs to be off.
