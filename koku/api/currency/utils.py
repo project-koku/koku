@@ -5,22 +5,8 @@
 import logging
 
 from api.currency.models import ExchangeRateDictionary
-from api.currency.models import ExchangeRates
 
 LOG = logging.getLogger(__name__)
-
-
-def _get_exchange_rate(base_currency, target_currency):
-    """Look up the exchange rate for the target currency."""
-    exchange_rates = {}
-    for currency in [target_currency, base_currency]:
-        try:
-            exchange_rate = ExchangeRates.objects.get(currency_type=currency.lower())
-            exchange_rates[currency] = exchange_rate.exchange_rate
-        except Exception as e:
-            LOG.error(e)
-            return 1
-    return float(exchange_rates[target_currency] / exchange_rates[base_currency])
 
 
 def build_exchange_dictionary(rates, index=0, exchange_rates={}):
@@ -35,7 +21,7 @@ def build_exchange_dictionary(rates, index=0, exchange_rates={}):
             if code == "USD":
                 currency_dict[code] = float(1 / rates[base_currency])
             else:
-                currency_dict[code] = _get_exchange_rate(base_currency, code)
+                currency_dict[code] = float(rates[code] / rates[base_currency])
     exchange_rates[base_currency] = currency_dict
     index += 1
     if index < len(base_currency_list):
