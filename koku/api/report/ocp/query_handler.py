@@ -192,7 +192,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                         axis=1,
                     )
                     df["cost_units"] = self.currency
-                skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+                skip_columns = ["gcp_project_alias"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
                 aggs = {
