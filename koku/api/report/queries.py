@@ -19,13 +19,9 @@ from json import dumps as json_dumps
 from urllib.parse import quote_plus
 
 import ciso8601
-<<<<<<< HEAD
-import pandas as pd
-=======
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
->>>>>>> c5c72bdee330c7bfd1780afe73c154d380344a1d
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Window
