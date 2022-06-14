@@ -306,26 +306,12 @@ class AWSReportQueryHandler(ReportQueryHandler):
                         dict(type="organizational_unit", account_alias=sub_org_name, account=sub_org_id, **d)
                         for d in sub_query_data
                     )
-        else:
-            # If we're processing for CSV output, but were not processing
-            # org unit, then just make the CSV result list the initial query data results
-            if self.is_csv_output:
-                csv_results = query_data
 
-        if not self.is_csv_output:
+        if not self.is_csv_output and org_unit_applied:
             # If not CSV output and org unit was applied, then reshape the output
             # structures for the JSON serializer
-            if org_unit_applied:
-                query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
+            query_data = self.format_sub_org_results(query_data_results, query_data, sub_orgs_dict)
         else:
-            # For CSV output, if there was a limit, then sent *all* output (base + sub-org, if any)
-            # to the ranked list method
-            if self._limit:
-                query_data = self._ranked_list(csv_results) if self._limit else csv_results
-            else:
-                # Otherwise, just set the output intermediate variable to the CSV results list
-                query_data = csv_results
-
             query_data = self._set_csv_output_fields(query_data)
 
         # Add each of the sub_org sums to the query_sum

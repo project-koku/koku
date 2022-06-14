@@ -249,10 +249,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                     count_units_value = query_data[0].get("count_units")
 
             if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+                data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")
