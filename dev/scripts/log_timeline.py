@@ -191,7 +191,7 @@ create index log_timeline_ix2 on public._log_timeline (log_level)
         return lmsg
 
     def parse_level(self, level, message):
-        umsg = str(message["message"]).upper()
+        umsg = str(message.get("message", "")).upper()
         if "ERROR" in umsg:
             level = "ERROR"
         elif "WARNING" in umsg:
