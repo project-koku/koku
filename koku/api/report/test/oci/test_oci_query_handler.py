@@ -699,53 +699,411 @@ class OCIReportQueryHandlerTest(IamTestCase):
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[payer_tenant_id]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
+        ranks = [
+            {"payer_tenant_id": "1", "rank": 1, "source_uuid": ["1"]},
+            {"payer_tenant_id": "2", "rank": 2, "source_uuid": ["1"]},
+            {"payer_tenant_id": "3", "rank": 3, "source_uuid": ["1"]},
+            {"payer_tenant_id": "4", "rank": 4, "source_uuid": ["1"]},
+        ]
+
         data_list = [
-            {"payer_tenant_id": "1", "total": 5, "rank": 1},
-            {"payer_tenant_id": "2", "total": 4, "rank": 2},
-            {"payer_tenant_id": "3", "total": 3, "rank": 3},
-            {"payer_tenant_id": "4", "total": 2, "rank": 4},
+            {
+                "payer_tenant_id": "1",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "2",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "3",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "4",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
         ]
         expected = [
-            {"payer_tenant_id": "1", "total": 5, "rank": 1},
-            {"payer_tenant_id": "2", "total": 4, "rank": 2},
-            {"payer_tenant_id": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {
+                "payer_tenant_id": "1",
+                "rank": 1,
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "2",
+                "rank": 2,
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "Others",
+                "rank": 3,
+                "date": "2022-05",
+                "cost_markup": 2,
+                "cost_raw": 2,
+                "cost_total": 2,
+                "cost_usage": 2,
+                "infra_markup": 2,
+                "infra_raw": 2,
+                "infra_total": 2,
+                "infra_usage": 2,
+                "sup_markup": 2,
+                "sup_raw": 2,
+                "sup_total": 2,
+                "sup_usage": 2,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
         ]
-        ranked_list = handler._ranked_list(data_list)
-        self.assertEqual(ranked_list, expected)
+        ranked_list = handler._ranked_list(data_list, ranks)
+        for i in range(len(ranked_list)):
+            for key in ranked_list[i]:
+                self.assertEqual(ranked_list[i][key], expected[i][key])
 
     def test_rank_list_by_product_service(self):
         """Test rank list limit with product_service grouping."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=2&group_by[product_service]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
+        ranks = [
+            {"product_service": "1", "rank": 1, "source_uuid": ["1"]},
+            {"product_service": "2", "rank": 2, "source_uuid": ["1"]},
+            {"product_service": "3", "rank": 3, "source_uuid": ["1"]},
+            {"product_service": "4", "rank": 4, "source_uuid": ["1"]},
+        ]
         data_list = [
-            {"product_service": "1", "total": 5, "rank": 1},
-            {"product_service": "2", "total": 4, "rank": 2},
-            {"product_service": "3", "total": 3, "rank": 3},
-            {"product_service": "4", "total": 2, "rank": 4},
+            {
+                "product_service": "1",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "product_service": "2",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "product_service": "3",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "product_service": "4",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
         ]
         expected = [
-            {"product_service": "1", "total": 5, "rank": 1},
-            {"product_service": "2", "total": 4, "rank": 2},
-            {"product_service": "Others", "total": 5, "rank": 3, "cost_total": 0, "infra_total": 0, "sup_total": 0},
+            {
+                "product_service": "1",
+                "rank": 1,
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "product_service": "2",
+                "rank": 2,
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "product_service": "Others",
+                "rank": 3,
+                "date": "2022-05",
+                "cost_markup": 2,
+                "cost_raw": 2,
+                "cost_total": 2,
+                "cost_usage": 2,
+                "infra_markup": 2,
+                "infra_raw": 2,
+                "infra_total": 2,
+                "infra_usage": 2,
+                "sup_markup": 2,
+                "sup_raw": 2,
+                "sup_total": 2,
+                "sup_usage": 2,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
         ]
-        ranked_list = handler._ranked_list(data_list)
-        self.assertEqual(ranked_list, expected)
+        ranked_list = handler._ranked_list(data_list, ranks)
+        for i in range(len(ranked_list)):
+            for key in ranked_list[i]:
+                self.assertEqual(ranked_list[i][key], expected[i][key])
 
     def test_rank_list_with_offset(self):
         """Test rank list limit and offset with tenant alias."""
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&filter[offset]=1&group_by[payer_tenant_id]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCICostView)
         handler = OCIReportQueryHandler(query_params)
-        data_list = [
-            {"payer_tenant_id": "1", "total": 5, "rank": 1},
-            {"payer_tenant_id": "2", "total": 4, "rank": 2},
-            {"payer_tenant_id": "3", "total": 3, "rank": 3},
-            {"payer_tenant_id": "4", "total": 2, "rank": 4},
+        ranks = [
+            {"payer_tenant_id": "1", "rank": 1, "source_uuid": ["1"]},
+            {"payer_tenant_id": "2", "rank": 2, "source_uuid": ["1"]},
+            {"payer_tenant_id": "3", "rank": 3, "source_uuid": ["1"]},
+            {"payer_tenant_id": "4", "rank": 4, "source_uuid": ["1"]},
         ]
-        expected = [{"payer_tenant_id": "2", "total": 4, "rank": 2}]
-        ranked_list = handler._ranked_list(data_list)
-        self.assertEqual(ranked_list, expected)
+
+        data_list = [
+            {
+                "payer_tenant_id": "1",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "2",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "3",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+            {
+                "payer_tenant_id": "4",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+            },
+        ]
+        expected = [
+            {
+                "payer_tenant_id": "2",
+                "date": "2022-05",
+                "cost_markup": 1,
+                "cost_raw": 1,
+                "cost_total": 1,
+                "cost_usage": 1,
+                "infra_markup": 1,
+                "infra_raw": 1,
+                "infra_total": 1,
+                "infra_usage": 1,
+                "sup_markup": 1,
+                "sup_raw": 1,
+                "sup_total": 1,
+                "sup_usage": 1,
+                "cost_units": "USD",
+                "source_uuid": ["1"],
+                "rank": 2,
+            },
+        ]
+        ranked_list = handler._ranked_list(data_list, ranks)
+        for i in range(len(ranked_list)):
+            for key in ranked_list[i]:
+                self.assertEqual(ranked_list[i][key], expected[i][key])
 
     def test_query_costs_with_totals(self):
         """Test execute_query() - costs with totals.
@@ -1101,13 +1459,13 @@ class OCIReportQueryHandlerTest(IamTestCase):
         for element in data:
             previous = 0
             for service in element.get("product_services"):
-                service_name = service.get("product_service")
+                product_service = service.get("product_service")
                 # This if is cause some days may not have same services.
                 # however we want the services that do match to be in the
                 # same order
-                if service_name in ranking_map.keys():
-                    self.assertGreaterEqual(ranking_map[service_name], previous)
-                    previous = ranking_map[service_name]
+                if product_service in ranking_map.keys():
+                    self.assertGreaterEqual(ranking_map[product_service], previous)
+                    previous = ranking_map[product_service]
                     tested = True
         self.assertTrue(tested)
 

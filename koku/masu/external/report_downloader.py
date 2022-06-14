@@ -180,7 +180,7 @@ class ReportDownloader:
         with ReportStatsDBAccessor(local_file_name, manifest_id) as stats_recorder:
             stored_etag = stats_recorder.get_etag()
             try:
-                file_name, etag, _, split_files = self._downloader.download_file(
+                file_name, etag, _, split_files, date_range = self._downloader.download_file(
                     report, stored_etag, manifest_id=manifest_id, start_date=date_time
                 )
                 stats_recorder.update(etag=etag)
@@ -199,4 +199,6 @@ class ReportDownloader:
             "manifest_id": manifest_id,
             "provider_uuid": self.provider_uuid,
             "create_table": report_context.get("create_table", False),
+            "start": date_range.get("start"),
+            "end": date_range.get("end"),
         }
