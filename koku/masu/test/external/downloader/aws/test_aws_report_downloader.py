@@ -510,7 +510,7 @@ class AWSReportDownloaderTest(MasuTestCase):
         """Test _get_manifest method."""
         mock_datetime = DateAccessor().today()
         mock_file_name = "testfile"
-        mock_download_file.return_value = (mock_file_name, None, mock_datetime, [])
+        mock_download_file.return_value = (mock_file_name, None, mock_datetime, [], {})
         fake_manifest_dict = {"foo": "bar"}
         with patch("masu.external.downloader.aws.aws_report_downloader.open"):
             with patch(
