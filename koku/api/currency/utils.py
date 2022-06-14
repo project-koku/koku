@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 import logging
+from decimal import Decimal
 
 from api.currency.models import ExchangeRateDictionary
 
@@ -16,12 +17,13 @@ def build_exchange_dictionary(rates, index=0, exchange_rates={}):
     base_currency = base_currency_list[index]
     for code in rates:
         if base_currency == "USD":
-            currency_dict[code] = rates[code]
+            value = rates[code]
         else:
             if code == "USD":
-                currency_dict[code] = float(1 / rates[base_currency])
+                value = Decimal(1 / rates[base_currency])
             else:
-                currency_dict[code] = float(rates[code] / rates[base_currency])
+                value = Decimal(rates[code] / rates[base_currency])
+        currency_dict[code] = str(value)
     exchange_rates[base_currency] = currency_dict
     index += 1
     if index < len(base_currency_list):
