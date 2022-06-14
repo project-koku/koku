@@ -174,22 +174,24 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 "JPY": {"USD": Decimal(1.25)},
                 "EUR": {"USD": Decimal(0.5)},
                 "AUD": {"USD": Decimal(0.25)},
+                "USD": {"USD": Decimal(1.0)},
             }
 
-            # query_data = query_data.values(*query_group_by).annotate(**self.report_annotations)
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            query_sum_data = query_data.annotate(**aggregates)
             if query_data:
                 source_mapping = self.build_source_to_currency_map()
                 df = pd.DataFrame(query_data)
                 columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
                 for column in columns:
                     # temp currency version
-                    tmp_c = "USD"
                     df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[source_mapping.get(row[source_column], "USD")][tmp_c],
+                        lambda row: row[column]
+                        * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
                         axis=1,
                     )
-                    df["cost_units"] = tmp_c
+                    df["cost_units"] = self.currency
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
@@ -203,7 +205,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 columns = grouped_df.columns.droplevel(1)
                 grouped_df.columns = columns
                 grouped_df.reset_index(inplace=True)
-                # import pdb;pdb.set_trace()
                 query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data:
@@ -215,8 +216,41 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # Populate the 'total' section of the API response
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: metric_sum.get(key) for key in aggregates}
+                source_mapping = self.build_source_to_currency_map()
+                df = pd.DataFrame(query_sum_data)
+                columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
+                for column in columns:
+                    # temp currency version
+                    df[column] = df.apply(
+                        lambda row: row[column]
+                        * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
+                        axis=1,
+                    )
+                    df["cost_units"] = self.currency
+                skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+                if "count" not in df.columns:
+                    skip_columns.extend(["count", "count_units"])
+                aggs = {
+                    col: ["max"] if "units" in col else ["sum"]
+                    for col in self.report_annotations
+                    if col not in skip_columns
+                }
+
+                grouped_df = df.groupby([source_column]).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                total_query = grouped_df.to_dict("records")
+                dct = defaultdict(Decimal)
+
+                for element in total_query:
+                    for key, value in element.items():
+                        if type(value) == Decimal:
+                            dct[key] += value
+                        else:
+                            dct[key] = value
+                dct.pop(source_column)
+                query_sum = dct
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:
