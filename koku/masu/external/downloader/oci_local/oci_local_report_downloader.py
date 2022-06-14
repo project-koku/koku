@@ -128,11 +128,9 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        invoice_month = start_date.strftime("%Y%m")
-        assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
-
         dh = DateHelper()
-        start_date = dh.invoice_month_start(str(invoice_month))
+        start_date = dh.today
+        assembly_id = ":".join([str(self._provider_uuid), str(start_date)])
         file_names = self.files_list
         manifest_data = {
             "assembly_id": assembly_id,
@@ -190,7 +188,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.copy2(base_path, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names = create_monthly_archives(
+        file_names, date_range = create_monthly_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -200,7 +198,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_file_path, etag, file_creation_date, file_names, {}
+        return full_file_path, etag, file_creation_date, file_names, date_range
 
     def _remove_manifest_file(self, manifest_file):
         """Clean up the manifest file after extracting information."""
