@@ -7,8 +7,8 @@ import copy
 import logging
 from collections import defaultdict
 from decimal import Decimal
-import pandas as pd
 
+import pandas as pd
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Concat
@@ -177,7 +177,9 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                     "USD": {"USD": Decimal(1.0)},
                 }
                 for column in columns:
-                    df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
+                    )
                     df["cost_units"] = self.currency
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias", "usage_units"]
                 if "count" not in df.columns:

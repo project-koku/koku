@@ -5,10 +5,10 @@
 """OCP Query Handling for Reports."""
 import copy
 import logging
-import pandas as pd
 from collections import defaultdict
 from decimal import Decimal
 
+import pandas as pd
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
@@ -155,8 +155,14 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 df = pd.DataFrame(query_sum_data)
                 exchange_rates = {
                     "USD": {"USD": Decimal(1.0)},
-                    "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
-                    "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
+                    "EUR": {
+                        "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                        "CAD": Decimal(1.25),
+                    },
+                    "GBP": {
+                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                        "CAD": Decimal(1.34),
+                    },
                     "JPY": {
                         "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
                         "CAD": Decimal(1.34),
@@ -164,10 +170,18 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 }
                 for column in columns:
                     df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
+                        axis=1,
                     )
                     df["cost_units"] = self.currency
-                skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units", "cost_units"]
+                skip_columns = [
+                    "source_uuid",
+                    "gcp_project_alias",
+                    "clusters",
+                    "usage_units",
+                    "count_units",
+                    "cost_units",
+                ]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
                 aggs = {

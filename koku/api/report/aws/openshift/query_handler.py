@@ -5,7 +5,10 @@
 """OCP Query Handling for Reports."""
 import copy
 import logging
+from collections import defaultdict
+from decimal import Decimal
 
+import pandas as pd
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
@@ -38,14 +41,65 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
+            initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
-
+            query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            annotations_keys = list(self.report_annotations.keys())
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            query_sum_data = query_data.annotate(**aggregates)
             if "account" in query_group_by:
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
+
+            if query_data:
+                df = pd.DataFrame(query_data)
+
+                columns = [
+                    "infra_total",
+                    "infra_raw",
+                    "infra_usage",
+                    "infra_markup",
+                    "sup_raw",
+                    "sup_usage",
+                    "sup_markup",
+                    "sup_total",
+                    "cost_total",
+                    "cost_raw",
+                    "cost_usage",
+                    "cost_markup",
+                ]
+                exchange_rates = {
+                    "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
+                    "EUR": {
+                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                        "CAD": Decimal(1.34),
+                    },
+                    "AUD": {
+                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                        "CAD": Decimal(1.34),
+                    },
+                }
+                for column in columns:
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
+                        axis=1,
+                    )
+                    df["cost_units"] = self.currency
+                skip_columns = ["gcp_project_alias", "clusters"]
+                if "count" not in df.columns:
+                    skip_columns.extend(["count", "count_units"])
+                aggs = {
+                    col: ["max"] if "units" in col else ["sum"] for col in annotations_keys if col not in skip_columns
+                }
+
+                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                query_data = grouped_df.to_dict("records")
+
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
                 if not self.parameters.get("order_by"):
@@ -54,8 +108,56 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             if query.exists():
                 aggregates = self._mapper.report_type_map.get("aggregates")
-                metric_sum = query.aggregate(**aggregates)
-                query_sum = {key: metric_sum.get(key) for key in aggregates}
+                columns = list(aggregates.keys())
+                if "usage" in columns:
+                    columns.remove("usage")
+                new_annotations = list(self.report_annotations.keys())
+                if "usage_units" in columns:
+                    columns.remove("usage_units")
+                if "cost_units" in columns:
+                    columns.remove("cost_units")
+                df = pd.DataFrame(query_sum_data)
+                exchange_rates = {
+                    "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
+                    "EUR": {
+                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                        "CAD": Decimal(1.34),
+                    },
+                    "AUD": {
+                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                        "CAD": Decimal(1.34),
+                    },
+                }
+                for column in columns:
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
+                        axis=1,
+                    )
+                    df["cost_units"] = self.currency
+                skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
+                if "count" not in df.columns:
+                    skip_columns.extend(["count", "count_units"])
+                aggs = {
+                    col: ["max"] if "units" in col else ["sum"] for col in new_annotations if col not in skip_columns
+                }
+
+                grouped_df = df.groupby(["currency_code"]).agg(aggs, axis=1)
+                columns = grouped_df.columns.droplevel(1)
+                grouped_df.columns = columns
+                grouped_df.reset_index(inplace=True)
+                total_query = grouped_df.to_dict("records")
+                dct = defaultdict(Decimal)
+
+                for element in total_query:
+                    for key, value in element.items():
+                        if type(value) != str:
+                            dct[key] += value
+                        else:
+                            dct[key] = value
+                dct.pop("currency_code")
+                query_sum = dct
+                # metric_sum = query.aggregate(**aggregates)
+                # query_sum = {key: metric_sum.get(key) for key in aggregates}
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
