@@ -3,11 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report serializers."""
-from unittest import TestCase
-from unittest.mock import Mock
-
 from rest_framework import serializers
 
+from api.iam.test.iam_test_case import IamTestCase
 from api.report.ocp.serializers import FilterSerializer
 from api.report.ocp.serializers import GroupBySerializer
 from api.report.ocp.serializers import OCPCostQueryParamSerializer
@@ -16,7 +14,7 @@ from api.report.ocp.serializers import OCPQueryParamSerializer
 from api.report.ocp.serializers import OrderBySerializer
 
 
-class OCPFilterSerializerTest(TestCase):
+class OCPFilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -123,7 +121,7 @@ class OCPFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPGroupBySerializerTest(TestCase):
+class OCPGroupBySerializerTest(IamTestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -177,7 +175,7 @@ class OCPGroupBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPOrderBySerializerTest(TestCase):
+class OCPOrderBySerializerTest(IamTestCase):
     """Tests for the order_by serializer."""
 
     def test_parse_order_by_params_success(self):
@@ -194,7 +192,7 @@ class OCPOrderBySerializerTest(TestCase):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPQueryParamSerializerTest(TestCase):
+class OCPQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -208,8 +206,8 @@ class OCPQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -225,8 +223,8 @@ class OCPQueryParamSerializerTest(TestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -241,8 +239,8 @@ class OCPQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -250,16 +248,16 @@ class OCPQueryParamSerializerTest(TestCase):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -268,8 +266,8 @@ class OCPQueryParamSerializerTest(TestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
@@ -277,13 +275,13 @@ class OCPQueryParamSerializerTest(TestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPInventoryQueryParamSerializerTest(TestCase):
+class OCPInventoryQueryParamSerializerTest(IamTestCase):
     """Tests for the handling inventory query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -298,8 +296,8 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_order_by(self):
@@ -317,99 +315,101 @@ class OCPInventoryQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_delta_success(self):
         """Test that a proper delta value is serialized."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=cost")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=cost"
         query_params = {"delta": "cost"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=usage")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=usage"
         query_params = {"delta": "usage"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=request")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=request"
         query_params = {"delta": "request"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_delta_failure(self):
         """Test that a bad delta value is not serialized."""
         query_params = {"delta": "bad_delta"}
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=bad_delta")
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=bad_delta"
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_current_month_delta_success(self):
         """Test that a proper current month delta value is serialized."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=usage__request")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=usage__request"
         query_params = {"delta": "usage__request"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=usage__capacity")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/?delta=usage__capacity"
         query_params = {"delta": "usage__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/?delta=request__capacity")
+        self.request_context[
+            "request"
+        ].path = "/api/cost-management/v1/reports/openshift/costs/?delta=request__capacity"
         query_params = {"delta": "request__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_current_month_delta_failure(self):
         """Test that a bad current month delta value is not serialized."""
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"delta": "bad__delta"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
         query_params = {"delta": "usage__request__capacity"}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_order_by_delta_with_delta(self):
         """Test that order_by[delta] works with a delta param."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"delta": "usage__request", "order_by": {"delta": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_delta_without_delta(self):
         """Test that order_by[delta] does not work without a delta param."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"order_by": {"delta": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_order_by_node_with_groupby(self):
         """Test that order_by[node] works with a matching group-by."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"group_by": {"node": "asc"}, "order_by": {"node": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_node_without_groupby(self):
         """Test that order_by[node] fails without a matching group-by."""
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         query_params = {"order_by": {"node": "asc"}}
-        serializer = OCPInventoryQueryParamSerializer(data=query_params, context={"request": req})
+        serializer = OCPInventoryQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
 
-class OCPCostQueryParamSerializerTest(TestCase):
+class OCPCostQueryParamSerializerTest(IamTestCase):
     """Tests for the handling charge query parameter parsing serializer."""
 
     def test_parse_query_params_success(self):
@@ -424,8 +424,8 @@ class OCPCostQueryParamSerializerTest(TestCase):
                 "resource_scope": [],
             },
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPCostQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_order_by_request(self):
@@ -442,9 +442,8 @@ class OCPCostQueryParamSerializerTest(TestCase):
             },
             "invalid": "param",
         }
-
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPCostQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/openshift/infrastructures/aws/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -463,8 +462,8 @@ class OCPCostQueryParamSerializerTest(TestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPCostQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -483,8 +482,8 @@ class OCPCostQueryParamSerializerTest(TestCase):
             "delta": "cost",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
-        serializer = OCPCostQueryParamSerializer(data=query_params, context={"request": req})
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
+        serializer = OCPCostQueryParamSerializer(data=query_params, context=self.request_context)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -495,10 +494,10 @@ class OCPCostQueryParamSerializerTest(TestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/openshift/costs/")
+        self.request_context["request"].path = "/api/cost-management/v1/reports/openshift/costs/"
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPInventoryQueryParamSerializer(data=param, context={"request": req})
+                    serializer = OCPInventoryQueryParamSerializer(data=param, context=self.request_context)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
