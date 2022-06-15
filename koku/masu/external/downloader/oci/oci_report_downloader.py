@@ -47,7 +47,7 @@ def divide_csv_monthly(file_path, filename):
     report_type = "usage" if "usage" in filename else "cost"
     unique_days = pd.to_datetime(data_frame["lineItem/intervalUsageStart"]).dt.date.unique()
     days = list({day.strftime("%Y-%m-%d") for day in unique_days})
-    date_range = {"start": max(days), "end": min(days)}
+    date_range = {"start": min(days), "end": max(days)}
     months = list({day.strftime("%Y-%m") for day in unique_days})
     monthly_data_frames = [
         {"data_frame": data_frame[data_frame["lineItem/intervalUsageStart"].str.contains(month)], "date": month}
