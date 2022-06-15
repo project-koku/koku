@@ -389,13 +389,16 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_months_in_date_range(report):
+def get_months_in_date_range(report=None, start=None, end=None):
     """returns the month periods in a given date range from report"""
     dh = DateHelper()
     if report.get("start") and report.get("end"):
         LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
         start_date = report.get("start")
         end_date = report.get("end")
+    elif start and end:
+        start_date = start
+        end_date = end
     else:
         LOG.info("generating start and end dates for manifest")
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
