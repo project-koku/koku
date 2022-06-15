@@ -111,7 +111,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         self.assertIsNotNone(query_output.get("data"))
         self.assertIsNotNone(query_output.get("total"))
         total = query_output.get("total")
-        self.assertEqual(
+        self.assertAlmostEquals(
             total.get("cost", {}).get("total", {}).get("value", 0), round(current_totals.get("cost_total", 1), 13)
         )
 
