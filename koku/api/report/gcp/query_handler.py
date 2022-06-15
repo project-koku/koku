@@ -188,7 +188,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
             skip_columns = ["clusters"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, self.report_annotations)
+            query_data = self.pandas_agg_for_currency(
+                query_group_by, query_data, skip_columns, self.report_annotations
+            )
 
             if self._limit:
                 query_data = self._group_by_ranks(query, query_data)
@@ -262,6 +264,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         query_data = query_data.annotate(**aggregates)
+        # skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
+        # total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, units)
         columns = list(aggregates.keys())
 
         if query_data:

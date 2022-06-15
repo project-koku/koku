@@ -55,7 +55,9 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 annotations_keys.append("account_alias")
             remove_columns = ["count", "usage", "cost_units", "usage_units"]
             skip_columns = ["gcp_project_alias", "clusters"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, annotations_keys, remove_columns)
+            query_data = self.pandas_agg_for_currency(
+                query_group_by, query_data, skip_columns, annotations_keys, remove_columns
+            )
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)

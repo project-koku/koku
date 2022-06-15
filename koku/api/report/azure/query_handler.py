@@ -5,10 +5,7 @@
 """Azure Query Handling for Reports."""
 import copy
 import logging
-from collections import defaultdict
-from decimal import Decimal
 
-import pandas as pd
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
@@ -164,7 +161,9 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
             skip_columns = ["gcp_project_alias", "clusters"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, self.report_annotations)
+            query_data = self.pandas_agg_for_currency(
+                query_group_by, query_data, skip_columns, self.report_annotations
+            )
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -245,51 +244,9 @@ class AzureReportQueryHandler(ReportQueryHandler):
             counts = len(instance_ids)
         query_data = query_data.values(*initial_group_by)
         query_data = query_data.annotate(**aggregates)
-        columns = list(aggregates.keys())
-        if "usage" in columns:
-            columns.remove("usage")
-        if query_data:
-
-            df = pd.DataFrame(query_data)
-            exchange_rates = {
-                "USD": {"USD": Decimal(1.0)},
-                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
-                "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-            }
-            for column in columns:
-                df[column] = df.apply(
-                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
-                )
-                df["cost_units"] = self.currency
-            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
-            aggs = {
-                col: ["max"] if "units" in col else ["sum"]
-                for col in self.report_annotations
-                if col not in skip_columns
-            }
-            grouped_df = df.groupby(["currency"]).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            total_query = grouped_df.to_dict("records")
-            dct = defaultdict(Decimal)
-
-            for element in total_query:
-                for key, value in element.items():
-                    if type(value) != str:
-                        dct[key] += value
-                    else:
-                        dct[key] = value
-            dct.pop("currency")
-            total_query = dct
-        else:
-            total_query = query_data.aggregate(**aggregates)
+        remove_columns = ["usage"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
+        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, remove_columns)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
             if unit_key not in ["usage_units", "count_units"]:

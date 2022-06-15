@@ -615,6 +615,8 @@ class ReportQueryHandler(QueryHandler):
             query_group_by (list): query group by.
             query_data (queryset): queryset of the query data.
             skip_columns (list): columns to skip.
+            annotations: report annotations.
+            remove_columns (list): columns to remove from conversion.
 
         Returns
             (dictionary): A dictionary of query data"""
@@ -644,16 +646,12 @@ class ReportQueryHandler(QueryHandler):
             }
             for column in columns:
                 df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
-                    )
+                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                )
                 df["cost_units"] = self.currency
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
-            aggs = {
-                    col: ["max"] if "units" in col else ["sum"]
-                    for col in annotations
-                    if col not in skip_columns
-            }
+            aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
 
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
@@ -662,6 +660,61 @@ class ReportQueryHandler(QueryHandler):
             grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
         return query_data
+
+    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[]):
+        """Total query for currency with pandas.
+
+        Args:
+            query_data (queryset): queryset of the query data.
+            skip_columns (list): columns to skip.
+            annotations: report annotations.
+            remove_columns (list): columns to remove from conversion.
+
+        Returns
+            (dictionary): A dictionary of query sum data"""
+        if query_data:
+            df = pd.DataFrame(query_data)
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            columns = list(aggregates.keys())
+            for col in remove_columns:
+                if col in columns:
+                    columns.remove(col)
+            exchange_rates = {
+                "USD": {"USD": Decimal(1.0)},
+                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
+                "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
+            }
+            for column in columns:
+                df[column] = df.apply(
+                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                )
+                df["cost_units"] = self.currency
+            if "count" not in df.columns:
+                skip_columns.extend(["count", "count_units"])
+            # if "usage" in df.columns:
+            #     df["usage_units"] = units.get("usage_units")
+            aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+            grouped_df = df.groupby([self._mapper.cost_units_key]).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            total_query_data = grouped_df.to_dict("records")
+            total_query = defaultdict(Decimal)
+
+            for element in total_query_data:
+                for key, value in element.items():
+                    if type(value) != str:
+                        total_query[key] += value
+                    else:
+                        total_query[key] = value
+            total_query.pop(self._mapper.cost_units_key)
+        else:
+            total_query = query_data.aggregate(**aggregates)
+        return total_query
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""

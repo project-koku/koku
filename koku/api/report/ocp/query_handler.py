@@ -151,6 +151,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_group_by (list): query group by.
             query_data (queryset): queryset of the query data.
             skip_columns (list): columns to skip.
+            source_column (string): tells you which source column to gb.
 
         Returns
             (dictionary): A dictionary of query data"""
@@ -201,6 +202,67 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return query_data
 
+    def total_query_pandas_agg(self, query_sum_data, source_column):
+        """Agg the query total using pandas and currency.
+        Group_by[currency] and aggregate with pandas.
+
+        Args:
+            query_group_by (list): query group by.
+            query_data (queryset): queryset of the query data.
+            skip_columns (list): columns to skip.
+            source_column (string): tells you which source column to gb.
+
+        Returns
+            (dictionary): A dictionary of query data"""
+
+        exchange_rates = {
+            "EUR": {
+                "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                "CAD": Decimal(1.25),
+            },
+            "GBP": {
+                "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                "CAD": Decimal(1.34),
+            },
+            "JPY": {
+                "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                "CAD": Decimal(1.34),
+            },
+            "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+            "USD": {"USD": Decimal(1.0)},
+        }
+        source_mapping = self.build_source_to_currency_map()
+        df = pd.DataFrame(query_sum_data)
+        columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
+        for column in columns:
+            df[column] = df.apply(
+                lambda row: row[column] * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
+                axis=1,
+            )
+            df["cost_units"] = self.currency
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        if "count" not in df.columns:
+            skip_columns.extend(["count", "count_units"])
+        aggs = {
+            col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
+        }
+
+        grouped_df = df.groupby([source_column]).agg(aggs, axis=1)
+        columns = grouped_df.columns.droplevel(1)
+        grouped_df.columns = columns
+        grouped_df.reset_index(inplace=True)
+        total_query = grouped_df.to_dict("records")
+        query_sum = defaultdict(Decimal)
+
+        for element in total_query:
+            for key, value in element.items():
+                if type(value) == Decimal:
+                    query_sum[key] += value
+                else:
+                    query_sum[key] = value
+        query_sum.pop(source_column)
+        return query_sum
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -215,22 +277,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
-            exchange_rates = {
-                "EUR": {
-                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                    "CAD": Decimal(1.25),
-                },
-                "GBP": {
-                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                    "CAD": Decimal(1.34),
-                },
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-                "USD": {"USD": Decimal(1.0)},
-            }
 
             query_group_by = ["date"] + group_by_value
             initial_group_by = copy.deepcopy(query_group_by)
@@ -256,42 +302,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
             # Populate the 'total' section of the API response
             if query.exists():
-                aggregates = self._mapper.report_type_map.get("aggregates")
-                source_mapping = self.build_source_to_currency_map()
-                df = pd.DataFrame(query_sum_data)
-                columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
-                for column in columns:
-                    # temp currency version
-                    df[column] = df.apply(
-                        lambda row: row[column]
-                        * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
-                        axis=1,
-                    )
-                    df["cost_units"] = self.currency
-                skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
-                if "count" not in df.columns:
-                    skip_columns.extend(["count", "count_units"])
-                aggs = {
-                    col: ["max"] if "units" in col else ["sum"]
-                    for col in self.report_annotations
-                    if col not in skip_columns
-                }
-
-                grouped_df = df.groupby([source_column]).agg(aggs, axis=1)
-                columns = grouped_df.columns.droplevel(1)
-                grouped_df.columns = columns
-                grouped_df.reset_index(inplace=True)
-                total_query = grouped_df.to_dict("records")
-                dct = defaultdict(Decimal)
-
-                for element in total_query:
-                    for key, value in element.items():
-                        if type(value) == Decimal:
-                            dct[key] += value
-                        else:
-                            dct[key] = value
-                dct.pop(source_column)
-                query_sum = dct
+                query_sum = self.total_query_pandas_agg(query_sum_data, source_column)
 
             query_data, total_capacity = self.get_cluster_capacity(query_data)
             if total_capacity:

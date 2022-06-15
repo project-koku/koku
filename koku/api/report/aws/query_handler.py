@@ -596,7 +596,9 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_sum = self._build_sum(query, annotations)
             remove_columns = ["count", "usage"]
             skip_columns = ["gcp_project_alias", "clusters"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, annotations_keys, remove_columns)
+            query_data = self.pandas_agg_for_currency(
+                query_group_by, query_data, skip_columns, annotations_keys, remove_columns
+            )
 
             if self._limit and query_data and not org_unit_applied:
                 query_data = self._group_by_ranks(query, query_data)
