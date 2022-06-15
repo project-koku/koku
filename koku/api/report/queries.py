@@ -608,25 +608,23 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def currency_function(self, query_group_by, query_data):
-        """Change the name of this function and add description"""
+    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, remove_columns=[]):
+        """Group_by[currency] and aggregate with pandas.
+
+        Args:
+            query_group_by (list): query group by.
+            query_data (queryset): queryset of the query data.
+            skip_columns (list): columns to skip.
+
+        Returns
+            (dictionary): A dictionary of query data"""
         if query_data:
             df = pd.DataFrame(query_data)
-
-            columns = [
-                "infra_total",
-                "infra_raw",
-                "infra_usage",
-                "infra_markup",
-                "sup_raw",
-                "sup_usage",
-                "sup_markup",
-                "sup_total",
-                "cost_total",
-                "cost_raw",
-                "cost_usage",
-                "cost_markup",
-            ]
+            aggregates = self._mapper.report_type_map.get("aggregates")
+            columns = list(aggregates.keys())
+            for col in remove_columns:
+                if col in columns:
+                    columns.remove(col)
 
             exchange_rates = {
                 "EUR": {
@@ -642,26 +640,28 @@ class ReportQueryHandler(QueryHandler):
                     "CAD": Decimal(1.34),
                 },
                 "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+                "USD": {"USD": Decimal(1.0)},
             }
             for column in columns:
-                df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
+                df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                    )
                 df["cost_units"] = self.currency
-            skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
             aggs = {
-                col: ["max"] if "units" in col else ["sum"]
-                for col in self.report_annotations
-                if col not in skip_columns
+                    col: ["max"] if "units" in col else ["sum"]
+                    for col in self.report_annotations
+                    if col not in skip_columns
             }
 
-            grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+            grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
             grouped_df.reset_index(inplace=True)
+            grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
-
-            return grouped_df.to_dict("records")
+        return query_data
 
     def _transform_data(self, groups, group_index, data):
         """Transform dictionary data points to lists."""

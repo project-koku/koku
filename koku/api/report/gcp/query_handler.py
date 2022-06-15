@@ -187,47 +187,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
                     annotations[f"{alias_key}_alias"] = F(alias_value)
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
-
-            if query_data:
-                df = pd.DataFrame(query_data)
-                aggregates = self._mapper.report_type_map.get("aggregates")
-                columns = list(aggregates.keys())
-                exchange_rates = {
-                    "EUR": {
-                        "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                        "CAD": Decimal(1.25),
-                    },
-                    "GBP": {
-                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                        "CAD": Decimal(1.34),
-                    },
-                    "JPY": {
-                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                        "CAD": Decimal(1.34),
-                    },
-                    "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-                    "USD": {"USD": Decimal(1.0)},
-                }
-
-                for column in columns:
-                    df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
-                    )
-                    df["cost_units"] = self.currency
-                skip_columns = ["clusters"]
-                if "count" not in df.columns:
-                    skip_columns.extend(["count", "count_units"])
-                aggs = {
-                    col: ["max"] if "units" in col else ["sum"]
-                    for col in self.report_annotations
-                    if col not in skip_columns
-                }
-
-                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
-                columns = grouped_df.columns.droplevel(1)
-                grouped_df.columns = columns
-                grouped_df.reset_index(inplace=True)
-                query_data = grouped_df.to_dict("records")
+            skip_columns = ["clusters"]
+            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns)
 
             if self._limit:
                 query_data = self._group_by_ranks(query, query_data)
