@@ -126,7 +126,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                         lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
                     )
                     df["cost_units"] = self.currency
-                skip_columns = ["clusters", "usage_units"]
+                skip_columns = ["clusters"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
                 aggs = {
