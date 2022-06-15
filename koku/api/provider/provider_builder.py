@@ -175,5 +175,6 @@ class ProviderBuilder:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
             manager.remove(user=user, from_sources=True, retry_count=retry_count)
+        finally:
             invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         connection.set_schema_to_public()
