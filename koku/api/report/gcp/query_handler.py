@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Query Handling for Reports."""
+from __future__ import annotations
 import copy
 import logging
 from collections import defaultdict
@@ -212,7 +213,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                         lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1
                     )
                     df["cost_units"] = self.currency
-                skip_columns = ["clusters", "usage_units"]
+                skip_columns = ["clusters"]
                 if "count" not in df.columns:
                     skip_columns.extend(["count", "count_units"])
                 aggs = {
@@ -300,6 +301,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         query_data = query_data.annotate(**aggregates)
         columns = list(aggregates.keys())
+
         if query_data:
             df = pd.DataFrame(query_data)
             exchange_rates = {
@@ -321,9 +323,11 @@ class GCPReportQueryHandler(ReportQueryHandler):
             for column in columns:
                 df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
                 df["cost_units"] = self.currency
-            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias", "usage_units"]
+            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
+            if "usage" in df.columns:
+                df["usage_units"] = units.get("usage_units")
             aggs = {
                 col: ["max"] if "units" in col else ["sum"]
                 for col in self.report_annotations
