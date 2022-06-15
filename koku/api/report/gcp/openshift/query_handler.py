@@ -98,7 +98,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             query_sum_data = query_data.annotate(**aggregates)
             skip_columns = ["clusters"]
             remove_columns = ["cost_units", "usage_units"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, remove_columns)
+            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, self.report_annotations, remove_columns)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)

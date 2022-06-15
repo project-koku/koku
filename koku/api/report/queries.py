@@ -608,7 +608,7 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, remove_columns=[]):
+    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, annotations, remove_columns=[]):
         """Group_by[currency] and aggregate with pandas.
 
         Args:
@@ -651,7 +651,7 @@ class ReportQueryHandler(QueryHandler):
                 skip_columns.extend(["count", "count_units"])
             aggs = {
                     col: ["max"] if "units" in col else ["sum"]
-                    for col in self.report_annotations
+                    for col in annotations
                     if col not in skip_columns
             }
 

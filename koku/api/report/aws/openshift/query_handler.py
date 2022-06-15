@@ -52,53 +52,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
-
-            if query_data:
-                df = pd.DataFrame(query_data)
-
-                columns = [
-                    "infra_total",
-                    "infra_raw",
-                    "infra_usage",
-                    "infra_markup",
-                    "sup_raw",
-                    "sup_usage",
-                    "sup_markup",
-                    "sup_total",
-                    "cost_total",
-                    "cost_raw",
-                    "cost_usage",
-                    "cost_markup",
-                ]
-                exchange_rates = {
-                    "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
-                    "EUR": {
-                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                        "CAD": Decimal(1.34),
-                    },
-                    "AUD": {
-                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                        "CAD": Decimal(1.34),
-                    },
-                }
-                for column in columns:
-                    df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
-                        axis=1,
-                    )
-                    df["cost_units"] = self.currency
-                skip_columns = ["gcp_project_alias", "clusters"]
-                if "count" not in df.columns:
-                    skip_columns.extend(["count", "count_units"])
-                aggs = {
-                    col: ["max"] if "units" in col else ["sum"] for col in annotations_keys if col not in skip_columns
-                }
-
-                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
-                columns = grouped_df.columns.droplevel(1)
-                grouped_df.columns = columns
-                grouped_df.reset_index(inplace=True)
-                query_data = grouped_df.to_dict("records")
+                annotations_keys.append("account_alias")
+            remove_columns = ["count", "usage", "cost_units", "usage_units"]
+            skip_columns = ["gcp_project_alias", "clusters"]
+            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, annotations_keys, remove_columns)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
