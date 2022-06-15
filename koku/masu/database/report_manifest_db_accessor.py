@@ -5,9 +5,14 @@
 """Report manifest database accessor for cost usage reports."""
 import logging
 
+from django.db.models import DateField
+from django.db.models import DateTimeField
 from django.db.models import F
+from django.db.models import Func
 from django.db.models import Max
+from django.db.models import Value
 from django.db.models.expressions import Window
+from django.db.models.functions import Cast
 from django.db.models.functions import RowNumber
 from tenant_schemas.utils import schema_context
 
@@ -220,11 +225,17 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Return the max export time for manifests given provider and bill date."""
         filters = {
             "provider_id": provider_uuid,
-            "billing_period_start_datetime__date": bill_date,
-            "gcp_partition_date": partition_date,
             "manifest_completed_datetime__isnull": False,
         }
-        manifests = CostUsageReportManifest.objects.filter(**filters).all()
+
+        manifests = (
+            CostUsageReportManifest.objects.filter(**filters).annotate(
+                partition_date=Cast(
+                    Func(F("assembly_id"), Value(":"), Value(1), function="split_part", output_field=DateField()),
+                    output_field=DateField(),
+                )
+            )
+        ).filter(partition_date=partition_date)
         max_export = manifests.aggregate(Max("export_time"))
         return max_export.get("export_time__max")
 
@@ -234,3 +245,21 @@ class ReportManifestDBAccessor(KokuDBAccess):
         manifests = CostUsageReportManifest.objects.filter(**filters).all()
         last_reports = manifests.aggregate("last_reports")
         return last_reports
+
+    def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
+        """Return a list of GCP manifests for a date range."""
+        manifests = (
+            CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
+            .annotate(
+                partition_date=Cast(
+                    Func(F("assembly_id"), Value(":"), Value(1), function="split_part", output_field=DateField()),
+                    output_field=DateField(),
+                ),
+                previous_export_time=Cast(
+                    Func(F("assembly_id"), Value(":"), Value(2), function="split_part", output_field=DateTimeField()),
+                    output_field=DateTimeField(),
+                ),
+            )
+            .filter(partition_date__gte=start_date, partion_date__lte=end_date)
+        )
+        return manifests
