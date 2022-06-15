@@ -20,6 +20,8 @@ from tenant_schemas.utils import schema_context
 from api.user_settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
+from masu.config import Config
+from masu.external.date_accessor import DateAccessor
 from reporting.user_settings.models import UserSettings
 
 
@@ -387,11 +389,32 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_months_in_date_range(start_date, end_date):
-    """returns the month periods in a given date range"""
+def get_months_in_date_range(report=None, start=None, end=None):
+    """returns the month periods in a given date range from report"""
+    dh = DateHelper()
+    if report:
+        if report.get("start") and report.get("end"):
+            LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
+            start_date = report.get("start")
+            end_date = report.get("end")
+        else:
+            LOG.info("generating start and end dates for manifest")
+            start_date = DateAccessor().today() - datetime.timedelta(days=2)
+            start_date = start_date.strftime("%Y-%m-%d")
+            end_date = DateAccessor().today().strftime("%Y-%m-%d")
+    else:
+        start_date = start
+        end_date = end
+
+    # Grabbing ingest delta for initial ingest/summary
+    summary_month = dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)
+    if start_date < summary_month.strftime("%Y-%m-01"):
+        start_date = summary_month.strftime("%Y-%m-01")
+
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
-    end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else DateHelper().today
-    months = DateHelper().list_month_tuples(start_date, end_date)
+    end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else dh.today
+    months = dh.list_month_tuples(start_date, end_date)
+
     num_months = len(months)
     first_month = months[0]
     months[0] = (start_date, first_month[1])
