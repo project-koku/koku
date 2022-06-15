@@ -24,6 +24,8 @@ DECODE_TYPES = {
 
 
 class TypedJSONEncoder(JSONEncoder):
+    """Encodes values of type Decimal/Date/DateTime in json serializable data for DB"""
+
     def default(self, o):
         if isinstance(o, tuple(TRANSCODE_TYPES)):
             return getattr(self, TRANSCODE_TYPES[type(o)])(o)
@@ -41,6 +43,8 @@ class TypedJSONEncoder(JSONEncoder):
 
 
 class TypedJSONDecoder(JSONDecoder):
+    """Decodes values in the DB into the appropriate type format Decimal/Date/DateTime"""
+
     def __init__(self, *args, **kwargs):
         kwargs["object_hook"] = self.object_hook
         super().__init__(*args, **kwargs)
