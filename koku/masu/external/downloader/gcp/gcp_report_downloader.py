@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import logging
 import os
+from functools import cached_property
 
 import ciso8601
 import pandas as pd
@@ -23,7 +24,6 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor import enable_trino_processing
@@ -142,7 +142,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         self.table_name = ".".join(
             [self.credentials.get("project_id"), self._get_dataset_name(), self.data_source.get("table_id")]
         )
-        self.scan_start, self.scan_end = self._generate_default_scan_range()
+
         try:
             GCPProvider().cost_usage_source_is_reachable(self.credentials, self.data_source)
         except ValidationError as ex:
@@ -151,22 +151,31 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             raise GCPReportDownloaderError(str(ex))
         self.big_query_export_time = None
 
+    @cached_property
+    def scan_start(self):
+        """The start partition date we check for data in BigQuery."""
+        dh = DateHelper()
+        provider = Provider.objects.filter(uuid=self._provider_uuid).first()
+        if provider.setup_complete:
+            scan_start = dh.today - relativedelta(days=10)
+        else:
+            months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
+            scan_start = dh.today - relativedelta(months=months_delta)
+            scan_start = scan_start.replace(day=1).date()
+        return scan_start
+
+    @cached_property
+    def scan_end(self):
+        """The end partition date we check for data in BigQuery."""
+        return DateHelper().today.date()
+
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
         if ":" in self.data_source.get("dataset"):
             return self.data_source.get("dataset").split(":")[1]
         return self.data_source.get("dataset")
 
-    def _generate_default_scan_range(self, range_length=3):
-        """
-        Generates the first date of the date range.
-        """
-        today = DateAccessor().today().date()
-        scan_start = today - datetime.timedelta(days=range_length)
-        scan_end = today + relativedelta(days=1)
-        return scan_start, scan_end
-
-    def retrieve_current_manifests(self, start_date):
+    def retrieve_current_manifests(self):
         """
         Checks for manifests with same bill_date & provider and determines
         scan range. If manifests do exist it will return a mapping of
@@ -182,20 +191,14 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifests = []
         # Check to see if we have any manifests within the date range.
         with ReportManifestDBAccessor() as manifest_accessor:
-            manifests = manifest_accessor.get_manifest_list_for_provider_and_bill_date(self._provider_uuid, start_date)
-        if not manifests:
-            # initial ingest
-            months_delta = Config.INITIAL_INGEST_NUM_MONTHS
-            ingest_month = start_date + relativedelta(months=-months_delta)
-            ingest_month = ingest_month.replace(day=1)
-            self.scan_start = ingest_month
-            self.scan_end = start_date
-        else:
-            # day2day flow
-            for manifest in manifests:
-                last_export_time = manifests_dict.get(manifest.gcp_partition_date)
-                if not last_export_time or manifest.export_time > last_export_time:
-                    manifests_dict[manifest.gcp_partition_date] = manifest.export_time
+            manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                self._provider_uuid, self.scan_start, self.scan_end
+            )
+
+        for manifest in manifests:
+            last_export_time = manifests_dict.get(manifest.partition_date)
+            if not last_export_time or manifest.previous_export_time > last_export_time:
+                manifests_dict[manifest.partition_date] = manifest.previous_export_time
         return manifests_dict
 
     def bigquery_export_to_partition_mapping(self):
@@ -277,7 +280,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
-        current_manifests = self.retrieve_current_manifests(date)
+        current_manifests = self.retrieve_current_manifests()
         bigquery_mapping = self.bigquery_export_to_partition_mapping()
         new_manifest_list = self.create_new_manifests(current_manifests, bigquery_mapping)
         reports_list = []
