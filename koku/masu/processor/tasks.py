@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Asynchronous tasks."""
-import datetime
 import json
 import logging
 import os
@@ -34,7 +33,6 @@ from masu.exceptions import MasuProcessingError
 from masu.exceptions import MasuProviderError
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor import enable_trino_processing
@@ -315,15 +313,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
-                if report.get("start") and report.get("end"):
-                    LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
-                    months = get_months_in_date_range(report.get("start"), report.get("end"))
-                else:
-                    LOG.info("generating start and end dates for manifest")
-                    start_date = DateAccessor().today() - datetime.timedelta(days=2)
-                    start_date = start_date.strftime("%Y-%m-%d")
-                    end_date = DateAccessor().today().strftime("%Y-%m-%d")
-                    months = get_months_in_date_range(start_date, end_date)
+                months = get_months_in_date_range(report)
                 msg = f"report to summarize: {str(report)}"
                 tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
