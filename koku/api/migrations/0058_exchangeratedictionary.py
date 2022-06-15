@@ -2,6 +2,9 @@
 from django.db import migrations
 from django.db import models
 
+from koku.type_json_transcode import TypedJSONDecoder
+from koku.type_json_transcode import TypedJSONEncoder
+
 
 class Migration(migrations.Migration):
 
@@ -14,7 +17,10 @@ class Migration(migrations.Migration):
             name="ExchangeRateDictionary",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("currency_exchange_dictionary", models.JSONField(null=True)),
+                (
+                    "currency_exchange_dictionary",
+                    models.JSONField(null=True, encoder=TypedJSONEncoder, decoder=TypedJSONDecoder),
+                ),
             ],
         ),
     ]

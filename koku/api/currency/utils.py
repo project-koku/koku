@@ -17,13 +17,13 @@ def build_exchange_dictionary(rates, index=0, exchange_rates={}):
     base_currency = base_currency_list[index]
     for code in rates:
         if base_currency == "USD":
-            value = rates[code]
+            value = Decimal(rates[code])
         else:
             if code == "USD":
                 value = Decimal(1 / rates[base_currency])
             else:
                 value = Decimal(rates[code] / rates[base_currency])
-        currency_dict[code] = str(value)
+        currency_dict[code] = value
     exchange_rates[base_currency] = currency_dict
     index += 1
     if index < len(base_currency_list):
