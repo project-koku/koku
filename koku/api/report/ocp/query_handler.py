@@ -144,6 +144,63 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
+    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, source_column):
+        """Group_by[currency] and aggregate with pandas.
+
+        Args:
+            query_group_by (list): query group by.
+            query_data (queryset): queryset of the query data.
+            skip_columns (list): columns to skip.
+
+        Returns
+            (dictionary): A dictionary of query data"""
+
+        if query_data:
+            exchange_rates = {
+                "EUR": {
+                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                    "CAD": Decimal(1.25),
+                },
+                "GBP": {
+                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                    "CAD": Decimal(1.34),
+                },
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
+                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+                "USD": {"USD": Decimal(1.0)},
+            }
+            source_mapping = self.build_source_to_currency_map()
+            df = pd.DataFrame(query_data)
+            columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
+            for column in columns:
+                # temp currency version
+                df[column] = df.apply(
+                    lambda row: row[column]
+                    * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
+                    axis=1,
+                )
+                df["cost_units"] = self.currency
+            skip_columns = ["gcp_project_alias"]
+            if "count" not in df.columns:
+                skip_columns.extend(["count", "count_units"])
+            aggs = {
+                col: ["max"] if "units" in col else ["sum"]
+                for col in self.report_annotations
+                if col not in skip_columns
+            }
+
+            grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            grouped_df = grouped_df.replace({np.nan: None})
+            query_data = grouped_df.to_dict("records")
+
+        return query_data
+
     def execute_query(self):  # noqa: C901
         """Execute query and return provided data.
 
@@ -158,6 +215,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
+            exchange_rates = {
+                "EUR": {
+                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
+                    "CAD": Decimal(1.25),
+                },
+                "GBP": {
+                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
+                    "CAD": Decimal(1.34),
+                },
+                "JPY": {
+                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
+                    "CAD": Decimal(1.34),
+                },
+                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
+                "USD": {"USD": Decimal(1.0)},
+            }
 
             query_group_by = ["date"] + group_by_value
             initial_group_by = copy.deepcopy(query_group_by)
@@ -169,45 +242,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
-            # TEMPORARILY HARD CODE RATES:
-            # simplified them cause im lazy
-            exchange_rates = {
-                "JPY": {"USD": Decimal(1.25)},
-                "EUR": {"USD": Decimal(0.5)},
-                "AUD": {"USD": Decimal(0.25)},
-                "USD": {"USD": Decimal(1.0)},
-            }
-
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             aggregates = self._mapper.report_type_map.get("aggregates")
             query_sum_data = query_data.annotate(**aggregates)
-            if query_data:
-                source_mapping = self.build_source_to_currency_map()
-                df = pd.DataFrame(query_data)
-                columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
-                for column in columns:
-                    # temp currency version
-                    df[column] = df.apply(
-                        lambda row: row[column]
-                        * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
-                        axis=1,
-                    )
-                    df["cost_units"] = self.currency
-                skip_columns = ["gcp_project_alias"]
-                if "count" not in df.columns:
-                    skip_columns.extend(["count", "count_units"])
-                aggs = {
-                    col: ["max"] if "units" in col else ["sum"]
-                    for col in self.report_annotations
-                    if col not in skip_columns
-                }
-
-                grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
-                columns = grouped_df.columns.droplevel(1)
-                grouped_df.columns = columns
-                grouped_df.reset_index(inplace=True)
-                grouped_df = grouped_df.replace({np.nan: None})
-                query_data = grouped_df.to_dict("records")
+            skip_columns = ["gcp_project_alias"]
+            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, source_column)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
