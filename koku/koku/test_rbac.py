@@ -302,6 +302,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": read_access,
             "openshift.project": read_access,
             "ibm.account": read_access,
+            "oci.payer_tenant_id": read_access,
         }
         self.assertEqual(res_access, expected)
         mock_get_operation.assert_called()
@@ -322,6 +323,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": read_access,
             "openshift.project": read_access,
             "ibm.account": read_access,
+            "oci.payer_tenant_id": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -342,6 +344,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": read_access,
             "openshift.project": read_access,
             "ibm.account": read_access,
+            "oci.payer_tenant_id": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -364,6 +367,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": read_access,
             "openshift.project": read_access,
             "ibm.account": read_access,
+            "oci.payer_tenant_id": read_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -386,6 +390,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": no_access,
             "openshift.project": no_access,
             "ibm.account": no_access,
+            "oci.payer_tenant_id": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -406,6 +411,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": no_access,
             "openshift.project": no_access,
             "ibm.account": no_access,
+            "oci.payer_tenant_id": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -430,6 +436,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": no_access,
             "openshift.project": no_access,
             "ibm.account": no_access,
+            "oci.payer_tenant_id": no_access,
         }
         self.assertEqual(res_access, expected)
 
@@ -461,6 +468,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": {"read": []},
             "openshift.project": {"read": []},
             "ibm.account": {"read": []},
+            "oci.payer_tenant_id": {"read": []},
         }
         self.assertEqual(access, expected)
         mock_get.assert_called()
@@ -483,6 +491,7 @@ class RbacServiceTest(TestCase):
             "openshift.node": {"read": []},
             "openshift.project": {"read": []},
             "ibm.account": {"read": ["*"]},
+            "oci.payer_tenant_id": {"read": []},
         }
         self.assertEqual(access, expected)
         mock_get.assert_called()
