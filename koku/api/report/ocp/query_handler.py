@@ -11,6 +11,7 @@ from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
 
+import numpy as np
 import pandas as pd
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
@@ -201,10 +202,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     if col not in skip_columns
                 }
 
-                grouped_df = df.groupby(query_group_by).agg(aggs, axis=1)
+                grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
                 columns = grouped_df.columns.droplevel(1)
                 grouped_df.columns = columns
                 grouped_df.reset_index(inplace=True)
+                grouped_df = grouped_df.replace({np.nan: None})
                 query_data = grouped_df.to_dict("records")
 
             if self._limit and query_data:

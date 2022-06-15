@@ -1611,7 +1611,6 @@ class OCPReportViewTest(IamTestCase):
         self.assertIn("total", meta)
         self.assertIn("filter", meta)
         self.assertIn("count", meta)
-
         for entry in data:
             projects = entry.get("projects", [])
             if limit + offset > count:

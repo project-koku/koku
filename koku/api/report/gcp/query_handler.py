@@ -4,6 +4,7 @@
 #
 """GCP Query Handling for Reports."""
 from __future__ import annotations
+
 import copy
 import logging
 from collections import defaultdict

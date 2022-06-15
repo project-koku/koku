@@ -839,6 +839,7 @@ class ReportQueryHandler(QueryHandler):
             if rank_value not in rankings:
                 rankings.append(rank_value)
                 distinct_ranks.append(rank)
+
         return self._ranked_list(data, distinct_ranks)
 
     def _ranked_list(self, data_list, ranks):
