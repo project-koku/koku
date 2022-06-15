@@ -118,6 +118,7 @@ objects:
     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
 
 parameters:
+
 - name: ENV_NAME
   required: true
   value: koku-env
@@ -400,3 +401,6 @@ parameters:
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
   value: "False"
+- name: RBAC_CACHE_TIMEOUT
+  displayName: RBAC_CACHE_TIMEOUT
+  value: "300"
