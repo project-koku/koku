@@ -5,10 +5,7 @@
 """OCP Query Handling for Reports."""
 import copy
 import logging
-from collections import defaultdict
-from decimal import Decimal
 
-import pandas as pd
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
@@ -66,57 +63,10 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     query_order_by[-1] = "rank"
 
             if query.exists():
-                aggregates = self._mapper.report_type_map.get("aggregates")
-                columns = list(aggregates.keys())
-                if "usage" in columns:
-                    columns.remove("usage")
-                new_annotations = list(self.report_annotations.keys())
-                if "usage_units" in columns:
-                    columns.remove("usage_units")
-                if "cost_units" in columns:
-                    columns.remove("cost_units")
-                df = pd.DataFrame(query_sum_data)
-                exchange_rates = {
-                    "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
-                    "EUR": {
-                        "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                        "CAD": Decimal(1.34),
-                    },
-                    "AUD": {
-                        "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                        "CAD": Decimal(1.34),
-                    },
-                }
-                for column in columns:
-                    df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency],
-                        axis=1,
-                    )
-                    df["cost_units"] = self.currency
+                remove_columns = ["usage", "usage_units", "cost_units"]
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
-                if "count" not in df.columns:
-                    skip_columns.extend(["count", "count_units"])
-                aggs = {
-                    col: ["max"] if "units" in col else ["sum"] for col in new_annotations if col not in skip_columns
-                }
-
-                grouped_df = df.groupby(["currency_code"]).agg(aggs, axis=1)
-                columns = grouped_df.columns.droplevel(1)
-                grouped_df.columns = columns
-                grouped_df.reset_index(inplace=True)
-                total_query = grouped_df.to_dict("records")
-                dct = defaultdict(Decimal)
-
-                for element in total_query:
-                    for key, value in element.items():
-                        if type(value) != str:
-                            dct[key] += value
-                        else:
-                            dct[key] = value
-                dct.pop("currency_code")
-                query_sum = dct
-                # metric_sum = query.aggregate(**aggregates)
-                # query_sum = {key: metric_sum.get(key) for key in aggregates}
+                new_annotations = list(self.report_annotations.keys())
+                query_sum = self.pandas_agg_for_total(query_sum_data, skip_columns, new_annotations, remove_columns)
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)

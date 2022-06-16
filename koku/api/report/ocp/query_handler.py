@@ -193,30 +193,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Group_by[currency] and aggregate with pandas.
 
         Args:
-            query_group_by (list): query group by.
-            query_data (queryset): queryset of the query data.
-            skip_columns (list): columns to skip.
+            query_sum_data (queryset): queryset of the query data.
             source_column (string): tells you which source column to gb.
 
         Returns
             (dictionary): A dictionary of query data"""
 
-        exchange_rates = {
-            "EUR": {
-                "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                "CAD": Decimal(1.25),
-            },
-            "GBP": {
-                "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                "CAD": Decimal(1.34),
-            },
-            "JPY": {
-                "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                "CAD": Decimal(1.34),
-            },
-            "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-            "USD": {"USD": Decimal(1.0)},
-        }
+        exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
         source_mapping = self.build_source_to_currency_map()
         df = pd.DataFrame(query_sum_data)
         columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()

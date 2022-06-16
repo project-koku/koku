@@ -647,7 +647,7 @@ class ReportQueryHandler(QueryHandler):
             query_data = grouped_df.to_dict("records")
         return query_data
 
-    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[]):
+    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):
         """Total query for currency with pandas.
 
         Args:
@@ -655,6 +655,7 @@ class ReportQueryHandler(QueryHandler):
             skip_columns (list): columns to skip.
             annotations: report annotations.
             remove_columns (list): columns to remove from conversion.
+            units (dictionary): units for usage.
 
         Returns
             (dictionary): A dictionary of query sum data"""
@@ -665,15 +666,7 @@ class ReportQueryHandler(QueryHandler):
             for col in remove_columns:
                 if col in columns:
                     columns.remove(col)
-            exchange_rates = {
-                "USD": {"USD": Decimal(1.0)},
-                "EUR": {"USD": Decimal(1.0718113612004287471535235454211942851543426513671875), "CAD": Decimal(1.25)},
-                "GBP": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-            }
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
@@ -681,8 +674,8 @@ class ReportQueryHandler(QueryHandler):
                 df["cost_units"] = self.currency
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
-            # if "usage" in df.columns:
-            #     df["usage_units"] = units.get("usage_units")
+            if units and "usage" in df.columns:
+                df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
             grouped_df = df.groupby([self._mapper.cost_units_key]).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
