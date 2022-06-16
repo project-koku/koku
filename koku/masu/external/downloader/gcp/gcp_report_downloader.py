@@ -157,7 +157,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dh = DateHelper()
         provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if provider.setup_complete:
-            scan_start = dh.today - relativedelta(days=10)
+            scan_start = dh.today.date() - relativedelta(days=10)
         else:
             months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
             scan_start = dh.today - relativedelta(months=months_delta)
@@ -244,17 +244,17 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # if the manifest export time does not match bigquery we have new data
                 # for that partion time and new manifest should be created.
                 manifest_kwargs = {}
-                bill_date = bigquery_pd.replace(day=1)
-                invoice_month = bill_date.strftime("%Y%m")
+                bill_date = bigquery_pd.replace(day=1).strftime("%Y-%m-%d")
+                invoice_month = bigquery_pd.replace(day=1).strftime("%Y%m")
                 file_name = f"{invoice_month}_{bigquery_pd}?{bigquery_et}.csv"
                 if manifest_export_time:
-                    manifest_kwargs["last_reports"] = {"last_export": manifest_export_time}
+                    manifest_kwargs["last_reports"] = {"last_export": str(manifest_export_time)}
                 manifest_metadata = {
                     "assembly_id": f"{bigquery_pd}:{bigquery_et}",
                     "etag": hashlib.md5(str(f"{bigquery_pd}:{bigquery_et}").encode()).hexdigest(),
-                    "new_et": bigquery_et,
-                    "previous_et": manifest_export_time,
-                    "partition_date": bigquery_pd,
+                    "new_et": str(bigquery_et),
+                    "previous_et": str(manifest_export_time),
+                    "partition_date": str(bigquery_pd),
                     "bill_date": bill_date,
                     "files": [file_name],
                     "kwargs": manifest_kwargs,
