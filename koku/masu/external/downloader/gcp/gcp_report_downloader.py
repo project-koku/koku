@@ -65,6 +65,9 @@ def create_daily_archives(
         for invoice_month in data_frame["invoice.month"].unique():
             invoice_filter = data_frame["invoice.month"] == invoice_month
             invoice_partition_data = data_frame[invoice_filter]
+            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
+            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
+            date_range = {"start": min(days), "end": max(days)}
             partition_date = invoice_partition_data.partition_date.unique()[0]
             start_of_invoice = dh.invoice_month_start(invoice_month)
             s3_csv_path = get_path_prefix(
@@ -77,7 +80,7 @@ def create_daily_archives(
                 tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
             )
             daily_file_names.append(day_filepath)
-        return daily_file_names
+        return daily_file_names, date_range
 
 
 class GCPReportDownloaderError(Exception):
@@ -244,17 +247,17 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # if the manifest export time does not match bigquery we have new data
                 # for that partion time and new manifest should be created.
                 manifest_kwargs = {}
-                bill_date = bigquery_pd.replace(day=1).strftime("%Y-%m-%d")
-                invoice_month = bigquery_pd.replace(day=1).strftime("%Y%m")
+                bill_date = bigquery_pd.replace(day=1)
+                invoice_month = bill_date.strftime("%Y%m")
                 file_name = f"{invoice_month}_{bigquery_pd}?{bigquery_et}.csv"
                 if manifest_export_time:
-                    manifest_kwargs["last_reports"] = {"last_export": str(manifest_export_time)}
+                    manifest_kwargs["last_reports"] = {"last_export": manifest_export_time}
                 manifest_metadata = {
                     "assembly_id": f"{bigquery_pd}:{bigquery_et}",
                     "etag": hashlib.md5(str(f"{bigquery_pd}:{bigquery_et}").encode()).hexdigest(),
-                    "new_et": str(bigquery_et),
-                    "previous_et": str(manifest_export_time),
-                    "partition_date": str(bigquery_pd),
+                    "new_et": bigquery_et,
+                    "previous_et": manifest_export_time,
+                    "partition_date": bigquery_pd,
                     "bill_date": bill_date,
                     "files": [file_name],
                     "kwargs": manifest_kwargs,
@@ -328,7 +331,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             else col
             for col in columns_list
         ]
-        columns_list.append("DATE(_PARTITIONTIME) as partition_time")
+        columns_list.append("DATE(_PARTITIONTIME) as partition_date")
         return ",".join(columns_list)
 
     def download_file(self, key, stored_etag=None, manifest_id=None, start_date=None):
@@ -420,7 +423,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.tracing_id, msg, self.context))
         dh = DateHelper()
 
-        file_names = create_daily_archives(
+        file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -432,7 +435,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, filename, dh.today, file_names, {}
+        return full_local_path, filename, dh.today, file_names, date_range
 
     def _get_local_directory_path(self):
         """
