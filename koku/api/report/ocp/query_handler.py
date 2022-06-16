@@ -123,10 +123,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         data = []
 
         with tenant_context(self.tenant):
+
             query = self.query_table.objects.filter(self.query_filter)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
-
+            res = []
+            [res.append(x) for x in group_by_value if x not in res]
+            group_by_value = res
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering

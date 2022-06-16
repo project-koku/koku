@@ -452,7 +452,6 @@ class ReportQueryHandler(QueryHandler):
 
         out_data = OrderedDict()
         curr_group = group_by_list[group_index]
-
         for key, group in groupby(data, lambda by: by.get(curr_group)):
             grouped = list(group)
             grouped = ReportQueryHandler._group_data_by_list(group_by_list, (group_index + 1), grouped)
