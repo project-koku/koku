@@ -248,3 +248,33 @@ class TestHCSTasks(HCSTestCase):
             collect_hcs_report_finalization(schema_name=schema_name)
 
             self.assertIn(f"schema_name provided: {schema_name} is not HCS enabled", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_hcs_report_finalization_provider_type_and_provider_uuid(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad schema_name"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_type = "AWS"
+        p_uuid = "11111111-0000-1111-0000-111111111111"
+        mock_ehp.return_value = True
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type, provider_uuid=p_uuid)
+
+            self.assertIn("'provider_type' and 'provider_uuid' are not supported in the same request", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_hcs_report_finalization_schema_name_and_provider_uuid(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad schema_name"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        schema_name = "acct10001"
+        p_uuid = "11111111-0000-1111-0000-111111111111"
+        mock_ehp.return_value = True
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(schema_name=schema_name, provider_uuid=p_uuid)
+
+            self.assertIn("'schema_name' and 'provider_uuid' are not supported in the same request", _logs.output[0])

@@ -137,12 +137,16 @@ def collect_hcs_report_data(
 def collect_hcs_report_finalization(  # noqa: C901
     month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
-    if schema_name is not None and not enable_hcs_processing(schema_name):
-        LOG.info(log_json(tracing_id, f"schema_name provided: {schema_name} is not HCS enabled"))
-        return
-
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
+
+    if provider_type is not None and provider_uuid is not None:
+        LOG.info(log_json(tracing_id, "'provider_type' and 'provider_uuid' are not supported in the same request"))
+        return
+
+    if schema_name is not None and provider_uuid is not None:
+        LOG.info(log_json(tracing_id, "'schema_name' and 'provider_uuid' are not supported in the same request"))
+        return
 
     finalization_date = DateAccessor().today()
     finalization_date = finalization_date.replace(day=1)
@@ -168,8 +172,13 @@ def collect_hcs_report_finalization(  # noqa: C901
     end_date = end_date.strftime("%Y-%m-%d")
     start_date = start_date.strftime("%Y-%m-%d")
 
+    if schema_name is not None and not enable_hcs_processing(schema_name):
+        LOG.info(log_json(tracing_id, f"schema_name provided: {schema_name} is not HCS enabled"))
+        return
+
     for excepted_provider in excepted_providers:
         LOG.debug(log_json(tracing_id, f"excepted_provider: {excepted_provider}"))
+
         if provider_uuid is not None:
             providers = Provider.objects.filter(uuid=provider_uuid).all()
             if not providers:

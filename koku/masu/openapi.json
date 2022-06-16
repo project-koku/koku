@@ -327,7 +327,7 @@
           {
             "name": "provider_uuid",
             "in": "query",
-            "description": "The provider UUID",
+            "description": "The provider UUID (not supported with provider_type or schema_name)",
             "required": false,
             "schema": {
               "type": "string",
@@ -338,7 +338,7 @@
           {
             "name": "provider_type",
             "in": "query",
-            "description": "The provider type",
+            "description": "The provider type (not supported with provider_uuid)",
             "required": false,
             "schema": {
               "type": "string",
@@ -346,9 +346,9 @@
             }
           },
           {
-            "name": "schema",
+            "name": "schema_name",
             "in": "query",
-            "description": "The database schema",
+            "description": "The database schema (not supported with provider_uuid)",
             "required": false,
             "schema": {
               "type": "string",
