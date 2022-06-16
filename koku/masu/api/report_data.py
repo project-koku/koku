@@ -64,7 +64,7 @@ def report_data(request):
             errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        months = get_months_in_date_range(start_date, end_date)
+        months = get_months_in_date_range(start=start_date, end=end_date)
 
         if not all_providers:
             if schema_name is None:
