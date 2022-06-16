@@ -41,6 +41,7 @@ from api.views import GCPServiceView
 from api.views import GCPStorageView
 from api.views import GCPTagView
 from api.views import get_currency
+from api.views import get_exchange_rates
 from api.views import metrics
 from api.views import OCICostForecastView
 from api.views import OCICostView
@@ -103,6 +104,7 @@ ROUTER.register(r"sources", SourcesViewSet, basename="sources")
 urlpatterns = [
     path("cloud-accounts/", cloud_accounts, name="cloud-accounts"),
     path("currency/", get_currency, name="currency"),
+    path("exchange-rates/", get_exchange_rates, name="exchange-rates"),
     path("cost-type/", UserCostTypeSettings.as_view(), name="cost-type"),
     path("account-settings/", AccountSettings.as_view(), name="account-settings"),
     path("account-settings/<str:setting>/", AccountSettings.as_view(), name="get-account-setting"),
