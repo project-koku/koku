@@ -134,11 +134,9 @@ class ProviderBuilder:
         try:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
-        except ValidationError as error:
+        finally:
+            invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
             connection.set_schema_to_public()
-            raise error
-        connection.set_schema_to_public()
-        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         return instance
 
     def update_provider_from_source(self, source):
