@@ -624,7 +624,12 @@ class ReportQueryHandler(QueryHandler):
         if query_data:
             df = pd.DataFrame(query_data)
             aggregates = self._mapper.report_type_map.get("aggregates")
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            try:
+                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            except AttributeError as err:
+                msg = f"Exchange rates dictionary is not populated resulting in {err}."
+                LOG.warning(msg)
+                exchange_rates = {}
             columns = list(aggregates.keys())
             for col in remove_columns:
                 if col in columns:
@@ -632,7 +637,9 @@ class ReportQueryHandler(QueryHandler):
 
             for column in columns:
                 df[column] = df.apply(
-                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                    lambda row: row[column]
+                    * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    axis=1,
                 )
                 df["cost_units"] = self.currency
             if "count" not in df.columns:
@@ -647,7 +654,7 @@ class ReportQueryHandler(QueryHandler):
             query_data = grouped_df.to_dict("records")
         return query_data
 
-    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):
+    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):  # noqa: C901
         """Total query for currency with pandas.
 
         Args:
@@ -666,10 +673,17 @@ class ReportQueryHandler(QueryHandler):
             for col in remove_columns:
                 if col in columns:
                     columns.remove(col)
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            try:
+                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            except AttributeError as err:
+                msg = f"Exchange rates dictionary is not populated resulting in {err}."
+                LOG.warning(msg)
+                exchange_rates = {}
             for column in columns:
                 df[column] = df.apply(
-                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
+                    lambda row: row[column]
+                    * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    axis=1,
                 )
                 df["cost_units"] = self.currency
             if "count" not in df.columns:

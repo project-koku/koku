@@ -158,7 +158,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (dictionary): A dictionary of query data"""
 
         if query_data:
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            try:
+                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            except AttributeError as err:
+                msg = f"Exchange rates dictionary is not populated resulting in {err}."
+                LOG.warning(msg)
+                exchange_rates = {}
             source_mapping = self.build_source_to_currency_map()
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
@@ -166,7 +171,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 # temp currency version
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
+                    * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
+                        self.currency, Decimal(1.0)
+                    ),
                     axis=1,
                 )
                 df["cost_units"] = self.currency
@@ -199,13 +206,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Returns
             (dictionary): A dictionary of query data"""
 
-        exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+        try:
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+        except AttributeError as err:
+            msg = f"Exchange rates dictionary is not populated resulting in {err}."
+            LOG.warning(msg)
+            exchange_rates = {}
         source_mapping = self.build_source_to_currency_map()
         df = pd.DataFrame(query_sum_data)
         columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
         for column in columns:
             df[column] = df.apply(
-                lambda row: row[column] * exchange_rates[source_mapping.get(row[source_column], "USD")][self.currency],
+                lambda row: row[column]
+                * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
+                    self.currency, Decimal(1.0)
+                ),
                 axis=1,
             )
             df["cost_units"] = self.currency
