@@ -6,11 +6,8 @@
 import copy
 import logging
 import operator
-from collections import defaultdict
-from decimal import Decimal
 from functools import reduce
 
-import pandas as pd
 from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
 from django.db.models import Q
@@ -19,7 +16,6 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
@@ -695,43 +691,13 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             counts = len(resource_ids)
 
         query_data = query_data.annotate(**aggregates)
-        columns = list(aggregates.keys())
-        if "usage" in columns:
-            columns.remove("usage")
+        remove_columns = ["usage", "count"]
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
         new_annotations = list(self.report_annotations.keys())
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")
-        if query_data:
-            df = pd.DataFrame(query_data)
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+        total_query = self.pandas_agg_for_total(query_data, skip_columns, new_annotations, remove_columns)
 
-            for column in columns:
-                df[column] = df.apply(
-                    lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1
-                )
-                df["cost_units"] = self.currency
-            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
-            aggs = {col: ["max"] if "units" in col else ["sum"] for col in new_annotations if col not in skip_columns}
-
-            grouped_df = df.groupby(["currency_code"]).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            total_query = grouped_df.to_dict("records")
-            dct = defaultdict(Decimal)
-
-            for element in total_query:
-                for key, value in element.items():
-                    if type(value) != str:
-                        dct[key] += value
-                    else:
-                        dct[key] = value
-            dct.pop("currency_code")
-            total_query = dct
-        else:
-            total_query = query.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
             if unit_key not in ["usage_units", "count_units"]:

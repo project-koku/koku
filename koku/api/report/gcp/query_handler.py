@@ -7,17 +7,13 @@ from __future__ import annotations
 
 import copy
 import logging
-from collections import defaultdict
-from decimal import Decimal
 
-import pandas as pd
 from django.db.models import F
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import check_if_valid_date_str
@@ -265,44 +261,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         query_data = query_data.annotate(**aggregates)
-        # skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
-        # total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, units)
-        columns = list(aggregates.keys())
+        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
+        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, units=units)
 
-        if query_data:
-            df = pd.DataFrame(query_data)
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-
-            for column in columns:
-                df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
-                df["cost_units"] = self.currency
-            skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
-            if "usage" in df.columns:
-                df["usage_units"] = units.get("usage_units")
-            aggs = {
-                col: ["max"] if "units" in col else ["sum"]
-                for col in self.report_annotations
-                if col not in skip_columns
-            }
-            grouped_df = df.groupby(["currency"]).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            total_query = grouped_df.to_dict("records")
-            dct = defaultdict(Decimal)
-
-            for element in total_query:
-                for key, value in element.items():
-                    if type(value) != str:
-                        dct[key] += value
-                    else:
-                        dct[key] = value
-            dct.pop("currency")
-            total_query = dct
-        else:
-            total_query = query_data.aggregate(**aggregates)
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
             if unit_key not in ["usage_units", "count_units"]:
