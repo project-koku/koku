@@ -19,6 +19,7 @@ from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_handler import TruncDayString
 from api.utils import DateHelper
@@ -32,6 +33,8 @@ URLS = [
 
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
+RATES = {"USD": "1"}
+
 
 class OCPAWSReportViewTest(IamTestCase):
     """Tests the report view."""
@@ -42,6 +45,7 @@ class OCPAWSReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        exchange_dictionary(RATES)
 
     def test_execute_query_ocp_aws_storage(self):
         """Test that OCP on AWS Storage endpoint works."""

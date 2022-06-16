@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAzureCostLineItemDailySummaryP
@@ -25,6 +26,8 @@ URLS = [
 
 GROUP_BYS = ["subscription_guid", "resource_location", "instance_type", "service_name", "project", "cluster", "node"]
 
+RATES = {"USD": "1"}
+
 
 class OCPAzureReportViewTest(IamTestCase):
     """OCP on Azure report view test cases."""
@@ -35,6 +38,7 @@ class OCPAzureReportViewTest(IamTestCase):
         self.client = APIClient()
         self.factory = RequestFactory()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""

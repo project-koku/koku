@@ -19,6 +19,7 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.report.azure.query_handler import AzureReportQueryHandler
@@ -43,6 +44,8 @@ from reporting.models import AzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
+RATES = {"USD": "1"}
+
 
 class AzureReportQueryHandlerTest(IamTestCase):
     """Azure report view test cases."""
@@ -51,6 +54,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
         self.thirty_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 29)}
