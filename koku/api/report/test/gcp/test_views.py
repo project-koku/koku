@@ -14,11 +14,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.gcp.view import GCPCostView
 
 FAKE = Faker()
+
+RATES = {"USD": "1"}
 
 
 class GCPReportViewTest(IamTestCase):
@@ -27,6 +30,7 @@ class GCPReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+        exchange_dictionary(RATES)
 
         self.report = {
             "group_by": {"account": ["*"]},

@@ -27,6 +27,7 @@ from tenant_schemas.middleware import BaseTenantMiddleware
 
 from api.common import RH_IDENTITY_HEADER
 from api.common.pagination import EmptyResultsSetPagination
+from api.currency.utils import exchange_dictionary
 from api.iam.models import Customer
 from api.iam.models import Tenant
 from api.iam.models import User
@@ -41,6 +42,8 @@ from koku.middleware import RequestTimingMiddleware
 from koku.test_rbac import mocked_requests_get_500_text
 
 LOG = logging.getLogger(__name__)
+
+RATES = {"USD": "1"}
 
 
 class KokuTenantMiddlewareTest(IamTestCase):
@@ -507,6 +510,7 @@ class AccountEnhancedMiddlewareTest(PrometheusTestCaseMixin, IamTestCase):
     )
     def test_label_metric(self):
         """Test that the metric comes back with the account label."""
+        exchange_dictionary(RATES)
         url = reverse("reports-openshift-costs")
         client = APIClient()
         client.get(url, **self.headers)

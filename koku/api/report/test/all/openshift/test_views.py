@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 from reporting.models import OCPAWSCostLineItemDailySummaryP
@@ -23,6 +24,8 @@ URLS = [
 
 GROUP_BYS = ["project", "cluster", "node", "account", "region", "instance_type", "service", "product_family"]
 
+RATES = {"USD": "1"}
+
 
 class OCPAllReportViewTest(IamTestCase):
     """Tests the report view."""
@@ -33,6 +36,7 @@ class OCPAllReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        exchange_dictionary(RATES)
 
     def setUp(self):
         """Set up the customer view tests."""

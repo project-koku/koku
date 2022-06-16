@@ -25,6 +25,7 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.aws.view import AWSCostView
@@ -53,6 +54,8 @@ from reporting.provider.aws.models import AWSOrganizationalUnit
 
 LOG = logging.getLogger(__name__)
 
+RATES = {"USD": "1"}
+
 
 def get_account_ailases():
     """Get the account aliases and return them in a list."""
@@ -75,6 +78,8 @@ class AWSReportQueryTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
+        exchange_dictionary(RATES)
+
         with tenant_context(self.tenant):
             self.accounts = AWSCostEntryLineItemDailySummary.objects.values("usage_account_id").distinct()
             self.accounts = [entry.get("usage_account_id") for entry in self.accounts]
@@ -2702,6 +2707,7 @@ class AWSReportQueryLogicalAndTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
+        exchange_dictionary(RATES)
 
     def test_prefixed_logical_and(self):
         """Test prefixed logical AND."""
@@ -2748,6 +2754,7 @@ class AWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         self.dh = DateHelper()
         super().setUp()
+        exchange_dictionary(RATES)
 
     def test_group_by_star_does_not_override_filters(self):
         """Test Group By star does not override filters, with example below.

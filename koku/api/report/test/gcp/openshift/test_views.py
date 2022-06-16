@@ -10,6 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.utils import DateHelper
 
@@ -24,6 +25,8 @@ URLS = [
 
 GROUP_BYS = ["account", "region", "service", "project", "cluster", "node", "gcp_project"]
 
+RATES = {"USD": "1"}
+
 
 class OCPGCPReportViewTest(IamTestCase):
     """OCP on GCP report view test cases."""
@@ -34,6 +37,7 @@ class OCPGCPReportViewTest(IamTestCase):
         self.client = APIClient()
         self.factory = RequestFactory()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
 
     def test_execute_query_w_delta_total(self):
         """Test that delta=total returns deltas."""

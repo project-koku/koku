@@ -27,6 +27,7 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.query_handler import TruncDayString
@@ -38,6 +39,8 @@ from api.utils import DateHelper
 from koku.database import KeyDecimalTransform
 from reporting.models import OCPUsageLineItemDailySummary
 
+RATES = {"USD": "1"}
+
 
 class OCPReportViewTest(IamTestCase):
     """Tests the report view."""
@@ -48,6 +51,7 @@ class OCPReportViewTest(IamTestCase):
         super().setUpClass()
         cls.dh = DateHelper()
         cls.ten_days_ago = cls.dh.n_days_ago(cls.dh._now, 9)
+        exchange_dictionary(RATES)
 
     def setUp(self):
         """Set up the customer view tests."""

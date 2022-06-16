@@ -17,6 +17,7 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.report.gcp.query_handler import GCPReportQueryHandler
@@ -35,6 +36,8 @@ from reporting.models import GCPTagsSummary
 
 LOG = logging.getLogger(__name__)
 
+RATES = {"USD": "1"}
+
 
 class GCPReportQueryHandlerTest(IamTestCase):
     """Tests for the GCP report query handler."""
@@ -43,6 +46,7 @@ class GCPReportQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
         # The monthly filters for gcp only use the invoice month
         # check out this pr for more information:
         # https://github.com/project-koku/koku/pull/3098

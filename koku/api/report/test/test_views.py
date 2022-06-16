@@ -11,11 +11,14 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from api.common.pagination import ReportPagination
 from api.common.pagination import ReportRankedPagination
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _fill_in_missing_units
 from api.report.view import _find_unit
 from api.report.view import get_paginator
+
+RATES = {"USD": "1"}
 
 
 class ReportViewTest(IamTestCase):
@@ -60,6 +63,7 @@ class ReportViewTest(IamTestCase):
         super().setUp()
         self.client = APIClient()
         self.factory = RequestFactory()
+        exchange_dictionary(RATES)
 
     def test_endpoint_view(self):
         """Test endpoint runs with a customer owner."""

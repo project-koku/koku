@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_csv.renderers import CSVRenderer
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions
 from api.report.view import _convert_units
@@ -18,6 +19,7 @@ from api.utils import DateHelper
 from api.utils import UnitConverter
 
 LOG = logging.getLogger(__name__)
+RATES = {"USD": "1"}
 
 
 def _calculate_accounts_and_subous(data):
@@ -42,6 +44,7 @@ class AWSReportViewTest(IamTestCase):
         self.client = APIClient()
         self.dh = DateHelper()
         self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        exchange_dictionary(RATES)
 
         self.report = {
             "group_by": {"account": ["*"]},

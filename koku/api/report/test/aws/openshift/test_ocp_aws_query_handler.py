@@ -10,6 +10,7 @@ from datetime import timedelta
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.openshift.view import OCPAWSCostView
@@ -31,6 +32,8 @@ from reporting.models import OCPAWSStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
+RATES = {"USD": "1"}
+
 
 class OCPAWSQueryHandlerTestNoData(IamTestCase):
     """Tests for the OCP report query handler with no data."""
@@ -39,6 +42,7 @@ class OCPAWSQueryHandlerTestNoData(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}
@@ -78,6 +82,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Set up the customer view tests."""
         super().setUp()
         self.dh = DateHelper()
+        exchange_dictionary(RATES)
 
         self.this_month_filter = {"usage_start__gte": self.dh.this_month_start}
         self.ten_day_filter = {"usage_start__gte": self.dh.n_days_ago(self.dh.today, 9)}

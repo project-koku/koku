@@ -14,6 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.test import APIClient
 
+from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.models import User
 from api.report.azure.view import AzureCostView
@@ -22,6 +23,8 @@ from api.utils import UnitConverter
 
 FAKE = Faker()
 
+RATES = {"USD": "1"}
+
 
 class AzureReportViewTest(IamTestCase):
     """Azure report view test cases."""
@@ -29,6 +32,7 @@ class AzureReportViewTest(IamTestCase):
     def setUp(self):
         """Set up the customer view tests."""
         super().setUp()
+        exchange_dictionary(RATES)
 
         self.report = {
             "group_by": {"subscription_guid": ["*"]},
