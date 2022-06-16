@@ -16,6 +16,7 @@ import pandas as pd
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import check_if_valid_date_str
@@ -157,22 +158,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (dictionary): A dictionary of query data"""
 
         if query_data:
-            exchange_rates = {
-                "EUR": {
-                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                    "CAD": Decimal(1.25),
-                },
-                "GBP": {
-                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                    "CAD": Decimal(1.34),
-                },
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-                "USD": {"USD": Decimal(1.0)},
-            }
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
             source_mapping = self.build_source_to_currency_map()
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()

@@ -30,6 +30,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -623,27 +624,12 @@ class ReportQueryHandler(QueryHandler):
         if query_data:
             df = pd.DataFrame(query_data)
             aggregates = self._mapper.report_type_map.get("aggregates")
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
             columns = list(aggregates.keys())
             for col in remove_columns:
                 if col in columns:
                     columns.remove(col)
 
-            exchange_rates = {
-                "EUR": {
-                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                    "CAD": Decimal(1.25),
-                },
-                "GBP": {
-                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                    "CAD": Decimal(1.34),
-                },
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-                "USD": {"USD": Decimal(1.0)},
-            }
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1

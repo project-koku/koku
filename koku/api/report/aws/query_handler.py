@@ -19,6 +19,7 @@ from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.aws.provider_map import AWSProviderMap
 from api.report.aws.provider_map import CSV_FIELD_MAP
@@ -702,14 +703,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             new_annotations.remove("usage_units")
         if query_data:
             df = pd.DataFrame(query_data)
-            exchange_rates = {
-                "USD": {"USD": Decimal(1), "CAD": Decimal(1.25)},
-                "EUR": {"USD": Decimal(1.25470514429109147869212392834015190601348876953125), "CAD": Decimal(1.34)},
-                "AUD": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-            }
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column] * exchange_rates[row[self._mapper.cost_units_key]][self.currency], axis=1

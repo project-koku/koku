@@ -17,6 +17,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.gcp.provider_map import GCPProviderMap
 from api.report.queries import check_if_valid_date_str
@@ -270,22 +271,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         if query_data:
             df = pd.DataFrame(query_data)
-            exchange_rates = {
-                "EUR": {
-                    "USD": Decimal(1.0718113612004287471535235454211942851543426513671875),
-                    "CAD": Decimal(1.25),
-                },
-                "GBP": {
-                    "USD": Decimal(1.25470514429109147869212392834015190601348876953125),
-                    "CAD": Decimal(1.34),
-                },
-                "JPY": {
-                    "USD": Decimal(0.007456565505927968857957655046675427001900970935821533203125),
-                    "CAD": Decimal(1.34),
-                },
-                "AUD": {"USD": Decimal(0.7194244604), "CAD": Decimal(1.34)},
-                "USD": {"USD": Decimal(1.0)},
-            }
+            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+
             for column in columns:
                 df[column] = df.apply(lambda row: row[column] * exchange_rates[row["currency"]][self.currency], axis=1)
                 df["cost_units"] = self.currency
