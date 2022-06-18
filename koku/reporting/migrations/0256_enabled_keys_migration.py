@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
 alter table reporting_azureenabledtagkeys
-        add column enabled boolean not null default true using true;
+        add column enabled boolean not null default true;
 create index azure_enabled_covering_ix
     on reporting_azureenabledtagkeys (key, enabled);
             """,
@@ -35,7 +35,7 @@ alter table reporting_azureenabledtagkeys
         migrations.RunSQL(
             sql="""
 alter table reporting_gcpenabledtagkeys
-        add column enabled boolean not null default true using true;
+        add column enabled boolean not null default true;
 create index gcp_enabled_covering_ix
     on reporting_gcpenabledtagkeys (key, enabled);
             """,
@@ -59,7 +59,7 @@ alter table reporting_gcpenabledtagkeys
         migrations.RunSQL(
             sql="""
 alter table reporting_ocpenabledtagkeys
-        add column enabled boolean not null default true using true;
+        add column enabled boolean not null default true;
 create index ocp_enabled_covering_ix
     on reporting_ocpenabledtagkeys (key, enabled);
             """,
