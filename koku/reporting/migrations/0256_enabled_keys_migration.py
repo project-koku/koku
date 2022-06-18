@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
     dependencies = [("reporting", "0255_ocp_label_indices")]
 
     operations = [
-        mygrations.RunSQL(
+        migrations.RunSQL(
             sql="""
 alter table reporting_azureenabledtagkeys
         add column enabled boolean not null default true using true;
