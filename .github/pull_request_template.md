@@ -1,20 +1,19 @@
-Fixes [COST-####](https://issues.redhat.com/browse/COST-####)
+## Jira Ticket
 
-Changes proposed in this PR:
-*
-*
+[COST-####](https://issues.redhat.com/browse/COST-####)
 
-Testing Instructions:
-1. Run `this command` ...
-2. Ingest this data `with this other command` ...
-3. Expect to see this result:
-   ```
-   GET http://localhost:8000/api/endpoint
+## Description
 
-   {json: response}
-   ```
-4.
-5.
+This change will ...
 
----
-Additional Context:
+## Testing
+
+1. Checkout Branch
+2. Restart Koku
+3. Hit endpoint or launch shell
+    1. You should see ...
+4. Do more things...
+
+## Notes
+
+...
