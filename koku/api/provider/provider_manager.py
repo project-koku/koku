@@ -166,7 +166,7 @@ class ProviderManager:
         )
 
         months = []
-        for month in manifest_months_query[:2]:
+        for month in manifest_months_query:
             months.append(month.billing_period_start_datetime)
         data_updated_date = self.model.data_updated_timestamp
         data_updated_date = data_updated_date.strftime(DATE_TIME_FORMAT) if data_updated_date else data_updated_date
