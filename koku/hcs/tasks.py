@@ -134,9 +134,19 @@ def collect_hcs_report_data(
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
-def collect_hcs_report_finalization(month=None, year=None, tracing_id=None):
+def collect_hcs_report_finalization(  # noqa: C901
+    month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
+):
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
+
+    if provider_type is not None and provider_uuid is not None:
+        LOG.info(log_json(tracing_id, "'provider_type' and 'provider_uuid' are not supported in the same request"))
+        return
+
+    if schema_name is not None and provider_uuid is not None:
+        LOG.info(log_json(tracing_id, "'schema_name' and 'provider_uuid' are not supported in the same request"))
+        return
 
     finalization_date = DateAccessor().today()
     finalization_date = finalization_date.replace(day=1)
@@ -150,32 +160,57 @@ def collect_hcs_report_finalization(month=None, year=None, tracing_id=None):
     end_date = finalization_date - datetime.timedelta(days=1)
     start_date = finalization_date - datetime.timedelta(days=end_date.day)
 
+    if provider_type is None:
+        excepted_providers = HCS_EXCEPTED_PROVIDERS
+    elif provider_type in HCS_EXCEPTED_PROVIDERS:
+        excepted_providers = provider_type
+        LOG.debug(log_json(tracing_id, f"provider type provided: {provider_type}"))
+    else:
+        LOG.info(log_json(tracing_id, f"provider type: {provider_type} is not an excepted HCS provider"))
+        return
+
     end_date = end_date.strftime("%Y-%m-%d")
     start_date = start_date.strftime("%Y-%m-%d")
 
-    for excepted_provider in HCS_EXCEPTED_PROVIDERS:
+    if schema_name is not None and not enable_hcs_processing(schema_name):
+        LOG.info(log_json(tracing_id, f"schema_name provided: {schema_name} is not HCS enabled"))
+        return
+
+    for excepted_provider in excepted_providers:
         LOG.debug(log_json(tracing_id, f"excepted_provider: {excepted_provider}"))
 
-        providers = Provider.objects.filter(type=excepted_provider).all()
+        if provider_uuid is not None:
+            providers = Provider.objects.filter(uuid=provider_uuid).all()
+            if not providers:
+                LOG.info(f"provider_uuid: {provider_uuid} does not exist")
+                return
+
+            LOG.debug(log_json(tracing_id, f"provider uuid provided: {provider_uuid}"))
+
+        else:
+            providers = Provider.objects.filter(type=excepted_provider).all()
 
         for provider in providers:
-            schema_name = provider.customer.schema_name
-            provider_uuid = provider.uuid
-            provider_type = provider.type
+            s_name = provider.customer.schema_name
+            p_uuid = provider.uuid
+            p_type = provider.type
+
+            if schema_name is not None and schema_name is not s_name:
+                continue
 
             stmt = (
                 f"[collect_hcs_report_finalization]: "
-                f"schema_name: {schema_name}, "
-                f"provider_type: {provider_type}, "
-                f"provider_uuid: {provider_uuid}, "
+                f"schema_name: {s_name}, "
+                f"provider_type: {p_type}, "
+                f"provider_uuid: {p_uuid}, "
                 f"dates: {start_date} - {end_date}"
             )
             LOG.info(log_json(tracing_id, stmt))
 
             collect_hcs_report_data.s(
-                schema_name,
-                provider_type,
-                provider_uuid,
+                s_name,
+                p_type,
+                p_uuid,
                 start_date,
                 end_date,
                 tracing_id,
