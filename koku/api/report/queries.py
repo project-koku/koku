@@ -610,7 +610,9 @@ class ReportQueryHandler(QueryHandler):
         return data
 
     def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, annotations, remove_columns=[]):
-        """Group_by[currency] and aggregate with pandas.
+        """
+        Applies the exhange rates to different base currencies for the data section
+        of the api response.
 
         Args:
             query_group_by (list): query group by.
@@ -618,6 +620,10 @@ class ReportQueryHandler(QueryHandler):
             skip_columns (list): columns to skip.
             annotations: report annotations.
             remove_columns (list): columns to remove from conversion.
+
+        Note:
+          - The query_group_by param is needed to help keep the nested group by
+          structure of our data section.
 
         Returns
             (dictionary): A dictionary of query data"""
@@ -655,7 +661,9 @@ class ReportQueryHandler(QueryHandler):
         return query_data
 
     def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):  # noqa: C901
-        """Total query for currency with pandas.
+        """
+        Applies the exhange rates to different base currencies for the total section
+        of the api response.
 
         Args:
             query_data (queryset): queryset of the query data.
