@@ -63,7 +63,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     query_order_by[-1] = "rank"
 
             if query.exists():
-                remove_columns = ["usage", "usage_units", "cost_units"]
+                remove_columns = ["usage", "usage_units", "cost_units", "count"]
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
                 new_annotations = list(self.report_annotations.keys())
                 query_sum = self.pandas_agg_for_total(query_sum_data, skip_columns, new_annotations, remove_columns)

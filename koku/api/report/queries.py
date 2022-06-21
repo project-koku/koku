@@ -708,8 +708,13 @@ class ReportQueryHandler(QueryHandler):
 
             for element in total_query_data:
                 for key, value in element.items():
-                    if type(value) != str:
+                    if type(value) != str and key != "count":
                         total_query[key] += value
+                    elif key == "count":
+                        if isinstance(value, list):
+                            total_query[key] = len(set(value))
+                        else:
+                            total_query[key] += value
                     else:
                         total_query[key] = value
             total_query.pop(self._mapper.cost_units_key)

@@ -397,7 +397,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -488,7 +488,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),

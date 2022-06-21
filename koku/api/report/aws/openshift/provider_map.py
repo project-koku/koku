@@ -360,7 +360,7 @@ class OCPAWSProviderMap(ProviderMap):
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -436,7 +436,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
