@@ -63,7 +63,6 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
                 result = super().destroy(request, *args, **kwargs)
                 invalidate_view_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
                 return result
-
         LOG.error("Failed to remove Source")
         return Response("Failed to remove Source", status=500)
 
