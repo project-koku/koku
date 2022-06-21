@@ -9,7 +9,6 @@ import logging
 import os
 from functools import cached_property
 
-import ciso8601
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -35,9 +34,7 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
-def create_daily_archives(
-    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, new_export_time, context={}
-):
+def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -72,7 +69,7 @@ def create_daily_archives(
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
             )
-            day_file = f"{invoice_month}_{partition_date}_{new_export_time}.csv"
+            day_file = f"{invoice_month}_{partition_date}.csv"
             day_filepath = f"{directory}/{day_file}"
             invoice_partition_data.to_csv(day_filepath, index=False, header=True)
             copy_local_report_file_to_s3_bucket(
@@ -181,7 +178,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         Checks for manifests with same bill_date & provider and determines
         scan range. If manifests do exist it will return a mapping of
-        partition_dates to export time.
+        partition_date to export time.
 
         Returns:
             manifests_dict: {partition_date: export_time}
@@ -244,10 +241,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             manifest_export_time = current_manifests.get(bigquery_pd)
             if (manifest_export_time and manifest_export_time != bigquery_et) or not manifest_export_time:
                 # if the manifest export time does not match bigquery we have new data
-                # for that partion time and new manifest should be created.
+                # for that partition time and new manifest should be created.
                 bill_date = bigquery_pd.replace(day=1)
                 invoice_month = bill_date.strftime("%Y%m")
-                file_name = f"{invoice_month}_{bigquery_pd}?{bigquery_et}.csv"
+                file_name = f"{invoice_month}_{bigquery_pd}.csv"
                 manifest_metadata = {
                     "assembly_id": f"{bigquery_pd}|{bigquery_et}",
                     "bill_date": bill_date,
@@ -345,38 +342,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         try:
             filename = os.path.splitext(key)[0]
-            date_range = filename.split("_")[-1]
-            partition_date, new_export_time = date_range.split("?")
-            bill_start = ciso8601.parse_datetime(partition_date).date().replace(day=1)
-            with ReportManifestDBAccessor() as manifest_accessor:
-                last_export_time = manifest_accessor.get_max_export_time_for_manifests(
-                    self._provider_uuid, bill_start, partition_date
-                )
-            if last_export_time:
-                query = f"""
-                    SELECT {self.build_query_select_statement()}
-                    FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
-                    AND export_time > '{last_export_time}'
-                    and export_time <= '{new_export_time}'
-                    """
-            else:
-                query = f"""
-                    SELECT {self.build_query_select_statement()}
-                    FROM {self.table_name}
-                    WHERE DATE(_PARTITIONTIME) = '{partition_date}'
-                    and export_time <= '{new_export_time}'
-                    """
+            partition_date = filename.split("_")[-1]
+            query = f"""
+                SELECT {self.build_query_select_statement()}
+                FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) = '{partition_date}'
+                """
             client = bigquery.Client()
             LOG.info(f"{query}")
             query_job = client.query(query)
-            # Update the manifest
-            with ReportManifestDBAccessor() as manifest_accessor:
-                manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-                if manifest:
-                    manifest.gcp_partition_date = partition_date
-                    manifest.export_time = new_export_time
-                    manifest.save()
 
         except GoogleCloudError as err:
             err_msg = (
@@ -425,7 +399,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             full_local_path,
             manifest_id,
             start_date,
-            new_export_time,
             self.context,
         )
 
