@@ -39,6 +39,24 @@ class OCPTagQueryHandlerTest(IamTestCase):
         self.assertEqual(handler.time_scope_units, "day")
         self.assertEqual(handler.time_scope_value, -10)
 
+    def test_execute_query_wildcard_value_parameters(self):
+        """Test that get tag values runs properly with value query as wildcard."""
+        key = "version"
+        value = "*"
+        url = f"?filter[value]={value}"
+        query_params = self.mocked_query_params(url, OCPTagView)
+        handler = OCPTagQueryHandler(query_params)
+        handler.key = key
+        with tenant_context(self.tenant):
+            storage_tags = (
+                OCPTagsValues.objects.filter(key__exact=key, value__icontains="").values("value").distinct().all()
+            )
+            tag_values = [tag.get("value") for tag in storage_tags]
+        expected = {"key": key, "values": tag_values}
+        result = handler.get_tag_values()
+        self.assertEqual(result[0].get("key"), expected.get("key"))
+        self.assertEqual(sorted(result[0].get("values")), sorted(expected.get("values")))
+
     def test_execute_query_10_day_parameters(self):
         """Test that the execute query runs properly with 10 day query."""
         url = "?filter[time_scope_units]=day&filter[time_scope_value]=-10&filter[resolution]=daily"
