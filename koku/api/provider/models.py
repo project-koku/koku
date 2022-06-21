@@ -35,7 +35,7 @@ class ProviderAuthentication(models.Model):
 class ProviderBillingSource(models.Model):
     """A Koku Provider Billing Source.
 
-    Used for accessing cost providers billing sourece like AWS Account S3.
+    Used for accessing cost providers billing source like AWS Account S3.
     """
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
