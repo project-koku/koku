@@ -24,7 +24,7 @@ class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "-1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     key = StringOrListField(required=False)
