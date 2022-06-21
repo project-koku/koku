@@ -53,6 +53,7 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
         for _ in range(5):
             try:
                 manager.destroy_provider(source.koku_uuid)
+                invalidate_view_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
             except IntegrityError as error:
                 LOG.warning(f"Retrying Source delete due to error: {error}")
             except Exception as error:  # catch everything else. return immediately
@@ -62,8 +63,6 @@ class DestroySourceMixin(mixins.DestroyModelMixin):
             else:
                 result = super().destroy(request, *args, **kwargs)
                 return result
-            finally:
-                invalidate_view_cache_for_tenant_and_cache_key(schema_name, SOURCES_CACHE_PREFIX)
 
         LOG.error("Failed to remove Source")
         return Response("Failed to remove Source", status=500)
