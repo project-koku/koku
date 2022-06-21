@@ -7,6 +7,7 @@ import datetime
 import logging
 import uuid
 
+from botocore.exceptions import ClientError
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
@@ -14,6 +15,7 @@ from api.common import log_json
 from api.provider.models import Provider
 from hcs.daily_report import ReportHCS
 from koku import celery_app
+from koku import settings
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.external.date_accessor import DateAccessor
 
@@ -83,20 +85,28 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
         ).apply_async()
 
 
-@celery_app.task(name="hcs.tasks.collect_hcs_report_data", queue=HCS_QUEUE)
+@celery_app.task(
+    name="hcs.tasks.collect_hcs_report_data",
+    bind=True,
+    autoretry_for=(ClientError,),
+    max_retries=settings.MAX_UPDATE_RETRIES,
+    queue=HCS_QUEUE,
+)
 def collect_hcs_report_data(
-    schema_name, provider, provider_uuid, start_date=None, end_date=None, tracing_id=None, finalize=False
+    self, schema_name, provider_type, provider_uuid, start_date=None, end_date=None, tracing_id=None, finalize=False
 ):
     """Update Hybrid Committed Spend report.
-    :param provider:        (str) The provider type
-    :param provider_uuid:   (str) The provider unique identification number
-    :param start_date:      The date to start populating the table (default: (Today - 2 days))
-    :param end_date:        The date to end on (default: Today)
-    :param schema_name:     (Str) db schema name
-    :param tracing_id:      (uuid) for log tracing
-    :param finalize:        (boolean) If True run report finalization process for previous month(default: False)
+    Args:
+        schema_name:     (str) db schema name
+        provider_type:   (str) The provider type
+        provider_uuid:   (str) The provider unique identification number
+        start_date:      The date to start populating the table (default: (Today - 2 days))
+        end_date:        The date to end on (default: Today)
+        tracing_id:      (uuid) for log tracing
+        finalize:        (boolean) If True run report finalization process for previous month(default: False)
 
-    :returns None
+    Returns:
+        None
     """
     if schema_name and not schema_name.startswith("acct"):
         schema_name = f"acct{schema_name}"
@@ -110,23 +120,23 @@ def collect_hcs_report_data(
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if enable_hcs_processing(schema_name) and provider in HCS_EXCEPTED_PROVIDERS:
+    if enable_hcs_processing(schema_name) and provider_type in HCS_EXCEPTED_PROVIDERS:
         stmt = (
             f"[collect_hcs_report_data]: "
             f"schema_name: {schema_name}, "
             f"provider_uuid: {provider_uuid}, "
-            f"provider_type: {provider}, "
+            f"provider_type: {provider_type}, "
             f"dates {start_date} - {end_date}"
         )
         LOG.info(log_json(tracing_id, stmt))
-        reporter = ReportHCS(schema_name, provider, provider_uuid, tracing_id)
+        reporter = ReportHCS(schema_name, provider_type, provider_uuid, tracing_id)
         reporter.generate_report(start_date, end_date, finalize)
 
     else:
         stmt = (
             f"[SKIPPED] HCS report generation: "
             f"Schema_name: {schema_name}, "
-            f"provider_type: {provider}, "
+            f"provider_type: {provider_type}, "
             f"provider_uuid: {provider_uuid}, "
             f"dates {start_date} - {end_date}"
         )
@@ -137,6 +147,19 @@ def collect_hcs_report_data(
 def collect_hcs_report_finalization(  # noqa: C901
     month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
+    """Run Finalization for Hybrid Committed Spend.
+    Args:
+        month:              (int) The month to run finalization on
+        year:               (int) The year to run finalization on (optional with month)
+        provider_type:      (str) The provider type (example: AWS, Azure, etc...)
+        provider_uuid:      (uuid) The provider uuid
+        schema_name:        (Str) db schema name
+        tracing_id:         (uuid) for log tracing
+
+    Returns:
+        None
+    """
+
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
