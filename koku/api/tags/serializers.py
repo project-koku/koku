@@ -52,8 +52,8 @@ class FilterSerializer(serializers.Serializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and time_scope_value in ["-1", "-2"]:  # noqa: W504
-                valid_values = ["-10", "-30"]
+            if time_scope_units == "day" and time_scope_value in ("-1", "-2", "-3"):  # noqa: W504
+                valid_values = ["-10", "-30", "-90"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
@@ -62,12 +62,11 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"resolution": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
-            if time_scope_units == "month" and time_scope_value in ["-10", "-30"]:  # noqa: W504
-                valid_values = ["-1", "-2"]
+            if time_scope_units == "month" and time_scope_value in ("-10", "-30", "-90"):  # noqa: W504
+                valid_values = ["-1", "-2", "-3"]
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
-
         return data
 
 

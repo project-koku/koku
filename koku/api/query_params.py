@@ -312,9 +312,9 @@ class QueryParameters:
             if not time_scope_value:
                 time_scope_value = -1 if time_scope_units == "month" else -10
             if not time_scope_units:
-                time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
+                time_scope_units = "month" if int(time_scope_value) in [-1, -2, -3] else "day"
             if not resolution:
-                resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
+                resolution = "monthly" if int(time_scope_value) in [-1, -2, -3] else "daily"
             self.set_filter(
                 time_scope_value=str(time_scope_value),
                 time_scope_units=str(time_scope_units),
