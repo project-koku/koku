@@ -6,10 +6,12 @@
 # flake8: noqa
 from api.cloud_accounts.views import cloud_accounts
 from api.currency.view import get_currency
+from api.currency.view import get_exchange_rates
 from api.dataexport.views import DataExportRequestViewSet
 from api.forecast.views import AWSCostForecastView
 from api.forecast.views import AzureCostForecastView
-from api.forecast.views import GCPForecastCostView
+from api.forecast.views import GCPCostForecastView
+from api.forecast.views import OCICostForecastView
 from api.forecast.views import OCPAllCostForecastView
 from api.forecast.views import OCPAWSCostForecastView
 from api.forecast.views import OCPAzureCostForecastView
@@ -39,6 +41,9 @@ from api.report.gcp.openshift.view import OCPGCPStorageView
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
+from api.report.oci.view import OCICostView
+from api.report.oci.view import OCIInstanceTypeView
+from api.report.oci.view import OCIStorageView
 from api.report.ocp.view import OCPCostView
 from api.report.ocp.view import OCPCpuView
 from api.report.ocp.view import OCPMemoryView
@@ -55,6 +60,9 @@ from api.resource_types.gcp_accounts.view import GCPAccountView
 from api.resource_types.gcp_projects.view import GCPProjectsView
 from api.resource_types.gcp_regions.view import GCPRegionView
 from api.resource_types.gcp_services.view import GCPServiceView
+from api.resource_types.oci_regions.view import OCIRegionView
+from api.resource_types.oci_services.view import OCIServiceView
+from api.resource_types.oci_tenant_id.view import OCITenantidView
 from api.resource_types.openshift_clusters.view import OCPClustersView
 from api.resource_types.openshift_nodes.view import OCPNodesView
 from api.resource_types.openshift_projects.view import OCPProjectsView
@@ -68,6 +76,7 @@ from api.tags.azure.openshift.view import OCPAzureTagView
 from api.tags.azure.view import AzureTagView
 from api.tags.gcp.openshift.view import OCPGCPTagView
 from api.tags.gcp.view import GCPTagView
+from api.tags.oci.view import OCITagView
 from api.tags.ocp.view import OCPTagView
 from api.user_access.view import UserAccessView
 from api.user_settings.views import AccountSettings

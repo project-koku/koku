@@ -28,7 +28,7 @@ data:
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
       "id": 45,
-      "iteration": 1654180372742,
+      "iteration": 1654259097179,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -475,7 +475,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 0,
             "y": 19
           },
@@ -521,6 +521,81 @@ data:
             "type": "prometheus",
             "uid": "pKSsqZB7k"
           },
+          "description": "Cost Management celery download_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 400
+                  },
+                  {
+                    "color": "red",
+                    "value": 500
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 10,
+            "y": 19
+          },
+          "id": 76,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:download_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Download",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
           "description": "Cost Management celery summary_queue",
           "fieldConfig": {
             "defaults": {
@@ -555,6 +630,7 @@ data:
                   "mode": "line+area"
                 }
               },
+              "decimals": 0,
               "displayName": "",
               "mappings": [],
               "thresholds": {
@@ -580,7 +656,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 12,
             "y": 19
           },
@@ -630,6 +706,82 @@ data:
           "fieldConfig": {
             "defaults": {
               "color": {
+                "mode": "thresholds"
+              },
+              "decimals": 0,
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 19
+          },
+          "id": 77,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:summary_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Summary",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery ocp_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
                 "mode": "palette-classic"
               },
               "custom": {
@@ -685,11 +837,11 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 0,
             "y": 27
           },
-          "id": 71,
+          "id": 74,
           "options": {
             "legend": {
               "calcs": [
@@ -711,11 +863,11 @@ data:
                 "type": "prometheus",
                 "uid": "pKSsqZB7k"
               },
-              "expr": "koku:celery:refresh_queue",
+              "expr": "koku:celery:ocp_queue",
               "refId": "A"
             }
           ],
-          "title": "Refresh",
+          "title": "OCP",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -725,6 +877,81 @@ data:
             }
           ],
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery ocp_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 10,
+            "y": 27
+          },
+          "id": 83,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:ocp_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "OCP",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -790,7 +1017,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 12,
             "y": 27
           },
@@ -830,6 +1057,81 @@ data:
             }
           ],
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery priority_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 27
+          },
+          "id": 80,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:priority_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Priority",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -895,7 +1197,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 0,
             "y": 35
           },
@@ -935,6 +1237,81 @@ data:
             }
           ],
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery hcs_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 10,
+            "y": 35
+          },
+          "id": 79,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:hcs_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "HCS",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -1000,7 +1377,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 12,
             "y": 35
           },
@@ -1040,6 +1417,81 @@ data:
             }
           ],
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery cost_model_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 35
+          },
+          "id": 82,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:cost_model_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Cost Model",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -1105,7 +1557,7 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 0,
             "y": 43
           },
@@ -1135,7 +1587,7 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Cost Model",
+          "title": "Default",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1151,7 +1603,82 @@ data:
             "type": "prometheus",
             "uid": "pKSsqZB7k"
           },
-          "description": "Cost Management celery xost_model_queue",
+          "description": "Cost Management celery default_celery_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 10,
+            "y": 43
+          },
+          "id": 81,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:default_celery_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Default",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery summary_queue",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1210,11 +1737,11 @@ data:
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 10,
             "x": 12,
             "y": 43
           },
-          "id": 74,
+          "id": 71,
           "options": {
             "legend": {
               "calcs": [
@@ -1236,11 +1763,11 @@ data:
                 "type": "prometheus",
                 "uid": "pKSsqZB7k"
               },
-              "expr": "koku:celery:ocp_queue",
+              "expr": "koku:celery:refresh_queue",
               "refId": "A"
             }
           ],
-          "title": "OCP",
+          "title": "Refresh",
           "transformations": [
             {
               "id": "seriesToColumns",
@@ -1250,6 +1777,81 @@ data:
             }
           ],
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "pKSsqZB7k"
+          },
+          "description": "Cost Management celery summary_queue",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "displayName": "",
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "#EAB839",
+                    "value": 90
+                  },
+                  {
+                    "color": "red",
+                    "value": 100
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 2,
+            "x": 22,
+            "y": 43
+          },
+          "id": 78,
+          "options": {
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "8.5.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "pKSsqZB7k"
+              },
+              "expr": "koku:celery:refresh_queue",
+              "refId": "A"
+            }
+          ],
+          "title": "Refresh",
+          "transformations": [
+            {
+              "id": "seriesToColumns",
+              "options": {
+                "reducers": []
+              }
+            }
+          ],
+          "type": "gauge"
         },
         {
           "collapsed": true,
@@ -3304,7 +3906,7 @@ data:
       "timezone": "",
       "title": "Cost Management",
       "uid": "R0HueuFGk",
-      "version": 1,
+      "version": 3,
       "weekStart": ""
     }
 kind: ConfigMap

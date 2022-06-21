@@ -183,10 +183,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+                data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
