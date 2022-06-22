@@ -151,9 +151,10 @@ class TagQueryHandler(QueryHandler):
             delta (Boolean): Construct timeframe for delta
         Returns:
             (Dict): query filter dictionary
-
         """
+
         filters = QueryFilterCollection()
+
         if not self.parameters.get_filter("value"):
             for source in self.data_sources:
                 start_filter, end_filter = self._get_time_based_filters(source, delta)
@@ -163,7 +164,14 @@ class TagQueryHandler(QueryHandler):
         for filter_key in self.SUPPORTED_FILTERS:
             if self.parameters.get_filter("value") and filter_key == "enabled":
                 continue
+
             filter_value = self.parameters.get_filter(filter_key)
+            # Added to prevent 500 error when filtering value with a wildcard.
+            if self.parameters.get_filter("value") and TagQueryHandler.has_wildcard(filter_value):
+                # Adds filter to the query response, however this filter will remove no values.
+                filter_obj = self.filter_map.get(filter_key)
+                q_filter = QueryFilter(parameter="", **filter_obj)
+                filters.add(q_filter)
             if filter_value is not None and not TagQueryHandler.has_wildcard(filter_value):
                 filter_obj = self.filter_map.get(filter_key)
                 if isinstance(filter_value, bool):
@@ -177,6 +185,7 @@ class TagQueryHandler(QueryHandler):
                     for item in filter_value:
                         q_filter = QueryFilter(parameter=item, **filter_obj)
                         filters.add(q_filter)
+
             access = self.parameters.get_access(filter_key)
             filt = self.filter_map.get(filter_key)
             if access and filt:
@@ -185,7 +194,6 @@ class TagQueryHandler(QueryHandler):
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
-
         composed_filters = filters.compose()
         composed_filters = composed_filters & and_composed_filters & or_composed_filters
 

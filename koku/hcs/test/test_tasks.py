@@ -14,14 +14,8 @@ from hcs.test import HCSTestCase
 LOG = logging.getLogger(__name__)
 
 
-def enable_hcs_processing_mock(schema=True):
-    tf = schema
-
-    return tf
-
-
-@patch("hcs.tasks.enable_hcs_processing", enable_hcs_processing_mock)
 @patch("hcs.daily_report.ReportHCS.generate_report")
+@patch("hcs.tasks.enable_hcs_processing")
 class TestHCSTasks(HCSTestCase):
     """Test cases for HCS Celery tasks."""
 
@@ -34,9 +28,11 @@ class TestHCSTasks(HCSTestCase):
         cls.provider = Provider.PROVIDER_AWS
         cls.provider_uuid = "cabfdddb-4ed5-421e-a041-311b75daf235"
 
-    def test_get_report_dates(self, mock_report):
+    def test_get_report_dates(self, mock_ehp, mock_report):
         """Test with start and end dates provided"""
         from hcs.tasks import collect_hcs_report_data
+
+        mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
@@ -45,18 +41,22 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
-    def test_get_report_no_start_date(self, mock_report):
+    def test_get_report_no_start_date(self, mock_ehp, mock_report):
         """Test no start or end dates provided"""
         from hcs.tasks import collect_hcs_report_data
+
+        mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_data(self.schema, self.provider, self.provider_uuid)
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
-    def test_get_report_no_end_date(self, mock_report):
-        """Test no start end provided"""
+    def test_get_report_no_end_date(self, mock_ehp, mock_report):
+        """Test no start date provided"""
         from hcs.tasks import collect_hcs_report_data
+
+        mock_ehp.return_value = True
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
@@ -64,11 +64,11 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("[collect_hcs_report_data]", _logs.output[0])
 
-    def test_get_report_invalid_provider(self, mock_report):
+    def test_get_report_invalid_provider(self, mock_ehp, mock_report):
         """Test invalid provider"""
         from hcs.tasks import collect_hcs_report_data
 
-        enable_hcs_processing_mock.tf = False
+        mock_ehp.return_value = False
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             start_date = self.yesterday
@@ -76,18 +76,21 @@ class TestHCSTasks(HCSTestCase):
 
             self.assertIn("[SKIPPED] HCS report generation", _logs.output[0])
 
-    def test_schema_no_acct_prefix(self, mock_report):
-        """Test no start end provided"""
+    def test_schema_no_acct_prefix(self, mock_ehp, mock_report):
+        """Test no schema name prefix provided"""
         from hcs.tasks import collect_hcs_report_data
 
+        mock_ehp.return_value = True
         collect_hcs_report_data("10001", self.provider, self.provider_uuid, self.yesterday)
 
         self.assertEqual("acct10001", self.schema)
 
     @patch("hcs.tasks.collect_hcs_report_data")
-    def test_get_report_with_manifest(self, mock_report, rd):
-        """Test invalid provider"""
+    def test_get_report_with_manifest(self, rd, mock_ehp, mock_report):
+        """Test report with manifest"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
+
+        mock_ehp.return_value = True
 
         manifests = [
             {
@@ -109,10 +112,11 @@ class TestHCSTasks(HCSTestCase):
             self.assertIn("end:", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
-    def test_get_report_with_manifest_and_dates(self, mock_report, rd):
-        """Test HCS reports using manifest"""
+    def test_get_report_with_manifest_and_dates(self, rd, mock_ehp, mock_report):
+        """Test report with manifest and dates"""
         from hcs.tasks import collect_hcs_report_data_from_manifest
 
+        mock_ehp.return_value = True
         manifests = [
             {
                 "schema_name": self.schema,
@@ -129,10 +133,11 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
-    def test_get_collect_hcs_report_finalization(self, mock_report, rd, provider):
-        """Test hcs finalization"""
+    def test_get_collect_hcs_report_finalization(self, provider, rd, mock_ehp, mock_report):
+        """Test report finalization"""
         from hcs.tasks import collect_hcs_report_finalization
 
+        mock_ehp.return_value = True
         provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
@@ -146,20 +151,130 @@ class TestHCSTasks(HCSTestCase):
 
     @patch("hcs.tasks.collect_hcs_report_data")
     @patch("api.provider.models")
-    def test_get_collect_hcs_report_finalization_month(self, mock_report, rd, provider):
-        """Test hcs finalization for a given month"""
+    def test_get_collect_hcs_report_finalization_month(self, provider, rd, mock_ehp, mock_report):
+        """Test finalization providing month"""
         from hcs.tasks import collect_hcs_report_finalization
 
+        mock_ehp.return_value = True
         provider.customer.schema_name.return_value = provider(side_effect=Provider.objects.filter(type="AWS"))
 
         start_date = "2022-10-01"
         end_date = "2022-10-31"
 
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
-            collect_hcs_report_finalization(10)
+            collect_hcs_report_finalization(month=10)
 
             self.assertIn("[collect_hcs_report_finalization]:", _logs.output[0])
             self.assertIn("schema_name:", _logs.output[0])
             self.assertIn("provider_type:", _logs.output[0])
             self.assertIn("provider_uuid:", _logs.output[0])
             self.assertIn(f"dates: {start_date} - {end_date}", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider(self, provider, rd, mock_ehp, mock_report):
+        """Test finalization with providing a provider_type"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        mock_ehp.return_value = True
+
+        p_type = "AWS"
+        provider.type.return_value = p_type
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type)
+
+            self.assertIn(f"provider type provided: {p_type}", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider_negative(self, provider, rd, mock_ehp, mock_report):
+        """Test finalization with providing a bogus provider_type"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        mock_ehp.return_value = True
+
+        p_type = "BOGUS"
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type)
+
+            self.assertIn(f"provider type: {p_type} is not an excepted HCS provider", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models.Provider.objects")
+    def test_get_collect_hcs_report_finalization_provider_uuid(self, provider, rd, mock_ehp, mock_report):
+        """Test finalization with providing a provider_uuid"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        mock_ehp.return_value = True
+        p_type = "AWS"
+        provider.type.return_value = p_type
+
+        p_u = "05e04f00-18db-4ab5-8960-88854c6f9d88"
+        # provider.uuid.return_value = p_u
+        provider.uuid.return_value = provider(side_effect=Provider.objects.filter(uuid=p_u))
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_finalization(provider_uuid=p_u)
+
+            self.assertIn(f"excepted_provider: {p_type}", _logs.output[0])
+            self.assertIn(f"provider uuid provided: {p_u}", _logs.output[1])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_provider_uuid_negative(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad provider_uuid"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        mock_ehp.return_value = True
+        p_u = "11111111-0000-1111-0000-111111111111"
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_uuid=p_u)
+
+            self.assertIn(f"provider_uuid: {p_u} does not exist", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_get_collect_hcs_report_finalization_schema_name_negative(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad schema_name"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        schema_name = "acct10001123"
+        mock_ehp.return_value = False
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(schema_name=schema_name)
+
+            self.assertIn(f"schema_name provided: {schema_name} is not HCS enabled", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_hcs_report_finalization_provider_type_and_provider_uuid(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad schema_name"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        p_type = "AWS"
+        p_uuid = "11111111-0000-1111-0000-111111111111"
+        mock_ehp.return_value = True
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(provider_type=p_type, provider_uuid=p_uuid)
+
+            self.assertIn("'provider_type' and 'provider_uuid' are not supported in the same request", _logs.output[0])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    @patch("api.provider.models")
+    def test_hcs_report_finalization_schema_name_and_provider_uuid(self, provider, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given bad schema_name"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        schema_name = "acct10001"
+        p_uuid = "11111111-0000-1111-0000-111111111111"
+        mock_ehp.return_value = True
+
+        with self.assertLogs("hcs.tasks", "INFO") as _logs:
+            collect_hcs_report_finalization(schema_name=schema_name, provider_uuid=p_uuid)
+
+            self.assertIn("'schema_name' and 'provider_uuid' are not supported in the same request", _logs.output[0])
