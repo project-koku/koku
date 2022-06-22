@@ -3,51 +3,64 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Interactions with the notifications service."""
+import json
 import logging
+import uuid
 
-from prometheus_client import Counter
-from requests.exceptions import ConnectionError
-
-from koku.configurator import CONFIGURATOR
-from koku.env import ENVIRONMENT
-from masu.external.kafka_msg_handler import send_notification
-
+from koku.kafka_utils.utils import get_producer
+from masu.config import Config
+from masu.external.date_accessor import DateAccessor
+from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
-NOTIFICATIONS_CONNECTION_ERROR_COUNTER = Counter(
-    "notifications_connection_errors", "Number of NOTIFICATIONS ConnectionErros."
-)
-PROTOCOL = "protocol"
-HOST = "host"
-PORT = "port"
-PATH = "path"
 
 
-class NotificationsConnectionError(ConnectionError):
-    """Exception for Notifications ConnectionErrors."""
+def cost_model_notification(self, account):
+    """Send a notification to notifications service via kafka"""
+    event_type = "missing-cost-model"
+    send_notification(account, event_type)
 
 
-class NotificationsService:
-    """A class to handle interactions with the Notifications service."""
-
-    def __init__(self):
-        """Establish Notifications connection information."""
-        notifications_conn_info = self._get_notifications_service()
-        self.protocol = notifications_conn_info.get(PROTOCOL)
-        self.host = notifications_conn_info.get(HOST)
-        self.port = notifications_conn_info.get(PORT)
-        self.path = notifications_conn_info.get(PATH)
-
-    def _get_notifications_service(self):
-        """Get NOTIFICATIONS service host and port info from environment."""
-        return {
-            PROTOCOL: ENVIRONMENT.get_value("NOTIFICATIONS_SERVICE_PROTOCOL", default="http"),
-            HOST: CONFIGURATOR.get_endpoint_host("notifications", "service", "localhost"),
-            PORT: CONFIGURATOR.get_endpoint_port("notifications", "service", "8111"),
-            PATH: ENVIRONMENT.get_value("NOTIFICATIONS_SERVICE_PATH", default="/api/notifications-gw/notifications"),
-        }
-
-    def cost_model_notification(self, account):
-        """Send a notification to notifications service via kafka"""
-        event_type = "missing-cost-model"
-        send_notification(account, event_type)
+@KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
+def send_notification(account, event_type):
+    """
+    Send kafka notification message to Insights Notifications Service.
+    Args:
+        account (Object): account for notifications being sent.
+        notification (String): Notification string
+        uuid (UUID): uuid of object in question
+    Returns:
+        None
+    """
+    encoded_id = str(uuid.uuid4()).encode()
+    message_id = bytearray(encoded_id)
+    producer = get_producer()
+    notification_json = {
+        "id": message_id,
+        "bundle": "openshift",
+        "application": "cost-management",
+        "event_type": event_type,
+        "timestamp": DateAccessor().today(),
+        "account_id": account.get("schema_name"),
+        "org_id": account.get("org_id"),
+        "context": {
+            "source_id": account.get("provider_uuid"),
+            "source_name": account.get("name"),
+            "host_url": f"https://console.redhat.com/settings/sources/detail/{account.get('provider_uuid')}",
+        },
+        "events": [
+            {
+                "metadata": {},
+                "payload": {
+                    "description": "Openshift source has no cost model assigned, add one via the following link.",
+                    "host_url": "https://console.redhat.com/openshift/cost-management/cost-models",
+                },
+            }
+        ],
+    }
+    msg = bytes(json.dumps(notification_json), "utf-8")
+    producer.produce(Config.NOTIFICATION_TOPIC, value=msg)
+    # Wait up to 1 second for events. Callbacks will be invoked during
+    # this method call if the message is acknowledged.
+    # `flush` makes this process synchronous compared to async with `poll`
+    producer.flush(1)
