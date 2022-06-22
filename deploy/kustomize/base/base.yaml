@@ -317,6 +317,9 @@ parameters:
 - displayName: Retain num months
   name: RETAIN_NUM_MONTHS
   value: "3"
+- displayName: Notification check period
+  name: NOTIFICATION_CHECK_TIME
+  value: "24"
 - displayName: Initial ingest num months
   name: INITIAL_INGEST_NUM_MONTHS
   value: "3"

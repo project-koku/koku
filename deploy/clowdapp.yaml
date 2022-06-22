@@ -112,6 +112,8 @@ objects:
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -400,6 +402,8 @@ objects:
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
         - name: INITIAL_INGEST_NUM_MONTHS
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
@@ -2571,6 +2575,9 @@ parameters:
 - displayName: Retain num months
   name: RETAIN_NUM_MONTHS
   value: "3"
+- displayName: Notification check period
+  name: NOTIFICATION_CHECK_TIME
+  value: "24"
 - displayName: Initial ingest num months
   name: INITIAL_INGEST_NUM_MONTHS
   value: "3"
