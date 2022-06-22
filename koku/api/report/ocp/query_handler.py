@@ -145,7 +145,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return output
 
-    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, source_column):
+    def pandas_agg_for_currency(self, query_group_by, query_data, source_column):
         """Group_by[currency] and aggregate with pandas.
 
         Args:
@@ -275,8 +275,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = query_data.values(*initial_group_by).annotate(**annotations)
             aggregates = self._mapper.report_type_map.get("aggregates")
             query_sum_data = query_data.annotate(**aggregates)
-            skip_columns = ["gcp_project_alias"]
-            query_data = self.pandas_agg_for_currency(query_group_by, query_data, skip_columns, source_column)
+            query_data = self.pandas_agg_for_currency(query_group_by, query_data, source_column)
 
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)
@@ -332,7 +331,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 data = self._apply_group_by(list(query_data), groups)
                 data = self._transform_data(query_group_by, 0, data)
 
-        sum_init = {"cost_units": self._mapper.cost_units_key}
+        sum_init = {"cost_units": self.currency}
         if self._mapper.usage_units_key:
             sum_init["usage_units"] = self._mapper.usage_units_key
         query_sum.update(sum_init)
