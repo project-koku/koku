@@ -362,7 +362,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
                 sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if annotations.get("count_units"):
                 sum_units["count_units"] = count_units_fallback
             if annotations.get("usage_units"):

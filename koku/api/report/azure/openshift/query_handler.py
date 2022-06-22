@@ -144,7 +144,6 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             else:
                 query_data = self.order_by(query_data, query_order_by)
 
-            # cost_units_value = self._mapper.report_type_map.get("cost_units_fallback", "USD")
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
             count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:

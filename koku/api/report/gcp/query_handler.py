@@ -154,7 +154,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
