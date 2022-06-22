@@ -50,7 +50,7 @@ class TestAzureUtils(MasuTestCase):
     def test_azure_post_processor(self):
         """Test that we end up with a dataframe with the correct columns."""
 
-        data = {"MeterSubCategory": [1]}
+        data = {"MeterSubCategory": [1], "tags": ['{"key1": "val1", "key2": "val2"}']}
         df = pd.DataFrame(data)
         result = azure_post_processor(df)
         if isinstance(result, tuple):
