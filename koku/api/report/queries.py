@@ -976,6 +976,9 @@ class ReportQueryHandler(QueryHandler):
         fill_values = {column: 0 for column in numeric_columns}
         data_frame.fillna(value=fill_values, inplace=True)
 
+        # Finally replace any remaining NaN with None for JSON compatibility
+        data_frame = data_frame.replace({np.nan: None})
+
         return data_frame.to_dict("records")
 
     def _aggregate_ranks_over_limit(self, data_frame, group_by):
