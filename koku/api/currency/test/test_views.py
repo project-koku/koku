@@ -2,7 +2,6 @@
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-"""Test the Metrics views."""
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -12,7 +11,7 @@ from api.iam.test.iam_test_case import IamTestCase
 
 
 class CurrencyViewTest(IamTestCase):
-    """Tests for the metrics view."""
+    """Tests for the currency view."""
 
     def test_supported_currencies(self):
         """Test that a list GET call returns the supported currencies."""
