@@ -179,7 +179,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 df["cost_units"] = self.currency
             skip_columns = ["gcp_project_alias"]
             annotations = list(self.report_annotations.keys())
-            if "source_uuid" not in annotations:
+            if self.query_table == OCPUsageLineItemDailySummary:
+                # we previously removed source_uuid from the annotations
+                # but we need to add it back so that it shows up in the data
+                # and we need to change source uuid to an array
+                df["source_uuid"] = df["source_uuid"].apply(lambda x: [x])
                 annotations.append("source_uuid")
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
