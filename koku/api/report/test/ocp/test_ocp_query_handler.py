@@ -657,8 +657,6 @@ class OCPReportQueryHandlerTest(IamTestCase):
                                         source_uuid_list.extend(value.get("source_uuid"))
         self.assertNotEqual(source_uuid_list, [])
         for source_uuid in source_uuid_list:
-            if type(source_uuid) == list:
-                source_uuid = source_uuid[0]
             self.assertIn(source_uuid, expected_source_uuids)
 
     def test_group_by_project_w_limit(self):
