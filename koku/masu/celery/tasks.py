@@ -27,7 +27,7 @@ from api.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
-from koku.notifications import NotificationsService
+from koku.notifications import cost_model_notification
 from masu.config import Config
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -371,7 +371,7 @@ def check_cost_model_status(provider_uuid=None):
             if cost_model_map.cost_model:
                 skipped += 1
             else:
-                NotificationsService().cost_model_notification(account)
+                cost_model_notification(account)
                 processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 

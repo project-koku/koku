@@ -7,7 +7,7 @@ import json
 import logging
 import uuid
 
-from koku.kafka_utils.utils import get_producer
+from kafka_utils.utils import get_producer
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
