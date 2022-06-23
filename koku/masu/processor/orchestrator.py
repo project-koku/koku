@@ -176,60 +176,17 @@ class Orchestrator:
                 )
 
             LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
-            report_files = manifest.get("files", [])
-            report_tasks = []
-            last_report_index = len(report_files) - 1
-            for i, report_file_dict in enumerate(report_files):
-                local_file = report_file_dict.get("local_file")
-                report_file = report_file_dict.get("key")
-
-                # Check if report file is complete or in progress.
-                if record_report_status(manifest["manifest_id"], local_file, "no_request"):
-                    LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
-                    continue
-
-                cache_key = f"{provider_uuid}:{report_file}"
-                if self.worker_cache.task_is_running(cache_key):
-                    LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
-                    continue
-
-                report_context = manifest.copy()
-                report_context["current_file"] = report_file
-                report_context["local_file"] = local_file
-                report_context["key"] = report_file
-                report_context["request_id"] = tracing_id
-
-                if (
-                    provider_type
-                    in [
-                        Provider.PROVIDER_OCP,
-                        Provider.PROVIDER_GCP,
-                        Provider.PROVIDER_OCI,
-                        Provider.PROVIDER_OCI_LOCAL,
-                    ]
-                    or i == last_report_index
-                ):
-                    # This create_table flag is used by the ParquetReportProcessor
-                    # to create a Hive/Trino table.
-                    # To reduce the number of times we check Trino/Hive tables, we just do this
-                    # on the final file of the set.
-                    report_context["create_table"] = True
-
-                # add the tracing id to the report context
-                # This defaults to the celery queue
-                report_tasks.append(
-                    get_report_files.s(
-                        customer_name,
-                        credentials,
-                        data_source,
-                        provider_type,
-                        schema_name,
-                        provider_uuid,
-                        report_month,
-                        report_context,
-                    ).set(queue=REPORT_QUEUE)
-                )
-                LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
+            report_tasks = self.create_report_tasks(
+                manifest=manifest,
+                tracing_id=tracing_id,
+                provider_uuid=provider_uuid,
+                provider_type=provider_type,
+                customer_name=customer_name,
+                credentials=credentials,
+                data_source=data_source,
+                schema_name=schema_name,
+                REPORT_QUEUE=REPORT_QUEUE,
+            )
 
             if report_tasks:
                 reports_tasks_queued = True
@@ -360,3 +317,78 @@ class Orchestrator:
             )
             async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
         return async_results
+
+    def create_report_tasks(
+        self,
+        manifest,
+        tracing_id,
+        provider_uuid,
+        provider_type,
+        customer_name,
+        credentials,
+        data_source,
+        schema_name,
+        REPORT_QUEUE,
+    ):
+        report_files = manifest.get("files", [])
+        report_tasks = []
+        last_report_index = len(report_files) - 1
+        for i, report_file_dict in enumerate(report_files):
+            local_file = report_file_dict.get("local_file")
+            report_file = report_file_dict.get("key")
+
+            # Check if report file is complete or in progress.
+            if record_report_status(manifest["manifest_id"], local_file, "no_request"):
+                LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
+                continue
+
+            cache_key = f"{provider_uuid}:{report_file}"
+            if self.worker_cache.task_is_running(cache_key):
+                LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
+                continue
+
+            report_context = manifest.copy()
+            report_context["current_file"] = report_file
+            report_context["local_file"] = local_file
+            report_context["key"] = report_file
+            report_context["request_id"] = tracing_id
+
+            if (
+                provider_type
+                in [
+                    Provider.PROVIDER_OCP,
+                    Provider.PROVIDER_GCP,
+                    Provider.PROVIDER_OCI,
+                    Provider.PROVIDER_OCI_LOCAL,
+                ]
+                or i == last_report_index
+            ):
+                # This create_table flag is used by the ParquetReportProcessor
+                # to create a Hive/Trino table.
+                # To reduce the number of times we check Trino/Hive tables, we just do this
+                # on the final file of the set.
+                report_context["create_table"] = True
+
+            # this is used to create bills for previous months on GCP
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+                assembly_id = manifest.get("assembly_id", None)
+                if assembly_id:
+                    report_month = assembly_id.split("|")[0]
+
+            # add the tracing id to the report context
+            # This defaults to the celery queue
+            report_tasks.append(
+                get_report_files.s(
+                    customer_name,
+                    credentials,
+                    data_source,
+                    provider_type,
+                    schema_name,
+                    provider_uuid,
+                    report_month,
+                    report_context,
+                ).set(queue=REPORT_QUEUE)
+            )
+            LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
+
+        return report_tasks
