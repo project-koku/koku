@@ -12,6 +12,7 @@ from decimal import Decimal
 from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Count
@@ -22,6 +23,7 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.urls import reverse
+from django.forms import model_to_dict
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -3033,19 +3035,52 @@ class AWSReportQueryTestCurrency(IamTestCase):
         """Set up the currency tests."""
         self.dh = DateHelper()
         super().setUp()
+        self.tables = [
+            AWSCostEntryLineItemDailySummary,
+            AWSCostSummaryByAccountP,
+            AWSCostSummaryByRegionP,
+            AWSCostSummaryByServiceP,
+            AWSCostSummaryP,
+            AWSDatabaseSummaryP,
+            AWSNetworkSummaryP,
+            AWSStorageSummaryByAccountP,
+            AWSStorageSummaryP,
+        ]
+        neg_ten = self.dh.n_days_ago(self.dh.today, 10)
+        dates = self.dh.list_days(neg_ten, self.dh.today)
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
+                for date in dates:
+                    kwargs["usage_start"] = date
+                    kwargs["usage_end"] = date
+                    for currency in ["AUD", "CAD"]:
+                        if table == AWSCostEntryLineItemDailySummary:
+                            kwargs["uuid"] = uuid4()
+                        else:
+                            kwargs["id"] = uuid4()
+                        kwargs["currency_code"] = currency
+                        table.objects.create(**kwargs)
 
-    @patch("api.report.queries.ExchangeRateDictionary")
-    def test_exchange_rates_dictionary(self, mock_exchange):
-        """Test that the exchange rate dictionary is being applied."""
-        totals = {}
-        for currency in ["USD", "AUD"]:
-            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
-            query_params = self.mocked_query_params(url, AWSCostView)
-            handler = AWSReportQueryHandler(query_params)
-            exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
-            mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
-            query_data = handler.execute_query()
-            data = query_data.get("data")
-            total = data[0].get("values")[0].get("cost").get("total").get("value")
-            totals[currency] = total
-        self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
+    def test_multiple_base_currencies(self):
+        """Test that our dummy data has multiple base currencies."""
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                currencies = table.objects.values_list("currency_code", flat=True).distinct()
+                self.assertGreater(len(currencies), 1)
+
+    # @patch("api.report.queries.ExchangeRateDictionary")
+    # def test_exchange_rates_dictionary(self, mock_exchange):
+    #     """Test that the exchange rate dictionary is being applied."""
+    #     totals = {}
+    #     for currency in ["USD", "AUD"]:
+    #         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
+    #         query_params = self.mocked_query_params(url, AWSCostView)
+    #         handler = AWSReportQueryHandler(query_params)
+    #         exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
+    #         mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
+    #         query_data = handler.execute_query()
+    #         data = query_data.get("data")
+    #         total = data[0].get("values")[0].get("cost").get("total").get("value")
+    #         totals[currency] = total
+    #     self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
