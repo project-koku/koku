@@ -10,7 +10,6 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest import skip
-from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -26,7 +25,6 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
-from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
@@ -3041,7 +3039,7 @@ class AWSReportQueryTestCurrency(IamTestCase):
         """Test that the exchange rate dictionary is being applied."""
         totals = {}
         for currency in ["USD", "AUD"]:
-            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"
+            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
             query_params = self.mocked_query_params(url, AWSCostView)
             handler = AWSReportQueryHandler(query_params)
             exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}

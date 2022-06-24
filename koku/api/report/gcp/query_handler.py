@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Query Handling for Reports."""
-from __future__ import annotations
-
 import copy
 import logging
 
