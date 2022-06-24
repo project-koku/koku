@@ -5,14 +5,12 @@
 """Interactions with the notifications service."""
 import json
 import logging
+import uuid
 
 from kafka_utils.utils import get_producer
 from masu.config import Config
+from masu.external.date_accessor import DateAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
-
-# import uuid
-
-# from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
 
@@ -34,44 +32,23 @@ def send_notification(account, event_type):
     Returns:
         None
     """
-    # encoded_id = str(uuid.uuid4()).encode()
+    msg_uuid = str(uuid.uuid4())
+    # TODO Protecting your Kafka messages against duplicate processing
+    # encoded_id = msg_uuid.encode()
     # message_id = bytearray(encoded_id)
     producer = get_producer()
-    # notification_json = {
-    #     "id": message_id,
-    #     "bundle": "openshift",
-    #     "application": "cost-management",
-    #     "event_type": event_type,
-    #     "timestamp": DateAccessor().today(),
-    #     "account_id": account.get("schema_name"),
-    #     "org_id": account.get("org_id"),
-    #     "context": {
-    #         "source_id": account.get("provider_uuid"),
-    #         "source_name": account.get("name"),
-    #         "host_url": f"https://console.redhat.com/settings/sources/detail/{account.get('provider_uuid')}",
-    #     },
-    #     "events": [
-    #         {
-    #             "metadata": {},
-    #             "payload": {
-    #                 "description": "Openshift source has no cost model assigned, add one via the following link.",
-    #                 "host_url": "https://console.redhat.com/openshift/cost-management/cost-models",
-    #             },
-    #         }
-    #     ],
-    # }
-    data = {
-        "id": "message_id",
+    notification_json = {
+        "id": msg_uuid,
         "bundle": "openshift",
         "application": "cost-management",
-        "event_type": "event_type",
-        "timestamp": "DateAccessor().today()",
-        "account_id": "account.get(",
-        "org_id": "org_id",
+        "event_type": event_type,
+        "timestamp": str(DateAccessor().today()),
+        "account_id": account.get("schema_name"),
+        "org_id": account.get("org_id"),
         "context": {
-            "source_id": "provider_uuid",
-            "source_name": "name",
-            "host_url": "https://console.redhat.com/settings/sources/detail/",
+            "source_id": str(account.get("provider_uuid")),
+            "source_name": account.get("name"),
+            "host_url": f"https://console.redhat.com/settings/sources/detail/{str(account.get('provider_uuid'))}",
         },
         "events": [
             {
@@ -83,7 +60,7 @@ def send_notification(account, event_type):
             }
         ],
     }
-    msg = bytes(json.dumps(data), "utf-8")
+    msg = bytes(json.dumps(notification_json), "utf-8")
     producer.produce(Config.NOTIFICATION_TOPIC, value=msg)
     # Wait up to 1 second for events. Callbacks will be invoked during
     # this method call if the message is acknowledged.
