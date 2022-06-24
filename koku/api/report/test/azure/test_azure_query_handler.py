@@ -1639,3 +1639,28 @@ class AzureReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
+
+
+class AzureReportQueryTestCurrency(IamTestCase):
+    """Tests the currency function for report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_get_exchange_rate_expected(self, mock_exchange):
+        """Test that the exchange rate is the set currency divided by the base."""
+        totals = {}
+        for currency in ["USD", "AUD"]:
+            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
+            query_params = self.mocked_query_params(url, AzureCostView)
+            handler = AzureReportQueryHandler(query_params)
+            exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
+            mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
+            query_data = handler.execute_query()
+            data = query_data.get("data")
+            total = data[0].get("values")[0].get("cost").get("total").get("value")
+            totals[currency] = total
+        self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
