@@ -339,12 +339,15 @@ class OCPCostModelCostUpdater(OCPCloudUpdaterBase):
         """Delete existing tag based rated entries"""
         # Delete existing records
         with OCPReportDBAccessor(self._schema) as report_accessor:
+            with schema_context(self._schema):
+                report_period = report_accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                report_period_id = report_period.id
             report_accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                 source_uuid,
                 start_date,
                 end_date,
                 table=OCPUsageLineItemDailySummary,
-                filters={"monthly_cost_type": "Tag"},
+                filters={"monthly_cost_type": "Tag", "report_period_id": report_period_id},
             )
 
     def update_summary_cost_model_costs(self, start_date, end_date):
