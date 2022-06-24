@@ -165,12 +165,12 @@ class ReportQueryHandler(QueryHandler):
     @property
     def is_openshift(self):
         """Determine if we are working with an OpenShift API."""
-        return "openshift" in self.parameters.request.get_full_path()
+        return "openshift" in self.parameters.request.path
 
     @property
     def is_aws(self):
         """Determine if we are working with an OpenShift API."""
-        return "aws" in self.parameters.request.get_full_path()
+        return "aws" in self.parameters.request.path
 
     def initialize_totals(self):
         """Initialize the total response column values."""
