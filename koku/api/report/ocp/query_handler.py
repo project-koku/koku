@@ -177,7 +177,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                     axis=1,
                 )
                 df["cost_units"] = self.currency
-            skip_columns = ["gcp_project_alias"]
+            skip_columns = []
             annotations = list(self.report_annotations.keys())
             if self.query_table == OCPUsageLineItemDailySummary:
                 # we previously removed source_uuid from the annotations
@@ -227,7 +227,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 axis=1,
             )
             df["cost_units"] = self.currency
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
+        skip_columns = ["source_uuid", "clusters"]
         if "count" not in df.columns:
             skip_columns.extend(["count", "count_units"])
         aggs = {

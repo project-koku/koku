@@ -592,7 +592,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
             query_sum = self._build_sum(query, annotations)
             remove_columns = ["count", "usage"]
-            skip_columns = ["gcp_project_alias", "clusters"]
+            skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, annotations_keys, remove_columns
             )
@@ -692,7 +692,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         query_data = query_data.annotate(**aggregates)
         remove_columns = ["usage", "count"]
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
+        skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
         new_annotations = list(self.report_annotations.keys())
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")

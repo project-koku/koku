@@ -51,7 +51,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 )
                 annotations_keys.append("account_alias")
             remove_columns = ["count", "usage", "cost_units", "usage_units"]
-            skip_columns = ["gcp_project_alias", "clusters"]
+            skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, annotations_keys, remove_columns
             )
@@ -64,7 +64,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
 
             if query.exists():
                 remove_columns = ["usage", "usage_units", "cost_units", "count"]
-                skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "usage_units", "count_units"]
+                skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
                 new_annotations = list(self.report_annotations.keys())
                 query_sum = self.pandas_agg_for_total(query_sum_data, skip_columns, new_annotations, remove_columns)
 
