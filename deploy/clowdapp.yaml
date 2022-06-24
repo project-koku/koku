@@ -122,6 +122,8 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: RBAC_CACHE_TIMEOUT
+          value: ${RBAC_CACHE_TIMEOUT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -2653,6 +2655,9 @@ parameters:
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
   value: "False"
+- displayName: RBAC_CACHE_TIMEOUT
+  name: RBAC_CACHE_TIMEOUT
+  value: "300"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

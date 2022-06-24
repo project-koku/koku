@@ -403,3 +403,6 @@ parameters:
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
   value: "False"
+- name: RBAC_CACHE_TIMEOUT
+  displayName: RBAC_CACHE_TIMEOUT
+  value: "300"
