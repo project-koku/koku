@@ -36,7 +36,7 @@ class NotificationService:
             host_url (String): URL for notification event
             description (String): Description of event being sent
         Returns:
-            J
+            notification message
         """
         notification_json = {
             "id": self.msg_uuid,
