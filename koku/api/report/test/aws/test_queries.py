@@ -10,6 +10,7 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 from unittest import skip
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
@@ -25,6 +26,7 @@ from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
@@ -3024,3 +3026,28 @@ class AWSQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+
+class AWSReportQueryTestCurrency(IamTestCase):
+    """Tests currency for report queries."""
+
+    def setUp(self):
+        """Set up the currency tests."""
+        self.dh = DateHelper()
+        super().setUp()
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_exchange_rates_dictionary(self, mock_exchange):
+        """Test that the exchange rate dictionary is being applied."""
+        totals = {}
+        for currency in ["USD", "AUD"]:
+            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"
+            query_params = self.mocked_query_params(url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
+            mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
+            query_data = handler.execute_query()
+            data = query_data.get("data")
+            total = data[0].get("values")[0].get("cost").get("total").get("value")
+            totals[currency] = total
+        self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
