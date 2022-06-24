@@ -3024,3 +3024,28 @@ class AWSQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+
+class AWSReportQueryTestCurrency(IamTestCase):
+    """Tests currency for report queries."""
+
+    def setUp(self):
+        """Set up the currency tests."""
+        self.dh = DateHelper()
+        super().setUp()
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_exchange_rates_dictionary(self, mock_exchange):
+        """Test that the exchange rate dictionary is being applied."""
+        totals = {}
+        for currency in ["USD", "AUD"]:
+            url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
+            query_params = self.mocked_query_params(url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
+            mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
+            query_data = handler.execute_query()
+            data = query_data.get("data")
+            total = data[0].get("values")[0].get("cost").get("total").get("value")
+            totals[currency] = total
+        self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
