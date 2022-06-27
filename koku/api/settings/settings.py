@@ -129,7 +129,7 @@ class Settings:
         all_tags_set = set(avail_data)
         enabled = []
         with schema_context(self.schema):
-            if tag_keys_kls == AWSEnabledTagKeys:
+            if tag_keys_kls in (AWSEnabledTagKeys, AzureEnabledTagKeys):
                 all_tags_set = set()
                 for tag_key in tag_keys_kls.objects.all():
                     all_tags_set.add(tag_key.key)
@@ -247,37 +247,37 @@ class Settings:
         tag_delimiter = "-"
         updated = [False] * len(obtainTagKeysProvidersParams)
 
-        for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
-            enabled_tags_no_abbr = []
-            tag_view = obtainTagKeysProvidersParams[provider_name]["tag_view"]
-            query_handler = obtainTagKeysProvidersParams[provider_name]["query_handler"]
-            enabled_tag_keys = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
-            provider = obtainTagKeysProvidersParams[provider_name]["provider"]
-            available, _ = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
+        with schema_context(self.schema):
+            for ix, provider_name in enumerate(obtainTagKeysProvidersParams):
+                enabled_tags_no_abbr = []
+                tag_view = obtainTagKeysProvidersParams[provider_name]["tag_view"]
+                query_handler = obtainTagKeysProvidersParams[provider_name]["query_handler"]
+                enabled_tag_keys = obtainTagKeysProvidersParams[provider_name]["enabled_tag_keys"]
+                provider = obtainTagKeysProvidersParams[provider_name]["provider"]
+                available, _ = self._obtain_tag_keys(tag_view, query_handler, enabled_tag_keys)
 
-            # build a list of enabled tags for a given provider, removing the provider name prefix
-            for enabled_tag in settings.get("enabled", []):
-                if enabled_tag.startswith(provider_name + tag_delimiter):
-                    enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
+                # build a list of enabled tags for a given provider, removing the provider name prefix
+                for enabled_tag in settings.get("enabled", []):
+                    if enabled_tag.startswith(provider_name + tag_delimiter):
+                        enabled_tags_no_abbr.append(enabled_tag.split(tag_delimiter, 1)[1])
 
-            invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
+                invalid_keys = [tag_key for tag_key in enabled_tags_no_abbr if tag_key not in available]
 
-            if invalid_keys:
-                key = "settings"
-                message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
-                raise ValidationError(error_obj(key, message))
+                if invalid_keys:
+                    key = "settings"
+                    message = f"Invalid tag keys provided: {', '.join(invalid_keys)}."
+                    raise ValidationError(error_obj(key, message))
 
-            if "aws" in provider_name or "azure" in provider_name:
-                existing_enabled_tags = list(
-                    enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
-                )
+                if provider_name in ("aws", "azure"):
+                    existing_enabled_tags = list(
+                        enabled_tag_keys.objects.filter(enabled=True).values_list("key", flat=True)
+                    )
 
-                if enabled_tags_no_abbr != existing_enabled_tags:
-                    updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
+                    if enabled_tags_no_abbr != existing_enabled_tags:
+                        updated[ix] = update_enabled_keys(self.schema, enabled_tag_keys, enabled_tags_no_abbr)
 
-            else:
-                remove_tags = []
-                with schema_context(self.schema):
+                else:
+                    remove_tags = []
                     existing_enabled_tags = enabled_tag_keys.objects.all()
 
                     for existing_tag in existing_enabled_tags:
@@ -299,8 +299,8 @@ class Settings:
                             enabled_tag_keys.objects.create(key=new_tag)
                             updated[ix] = True
 
-            if updated[ix]:
-                invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
+                if updated[ix]:
+                    invalidate_view_cache_for_tenant_and_source_type(self.schema, provider)
 
         return any(updated)
 
