@@ -3045,8 +3045,10 @@ class AWSReportQueryTestCurrency(IamTestCase):
             AWSStorageSummaryByAccountP,
             AWSStorageSummaryP,
         ]
-        neg_ten = self.dh.n_days_ago(self.dh.today, 10)
-        dates = self.dh.list_days(neg_ten, self.dh.today)
+        self.neg_ten = self.dh.n_days_ago(self.dh.today, 10)
+        self.currencies = ["USD", "CAD", "AUD"]
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
         with tenant_context(self.tenant):
             for table in self.tables:
                 kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
@@ -3060,6 +3062,11 @@ class AWSReportQueryTestCurrency(IamTestCase):
                             kwargs["id"] = uuid4()
                         kwargs["currency_code"] = currency
                         table.objects.create(**kwargs)
+        self.exchange_dictionary = {
+            "USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0), "CAD": Decimal(3.0)},
+            "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.67)},
+            "CAD": {"USD": Decimal(0.33), "AUD": Decimal(1.5), "CAD": Decimal(1.0)},
+        }
 
     def test_multiple_base_currencies(self):
         """Test that our dummy data has multiple base currencies."""
@@ -3068,18 +3075,28 @@ class AWSReportQueryTestCurrency(IamTestCase):
                 currencies = table.objects.values_list("currency_code", flat=True).distinct()
                 self.assertGreater(len(currencies), 1)
 
-    # @patch("api.report.queries.ExchangeRateDictionary")
-    # def test_exchange_rates_dictionary(self, mock_exchange):
-    #     """Test that the exchange rate dictionary is being applied."""
-    #     totals = {}
-    #     for currency in ["USD", "AUD"]:
-    #         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
-    #         query_params = self.mocked_query_params(url, AWSCostView)
-    #         handler = AWSReportQueryHandler(query_params)
-    #         exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
-    #         mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
-    #         query_data = handler.execute_query()
-    #         data = query_data.get("data")
-    #         total = data[0].get("values")[0].get("cost").get("total").get("value")
-    #         totals[currency] = total
-    #     self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_total_cost(self, mock_exchange):
+        """Test overall cost"""
+        for desired_currency in self.currencies:
+            with self.subTest(desired_currency=desired_currency):
+                expected_total = []
+                url = f"?currency={desired_currency}"
+                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                query_params = self.mocked_query_params(url, AWSCostView)
+                handler = AWSReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    for currency in self.currencies:
+                        filters = {
+                            "usage_start__gte": self.ten_days_ago,
+                            "usage_end__lte": self.dh.today,
+                            "currency_code": currency,
+                        }
+                        aggregates = handler._mapper.report_type_map.get("aggregates")
+                        querysets = AWSCostSummaryP.objects.filter(**filters).aggregate(**aggregates)
+                        rate = self.exchange_dictionary[currency][desired_currency]
+                        expected_total.append(rate * querysets["cost_total"])
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                total_value = total.get("cost").get("total").get("value")
+                self.assertEqual(total_value, sum(expected_total))
