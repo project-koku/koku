@@ -23,7 +23,6 @@ from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.urls import reverse
-from django.forms import model_to_dict
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
