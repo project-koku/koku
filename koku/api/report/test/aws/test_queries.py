@@ -3045,8 +3045,8 @@ class AWSReportQueryTestCurrency(IamTestCase):
             AWSStorageSummaryByAccountP,
             AWSStorageSummaryP,
         ]
-        neg_ten = self.dh.n_days_ago(self.dh.today, 10)
-        dates = self.dh.list_days(neg_ten, self.dh.today)
+        ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
+        dates = self.dh.list_days(ten_days_ago, self.dh.today)
         with tenant_context(self.tenant):
             for table in self.tables:
                 kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
