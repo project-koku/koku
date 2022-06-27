@@ -17,10 +17,9 @@ AWS_FILTER_OP_FIELDS = ["account"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 GCP_FILTER_OP_FIELDS = ["account", "gcp_project"]
 OCI_FILTER_OP_FIELDS = ["payer_tenant_id"]
-month_tuple = ("-1", "-2", "-3")
-day_tuple = ("-10", "-30", "-90")
 day_list = ["-10", "-30", "-90"]
-month_list = ["-1", "-2", "-3"]
+month_list_string = ["-1", "-2", "-3"]
+month_list = [-1, -2, -3]
 
 
 class FilterSerializer(serializers.Serializer):
@@ -55,7 +54,7 @@ class FilterSerializer(serializers.Serializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and time_scope_value in month_tuple:  # noqa: W504
+            if time_scope_units == "day" and time_scope_value in month_list:  # noqa: W504
                 valid_values = day_list
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "day")}
@@ -65,7 +64,7 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"resolution": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
-            if time_scope_units == "month" and time_scope_value in day_tuple:  # noqa: W504
+            if time_scope_units == "month" and time_scope_value in day_list:  # noqa: W504
                 valid_values = month_list
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
