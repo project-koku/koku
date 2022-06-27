@@ -10,6 +10,7 @@ from decimal import Decimal
 from decimal import ROUND_HALF_UP
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import F
@@ -1409,3 +1410,76 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAzureCostView)
+
+
+class OCPAzureReportQueryTestCurrency(IamTestCase):
+    """Tests the currency function for report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+        self.tables = [
+            OCPAzureComputeSummaryP,
+            OCPAzureCostLineItemDailySummaryP,
+            OCPAzureCostSummaryByAccountP,
+            OCPAzureCostSummaryByLocationP,
+            OCPAzureCostSummaryByServiceP,
+            OCPAzureCostSummaryP,
+            OCPAzureStorageSummaryP,
+        ]
+        self.currencies = ["USD", "CAD", "AUD"]
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
+                for date in dates:
+                    kwargs["usage_start"] = date
+                    kwargs["usage_end"] = date
+                    for currency in ["AUD", "CAD"]:
+                        if table == OCPAzureCostLineItemDailySummaryP:
+                            kwargs["uuid"] = uuid4()
+                        else:
+                            kwargs["id"] = uuid4()
+                        kwargs["currency"] = currency
+                        table.objects.create(**kwargs)
+        self.exchange_dictionary = {
+            "USD": {"USD": Decimal(1.0), "AUD": Decimal(0.5), "CAD": Decimal(0.25)},
+            "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.25)},
+            "CAD": {"USD": Decimal(0.25), "AUD": Decimal(0.5), "CAD": Decimal(1.0)},
+        }
+
+    def test_multiple_base_currencies(self):
+        """Test that our dummy data has multiple base currencies."""
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                currencies = table.objects.values_list("currency", flat=True).distinct()
+                self.assertGreater(len(currencies), 1)
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_total_cost(self, mock_exchange):
+        """Test overall cost"""
+        for desired_currency in self.currencies:
+            with self.subTest(desired_currency=desired_currency):
+                expected_total = []
+                url = f"?currency={desired_currency}"
+                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                query_params = self.mocked_query_params(url, OCPAzureCostView)
+                handler = OCPAzureReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    for currency in self.currencies:
+                        filters = {
+                            "usage_start__gte": self.ten_days_ago,
+                            "usage_end__lte": self.dh.today,
+                            "currency": currency,
+                        }
+                        aggregates = handler._mapper.report_type_map.get("aggregates")
+                        querysets = OCPAzureCostSummaryP.objects.filter(**filters).aggregate(**aggregates)
+                        rate = self.exchange_dictionary[currency][desired_currency]
+
+                        expected_total.append(rate * querysets["cost_total"])
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                total_value = total.get("cost").get("total").get("value")
+                self.assertEqual(total_value, sum(expected_total))

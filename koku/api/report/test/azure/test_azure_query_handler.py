@@ -1660,8 +1660,9 @@ class AzureReportQueryTestCurrency(IamTestCase):
             AzureNetworkSummaryP,
             AzureStorageSummaryP,
         ]
-        ten_days_ago = self.dh.n_days_ago(self.dh.today, 10)
-        dates = self.dh.list_days(ten_days_ago, self.dh.today)
+        self.currencies = ["USD", "CAD", "AUD"]
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
         with tenant_context(self.tenant):
             for table in self.tables:
                 kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
@@ -1675,6 +1676,11 @@ class AzureReportQueryTestCurrency(IamTestCase):
                             kwargs["id"] = uuid4()
                         kwargs["currency"] = currency
                         table.objects.create(**kwargs)
+        self.exchange_dictionary = {
+            "USD": {"USD": Decimal(1.0), "AUD": Decimal(0.5), "CAD": Decimal(0.25)},
+            "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.25)},
+            "CAD": {"USD": Decimal(0.25), "AUD": Decimal(0.5), "CAD": Decimal(1.0)},
+        }
 
     def test_multiple_base_currencies(self):
         """Test that our dummy data has multiple base currencies."""
@@ -1683,18 +1689,29 @@ class AzureReportQueryTestCurrency(IamTestCase):
                 currencies = table.objects.values_list("currency", flat=True).distinct()
                 self.assertGreater(len(currencies), 1)
 
-    # @patch("api.report.queries.ExchangeRateDictionary")
-    # def test_get_exchange_rate_expected(self, mock_exchange):
-    #     """Test that the exchange rate is the set currency divided by the base."""
-    #     totals = {}
-    #     for currency in ["USD", "AUD"]:
-    #         url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&currency={currency}"  # noqa: E501
-    #         query_params = self.mocked_query_params(url, AzureCostView)
-    #         handler = AzureReportQueryHandler(query_params)
-    #         exchange_dictionary = {"USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0)}}
-    #         mock_exchange.objects.all().first().currency_exchange_dictionary = exchange_dictionary
-    #         query_data = handler.execute_query()
-    #         data = query_data.get("data")
-    #         total = data[0].get("values")[0].get("cost").get("total").get("value")
-    #         totals[currency] = total
-    #     self.assertEqual((Decimal(2.0) * totals.get("USD")), totals.get("AUD"))
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_total_cost(self, mock_exchange):
+        """Test overall cost"""
+        for desired_currency in self.currencies:
+            with self.subTest(desired_currency=desired_currency):
+                expected_total = []
+                url = f"?currency={desired_currency}"
+                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                query_params = self.mocked_query_params(url, AzureCostView)
+                handler = AzureReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    for currency in self.currencies:
+                        filters = {
+                            "usage_start__gte": self.ten_days_ago,
+                            "usage_end__lte": self.dh.today,
+                            "currency": currency,
+                        }
+                        aggregates = handler._mapper.report_type_map.get("aggregates")
+                        querysets = AzureCostSummaryP.objects.filter(**filters).aggregate(**aggregates)
+                        rate = self.exchange_dictionary[currency][desired_currency]
+
+                        expected_total.append(rate * querysets["cost_total"])
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                total_value = total.get("cost").get("total").get("value")
+                self.assertEqual(total_value, sum(expected_total))
