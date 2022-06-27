@@ -255,8 +255,7 @@ class AzureEnabledTagKeys(models.Model):
         db_table = "reporting_azureenabledtagkeys"
         indexes = [models.Index(name="azure_enabled_covering_ix", fields=["key", "enabled"])]
 
-    id = models.BigAutoField(primary_key=True)
-    key = models.CharField(max_length=253, unique=True)
+    key = models.CharField(max_length=253, primary_key=True)
     enabled = models.BooleanField(null=False, default=True)
 
 
