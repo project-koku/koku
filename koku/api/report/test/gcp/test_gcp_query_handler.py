@@ -7,8 +7,10 @@ import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
+from typing import overload
 from unittest.mock import patch
 from unittest.mock import PropertyMock
+from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import F
@@ -33,6 +35,14 @@ from reporting.models import GCPCostSummaryByProjectP
 from reporting.models import GCPCostSummaryByServiceP
 from reporting.models import GCPCostSummaryP
 from reporting.models import GCPTagsSummary
+from reporting.models import GCPComputeSummaryByAccountP
+from reporting.models import GCPComputeSummaryP
+from reporting.models import GCPNetworkSummaryP
+from reporting.models import GCPStorageSummaryByAccountP
+from reporting.models import GCPStorageSummaryByProjectP
+from reporting.models import GCPStorageSummaryByRegionP
+from reporting.models import GCPStorageSummaryByServiceP
+from reporting.models import GCPStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -1526,3 +1536,84 @@ class GCPReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
+
+
+class GCPReportQueryTestCurrency(IamTestCase):
+    """Tests the currency function for report queries."""
+
+    def setUp(self):
+        """Set up the customer view tests."""
+        self.dh = DateHelper()
+        super().setUp()
+        self.tables = [
+            GCPCostEntryLineItemDailySummary,
+            GCPCostSummaryByAccountP,
+            GCPCostSummaryByProjectP,
+            GCPCostSummaryByServiceP,
+            GCPCostSummaryP,
+            GCPComputeSummaryByAccountP,
+            GCPComputeSummaryP,
+            GCPNetworkSummaryP,
+            GCPStorageSummaryByAccountP,
+            GCPStorageSummaryByProjectP,
+            GCPStorageSummaryByRegionP,
+            GCPStorageSummaryByServiceP,
+            GCPStorageSummaryP,
+        ]
+        self.currencies = ["USD", "CAD", "AUD"]
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
+                for date in dates:
+                    kwargs["usage_start"] = date
+                    kwargs["usage_end"] = date
+                    for currency in ["AUD", "CAD"]:
+                        if table == GCPCostEntryLineItemDailySummary:
+                            kwargs["uuid"] = uuid4()
+                        else:
+                            kwargs["id"] = uuid4()
+                        kwargs["currency"] = currency
+                        table.objects.create(**kwargs)
+        self.exchange_dictionary = {
+                "USD": {"USD": Decimal(1.0), "AUD": Decimal(.5), "CAD": Decimal(.25)},
+                "AUD": {"USD": Decimal(.5), "AUD": Decimal(1.0), "CAD": Decimal(.25)},
+                "CAD": {"USD": Decimal(.25), "AUD": Decimal(.5), "CAD": Decimal(1.0)}
+                }
+
+    def test_multiple_base_currencies(self):
+        """Test that our dummy data has multiple base currencies."""
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                currencies = table.objects.values_list("currency", flat=True).distinct()
+                self.assertGreater(len(currencies), 1)
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_total_cost(self, mock_exchange):
+        """Test overall cost"""
+        for desired_currency in self.currencies:
+            with self.subTest(desired_currency=desired_currency):
+                expected_total = []
+                url = f"?currency={desired_currency}"
+                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                query_params = self.mocked_query_params(url, GCPCostView)
+                handler = GCPReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    for currency in self.currencies:
+                        filters = {
+                            "usage_start__gte": self.ten_days_ago,
+                            "invoice_month__in": self.dh.gcp_find_invoice_months_in_date_range(
+                                self.ten_days_ago, self.dh.today
+                            ),
+                            "currency": currency,
+                        }
+                        aggregates = handler._mapper.report_type_map.get("aggregates")
+                        querysets = GCPCostSummaryP.objects.filter(**filters).aggregate(**aggregates)
+                        rate = self.exchange_dictionary[currency][desired_currency]
+                        expected_total.append(rate * querysets["cost_total"])
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                total_value = total.get("cost").get("total").get("value")
+                # import pdb; pdb.set_trace()
+                self.assertEqual(total_value, sum(expected_total))
