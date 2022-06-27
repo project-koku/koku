@@ -7,6 +7,7 @@ import json
 import logging
 import uuid
 
+from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config
 from masu.external.date_accessor import DateAccessor
@@ -74,7 +75,7 @@ class NotificationService:
             None
         """
         producer = get_producer()
-        producer.produce(Config.NOTIFICATION_TOPIC, value=msg)
+        producer.produce(Config.NOTIFICATION_TOPIC, value=msg, callback=delivery_callback)
         # Wait up to 1 second for events. Callbacks will be invoked during
         # this method call if the message is acknowledged.
         # `flush` makes this process synchronous compared to async with `poll`

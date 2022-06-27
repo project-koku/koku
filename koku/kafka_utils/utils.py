@@ -40,6 +40,14 @@ def get_producer():  # pragma: no cover
     return producer
 
 
+def delivery_callback(err, msg):
+    """Acknowledge message success or failure."""
+    if err is not None:
+        LOG.error(f"Failed to deliver message: {msg}: {err}")
+    else:
+        LOG.info("Validation message delivered.")
+
+
 def backoff(interval, maximum=120):
     """Exponential back-off."""
     wait = min(maximum, (2**interval)) + random.random()
