@@ -184,6 +184,7 @@ class Orchestrator:
                 customer_name=customer_name,
                 credentials=credentials,
                 data_source=data_source,
+                report_month=report_month,
                 schema_name=schema_name,
                 REPORT_QUEUE=REPORT_QUEUE,
             )
@@ -327,6 +328,7 @@ class Orchestrator:
         customer_name,
         credentials,
         data_source,
+        report_month,
         schema_name,
         REPORT_QUEUE,
     ):
