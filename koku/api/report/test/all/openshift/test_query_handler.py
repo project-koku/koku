@@ -3,6 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
+from decimal import Decimal
+from unittest.mock import patch
+from uuid import uuid4
+
 from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
@@ -13,6 +17,7 @@ from api.report.all.openshift.query_handler import OCPAllReportQueryHandler
 from api.urls import OCPAllCostView
 from api.urls import OCPAllInstanceTypeView
 from api.urls import OCPAllStorageView
+from api.utils import DateHelper
 from reporting.models import AWSCostEntryBill
 from reporting.models import AzureCostEntryBill
 from reporting.models import OCPAllComputeSummaryPT
@@ -208,3 +213,72 @@ class OCPAllQueryHandlerTest(IamTestCase):
         handler.set_access_filters(access, filt, filters)
         expected = [QueryFilter(field=field, operation="contains", parameter=access)]
         self.assertEqual(filters._filters, expected)
+
+
+class OCPAllReportQueryTestCurrency(IamTestCase):
+    """Tests currency for report queries."""
+
+    def setUp(self):
+        """Set up the currency tests."""
+        self.dh = DateHelper()
+        super().setUp()
+        self.tables = [
+            OCPAllComputeSummaryPT,
+            OCPAllCostSummaryByAccountPT,
+            OCPAllCostSummaryByRegionPT,
+            OCPAllCostSummaryByServicePT,
+            OCPAllCostSummaryPT,
+            OCPAllStorageSummaryPT,
+        ]
+        self.neg_ten = self.dh.n_days_ago(self.dh.today, 10)
+        self.currencies = ["USD", "CAD", "AUD"]
+        self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
+        dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
+                for date in dates:
+                    kwargs["usage_start"] = date
+                    kwargs["usage_end"] = date
+                    for currency in ["AUD", "CAD"]:
+                        kwargs["id"] = uuid4()
+                        kwargs["currency_code"] = currency
+                        table.objects.create(**kwargs)
+        self.exchange_dictionary = {
+            "USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0), "CAD": Decimal(3.0)},
+            "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.67)},
+            "CAD": {"USD": Decimal(0.33), "AUD": Decimal(1.5), "CAD": Decimal(1.0)},
+        }
+
+    def test_multiple_base_currencies(self):
+        """Test that our dummy data has multiple base currencies."""
+        with tenant_context(self.tenant):
+            for table in self.tables:
+                currencies = table.objects.values_list("currency_code", flat=True).distinct()
+                self.assertGreater(len(currencies), 1)
+
+    @patch("api.report.queries.ExchangeRateDictionary")
+    def test_total_cost(self, mock_exchange):
+        """Test overall cost"""
+        for desired_currency in self.currencies:
+            with self.subTest(desired_currency=desired_currency):
+                expected_total = []
+                url = f"?currency={desired_currency}"
+                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                query_params = self.mocked_query_params(url, OCPAllCostView)
+                handler = OCPAllReportQueryHandler(query_params)
+                with tenant_context(self.tenant):
+                    for currency in self.currencies:
+                        filters = {
+                            "usage_start__gte": self.ten_days_ago,
+                            "usage_end__lte": self.dh.today,
+                            "currency_code": currency,
+                        }
+                        aggregates = handler._mapper.report_type_map.get("aggregates")
+                        querysets = OCPAllCostSummaryPT.objects.filter(**filters).aggregate(**aggregates)
+                        rate = self.exchange_dictionary[currency][desired_currency]
+                        expected_total.append(rate * querysets["cost_total"])
+                query_output = handler.execute_query()
+                total = query_output.get("total")
+                total_value = total.get("cost").get("total").get("value")
+                self.assertAlmostEqual(total_value, sum(expected_total))
