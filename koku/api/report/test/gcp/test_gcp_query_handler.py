@@ -7,7 +7,6 @@ import logging
 from datetime import timedelta
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
-from typing import overload
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import uuid4
@@ -28,21 +27,21 @@ from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+from reporting.models import GCPComputeSummaryByAccountP
+from reporting.models import GCPComputeSummaryP
 from reporting.models import GCPCostEntryBill
 from reporting.models import GCPCostEntryLineItemDailySummary
 from reporting.models import GCPCostSummaryByAccountP
 from reporting.models import GCPCostSummaryByProjectP
 from reporting.models import GCPCostSummaryByServiceP
 from reporting.models import GCPCostSummaryP
-from reporting.models import GCPTagsSummary
-from reporting.models import GCPComputeSummaryByAccountP
-from reporting.models import GCPComputeSummaryP
 from reporting.models import GCPNetworkSummaryP
 from reporting.models import GCPStorageSummaryByAccountP
 from reporting.models import GCPStorageSummaryByProjectP
 from reporting.models import GCPStorageSummaryByRegionP
 from reporting.models import GCPStorageSummaryByServiceP
 from reporting.models import GCPStorageSummaryP
+from reporting.models import GCPTagsSummary
 
 LOG = logging.getLogger(__name__)
 
@@ -1577,10 +1576,10 @@ class GCPReportQueryTestCurrency(IamTestCase):
                         kwargs["currency"] = currency
                         table.objects.create(**kwargs)
         self.exchange_dictionary = {
-                "USD": {"USD": Decimal(1.0), "AUD": Decimal(.5), "CAD": Decimal(.25)},
-                "AUD": {"USD": Decimal(.5), "AUD": Decimal(1.0), "CAD": Decimal(.25)},
-                "CAD": {"USD": Decimal(.25), "AUD": Decimal(.5), "CAD": Decimal(1.0)}
-                }
+            "USD": {"USD": Decimal(1.0), "AUD": Decimal(0.5), "CAD": Decimal(0.25)},
+            "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.25)},
+            "CAD": {"USD": Decimal(0.25), "AUD": Decimal(0.5), "CAD": Decimal(1.0)},
+        }
 
     def test_multiple_base_currencies(self):
         """Test that our dummy data has multiple base currencies."""
