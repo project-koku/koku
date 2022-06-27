@@ -358,7 +358,7 @@ def update_summary_tables(  # noqa: C901
     """
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
-    cache_args = [schema_name, provider, provider_uuid]
+    cache_args = [schema_name, provider, provider_uuid, start_date, end_date]
     ocp_on_cloud_infra_map = {}
 
     if not synchronous:
@@ -505,7 +505,7 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
-    cache_args = [schema_name, infrastructure_provider_uuid]
+    cache_args = [schema_name, infrastructure_provider_uuid, start_date, end_date]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
