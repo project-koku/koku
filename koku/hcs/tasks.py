@@ -205,9 +205,6 @@ def collect_hcs_report_finalization(  # noqa: C901
         providers = get_providers_by_uuid(provider_uuid)
     elif provider_type is not None:
         LOG.debug(log_json(tracing_id, f"provided provider_type: {provider_type}"))
-        if provider_type not in HCS_EXCEPTED_PROVIDERS:
-            LOG.warning(log_json(tracing_id, f"provider type: {provider_type} is not an excepted HCS provider"))
-            return
         providers = get_providers_by_type(provider_type)
     else:
         providers = get_all_excepted_providers()
@@ -250,7 +247,7 @@ def get_all_excepted_providers():
 
 
 def get_providers_by_type(provider_type):
-    providers = Provider.objects.filter(type=provider_type).all()
+    providers = Provider.objects.filter(type=provider_type, type__in=HCS_EXCEPTED_PROVIDERS).all()
     if not providers:
         LOG.warning(f"no valid providers found for provider_type: {provider_type}")
         return

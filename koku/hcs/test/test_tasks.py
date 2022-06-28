@@ -248,7 +248,7 @@ class TestHCSTasks(HCSTestCase):
         with self.assertLogs("hcs.tasks", "INFO") as _logs:
             collect_hcs_report_finalization(provider_type=p_type)
 
-            self.assertIn(f"provider type: {p_type} is not an excepted HCS provider", _logs.output[0])
+            self.assertIn(f"no valid providers found for provider_type: {p_type}", _logs.output[0])
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_hcs_report_finalization_provider_uuid(self, rd, mock_ehp, mock_report):
