@@ -177,7 +177,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             return self.data_source.get("dataset").split(":")[1]
         return self.data_source.get("dataset")
 
-    def retrieve_current_manifests(self):
+    def retrieve_current_manifests_mapping(self):
         """
         Checks for manifests with same bill_date & provider and determines
         scan range. If manifests do exist it will return a mapping of
@@ -231,7 +231,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             mapping[row[0]] = row[1].replace(tzinfo=datetime.timezone.utc)
         return mapping
 
-    def create_new_manifests(self, current_manifests, bigquery_mappings):
+    def collect_new_manifests(self, current_manifests, bigquery_mappings):
         """
         Checks the partition dates and decides
 
@@ -274,9 +274,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         dh = DateHelper()
         if isinstance(date, datetime.datetime):
             date = date.date()
-        current_manifests = self.retrieve_current_manifests()
+        current_manifests = self.retrieve_current_manifests_mapping()
         bigquery_mapping = self.bigquery_export_to_partition_mapping()
-        new_manifest_list = self.create_new_manifests(current_manifests, bigquery_mapping)
+        new_manifest_list = self.collect_new_manifests(current_manifests, bigquery_mapping)
         reports_list = []
         for manifest in new_manifest_list:
             manifest_id = self._process_manifest_db_record(

@@ -1,28 +1,26 @@
 """Test the GCPReportDownloader class."""
-import logging
-import os
-import shutil
-import tempfile
 import datetime
+import logging
+import shutil
 from unittest.mock import patch
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
+from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
-from reporting_common.models import CostUsageReportManifest
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
+from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -178,17 +176,19 @@ class GCPReportDownloaderTest(MasuTestCase):
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
         downloader = self.create_gcp_downloader_with_mocked_values()
-        mocked_mapping = {datetime.date.today():DateHelper().today}
+        mocked_mapping = {datetime.date.today(): DateHelper().today}
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
         ):
             with patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader.bigquery_export_to_partition_mapping",
-            return_value=mocked_mapping):
+                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader"
+                + ".bigquery_export_to_partition_mapping",
+                return_value=mocked_mapping,
+            ):
                 report_list = downloader.get_manifest_context_for_date(start_date.date())
         expected_file = f"{invoice_month}_{DateHelper().today.date()}.csv"
-        expected_files = [{"key": expected_file, 'local_file': expected_file}]
+        expected_files = [{"key": expected_file, "local_file": expected_file}]
         for report_dict in report_list:
             self.assertEqual(report_dict.get("manifest_id"), 2)
             self.assertEqual(report_dict.get("files"), expected_files)
@@ -246,3 +246,45 @@ class GCPReportDownloaderTest(MasuTestCase):
                 )
 
             self.assertEqual(downloader._get_dataset_name(), dataset_name)
+
+    def test_scan_start_setup_complete(self):
+        """Test scan start when provider setup is complete"""
+        dh = DateHelper()
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        if self.gcp_provider.setup_complete:
+            expected_scan_start = dh.today.date() - relativedelta(days=10)
+            self.assertEqual(downloader.scan_start, expected_scan_start)
+
+    def test_scan_start_setup_not_complete(self):
+        """Test scan start provider setup is not complete"""
+        dh = DateHelper()
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        if self.gcp_provider.setup_complete:
+            self.gcp_provider.setup_complete = False
+
+        months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
+        expected_scan_start = dh.today.date() - relativedelta(months=months_delta)
+        expected_scan_start = expected_scan_start.replace(day=1)
+        self.assertEqual(downloader.scan_start, expected_scan_start)
+
+    def test_retrieve_current_manifests_mapping(self):
+        """Test retrieving existing manifests mapping given bill_date and provider"""
+        manifests = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid)
+        for manifest in manifests:
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{DateHelper().today}"
+            manifest.save()
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        expected_manifest_mapping = {}
+        expected_manifests = []
+        with ReportManifestDBAccessor() as manifest_accessor:
+            expected_manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                self.gcp_provider_uuid, downloader.scan_start, downloader.scan_end
+            )
+        for manifest in expected_manifests:
+            last_export_time = expected_manifest_mapping.get(manifest.partition_date)
+            if not last_export_time or manifest.previous_export_time > last_export_time:
+                expected_manifest_mapping[manifest.partition_date] = manifest.previous_export_time
+
+        current_manifests_mapping = downloader.retrieve_current_manifests_mapping()
+
+        self.assertEqual(current_manifests_mapping, expected_manifest_mapping)

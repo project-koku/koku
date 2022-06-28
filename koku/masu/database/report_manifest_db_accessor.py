@@ -9,7 +9,6 @@ from django.db.models import DateField
 from django.db.models import DateTimeField
 from django.db.models import F
 from django.db.models import Func
-from django.db.models import Max
 from django.db.models import Value
 from django.db.models.expressions import Window
 from django.db.models.functions import Cast
@@ -220,24 +219,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()
-
-    def get_max_export_time_for_manifests(self, provider_uuid, bill_date, partition_date):
-        """Return the max export time for manifests given provider and bill date."""
-        filters = {
-            "provider_id": provider_uuid,
-            "manifest_completed_datetime__isnull": False,
-        }
-
-        manifests = (
-            CostUsageReportManifest.objects.filter(**filters).annotate(
-                partition_date=Cast(
-                    Func(F("assembly_id"), Value("|"), Value(1), function="split_part", output_field=DateField()),
-                    output_field=DateField(),
-                )
-            )
-        ).filter(partition_date=partition_date)
-        max_export = manifests.aggregate(Max("export_time"))
-        return max_export.get("export_time__max")
 
     def get_last_reports_for_manifests(self, provider_uuid, bill_date):
         """Return the last reports downloaded for manifests given provider."""

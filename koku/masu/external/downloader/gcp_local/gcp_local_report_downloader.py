@@ -94,7 +94,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dh = DateHelper()
-        manifest_list = self.create_new_manifests()
+        manifest_list = self.collect_new_manifests()
         reports_list = []
         for manifest in manifest_list:
             manifest_id = self._process_manifest_db_record(
@@ -112,7 +112,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             reports_list.append(report_dict)
         return reports_list
 
-    def create_new_manifests(self):
+    def collect_new_manifests(self):
         """
         Generate a dict representing an analog to other providers' "manifest" files.
 
