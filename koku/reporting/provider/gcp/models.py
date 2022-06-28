@@ -212,9 +212,11 @@ class GCPEnabledTagKeys(models.Model):
         """Meta for GCPEnabledTagKeys."""
 
         db_table = "reporting_gcpenabledtagkeys"
+        indexes = [models.Index(name="gcp_enabled_covering_ix", fields=["key", "enabled"])]
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+    enabled = models.BooleanField(null=False, default=True)
 
 
 class GCPTagsSummary(models.Model):
