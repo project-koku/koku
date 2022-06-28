@@ -957,11 +957,11 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Test that the worker cache is used."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
-        mock_lock.side_effect = self.lock_single_task
-
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date), str(end_date)]
+        mock_lock.side_effect = self.lock_single_task
+
         mock_daily.return_value = start_date, end_date
         mock_summary.return_value = start_date, end_date
         update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
@@ -1151,7 +1151,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
         task_name = "masu.processor.tasks.update_openshift_on_cloud"
-        cache_args = [self.schema, self.aws_provider_uuid]
+        cache_args = [self.schema, self.aws_provider_uuid, str(start_date), str(end_date)]
 
         manifest_dict = {
             "assembly_id": "12345",
