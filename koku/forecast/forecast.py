@@ -31,8 +31,10 @@ from api.report.gcp.provider_map import GCPProviderMap
 from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
-from api.utils import get_cost_type
 from reporting.provider.aws.models import AWSOrganizationalUnit
+
+# from api.utils import get_cost_type
+# from api.utils import get_currency
 
 
 LOG = logging.getLogger(__name__)
@@ -68,11 +70,17 @@ class Forecast:
         self.dh = DateHelper()
         self.params = query_params
 
+        # TO DO: FIX AND MAKE SURE REQUEST IS RECEIVED
         if self.provider is Provider.PROVIDER_AWS:
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
-            else:
-                self.cost_type = get_cost_type(self.request)
+            # else:
+            #     self.cost_type = get_cost_type(self.request)
+
+        if query_params.get("currency"):
+            self.currency = query_params.get("currency")
+        # else:
+        #     self.currency = get_currency(self.request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -266,7 +274,7 @@ class Forecast:
     def format_result(self, results):
         """Format results for API consumption."""
         f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
-        units = "USD"
+        units = self.currency
 
         response = []
         for key in results:

@@ -97,4 +97,22 @@ CURRENCIES = [
         "description": "ZAR (ZAR) - South African Rand",
     },
 ]
+
+VALID_CURRENCIES = [
+    "AUD",
+    "CAD",
+    "CHF",
+    "CNY",
+    "DKK",
+    "EUR",
+    "GBP",
+    "HKD",
+    "JPY",
+    "NOK",
+    "NZD",
+    "SEK",
+    "SGD",
+    "USD",
+    "ZAR"
+]
 # fmt: on
