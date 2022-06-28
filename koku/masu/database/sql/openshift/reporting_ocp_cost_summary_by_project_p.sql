@@ -16,7 +16,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
     infrastructure_project_monthly_cost,
     supplementary_usage_cost,
     supplementary_project_monthly_cost,
-    source_uuid
+    source_uuid,
+    raw_currency
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -46,7 +47,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_cost_summary_by_project_p (
             'memory', sum(((coalesce(supplementary_project_monthly_cost, '{"memory": 0}'::jsonb))->>'memory')::decimal),
             'pvc', sum(((coalesce(supplementary_project_monthly_cost, '{"pvc": 0}'::jsonb))->>'pvc')::decimal)
         ) as supplementary_project_monthly_cost,
-        {{source_uuid}}::uuid as source_uuid
+        {{source_uuid}}::uuid as source_uuid,
+        max(raw_currency) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
