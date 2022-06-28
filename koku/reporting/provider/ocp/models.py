@@ -579,9 +579,11 @@ class OCPEnabledTagKeys(models.Model):
         """Meta for OCPEnabledTagKeys."""
 
         db_table = "reporting_ocpenabledtagkeys"
+        indexes = [models.Index(name="ocp_enabled_covering_ix", fields=["key", "enabled"])]
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+    enabled = models.BooleanField(null=False, default=True)
 
 
 class OCPCluster(models.Model):

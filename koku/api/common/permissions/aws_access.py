@@ -15,7 +15,10 @@ class AwsAccessPermission(permissions.BasePermission):
     def has_permission(self, request, view):
         """Check permission to view AWS data."""
         if settings.ENHANCED_ORG_ADMIN and request.user.admin:
-            return True
+            if not isinstance(request.user.admin, str) or (
+                isinstance(request.user.admin, str) and request.user.admin == "True"
+            ):
+                return True
 
         resource_access = request.user.access
         if resource_access is None or not isinstance(resource_access, dict):
