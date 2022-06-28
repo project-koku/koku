@@ -27,6 +27,10 @@
     FROM hive.{{schema | sqlsafe}}.aws_line_items_daily AS aws
     JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         ON aws.lineitem_usagestartdate = ocp.interval_start
+            AND aws.lineitem_resourceid IS NOT NULL
+            AND aws.lineitem_resourceid != ''
+            AND ocp.resource_id IS NOT NULL
+            AND ocp.resource_id != ''
             AND ocp.resource_id = aws.lineitem_resourceid
     WHERE aws.lineitem_usagestartdate >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND aws.lineitem_usagestartdate < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
@@ -55,6 +59,8 @@
     FROM hive.{{schema | sqlsafe}}.azure_line_items AS azure
     JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         ON coalesce(azure.date, azure.usagedatetime) = ocp.interval_start
+            AND ocp.node IS NOT NULL
+            AND ocp.node != ''
             AND ocp.node = split_part(coalesce(azure.resourceid, azure.instanceid), '/', 9)
     WHERE coalesce(azure.date, azure.usagedatetime) >= TIMESTAMP '{{start_date | sqlsafe}}'
         AND coalesce(azure.date, azure.usagedatetime) < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
