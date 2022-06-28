@@ -57,7 +57,6 @@ class GCPReportDownloaderTest(MasuTestCase):
         self,
         customer_name=FAKE.name(),
         dataset=FAKE.slug(),
-        provider_uuid=uuid4(),
         project_id=FAKE.slug(),
         table_id=FAKE.slug(),
     ):
@@ -83,7 +82,7 @@ class GCPReportDownloaderTest(MasuTestCase):
             downloader = GCPReportDownloader(
                 customer_name=customer_name,
                 data_source=billing_source,
-                provider_uuid=provider_uuid,
+                provider_uuid=self.gcp_provider_uuid,
                 credentials=credentials,
             )
         return downloader
@@ -100,15 +99,6 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
-
-    # def test_relevant_file_names(self):
-    #     """Assert relevant file name is generated correctly."""
-    #     downloader = self.create_gcp_downloader_with_mocked_values()
-    #     mock_invoice_month = self.today.strftime("%Y%m")
-    #     end_date = downloader.scan_end + relativedelta(days=1)
-    #     expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{end_date}.csv"]
-    #     result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
-    #     self.assertEqual(expected_file_name, result_file_names)
 
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
@@ -127,10 +117,9 @@ class GCPReportDownloaderTest(MasuTestCase):
     #     expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
     #     downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
     #     with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-    #         with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
-    #             full_path, etag, date, _, __ = downloader.download_file(key)
+    #         with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives", return_value=[["file_one", "file_two"], {"start":"", "end":""}]):
+    #             full_path, _, date, _, __ = downloader.download_file(key)
     #             mock_makedirs.assert_called()
-    #             self.assertEqual(etag, self.etag)
     #             self.assertEqual(date, self.today)
     #             self.assertEqual(full_path, expected_full_path)
 
