@@ -31,10 +31,9 @@ from api.report.gcp.provider_map import GCPProviderMap
 from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
+from api.utils import get_cost_type
+from api.utils import get_currency
 from reporting.provider.aws.models import AWSOrganizationalUnit
-
-# from api.utils import get_cost_type
-# from api.utils import get_currency
 
 
 LOG = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    def __init__(self, query_params):  # noqa: C901
+    def __init__(self, query_params, request):  # noqa: C901
         """Class Constructor.
 
         Instance Attributes:
@@ -70,17 +69,16 @@ class Forecast:
         self.dh = DateHelper()
         self.params = query_params
 
-        # TO DO: FIX AND MAKE SURE REQUEST IS RECEIVED
         if self.provider is Provider.PROVIDER_AWS:
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
-            # else:
-            #     self.cost_type = get_cost_type(self.request)
+            else:
+                self.cost_type = get_cost_type(request)
 
         if query_params.get("currency"):
             self.currency = query_params.get("currency")
-        # else:
-        #     self.currency = get_currency(self.request)
+        else:
+            self.currency = get_currency(request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -113,6 +111,8 @@ class Forecast:
                 if access:
                     self.set_access_filters(access, filt, self.filters)
 
+    # THOUGHT PROCESS: I believe here is where we are going to want to edit.... we need to make sure that the provider
+    # map returned gives back the proper converted values
     @property
     def provider_map(self):
         """Return the provider map instance."""

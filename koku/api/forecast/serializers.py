@@ -55,6 +55,7 @@ class AWSCostForecastParamSerializer(ForecastParamSerializer):
         ("unblended_cost", "unblended_cost"),
         ("savingsplan_effective_cost", "savingsplan_effective_cost"),
     )
+    cost_type = serializers.ChoiceField(choices=COST_TYPE_CHOICE, required=False)
 
     def validate(self, data):
         """Validate incoming data to including cost_type.
