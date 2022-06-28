@@ -164,7 +164,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
         0 as persistentvolumeclaim_usage_gigabyte_months,
-        max(ocp_aws.currency) as raw_currency
+        max(ocp_aws.currency_code) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpawscostlineitem_project_daily_summary_p AS ocp_aws
     JOIN {{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_aws.cluster_id = rp.cluster_id
