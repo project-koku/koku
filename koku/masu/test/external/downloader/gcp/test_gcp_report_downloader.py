@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from unittest.mock import patch
 from uuid import uuid4
+from pytz import timezone
 
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
@@ -233,6 +234,18 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         os.remove(temp_path)
 
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_error_opening_file(self, mock_s3):
+        """
+        Test that we handle effor while opening csv file.
+        """
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
+            err_msg = "bad_open"
+            mock_open.side_effect = IOError(err_msg)
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None)
+
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
         project_id = FAKE.slug()
@@ -295,3 +308,27 @@ class GCPReportDownloaderTest(MasuTestCase):
         current_manifests_mapping = downloader.retrieve_current_manifests_mapping()
 
         self.assertEqual(current_manifests_mapping, expected_manifest_mapping)
+
+    def test_bigquery_export_to_partition_mapping_error(self):
+        """Test GCP error retrieving partition data."""
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.Client.side_effect = GoogleCloudError(err_msg)
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+                downloader.bigquery_export_to_partition_mapping()
+
+    # @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
+    # def test_bigquery_export_to_partition_mapping_success(self, mock_bigquery):
+    #     # query(export_partition_date_query).result()
+    #     """Test GCP error retrieving partition data."""
+    #     now_utc = datetime.datetime.now(timezone('UTC'))
+    #     key = datetime.date.today()
+    #     mocked_result = [
+    #         [key, now_utc.astimezone(timezone('US/Pacific'))]
+    #     ]
+    #     mock_bigquery.client.return_value.query.return_value.result.return_value = mocked_result
+    #     downloader = self.create_gcp_downloader_with_mocked_values()
+    #     mapping = downloader.bigquery_export_to_partition_mapping()
+    #     self.assertEqual(mapping, {key: now_utc})
+
