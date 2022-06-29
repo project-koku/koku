@@ -289,6 +289,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
             if report.get("start") and report.get("end"):
                 starts.append(report.get("start"))
                 ends.append(report.get("end"))
+                LOG.info(f'\n\nSTART: {report.get("start")} END: {report.get("end")}\n\n')
             start = min(starts) if starts != [] else None
             end = max(ends) if ends != [] else None
 
@@ -313,7 +314,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
+                LOG.info(f"\n\n REPORT: {report} \n\n")
                 months = get_months_in_date_range(report)
+                LOG.info(f"\n\nMONTHS: {months} \n\n")
                 msg = f"report to summarize: {str(report)}"
                 tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
