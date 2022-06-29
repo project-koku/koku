@@ -877,8 +877,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 synchronous=True,
             )
 
+    @patch("masu.processor.tasks.mark_manifest_complete")
     @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
-    def test_update_summary_tables(self, mock_updater):
+    def test_update_summary_tables(self, mock_updater, mock_complete):
         """Test that this task runs."""
         start_date = DateHelper().this_month_start.date()
         end_date = DateHelper().today.date()
@@ -887,7 +888,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             self.schema,
             Provider.PROVIDER_AWS,
             self.aws_provider_uuid,
-            start_date,
+            str(start_date),
             end_date,
             synchronous=True,
         )
