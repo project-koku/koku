@@ -1,11 +1,14 @@
 """Test the GCPReportDownloader class."""
 import datetime
 import logging
+import os
 import shutil
+import tempfile
 from unittest.mock import patch
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
+from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
@@ -15,6 +18,7 @@ from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
@@ -194,37 +198,40 @@ class GCPReportDownloaderTest(MasuTestCase):
             self.assertEqual(report_dict.get("files"), expected_files)
             self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
 
-    # @override_settings(ENABLE_PARQUET_PROCESSING=True)
-    # @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
-    # def test_create_daily_archives(self, mock_s3):
-    #     """Test that we load daily files to S3."""
-    #     # Use the processor example for data:
-    #     file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-    #     file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-    #     temp_dir = tempfile.gettempdir()
-    #     temp_path = os.path.join(temp_dir, file_name)
-    #     shutil.copy2(file_path, temp_path)
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_s3):
+        """Test that we load daily files to S3."""
+        # Use the processor example for data:
+        file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
 
-    #     expected_daily_files = [
-    #         f"{temp_dir}/202011_2020-11-08.csv",
-    #         f"{temp_dir}/202011_2020-11-09.csv",
-    #         f"{temp_dir}/202011_2020-11-10.csv",
-    #         f"{temp_dir}/202011_2020-11-11.csv",
-    #     ]
+        expected_daily_files = [
+            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
+        ]
 
-    #     start_date = DateHelper().this_month_start
-    #     daily_file_names = create_daily_archives(
-    #         "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
-    #     )
+        start_date = DateHelper().this_month_start
+        daily_file_names, date_range = create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+        )
+        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11"}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
 
-    #     mock_s3.assert_called()
-    #     self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+        mock_s3.assert_called()
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
 
-    #     for daily_file in expected_daily_files:
-    #         self.assertTrue(os.path.exists(daily_file))
-    #         os.remove(daily_file)
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
 
-    #     os.remove(temp_path)
+        os.remove(temp_path)
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
