@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 from datetime import datetime
+from unittest.mock import patch
 
 from faker import Faker
 
@@ -116,11 +117,15 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
                 self.assertEqual(file_info.get("key"), self.csv_file_name)
                 self.assertEqual(file_info.get("local_file"), self.csv_file_name)
 
-    # TODO: Figure out the mock to make this empty
-    # def test_empty_manifest(self):
-    #     """Test an empty report is returned if no manifest."""
-    #     report = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
-    #     self.assertEqual(report, {})
+    def test_empty_manifest(self):
+        """Test an empty report is returned if no manifest."""
+        with patch(
+            "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
+            + ".collect_new_manifests",
+            return_value=[],
+        ):
+            report = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
+            self.assertEqual(report, [])
 
     def test_delete_manifest_file_warning(self):
         """Test attempting a file that doesn't exist handles correctly."""
