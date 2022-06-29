@@ -11,6 +11,7 @@ from jinjasql import JinjaSql
 from api.common import log_json
 from api.provider.models import Provider
 from hcs.csv_file_handler import CSVFileHandler
+from hcs.exceptions import HCSTableNotFoundError
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
@@ -57,8 +58,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
             table = HCS_TABLE_MAP.get(provider.strip("-local"))
 
             if not self.table_exists_trino(table):
-                LOG.info(log_json(tracing_id, f"{table} does not exist, skipping..."))
-                return {}
+                raise HCSTableNotFoundError(table)
 
             sql_params = {
                 "provider_uuid": provider_uuid,
@@ -95,6 +95,3 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
 
         except FileNotFoundError:
             LOG.error(log_json(tracing_id, f"unable to locate SQL file: {sql_summary_file}"))
-
-        except Exception as err:
-            LOG.error(log_json(tracing_id, err))
