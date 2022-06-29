@@ -34,6 +34,10 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
+class GCPReportDownloaderError(Exception):
+    """GCP Report Downloader error."""
+
+
 def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
     """
     Create daily CSVs from incoming report and archive to S3.
@@ -56,7 +60,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             data_frame = pd.read_csv(filepath)
         except Exception as error:
             LOG.error(f"File {filepath} could not be parsed. Reason: {str(error)}")
-            raise error
+            raise GCPReportDownloaderError(error)
         # putting it in for loop handles crossover data, when we have distinct invoice_month
         for invoice_month in data_frame["invoice.month"].unique():
             invoice_filter = data_frame["invoice.month"] == invoice_month
@@ -80,10 +84,6 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
                 )
                 daily_file_names.append(day_filepath)
         return daily_file_names, date_range
-
-
-class GCPReportDownloaderError(Exception):
-    """GCP Report Downloader error."""
 
 
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
