@@ -218,17 +218,26 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             example:
                 {"2022-05-19": "2022-05-19 19:40:16.385000 UTC"}
         """
-        # TODO: Doston: Error Catching
         mapping = {}
-        client = bigquery.Client()
-        export_partition_date_query = f"""
-            SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
-            WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
-            AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
-        """
-        eq_result = client.query(export_partition_date_query).result()
-        for row in eq_result:
-            mapping[row[0]] = row[1].replace(tzinfo=datetime.timezone.utc)
+        try:
+            client = bigquery.Client()
+            export_partition_date_query = f"""
+                SELECT DATE(_PARTITIONTIME), DATETIME(max(export_time))  FROM {self.table_name}
+                WHERE DATE(_PARTITIONTIME) BETWEEN '{self.scan_start}'
+                AND '{self.scan_end}' GROUP BY DATE(_PARTITIONTIME)
+            """
+            eq_result = client.query(export_partition_date_query).result()
+            for row in eq_result:
+                mapping[row[0]] = row[1].replace(tzinfo=datetime.timezone.utc)
+        except GoogleCloudError as err:
+            err_msg = (
+                "Could not query table for partition date information."
+                f"\n  Provider: {self._provider_uuid}"
+                f"\n  Customer: {self.customer_name}"
+                f"\n  Response: {err.message}"
+            )
+            LOG.warning(err_msg)
+            raise GCPReportDownloaderError(err_msg)
         return mapping
 
     def collect_new_manifests(self, current_manifests, bigquery_mappings):
