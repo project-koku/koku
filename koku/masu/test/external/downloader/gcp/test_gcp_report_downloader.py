@@ -333,3 +333,61 @@ class GCPReportDownloaderTest(MasuTestCase):
             downloader = self.create_gcp_downloader_with_mocked_values()
             mapping = downloader.bigquery_export_to_partition_mapping()
             self.assertEqual(mapping, {key: now_utc})
+
+    def test_collect_new_manifest_initial_ingest(self):
+        """Test collecting new manifests on initial ingest"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        current_manifests = {}
+        bigquery_mapping = {partition_date: export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])
+
+    def test_collect_new_manifest(self):
+        """Test collecting new manifests when there is new data in BigQuery"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        new_export_time = export_time + datetime.timedelta(hours=2)
+        current_manifests = {partition_date: export_time}
+        bigquery_mapping = {partition_date: new_export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{new_export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])
+
+    def test_collect_new_manifest_no_bigquery_update(self):
+        """Test collecting new manifests when there is no new data in BigQuery"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        current_manifests = {partition_date: export_time}
+        bigquery_mapping = {partition_date: export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])

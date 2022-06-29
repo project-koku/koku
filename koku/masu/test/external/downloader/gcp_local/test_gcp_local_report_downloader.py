@@ -159,3 +159,15 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         self.assertTrue(os.path.exists(self.csv_file_path))
         self.gcp_local_report_downloader._remove_manifest_file(self.csv_file_path)
         self.assertFalse(os.path.exists(self.csv_file_path))
+
+    def test_collect_new_manifest(self):
+        """Test collecting new manifests when there is new data in BigQuery"""
+        expected_bill_date = datetime.combine(self.start_date.replace(day=1), datetime.min.time())
+        expected_assembly_id = f"{self.start_date}|{self.end_date}|{self.gcp_provider_uuid}"
+
+        new_manifests = self.gcp_local_report_downloader.collect_new_manifests()
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [self.csv_file_name])
