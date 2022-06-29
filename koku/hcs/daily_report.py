@@ -5,7 +5,9 @@
 """HCS daily report builder"""
 import logging
 
+from api.common import log_json
 from hcs.database.report_db_accessor import HCSReportDBAccessor
+from hcs.exceptions import HCSTableNotFoundError
 from masu.external.date_accessor import DateAccessor
 from masu.util.common import date_range
 
@@ -34,7 +36,14 @@ class ReportHCS:
         sql_file = f"sql/reporting_{self._provider.lower()}_hcs_daily_summary.sql"
 
         with HCSReportDBAccessor(self._schema_name) as accessor:
-            for date in date_range(start_date, end_date, step=1):
-                accessor.get_hcs_daily_summary(
-                    date, self._provider, self._provider_uuid, sql_file, self._tracing_id, finalize
-                )
+            try:
+                for date in date_range(start_date, end_date, step=1):
+                    accessor.get_hcs_daily_summary(
+                        date, self._provider, self._provider_uuid, sql_file, self._tracing_id, finalize
+                    )
+
+            except HCSTableNotFoundError as tnfe:
+                LOG.info(log_json(self._tracing_id, f"{tnfe}, skipping..."))
+
+            except Exception as e:
+                LOG.error(log_json(self._tracing_id, e))
