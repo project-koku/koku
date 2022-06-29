@@ -23,7 +23,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
     volume_request_storage_gigabyte_months,
     persistentvolumeclaim_usage_gigabyte_months,
     persistentvolumeclaim_capacity_gigabyte_months,
-    source_uuid
+    source_uuid,
+    raw_currency
 )
     SELECT uuid_generate_v4() as id,
         cluster_id,
@@ -59,7 +60,8 @@ INSERT INTO {{schema | sqlsafe}}.reporting_ocp_volume_summary_by_project_p (
         sum(volume_request_storage_gigabyte_months) as volume_request_storage_gigabyte_months,
         sum(persistentvolumeclaim_usage_gigabyte_months) as persistentvolumeclaim_usage_gigabyte_months,
         sum(persistentvolumeclaim_capacity_gigabyte_months) as persistentvolumeclaim_capacity_gigabyte_months,
-        {{source_uuid}}::uuid as source_uuid
+        {{source_uuid}}::uuid as source_uuid,
+        max(raw_currency) as raw_currency
     FROM {{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary
     WHERE usage_start >= {{start_date}}::date
         AND usage_start <= {{end_date}}::date
