@@ -6,7 +6,6 @@ import shutil
 import tempfile
 from unittest.mock import patch
 from uuid import uuid4
-from pytz import timezone
 
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
@@ -26,6 +25,8 @@ from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownload
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
 from reporting_common.models import CostUsageReportManifest
+
+# from pytz import timezone
 
 LOG = logging.getLogger(__name__)
 
@@ -244,7 +245,9 @@ class GCPReportDownloaderTest(MasuTestCase):
             err_msg = "bad_open"
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
-                create_daily_archives("request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None)
+                create_daily_archives(
+                    "request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None
+                )
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
@@ -331,4 +334,3 @@ class GCPReportDownloaderTest(MasuTestCase):
     #     downloader = self.create_gcp_downloader_with_mocked_values()
     #     mapping = downloader.bigquery_export_to_partition_mapping()
     #     self.assertEqual(mapping, {key: now_utc})
-

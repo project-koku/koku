@@ -8,9 +8,6 @@ import os
 import shutil
 import tempfile
 from datetime import datetime
-from datetime import date
-from unittest.mock import patch
-from api.utils import DateHelper
 
 from faker import Faker
 
@@ -20,6 +17,9 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+
+# from unittest.mock import patch
+# from api.utils import DateHelper
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
