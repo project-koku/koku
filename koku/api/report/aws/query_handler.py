@@ -604,8 +604,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
+                    # Checks to see if the date is in the query_data
                     if not any(d["date"] == param for d in query_data):
                         break
+                    # else we set order_date to a valid date
                     order_date = param
                     break
             # Remove the date order by as it is not actually used for ordering
