@@ -119,6 +119,8 @@
           value: 'true'
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: RBAC_CACHE_TIMEOUT
+          value: ${RBAC_CACHE_TIMEOUT}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
