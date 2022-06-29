@@ -47,6 +47,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
@@ -871,6 +872,32 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.ocp_on_aws_ocp_provider.uuid,
                 self.aws_provider_uuid,
                 Provider.PROVIDER_AWS,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    def test_update_summary_tables(self, mock_updater):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        update_summary_tables(
+            self.schema,
+            Provider.PROVIDER_AWS,
+            self.aws_provider_uuid,
+            start_date,
+            end_date,
+            synchronous=True,
+        )
+
+        mock_updater.side_effect = ReportSummaryUpdaterError
+        with self.assertRaises(ReportSummaryUpdaterError):
+            update_summary_tables(
+                self.schema,
+                Provider.PROVIDER_AWS,
+                self.aws_provider_uuid,
                 start_date,
                 end_date,
                 synchronous=True,
