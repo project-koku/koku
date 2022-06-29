@@ -286,6 +286,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         starts = []
         ends = []
         for report in report_list:
+            LOG.info(f"\n\n REPORT!: {report} \n\n")
             if report.get("start") and report.get("end"):
                 starts.append(report.get("start"))
                 ends.append(report.get("end"))
@@ -306,6 +307,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         )
 
     for report in reports_deduplicated:
+        LOG.info(f"\n\n REPORT DEDUP: {report} \n\n")
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
@@ -318,7 +320,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 months = get_months_in_date_range(report)
                 LOG.info(f"\n\nMONTHS: {months} \n\n")
                 msg = f"report to summarize: {str(report)}"
-                tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
+                tracing_id = report.get("tracing_id", report.get("manifest_id", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
                 for month in months:
                     update_summary_tables.s(
