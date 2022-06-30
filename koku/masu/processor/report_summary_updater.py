@@ -62,13 +62,10 @@ class ReportSummaryUpdater:
         self._schema = customer_schema
         self._provider_uuid = provider_uuid
         self._manifest = None
+        self._tracing_id = tracing_id
         if manifest_id is not None:
             with ReportManifestDBAccessor() as manifest_accessor:
                 self._manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-        if tracing_id:
-            self._tracing_id = tracing_id
-        else:
-            self._tracing_id = self._manifest.uuid
         self._date_accessor = DateAccessor()
         with ProviderDBAccessor(self._provider_uuid) as provider_accessor:
             self._provider = provider_accessor.get_provider()
