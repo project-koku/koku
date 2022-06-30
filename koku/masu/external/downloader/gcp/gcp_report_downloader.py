@@ -70,8 +70,8 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             date_range = {"start": min(days), "end": max(days)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
-                partition_date_filter = data_frame["partition_date"] == partition_date
-                invoice_partition_data = data_frame[partition_date_filter]
+                partition_date_filter = invoice_month_data["partition_date"] == partition_date
+                invoice_partition_data = invoice_month_data[partition_date_filter]
                 start_of_invoice = dh.invoice_month_start(invoice_month)
                 s3_csv_path = get_path_prefix(
                     account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
