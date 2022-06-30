@@ -45,7 +45,7 @@ def delivery_callback(err, msg):
     if err is not None:
         LOG.error(f"Failed to deliver message: {msg}: {err}")
     else:
-        LOG.info("Validation message delivered.")
+        LOG.info("kafka message delivered.")
 
 
 def backoff(interval, maximum=120):
