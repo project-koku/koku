@@ -200,12 +200,12 @@ def get_report_details(report_directory):
                 payload_dict["date"] = parser.parse(payload_dict["date"])
                 payload_dict["manifest_path"] = manifest_path
                 # parse start and end dates if in manifest
-                if payload_dict.get["start"]:
-                    start = payload_dict.get["start"]
+                if payload_dict.get("start"):
+                    start = payload_dict.get("start")
                     payload_dict["start"] = parser.parse(start)
-                if start and payload_dict.get["end"]:
+                if start and payload_dict.get("end"):
                     today = dh.today
-                    end = payload_dict.get["end"]
+                    end = payload_dict.get("end")
                     # We override the end date from the first of the next month to the end of current month
                     # We do this to prevent summary from triggering unnecessarily on the next month
                     if start.year == today.year and start.month == today.month and (end.month != today.month):
