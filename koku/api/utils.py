@@ -293,7 +293,7 @@ class DateHelper:
         LOG.info(f"\n\n END_DATE_IN: {end_date} \n\n")
         if end_date == end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0):
             end_days = self.days_in_month(end_date)
-            end_date.replace(day=end_days) - self.one_day
+            end_date = end_date.replace(day=end_days) - self.one_day
             LOG.info(f"\n\n END_DATE_OUT: {end_date} \n\n")
         end_midnight = end_date.replace(hour=23, minute=59, second=59, microsecond=0)
         LOG.info(f"\n\n END_DATE_MIDNIGHT: {end_midnight} \n\n")
