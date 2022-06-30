@@ -279,7 +279,6 @@ def summarize_reports(reports_to_summarize, queue_name=None):
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
         if report:
-            LOG.info(f"\n\n REPORT PRE DEDUP: {report} \n\n")
             reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
@@ -287,11 +286,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         starts = []
         ends = []
         for report in report_list:
-            LOG.info(f"\n\n REPORT!: {report} \n\n")
             if report.get("start") and report.get("end"):
                 starts.append(report.get("start"))
                 ends.append(report.get("end"))
-                LOG.info(f'\n\nSTART: {report.get("start")} END: {report.get("end")}\n\n')
             start = min(starts) if starts != [] else None
             end = max(ends) if ends != [] else None
 
@@ -308,7 +305,6 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         )
 
     for report in reports_deduplicated:
-        LOG.info(f"\n\n REPORT DEDUP: {report} \n\n")
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
@@ -317,13 +313,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
         # required.
         with ReportManifestDBAccessor() as manifest_accesor:
             if manifest_accesor.manifest_ready_for_summary(report.get("manifest_id")):
-                LOG.info(f"\n\n REPORT: {report} \n\n")
                 months = get_months_in_date_range(report)
-                LOG.info(f"\n\nMONTHS: {months} \n\n")
                 msg = f"report to summarize: {str(report)}"
-                tracing_id = (
-                    "DOES THIS WORK!"  # report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
-                )
+                tracing_id = report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
                 LOG.info(log_json(tracing_id, msg))
                 for month in months:
                     update_summary_tables.s(
@@ -364,9 +356,6 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
-    if not tracing_id:
-        tracing_id = "HERE!!"
-        LOG.info(f"\n\nTRACING_ID: {tracing_id}\n\n")
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     cache_args = [schema_name, provider, provider_uuid]

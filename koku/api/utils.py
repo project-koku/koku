@@ -290,12 +290,9 @@ class DateHelper:
         """
         months = []
         dt_first = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        LOG.info(f"\n\n END_DATE_IN: {end_date} \n\n")
         if end_date == end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0):
             end_date = self.n_days_ago(end_date, 1)
-            LOG.info(f"\n\n END_DATE_OUT: {end_date} \n\n")
         end_midnight = end_date.replace(hour=23, minute=59, second=59, microsecond=0)
-        LOG.info(f"\n\n END_DATE_MIDNIGHT: {end_midnight} \n\n")
 
         current = dt_first
         while current < end_midnight:
@@ -418,10 +415,7 @@ def get_months_in_date_range(report=None, start=None, end=None):
 
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
     end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else dh.today
-    LOG.info(f"\n\n START/END DATES: {start_date}, {end_date} \n\n")
     months = dh.list_month_tuples(start_date, end_date)
-
-    LOG.info(f"\n\n MONTHS!! {months} \n\n")
 
     num_months = len(months)
     first_month = months[0]

@@ -279,7 +279,6 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     # Open manifest.json file and build the payload dictionary.
     full_manifest_path = f"{temp_dir}/{manifest_path[0]}"
     report_meta = utils.get_report_details(os.path.dirname(full_manifest_path))
-    LOG.info(f"\n\n REPORT_META: {report_meta} \n\n")
 
     # Filter and get account from payload's cluster-id
     cluster_id = report_meta.get("cluster_id")
