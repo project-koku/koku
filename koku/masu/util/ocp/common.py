@@ -206,8 +206,8 @@ def get_report_details(report_directory):
                     payload_dict["start"] = parser.parse(payload_start)
                 if payload_start and payload_dict.get("end"):
                     payload_end = payload_dict.get("end")
-                    start = datetime.strptime(payload_start, "%Y-%m-%d")
-                    end = datetime.strptime(payload_end, "%Y-%m-%d")
+                    start = datetime.strptime(payload_start, "%Y-%m-%d %H:%M:%S")
+                    end = datetime.strptime(payload_end, "%Y-%m-%d %H:%M:%S")
                     start_month = start.strftime("%Y-%m")
                     end_month = end.strftime("%Y-%m")
                     end_day = end.strftime("%Y-%m-%d")
