@@ -15,6 +15,7 @@ from dateutil import parser
 from dateutil.relativedelta import relativedelta
 
 from api.models import Provider
+from api.utils import DateHelper as dh
 from masu.config import Config
 from masu.database.provider_auth_db_accessor import ProviderAuthDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -199,9 +200,15 @@ def get_report_details(report_directory):
                 payload_dict["date"] = parser.parse(payload_dict["date"])
                 payload_dict["manifest_path"] = manifest_path
                 # parse start and end dates if in manifest
-                for field in ["start", "end"]:
-                    if payload_dict.get(field):
-                        payload_dict[field] = parser.parse(payload_dict[field])
+                if payload_dict.get["start"]:
+                    start = payload_dict.get["start"]
+                    payload_dict["start"] = parser.parse(start)
+                if start and payload_dict.get["end"]:
+                    today = dh.today
+                    end = payload_dict.get["end"]
+                    if start.year == today.year and start.month == today.month and (end.month != today.month):
+                        end = dh.month_end(start)
+                    payload_dict["end"] = parser.parse(end)
         except (OSError, KeyError) as exc:
             LOG.error("Unable to extract manifest data: %s", exc)
     else:

@@ -290,8 +290,6 @@ class DateHelper:
         """
         months = []
         dt_first = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        if end_date == end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0):
-            end_date = self.n_days_ago(end_date, 1)
         end_midnight = end_date.replace(hour=23, minute=59, second=59, microsecond=0)
 
         current = dt_first
