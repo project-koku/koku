@@ -138,40 +138,6 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
-    # def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, annotations, remove_columns=[]):
-    #     if query_data:
-    #         df = pd.DataFrame(query_data)
-    #         aggregates = self._mapper.report_type_map.get("aggregates")
-    #         try:
-    #             exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-    #         except AttributeError as err:
-    #             msg = f"Exchange rates dictionary is not populated resulting in {err}."
-    #             LOG.warning(msg)
-    #             exchange_rates = {}
-    #         columns = list(aggregates.keys())
-    #         for col in remove_columns:
-    #             if col in columns:
-    #                 columns.remove(col)
-
-    #         for column in columns:
-    #             df[column] = df.apply(
-    #                 lambda row: row[column]
-    #                 * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
-    #                 axis=1,
-    #             )
-    #             df["cost_units"] = self.currency
-    #         if "count" not in df.columns:
-    #             skip_columns.extend(["count", "count_units"])
-    #         aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-
-    #         grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
-    #         columns = grouped_df.columns.droplevel(1)
-    #         grouped_df.columns = columns
-    #         grouped_df.reset_index(inplace=True)
-    #         grouped_df = grouped_df.replace({np.nan: None})
-    #         query_data = grouped_df.to_dict("records")
-    #     return query_data
-
     def convert_currency(self, query_data, currency_identifier):
         skip_columns = ["usage_start", currency_identifier]
         if query_data:
@@ -183,6 +149,9 @@ class Forecast:
                 LOG.warning(msg)
                 exchange_rates = {}
 
+            # converted earlier then stopped converting -_- I took out default
+            #  to 1 to see if it errors if one is a none type
+            # seems it is just keeping it the same or multiplying by 1
             columns = list(df.columns)
             for column in columns:
                 if column not in skip_columns:
@@ -192,9 +161,9 @@ class Forecast:
                     )
                 df[currency_identifier] = self.currency
 
-            aggs = {col: ["max"] if "units" in col else ["sum"] for col in columns if col not in skip_columns}
+            # aggs = {col: ["max"] if "units" in col else ["sum"] for col in columns if col not in skip_columns}
 
-            print("AGGS: ", aggs)
+            # print("AGGS: ", aggs)
 
             print("\n\nDATA FRAME: ", df)
 
@@ -204,14 +173,14 @@ class Forecast:
         with tenant_context(self.params.tenant):
 
             if self.provider is Provider.PROVIDER_AWS:
-                currency_code = "currency_code"
+                currency_identifier = "currency_code"
             else:
-                currency_code = "currency"
+                currency_identifier = "currency"
 
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start", currency_code)
+                .values("usage_start", currency_identifier)
                 .annotate(
                     total_cost=self.total_cost_term,
                     supplementary_cost=self.supplementary_cost_term,
@@ -219,7 +188,7 @@ class Forecast:
                 )
             )
 
-            self.convert_currency(data, currency_code)
+            self.convert_currency(data, currency_identifier)
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
