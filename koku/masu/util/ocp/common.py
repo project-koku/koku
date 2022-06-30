@@ -202,24 +202,21 @@ def get_report_details(report_directory):
                 payload_dict["manifest_path"] = manifest_path
                 # parse start and end dates if in manifest
                 if payload_dict.get("start"):
-                    start = payload_dict.get("start")
-                    LOG.info(f"\n\nSTART {start}\n\n")
-                    payload_dict["start"] = parser.parse(start)
-                if start and payload_dict.get("end"):
-                    today = dh.today
-                    end = payload_dict.get("end")
-                    start_obj = datetime.strptime(start, "%Y-%m-%d %H:%M:%S")
-                    end_obj = datetime.strptime(end, "%Y-%m-%d %H:%M:%S")
+                    payload_start = payload_dict.get("start")
+                    payload_dict["start"] = parser.parse(payload_start)
+                if payload_start and payload_dict.get("end"):
+                    payload_end = payload_dict.get("end")
+                    start = datetime.strptime(payload_start, "%Y-%m-%d")
+                    end = datetime.strptime(payload_end, "%Y-%m-%d")
+                    start_month = start.strftime("%Y-%m")
+                    end_month = end.strftime("%Y-%m")
+                    end_day = end.strftime("%Y-%m-%d")
+                    end_day_check = end.strftime("%Y-%m-01")
                     # We override the end date from the first of the next month to the end of current month
                     # We do this to prevent summary from triggering unnecessarily on the next month
-                    if (
-                        start_obj.year == today.year
-                        and start_obj.month == today.month
-                        and (end_obj.month != today.month)
-                    ):
-                        end = dh.month_end(start_obj)
-                        end = end.strftime("%Y-%m-%d %H:%M:%S")
-                    payload_dict["end"] = parser.parse(end)
+                    if start_month != end_month and end_day == end_day_check:
+                        payload_end = dh().month_end(start)
+                    payload_dict["end"] = parser.parse(str(payload_end))
         except (OSError, KeyError) as exc:
             LOG.error("Unable to extract manifest data: %s", exc)
     else:
