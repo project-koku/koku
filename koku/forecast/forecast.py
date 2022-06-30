@@ -12,12 +12,14 @@ from decimal import Decimal
 from functools import reduce
 
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 from django.db.models import Q
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -136,20 +138,88 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    # def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, annotations, remove_columns=[]):
+    #     if query_data:
+    #         df = pd.DataFrame(query_data)
+    #         aggregates = self._mapper.report_type_map.get("aggregates")
+    #         try:
+    #             exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+    #         except AttributeError as err:
+    #             msg = f"Exchange rates dictionary is not populated resulting in {err}."
+    #             LOG.warning(msg)
+    #             exchange_rates = {}
+    #         columns = list(aggregates.keys())
+    #         for col in remove_columns:
+    #             if col in columns:
+    #                 columns.remove(col)
+
+    #         for column in columns:
+    #             df[column] = df.apply(
+    #                 lambda row: row[column]
+    #                 * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+    #                 axis=1,
+    #             )
+    #             df["cost_units"] = self.currency
+    #         if "count" not in df.columns:
+    #             skip_columns.extend(["count", "count_units"])
+    #         aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+
+    #         grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
+    #         columns = grouped_df.columns.droplevel(1)
+    #         grouped_df.columns = columns
+    #         grouped_df.reset_index(inplace=True)
+    #         grouped_df = grouped_df.replace({np.nan: None})
+    #         query_data = grouped_df.to_dict("records")
+    #     return query_data
+
+    def convert_currency(self, query_data, currency_identifier):
+        skip_columns = ["usage_start", currency_identifier]
+        if query_data:
+            df = pd.DataFrame(query_data)
+            try:
+                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+            except AttributeError as err:
+                msg = f"Exchange rates dictionary is not populated resulting in {err}."
+                LOG.warning(msg)
+                exchange_rates = {}
+
+            columns = list(df.columns)
+            for column in columns:
+                if column not in skip_columns:
+                    df[column] = df.apply(
+                        lambda row: row[column] * exchange_rates.get(row[currency_identifier], {}).get(self.currency),
+                        axis=1,
+                    )
+                df[currency_identifier] = self.currency
+
+            aggs = {col: ["max"] if "units" in col else ["sum"] for col in columns if col not in skip_columns}
+
+            print("AGGS: ", aggs)
+
+            print("\n\nDATA FRAME: ", df)
+
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
+
+            if self.provider is Provider.PROVIDER_AWS:
+                currency_code = "currency_code"
+            else:
+                currency_code = "currency"
+
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start")
+                .values("usage_start", currency_code)
                 .annotate(
                     total_cost=self.total_cost_term,
                     supplementary_cost=self.supplementary_cost_term,
                     infrastructure_cost=self.infrastructure_cost_term,
                 )
             )
+
+            self.convert_currency(data, currency_code)
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
