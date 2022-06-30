@@ -206,6 +206,8 @@ def get_report_details(report_directory):
                 if start and payload_dict.get["end"]:
                     today = dh.today
                     end = payload_dict.get["end"]
+                    # We override the end date from the first of the next month to the end of current month
+                    # We do this to prevent summary from triggering unnecessarily on the next month
                     if start.year == today.year and start.month == today.month and (end.month != today.month):
                         end = dh.month_end(start)
                     payload_dict["end"] = parser.parse(end)
