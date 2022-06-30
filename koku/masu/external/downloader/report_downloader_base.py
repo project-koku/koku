@@ -31,7 +31,7 @@ class ReportDownloaderBase:
     Base object class for downloading cost reports from a cloud provider.
     """
 
-    def __init__(self, trace_id, download_path=None, **kwargs):
+    def __init__(self, download_path=None, **kwargs):
         """
         Create a downloader.
 
