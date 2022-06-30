@@ -279,6 +279,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
         if report:
+            LOG.info(f"\n\n REPORT PRE DEDUP: {report} \n\n")
             reports_by_source[report.get("provider_uuid")].append(report)
 
     reports_deduplicated = []
@@ -320,7 +321,9 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                 months = get_months_in_date_range(report)
                 LOG.info(f"\n\nMONTHS: {months} \n\n")
                 msg = f"report to summarize: {str(report)}"
-                tracing_id = report.get("tracing_id", report.get("manifest_id", "no-tracing-id"))
+                tracing_id = (
+                    "DOES THIS WORK!"  # report.get("tracing_id", report.get("manifest_uuid", "no-tracing-id"))
+                )
                 LOG.info(log_json(tracing_id, msg))
                 for month in months:
                     update_summary_tables.s(
@@ -361,6 +364,9 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
+    if not tracing_id:
+        tracing_id = "HERE!!"
+        LOG.info(f"\n\nTRACING_ID: {tracing_id}\n\n")
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     cache_args = [schema_name, provider, provider_uuid]

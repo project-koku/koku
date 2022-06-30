@@ -202,6 +202,7 @@ def get_report_details(report_directory):
                 for field in ["start", "end"]:
                     if payload_dict.get(field):
                         payload_dict[field] = parser.parse(payload_dict[field])
+            LOG.info(f"/n/nPATH: {manifest_path} PAYLOAD_DATA: {payload_dict}/n/n")
         except (OSError, KeyError) as exc:
             LOG.error("Unable to extract manifest data: %s", exc)
     else:
