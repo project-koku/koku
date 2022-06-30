@@ -7,6 +7,7 @@ import copy
 import json
 import logging
 import os
+from datetime import datetime
 from enum import Enum
 
 import ciso8601
@@ -206,10 +207,17 @@ def get_report_details(report_directory):
                 if start and payload_dict.get("end"):
                     today = dh.today
                     end = payload_dict.get("end")
+                    start_obj = datetime.strptime(start, "%Y-%m-%d")
+                    end_obj = datetime.strptime(end, "%Y-%m-%d")
                     # We override the end date from the first of the next month to the end of current month
                     # We do this to prevent summary from triggering unnecessarily on the next month
-                    if start.year == today.year and start.month == today.month and (end.month != today.month):
-                        end = dh.month_end(start)
+                    if (
+                        start_obj.year == today.year
+                        and start_obj.month == today.month
+                        and (end_obj.month != today.month)
+                    ):
+                        end = dh.month_end(start_obj)
+                        end = end.strftime("%Y-%m-%d")
                     payload_dict["end"] = parser.parse(end)
         except (OSError, KeyError) as exc:
             LOG.error("Unable to extract manifest data: %s", exc)
