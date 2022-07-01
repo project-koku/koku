@@ -192,7 +192,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 + ".bigquery_export_to_partition_mapping",
                 return_value=mocked_mapping,
             ):
-                report_list = downloader.get_manifest_context_for_date(start_date.date())
+                report_list = downloader.get_manifest_context_for_date(start_date)
         expected_file = f"{invoice_month}_{DateHelper().today.date()}.csv"
         expected_files = [{"key": expected_file, "local_file": expected_file}]
         for report_dict in report_list:
@@ -270,13 +270,14 @@ class GCPReportDownloaderTest(MasuTestCase):
 
             self.assertEqual(downloader._get_dataset_name(), dataset_name)
 
-    def test_scan_start_setup_complete(self):
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.Provider")
+    def test_scan_start_setup_complete(self, provider):
         """Test scan start when provider setup is complete"""
+        provider.setup_complete = True
         dh = DateHelper()
+        expected_scan_start = dh.today.date() - relativedelta(days=10)
         downloader = self.create_gcp_downloader_with_mocked_values()
-        if self.gcp_provider.setup_complete:
-            expected_scan_start = dh.today.date() - relativedelta(days=10)
-            self.assertEqual(downloader.scan_start, expected_scan_start)
+        self.assertEqual(downloader.scan_start, expected_scan_start)
 
     def test_scan_start_setup_not_complete(self):
         """Test scan start provider setup is not complete"""
