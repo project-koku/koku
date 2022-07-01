@@ -194,7 +194,6 @@ def get_report_details(report_directory):
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
     payload_dict = {}
-    LOG.info(f"\n\n {manifest_path} \n\n")
     if os.path.exists(manifest_path):
         try:
             with open(manifest_path) as file:
