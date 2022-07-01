@@ -86,14 +86,17 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["aws_line_items_daily"]
-    # columns_to_add = []
+    # tables_to_drop = ["aws_line_items_daily"]
+    # log_action = logging.info(f"*** dropping tables for schema {schema} ***")
+    columns_to_add = ["daily_credits"]
+    log_action = "adding columns"
     # columns_to_drop = []
+    #log_action = "dropping columns"
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
-        drop_tables(tables_to_drop, CONNECT_PARAMS)
+        logging.info(f"*** {log_action} for schema {schema} ***")
+        add_columns_to_table(columns_to_add, "gcp_line_items_daily", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
