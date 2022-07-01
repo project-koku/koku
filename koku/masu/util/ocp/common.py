@@ -201,6 +201,7 @@ def get_report_details(report_directory):
                 payload_dict["date"] = parser.parse(payload_dict["date"])
                 payload_dict["manifest_path"] = manifest_path
                 # parse start and end dates if in manifest
+                payload_start = None
                 if payload_dict.get("start"):
                     payload_start = payload_dict.get("start")
                     payload_dict["start"] = parser.parse(payload_start)
