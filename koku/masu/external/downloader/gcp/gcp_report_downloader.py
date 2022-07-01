@@ -53,6 +53,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
+    date_range = {}
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
         dh = DateHelper()
         directory = os.path.dirname(filepath)
