@@ -194,6 +194,7 @@ def get_report_details(report_directory):
     """
     manifest_path = "{}/{}".format(report_directory, "manifest.json")
     payload_dict = {}
+    LOG.info(f"\n\n {manifest_path} \n\n")
     if os.path.exists(manifest_path):
         try:
             with open(manifest_path) as file:
@@ -207,8 +208,8 @@ def get_report_details(report_directory):
                     payload_dict["start"] = parser.parse(payload_start)
                 if payload_start and payload_dict.get("end"):
                     payload_end = payload_dict.get("end")
-                    start = datetime.strptime(payload_start, "%Y-%m-%d %H:%M:%S")
-                    end = datetime.strptime(payload_end, "%Y-%m-%d %H:%M:%S")
+                    start = datetime.strptime(payload_start[:10], "%Y-%m-%d")
+                    end = datetime.strptime(payload_end[:10], "%Y-%m-%d")
                     start_month = start.strftime("%Y-%m")
                     end_month = end.strftime("%Y-%m")
                     end_day = end.strftime("%Y-%m-%d")
