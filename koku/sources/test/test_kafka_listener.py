@@ -935,3 +935,12 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
             self.assertEqual(msg.get("operation"), "destroy")
+
+    def test_sources_config(self):
+        for key in (
+            "SOURCES_KAFKA_USER",
+            "SOURCES_KAFKA_PASSWORD",
+            "SOURCES_KAFKA_SASL_MECHANISM",
+            "SOURCES_KAFKA_SECURITY_PROTOCOL",
+        ):
+            self.assertTrue(hasattr(Config, key), f"Key {key} is not present in sources Config")

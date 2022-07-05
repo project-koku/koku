@@ -776,3 +776,12 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
         self.assertEqual(reports, [])
+
+    def test_masu_config(self):
+        for key in (
+            "INSIGHTS_KAFKA_USER",
+            "INSIGHTS_KAFKA_PASSWORD",
+            "INSIGHTS_KAFKA_SASL_MECHANISM",
+            "INSIGHTS_KAFKA_SECURITY_PROTOCOL",
+        ):
+            self.assertTrue(hasattr(Config, key), f"Key {key} is not present in masu external Config")
