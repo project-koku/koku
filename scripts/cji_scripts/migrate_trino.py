@@ -91,7 +91,7 @@ def main():
     columns_to_add = ["daily_credits"]
     log_action = "adding columns"
     # columns_to_drop = []
-    #log_action = "dropping columns"
+    # log_action = "dropping columns"
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
