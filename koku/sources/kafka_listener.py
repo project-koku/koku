@@ -258,6 +258,10 @@ def get_consumer():
             "group.id": "hccm-sources",
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
+            "security_protocol": Config.SOURCES_KAFKA_SECURITY_PROTOCOL,
+            "sasl_mechanism": Config.SOURCES_KAFKA_SASL_MECHANISM,
+            "sasl_plain_username": Config.SOURCES_KAFKA_USER,
+            "sasl_plain_password": Config.SOURCES_KAFKA_PASSWORD,
         },
         logger=LOG,
     )

@@ -84,6 +84,10 @@ class Config:
     INSIGHTS_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
     INSIGHTS_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
     INSIGHTS_KAFKA_ADDRESS = f"{INSIGHTS_KAFKA_HOST}:{INSIGHTS_KAFKA_PORT}"
+    INSIGHTS_KAFKA_USER = CONFIGURATOR.get_kafka_username()
+    INSIGHTS_KAFKA_PASSWORD = CONFIGURATOR.get_kafka_password()
+    INSIGHTS_KAFKA_SASL_MECHANISM = CONFIGURATOR.get_kafka_sasl_mechanism()
+    INSIGHTS_KAFKA_SECURITY_PROTOCOL = CONFIGURATOR.get_kafka_security_protocol()
     HCCM_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.hccm")
     VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
     NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")

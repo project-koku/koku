@@ -216,6 +216,26 @@ class EnvConfigurator(Configurator):
         return requestedName
 
     @staticmethod
+    def get_kafka_username():
+        """Obtain kafka username"""
+        return None
+
+    @staticmethod
+    def get_kafka_password():
+        """Obtain kafka password"""
+        return None
+
+    @staticmethod
+    def get_kafka_sasl_mechanism():
+        """Obtain kafka sasl mechanism"""
+        return None
+
+    @staticmethod
+    def get_kafka_security_protocol():
+        """Obtain kafka security protocol"""
+        return None
+
+    @staticmethod
     def get_cloudwatch_access_id():
         """Obtain cloudwatch access id."""
         return ENVIRONMENT.get_value("CW_AWS_ACCESS_KEY_ID", default=None)
@@ -379,6 +399,26 @@ class ClowderConfigurator(Configurator):
     def get_kafka_topic(requestedName: str):
         """Obtain kafka topic."""
         return KafkaTopics.get(requestedName).name
+
+    @staticmethod
+    def get_kafka_username():
+        """Obtain kafka username"""
+        return LoadedConfig.kafka.brokers[0].sasl.username
+
+    @staticmethod
+    def get_kafka_password():
+        """Obtain kafka password"""
+        return LoadedConfig.kafka.brokers[0].sasl.password
+
+    @staticmethod
+    def get_kafka_sasl_mechanism():
+        """Obtain kafka sasl mechanism"""
+        return LoadedConfig.kafka.brokers[0].sasl.saslMechanism
+
+    @staticmethod
+    def get_kafka_security_protocol():
+        """Obtain kafka security protocol"""
+        return LoadedConfig.kafka.brokers[0].sasl.securityProdocol
 
     @staticmethod
     def get_cloudwatch_access_id():

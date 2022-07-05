@@ -671,6 +671,10 @@ def get_consumer():  # pragma: no cover
             "queued.max.messages.kbytes": 1024,
             "enable.auto.commit": False,
             "max.poll.interval.ms": 1080000,  # 18 minutes
+            "security_protocol": Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
+            "sasl_mechanism": Config.INSIGHTS_KAFKA_SASL_MECHANISM,
+            "sasl_plain_username": Config.INSIGHTS_KAFKA_USER,
+            "sasl_plain_password": Config.INSIGHTS_KAFKA_PASSWORD,
         },
         logger=LOG,
     )
@@ -680,7 +684,16 @@ def get_consumer():  # pragma: no cover
 
 def get_producer():  # pragma: no cover
     """Create a Kafka producer."""
-    producer = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
+    producer = Producer(
+        {
+            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
+            "message.timeout.ms": 1000,
+            "security_protocol": Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
+            "sasl_mechanism": Config.INSIGHTS_KAFKA_SASL_MECHANISM,
+            "sasl_plain_username": Config.INSIGHTS_KAFKA_USER,
+            "sasl_plain_password": Config.INSIGHTS_KAFKA_PASSWORD,
+        }
+    )
     return producer
 
 
