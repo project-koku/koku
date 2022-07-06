@@ -167,3 +167,43 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         result = Provider.objects.get(uuid=new_ocp_provider.uuid).infrastructure.infrastructure_provider_id
         self.assertEqual(result, self.aws_provider.uuid)
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    # @patch(
+    #     "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
+    # )
+    def test_update_OCP_summary_tables_no_report_period(self, mock_delete):
+
+        start_date = datetime.datetime.today().replace(day=1)
+        end_date = datetime.datetime.today()
+
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        # mock_date_check.return_value = (start_date, end_date)
+        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="INFO") as _logger:
+            self.updater.update_summary_tables(start_date_str, end_date_str)
+            found_it = False
+            for log_line in _logger.output:
+                found_it = "No report period" in log_line
+                if found_it:
+                    break
+            self.assertTrue(found_it)
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
+    )
+    def test_update_asd_summary_tables_no_report_period(self, mock_date_check):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        mock_date_check.return_value = (start_date, end_date)
+        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="INFO") as _logger:
+            self.updater.update_summary_tables(start_date, end_date)
+            found_it = False
+            for log_line in _logger.output:
+                found_it = "No report period for" in log_line
+                if found_it:
+                    break
+            self.assertTrue(found_it)
