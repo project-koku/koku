@@ -9213,12 +9213,10 @@
                         "type": "object",
                         "example": {
                             "settings": {
-                                "openshift": {
-                                    "tag-management": {
-                                        "enabled": [
-                                            "tag_key1"
-                                        ]
-                                    }
+                                "tag-management": {
+                                    "enabled": [
+                                        "aws-tag_key1, aws-tag_key2, azure-tag_key1, azure-tag_key2. azure-tag_key3"
+                                    ]
                                 }
                             }
                         }
