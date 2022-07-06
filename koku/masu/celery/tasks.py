@@ -27,9 +27,12 @@ from api.models import Provider
 from api.provider.models import Sources
 from api.utils import DateHelper
 from koku import celery_app
+from koku.notifications import NotificationService
 from masu.config import Config
+from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
+from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
@@ -349,6 +352,28 @@ def crawl_account_hierarchy(provider_uuid=None):
             )
             skipped += 1
     LOG.info(f"Account hierarchy crawler finished. {processed} processed and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.check_cost_model_status", queue=DEFAULT)
+def check_cost_model_status(provider_uuid=None):
+    """Scheduled task to initiate source check and notification fire."""
+    accounts = []
+    if provider_uuid:
+        accounts = AccountsAccessor().get_accounts(provider_uuid)
+    else:
+        accounts = AccountsAccessor().get_accounts()
+    LOG.info("Cost model status check found %s accounts to scan" % len(accounts))
+    processed = 0
+    skipped = 0
+    for account in accounts:
+        if account.get("provider_type") == Provider.PROVIDER_OCP:
+            cost_model_map = CostModelDBAccessor(account.get("schema_name"), account.get("provider_uuid"))
+            if cost_model_map.cost_model:
+                skipped += 1
+            else:
+                NotificationService().cost_model_notification(account)
+                processed += 1
+    LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
 @celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)
