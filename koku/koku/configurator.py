@@ -418,7 +418,7 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_kafka_security_protocol():
         """Obtain kafka security protocol"""
-        return LoadedConfig.kafka.brokers[0].sasl.securityProdocol
+        return LoadedConfig.kafka.brokers[0].sasl.securityProtocol
 
     @staticmethod
     def get_cloudwatch_access_id():
