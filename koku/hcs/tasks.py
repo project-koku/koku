@@ -184,7 +184,11 @@ def collect_hcs_report_finalization(  # noqa: C901
         finalization_date = finalization_date.replace(month=int(month)) + relativedelta(months=1)
 
     if year is not None:
-        finalization_date = finalization_date.replace(year=int(year))
+        if month is None:
+            LOG.warning(log_json(tracing_id, "you must provide 'month' when providing 'year'"))
+            return
+
+        finalization_date = finalization_date.replace(year=int(year), month=int(month)) + relativedelta(months=1)
 
     end_date = finalization_date - datetime.timedelta(days=1)
     start_date = finalization_date - datetime.timedelta(days=end_date.day)
