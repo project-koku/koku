@@ -685,15 +685,14 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         return super()._group_by_ranks(query, data)
 
     def _get_sub_org_units(self, org_unit_list):
-        """Get sub orgs units for a list of parent org units.
+        """Get sub org units for a list of parent org units.
 
         Args:
             org_unit_list (list): list of parent org units
 
         Returns:
-            sub_orgs (list) A list of sub org units
+            sub_orgs (django.db.query.QuerySet): QuerySet of sub org units
         """
-        sub_orgs = org_unit_list if isinstance(org_unit_list, list) else []
 
         # Parent Org Units
         org_unit_objects = (
@@ -732,6 +731,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 .distinct("org_unit_id")
             )
         else:
-            sub_orgs = sub_ou_list[0]
+            sub_orgs = sub_ou_list[0] if len(sub_ou_list) == 1 else sub_ou_list
 
         return sub_orgs
