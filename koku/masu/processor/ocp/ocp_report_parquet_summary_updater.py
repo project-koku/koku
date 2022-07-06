@@ -113,6 +113,8 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                if not report_period:
+                    return start_date, end_date
                 report_period_id = report_period.id
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
