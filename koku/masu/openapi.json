@@ -315,7 +315,7 @@
           {
             "name": "year",
             "in": "query",
-            "description": "The year you want to finalize, If no month is given then the previous month from today's date will be used",
+            "description": "The year you want to finalize, you must provide month when using this option",
             "required": false,
             "schema": {
               "type": "integer",
@@ -373,11 +373,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                  "$ref": "#/components/schemas/HCSFinalizationDataGetResponse"
                 }
               }
             }
-          }
+          },
         },
         "tags": [
           "HCS Report Finalization"
@@ -2028,6 +2028,16 @@
         }
       },
       "HCSDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "HCSFinalizationDataGetResponse": {
         "type": "object",
         "properties": {
           "Report Data Task ID": {
