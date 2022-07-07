@@ -132,7 +132,7 @@ jobs:
     needs: unit-tests
     if: |
       always() &&
-      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
+      ((needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped') || (needs.unit-tests.result == 'success' && python-version=3.8 || needs.unit-tests.result == 'skipped'))
     runs-on: ubuntu-20.04
     steps:
       - name: Display build environment
