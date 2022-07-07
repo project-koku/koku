@@ -48,7 +48,10 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        python-version: [3.8, 3.9]
+        python-version: [3.8]
+        include:
+          python-version: [3.9]
+          experimental: true
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 
@@ -132,7 +135,7 @@ jobs:
     needs: unit-tests
     if: |
       always() &&
-      ((needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped') || (needs.unit-tests.result == 'success' && python-version=3.8 || needs.unit-tests.result == 'skipped'))
+      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped')
     runs-on: ubuntu-20.04
     steps:
       - name: Display build environment
