@@ -17,7 +17,7 @@ mgmt_services/cost-mgmt:koku/python-backports.zoneinfo:0.2.1.pipfile
 mgmt_services/cost-mgmt:koku/python-beautifulsoup4:4.11.1.pipfile
 mgmt_services/cost-mgmt:koku/python-billiard:3.6.4.0.pipfile
 mgmt_services/cost-mgmt:koku/python-boto3:1.24.6.pipfile
-mgmt_services/cost-mgmt:koku/python-botocore:1.27.23.pipfile
+mgmt_services/cost-mgmt:koku/python-botocore:1.27.24.pipfile
 mgmt_services/cost-mgmt:koku/python-bs4:0.0.1.pipfile
 mgmt_services/cost-mgmt:koku/python-cachetools:5.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-celery:5.2.7.pipfile
@@ -33,7 +33,7 @@ mgmt_services/cost-mgmt:koku/python-click-repl:0.2.0.pipfile
 mgmt_services/cost-mgmt:koku/python-confluent-kafka:1.8.2.pipfile
 mgmt_services/cost-mgmt:koku/python-cryptography:3.4.7.pipfile
 mgmt_services/cost-mgmt:koku/python-deprecated:1.2.13.pipfile
-mgmt_services/cost-mgmt:koku/python-django:3.2.13.pipfile
+mgmt_services/cost-mgmt:koku/python-django:3.2.14.pipfile
 mgmt_services/cost-mgmt:koku/python-django-cors-headers:3.13.0.pipfile
 mgmt_services/cost-mgmt:koku/python-django-environ:0.8.1.pipfile
 mgmt_services/cost-mgmt:koku/python-django-extensions:3.1.5.pipfile
@@ -121,7 +121,7 @@ mgmt_services/cost-mgmt:koku/python-ujson:5.4.0.pipfile
 mgmt_services/cost-mgmt:koku/python-unicodecsv:0.14.1.pipfile
 mgmt_services/cost-mgmt:koku/python-unleashclient:4.4.1.pipfile
 mgmt_services/cost-mgmt:koku/python-uritemplate:4.1.1.pipfile
-mgmt_services/cost-mgmt:koku/python-urllib3:1.26.9.pipfile
+mgmt_services/cost-mgmt:koku/python-urllib3:1.26.10.pipfile
 mgmt_services/cost-mgmt:koku/python-vine:5.0.0.pipfile
 mgmt_services/cost-mgmt:koku/python-watchtower:1.0.6.pipfile
 mgmt_services/cost-mgmt:koku/python-wcwidth:0.2.5.pipfile
