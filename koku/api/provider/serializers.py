@@ -400,9 +400,7 @@ class ProviderSerializer(serializers.ModelSerializer):
             bill, __ = ProviderBillingSource.objects.get_or_create(**billing_source)
             auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
             if instance.billing_source != bill or instance.authentication != auth:
-                dup_queryset = (
-                    Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
-                )
+                dup_queryset = Provider.objects.filter(authentication=auth).filter(billing_source=bill)
                 if dup_queryset.count() != 0:
                     conflict_provder = dup_queryset.first()
                     message = (
