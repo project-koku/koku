@@ -162,8 +162,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         if provider.setup_complete:
             scan_start = dh.today - relativedelta(days=10)
             # temporary fix to not download data past release date of new gcp changes
-            if scan_start < Config.GCP_STOP_GAP_DATE:
-                scan_start = datetime.datetime.strptime(Config.GCP_STOP_GAP_DATE, "%Y-%m-%d")
+            stop_gap_date = Config.GCP_STOP_GAP_DATE
+            if stop_gap_date and scan_start < stop_gap_date:
+                scan_start = datetime.datetime.strptime(stop_gap_date, "%Y-%m-%d")
         else:
             months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
             scan_start = dh.today - relativedelta(months=months_delta)
