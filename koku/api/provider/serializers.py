@@ -347,9 +347,7 @@ class ProviderSerializer(serializers.ModelSerializer):
         auth, __ = ProviderAuthentication.objects.get_or_create(**authentication)
 
         # We can re-use a billing source or a auth, but not the same combination.
-        dup_queryset = (
-            Provider.objects.filter(authentication=auth).filter(billing_source=bill).filter(customer=customer)
-        )
+        dup_queryset = Provider.objects.filter(authentication=auth).filter(billing_source=bill)
         if dup_queryset.count() != 0:
             conflict_provider = dup_queryset.first()
             message = (
