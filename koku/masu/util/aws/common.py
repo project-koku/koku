@@ -443,6 +443,7 @@ def remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, c
                 manifest_id_str = str(manifest_id)
                 key = existing_object.key
                 if manifest == manifest_id_str:
+                    # TODO: Remove this when ready to test deletes.
                     # s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:

@@ -260,6 +260,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # Ensure that we don't try to run the new downloader version
             # on manifests formatted with the old assembly_id version.
             self.activate_self_healing()
+            # TODO: Remove the two lines below.
             msg = "New downloader attempting to use old manifest version, stopping download."
             raise GCPNewDownloaderVersion(msg)
 
