@@ -8,10 +8,11 @@ import datetime
 import logging
 import os
 from functools import cached_property
-from django.db.utils import DataError
+
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
+from django.db.utils import DataError
 from google.cloud import bigquery
 from google.cloud.exceptions import GoogleCloudError
 from rest_framework.exceptions import ValidationError
@@ -36,6 +37,7 @@ LOG = logging.getLogger(__name__)
 
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
+
 
 class GCPNewDownloaderVersion(Exception):
     """GCP Report Downloader error."""

@@ -19,9 +19,9 @@ from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
+from masu.external.downloader.gcp.gcp_report_downloader import GCPNewDownloaderVersion
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
-from masu.external.downloader.gcp.gcp_report_downloader import GCPNewDownloaderVersion
 from masu.processor.tasks import get_report_files
 from masu.processor.tasks import GET_REPORT_FILES_QUEUE
 from masu.processor.tasks import record_all_manifest_files
