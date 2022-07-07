@@ -126,8 +126,3 @@ class ResourceTypesViewTestGcpAccounts(MasuTestCase):
         self.assertIsNotNone(json_result.get("data"))
         self.assertIsInstance(json_result.get("data"), list)
         self.assertEqual(len(json_result.get("data")), expected)
-
-    def test_38_passes_39_fails(self):
-
-        with self.assertRaises(AttributeError):
-            "Hello world".removeprefix("Hello")
