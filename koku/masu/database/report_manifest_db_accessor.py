@@ -244,3 +244,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
             .filter(partition_date__gte=start_date, partition_date__lte=end_date)
         )
         return manifests
+
+    def get_outdated_gcp_manifests(self, provider_uuid, bill_date):
+        """Returns all manifests for a provider that are outdated.
+
+        The new gcp manifest contain "|" that is used to get the
+        partition date."""
+        manifests = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid,
+        ).exclude(assembly_id__icontains="|")
+        return manifests

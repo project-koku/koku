@@ -26,10 +26,13 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor import enable_trino_processing
+from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
+from masu.util.aws import common as utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
+from pprint import pformat
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -177,6 +180,51 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """The end partition date we check for data in BigQuery."""
         return DateHelper().today.date()
 
+    def activate_self_healing(self):
+        """Removes old manifest entry and csv/parquet files in trino."""
+        with ReportManifestDBAccessor() as manifest_accessor:
+            bill_date = self.scan_start.replace(day=1)
+            old_manifests = manifest_accessor.get_outdated_gcp_manifests(self._provider_uuid, bill_date)
+            LOG.info(old_manifests)
+            for manifest in old_manifests:
+                start_of_invoice = manifest.billing_period_start_datetime
+                context = {
+                    "provider_uuid": self._provider_uuid,
+                    "provider_type": self._provider_type,
+                    "account": self.account,
+                }
+                s3_csv_path = get_path_prefix(
+                    self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                )
+                s3_parquet_path = get_path_prefix(
+                    self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                )
+                s3_daily_parquet_path = get_path_prefix(
+                    self.account,
+                    Provider.PROVIDER_GCP,
+                    self._provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
+                    daily=True,
+                    report_type="raw",
+                )
+                s3_daily_openshift_path = get_path_prefix(
+                    self.account,
+                    Provider.PROVIDER_GCP,
+                    self._provider_uuid,
+                    start_of_invoice,
+                    Config.PARQUET_DATA_TYPE,
+                    daily=True,
+                    report_type=OPENSHIFT_REPORT_TYPE,
+                )
+                for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
+                    LOG.info("\n\n")
+                    LOG.info(pformat(s3_path))
+                    LOG.info("----------------")
+
+                    utils.remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
+                # TODO: delete manifest entry
+
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
         if ":" in self.data_source.get("dataset"):
@@ -211,6 +259,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         except DataError:
             # Ensure that we don't try to run the new downloader version
             # on manifests formatted with the old assembly_id version.
+            self.activate_self_healing()
             msg = "New downloader attempting to use old manifest version, stopping download."
             raise GCPNewDownloaderVersion(msg)
 
