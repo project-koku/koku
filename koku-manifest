@@ -1,4 +1,4 @@
-mgmt_services/cost-mgmt:koku/registry.access.redhat.com/ubi8/python-38:latest
+mgmt_services/cost-mgmt:koku/registry.access.redhat.com/ubi8/python-39:latest
 mgmt_services/cost-mgmt:koku/python-adal:1.2.7.pipfile
 mgmt_services/cost-mgmt:koku/python-amqp:5.1.1.pipfile
 mgmt_services/cost-mgmt:koku/python-app-common-python:0.2.3.pipfile
