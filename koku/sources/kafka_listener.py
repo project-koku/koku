@@ -250,21 +250,35 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         execute_process_queue()
 
 
+def _get_consumer_config():
+    consumer_conf = {
+        "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
+        "group.id": "hccm-sources",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+    }
+
+    if all(
+        (
+            Config.SOURCES_KAFKA_SECURITY_PROTOCOL,
+            Config.SOURCES_KAFKA_SASL_MECHANISM,
+            Config.SOURCES_KAFKA_USER,
+            Config.SOURCES_KAFKA_PASSWORD,
+            Config.SOURCES_KAFKA_CACERT,
+        )
+    ):
+        consumer_conf["security_protocol"] = Config.SOURCES_KAFKA_SECURITY_PROTOCOL
+        consumer_conf["sasl_mechanism"] = Config.SOURCES_KAFKA_SASL_MECHANISM
+        consumer_conf["sasl_plain_username"] = Config.SOURCES_KAFKA_USER
+        consumer_conf["sasl_plain_password"] = Config.SOURCES_KAFKA_PASSWORD
+        consumer_conf["ssl_ca"] = Config.SOURCES_KAFKA_CACERT
+
+    return consumer_conf
+
+
 def get_consumer():
     """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
-            "group.id": "hccm-sources",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-            "security_protocol": Config.SOURCES_KAFKA_SECURITY_PROTOCOL,
-            "sasl_mechanism": Config.SOURCES_KAFKA_SASL_MECHANISM,
-            "sasl_plain_username": Config.SOURCES_KAFKA_USER,
-            "sasl_plain_password": Config.SOURCES_KAFKA_PASSWORD,
-        },
-        logger=LOG,
-    )
+    consumer = Consumer(_get_consumer_config(), logger=LOG)
     consumer.subscribe([Config.SOURCES_TOPIC])
     return consumer
 

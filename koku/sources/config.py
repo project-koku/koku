@@ -20,6 +20,8 @@ class Config:
     SOURCES_KAFKA_PASSWORD = CONFIGURATOR.get_kafka_password()
     SOURCES_KAFKA_SASL_MECHANISM = CONFIGURATOR.get_kafka_sasl_mechanism()
     SOURCES_KAFKA_SECURITY_PROTOCOL = CONFIGURATOR.get_kafka_security_protocol()
+    SOURCES_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
+    SOURCES_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
 
     SOURCES_API_HOST = CONFIGURATOR.get_endpoint_host("sources-api", "svc", "localhost")
     SOURCES_API_PORT = CONFIGURATOR.get_endpoint_port("sources-api", "svc", "3000")

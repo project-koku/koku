@@ -24,11 +24,22 @@ from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
+from masu.external.kafka_msg_handler import _get_consumer_config
+from masu.external.kafka_msg_handler import _get_producer_config
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
+
+
+KAFKA_KEY_MAP = {
+    "INSIGHTS_KAFKA_USER": "sasl_plain_username",
+    "INSIGHTS_KAFKA_PASSWORD": "sasl_plain_password",
+    "INSIGHTS_KAFKA_SASL_MECHANISM": "sasl_mechanism",
+    "INSIGHTS_KAFKA_SECURITY_PROTOCOL": "security_protocol",
+    "INSIGHTS_KAFKA_CACERT": "ssl_ca",
+}
 
 
 def raise_exception():
@@ -783,5 +794,51 @@ class KafkaMsgHandlerTest(MasuTestCase):
             "INSIGHTS_KAFKA_PASSWORD",
             "INSIGHTS_KAFKA_SASL_MECHANISM",
             "INSIGHTS_KAFKA_SECURITY_PROTOCOL",
+            "INSIGHTS_KAFKA_CACERT",
+            "INSIGHTS_KAFKA_AUTHTYPE",
         ):
             self.assertTrue(hasattr(Config, key), f"Key {key} is not present in masu external Config")
+
+    def test_masu_consumer_config_with_man_kafka(self):
+        """Test masu consumer config returns correctly set config dict for managed kafka"""
+        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
+        for k in KAFKA_KEY_MAP:
+            setattr(Config, k, k)
+        conf = _get_consumer_config()
+        for v in KAFKA_KEY_MAP.values():
+            self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
+        for k, v in bkup_conf.items():
+            setattr(Config, k, v)
+
+    def test_masu_consumer_config_without_man_kafka(self):
+        """Test masu consumer config returns correctly set config dict with NO managed kafka"""
+        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
+        for k in KAFKA_KEY_MAP:
+            setattr(Config, k, None)
+        conf = _get_consumer_config()
+        for v in KAFKA_KEY_MAP.values():
+            self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
+        for k, v in bkup_conf.items():
+            setattr(Config, k, v)
+
+    def test_masu_producer_config_with_man_kafka(self):
+        """Test masu producer config returns correctly set config dict for managed kafka"""
+        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
+        for k in KAFKA_KEY_MAP:
+            setattr(Config, k, k)
+        conf = _get_producer_config()
+        for v in KAFKA_KEY_MAP.values():
+            self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
+        for k, v in bkup_conf.items():
+            setattr(Config, k, v)
+
+    def test_masu_producer_config_without_man_kafka(self):
+        """Test masu producer config returns correctly set config dict with NO managed kafka"""
+        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
+        for k in KAFKA_KEY_MAP:
+            setattr(Config, k, None)
+        conf = _get_producer_config()
+        for v in KAFKA_KEY_MAP.values():
+            self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
+        for k, v in bkup_conf.items():
+            setattr(Config, k, v)

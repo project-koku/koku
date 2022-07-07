@@ -662,38 +662,62 @@ def process_messages(msg):
     return process_complete
 
 
+def _get_managed_kafka_config(conf=None):
+    """Create/Update a dict with managed Kafka configuration"""
+    if not isinstance(conf, dict):
+        conf = {}
+
+    if all(
+        (
+            Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
+            Config.INSIGHTS_KAFKA_SASL_MECHANISM,
+            Config.INSIGHTS_KAFKA_USER,
+            Config.INSIGHTS_KAFKA_PASSWORD,
+            Config.INSIGHTS_KAFKA_CACERT,
+        )
+    ):
+        conf["security_protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
+        conf["sasl_mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl_plain_username"] = Config.INSIGHTS_KAFKA_USER
+        conf["sasl_plain_password"] = Config.INSIGHTS_KAFKA_PASSWORD
+        conf["ssl_ca"] = Config.INSIGHTS_KAFKA_CACERT
+
+    return conf
+
+
+def _get_consumer_config():
+    """Return Kafka Consumer config"""
+
+    consumer_conf = {
+        "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
+        "group.id": "hccm-group",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+        "max.poll.interval.ms": 1080000,  # 18 minutes
+    }
+
+    return _get_managed_kafka_config(consumer_conf)
+
+
 def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
-            "group.id": "hccm-group",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-            "max.poll.interval.ms": 1080000,  # 18 minutes
-            "security_protocol": Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
-            "sasl_mechanism": Config.INSIGHTS_KAFKA_SASL_MECHANISM,
-            "sasl_plain_username": Config.INSIGHTS_KAFKA_USER,
-            "sasl_plain_password": Config.INSIGHTS_KAFKA_PASSWORD,
-        },
-        logger=LOG,
-    )
+
+    consumer = Consumer(_get_consumer_config(), logger=LOG)
     consumer.subscribe([Config.HCCM_TOPIC])
+
     return consumer
+
+
+def _get_producer_config():
+    """Return Kafka Producer config"""
+    producer_conf = {"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000}
+    return _get_managed_kafka_config(producer_conf)
 
 
 def get_producer():  # pragma: no cover
     """Create a Kafka producer."""
-    producer = Producer(
-        {
-            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
-            "message.timeout.ms": 1000,
-            "security_protocol": Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
-            "sasl_mechanism": Config.INSIGHTS_KAFKA_SASL_MECHANISM,
-            "sasl_plain_username": Config.INSIGHTS_KAFKA_USER,
-            "sasl_plain_password": Config.INSIGHTS_KAFKA_PASSWORD,
-        }
-    )
+
+    producer = Producer(_get_producer_config())
     return producer
 
 
