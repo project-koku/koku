@@ -8,7 +8,7 @@ import datetime
 import logging
 import os
 from functools import cached_property
-
+from django.db.utils import DataError
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
@@ -35,6 +35,9 @@ LOG = logging.getLogger(__name__)
 
 
 class GCPReportDownloaderError(Exception):
+    """GCP Report Downloader error."""
+
+class GCPNewDownloaderVersion(Exception):
     """GCP Report Downloader error."""
 
 
@@ -161,10 +164,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if provider.setup_complete:
             scan_start = dh.today - relativedelta(days=10)
-            # temporary fix to not download data past release date of new gcp changes
-            stop_gap_date = Config.GCP_STOP_GAP_DATE
-            if stop_gap_date and scan_start < stop_gap_date:
-                scan_start = datetime.datetime.strptime(stop_gap_date, "%Y-%m-%d")
         else:
             months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
             scan_start = dh.today - relativedelta(months=months_delta)
@@ -197,15 +196,22 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         manifests_dict = {}
         manifests = []
         # Check to see if we have any manifests within the date range.
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
-                self._provider_uuid, self.scan_start, self.scan_end
-            )
+        try:
+            with ReportManifestDBAccessor() as manifest_accessor:
+                manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                    self._provider_uuid, self.scan_start, self.scan_end
+                )
 
-        for manifest in manifests:
-            last_export_time = manifests_dict.get(manifest.partition_date)
-            if not last_export_time or manifest.previous_export_time > last_export_time:
-                manifests_dict[manifest.partition_date] = manifest.previous_export_time
+            for manifest in manifests:
+                last_export_time = manifests_dict.get(manifest.partition_date)
+                if not last_export_time or manifest.previous_export_time > last_export_time:
+                    manifests_dict[manifest.partition_date] = manifest.previous_export_time
+        except DataError:
+            # Ensure that we don't try to run the new downloader version
+            # on manifests formatted with the old assembly_id version.
+            msg = "New downloader attempting to use old manifest version, stopping download."
+            raise GCPNewDownloaderVersion(msg)
+
         return manifests_dict
 
     def bigquery_export_to_partition_mapping(self):

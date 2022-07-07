@@ -1378,8 +1378,6 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
-        - name: GCP_STOP_GAP_DATE
-          value: ${GCP_STOP_GAP_DATE}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
