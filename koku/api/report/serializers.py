@@ -325,6 +325,8 @@ class ParamSerializer(BaseSerializer):
         end_date = data.get("end_date")
         time_scope_value = data.get("filter", {}).get("time_scope_value")
         time_scope_units = data.get("filter", {}).get("time_scope_units")
+        filter_limit = data.get("filter", {}).get("limit")
+        filter_offset = data.get("filter", {}).get("offset")
 
         if (start_date or end_date) and (time_scope_value or time_scope_units):
             error = {
@@ -346,6 +348,11 @@ class ParamSerializer(BaseSerializer):
         if data.get("delta") and (data.get("start_date") or data.get("end_date")):
             error = {"error": "Delta calculation is not supported with start_date and end_date parameters."}
             raise serializers.ValidationError(error)
+
+        if "instance-types" not in self.context["request"].path:
+            if (filter_limit or filter_offset) and not data.get("group_by"):
+                error = {"error": "filter[limit] and filter[offset] requires a valid group_by param."}
+                raise serializers.ValidationError(error)
 
         return data
 
@@ -410,20 +417,20 @@ class ParamSerializer(BaseSerializer):
     def validate_start_date(self, value):
         """Validate that the start_date is within the expected range."""
         dh = DateHelper()
-        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
+        start = materialized_view_month_start(dh).date()
+        end = dh.tomorrow.date()
+        if value >= start and value <= end:
             return value
 
-        error = "Parameter start_date must be from {} to {}".format(
-            materialized_view_month_start(dh).date(), dh.today.date()
-        )
+        error = f"Parameter start_date must be from {start} to {end}"
         raise serializers.ValidationError(error)
 
     def validate_end_date(self, value):
         """Validate that the end_date is within the expected range."""
         dh = DateHelper()
-        if value >= materialized_view_month_start(dh).date() and value <= dh.today.date():
+        start = materialized_view_month_start(dh).date()
+        end = dh.tomorrow.date()
+        if value >= start and value <= end:
             return value
-        error = "Parameter end_date must be from {} to {}".format(
-            materialized_view_month_start(dh).date(), dh.today.date()
-        )
+        error = f"Parameter end_date must be from {start} to {end}"
         raise serializers.ValidationError(error)

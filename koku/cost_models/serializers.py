@@ -463,6 +463,8 @@ class CostModelSerializer(serializers.Serializer):
             return data
         if data["source_type"] not in self.metric_map.keys():
             raise serializers.ValidationError("{} is not a valid source.".format(data["source_type"]))
+        if data.get("rates"):
+            self.validate_rates_currency(data)
         return data
 
     def _get_metric_display_data(self, source_type, metric):
@@ -482,6 +484,22 @@ class CostModelSerializer(serializers.Serializer):
             err_msg = f"Provider object does not exist with following uuid(s): {invalid_uuids}."
             raise serializers.ValidationError(err_msg)
         return valid_uuids
+
+    def validate_rates_currency(self, data):
+        """Validate incoming currency and rates all match."""
+        err_msg = "Rate units must match currency provided in a cost model."
+        for rate in data.get("rates"):
+            if rate and rate.get("tiered_rates"):
+                for tiered_rate in rate.get("tiered_rates"):
+                    if tiered_rate.get("unit") != data.get("currency"):
+                        raise serializers.ValidationError(err_msg)
+                    if tiered_rate.get("usage") and tiered_rate.get("usage").get("unit"):
+                        if tiered_rate.get("usage").get("unit") != data.get("currency"):
+                            raise serializers.ValidationError(err_msg)
+            if rate and rate.get("tag_rates"):
+                for tag_rate in rate.get("tag_rates").get("tag_values"):
+                    if tag_rate.get("unit") != data.get("currency"):
+                        raise serializers.ValidationError(err_msg)
 
     def validate_rates(self, rates):
         """Run validation for rates."""
@@ -504,6 +522,14 @@ class CostModelSerializer(serializers.Serializer):
             error_msg = f"{distribution} is an invaild distribution type"
             raise serializers.ValidationError(error_msg)
         return distribution
+
+    def validate_currency(self, value):
+        """Validate incoming currency value based on path."""
+        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
+        if value not in valid_currency:
+            error = {"currency": f'"{value}" is not a valid choice.'}
+            raise serializers.ValidationError(error)
+        return value
 
     def create(self, validated_data):
         """Create the cost model object in the database."""
@@ -566,12 +592,3 @@ class CostModelSerializer(serializers.Serializer):
         internal = super().to_internal_value(data)
         internal["provider_uuids"] = internal.get("source_uuids", [])
         return internal
-
-    def validate_currency(self, value):
-        """Validate incoming currency value based on path."""
-
-        valid_currency = [choice[0] for choice in CURRENCY_CHOICES]
-        if value not in valid_currency:
-            error = {"currency": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value

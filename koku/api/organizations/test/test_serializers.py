@@ -4,7 +4,9 @@
 #
 """Test the organizations serializer."""
 from unittest import TestCase
+from unittest.mock import Mock
 
+from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 
 from api.organizations.serializers import AWSOrgFilterSerializer
@@ -103,22 +105,26 @@ class OrgQueryParamSerializerTest(TestCase):
             "limit": "5",
             "offset": "3",
         }
-        serializer = OrgQueryParamSerializer(data=query_params)
+        url = Mock(path="/api/cost-management/v1/organizations/aws/")
+        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
         """Test parse of query params for invalid fields."""
         query_params = {"invalid": "invalid"}
-        serializer = OrgQueryParamSerializer(data=query_params)
+        url = Mock(path="/api/cost-management/v1/organizations/aws/")
+        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
     def test_parse_filter_dates_valid(self):
         """Test parse of a filter date-based param should succeed."""
         dh = DateHelper()
+        url = Mock(path="/api/cost-management/v1/organizations/aws/")
         scenarios = [
             {"start_date": dh.yesterday.date(), "end_date": dh.today.date()},
             {"start_date": dh.this_month_start.date(), "end_date": dh.today.date()},
+            {"start_date": dh.tomorrow.date(), "end_date": dh.tomorrow.date()},
             {
                 "start_date": dh.last_month_end.date(),
                 "end_date": dh.this_month_start.date(),
@@ -133,16 +139,21 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params)
+                serializer = OrgQueryParamSerializer(data=params, context={"request": url})
                 self.assertTrue(serializer.is_valid(raise_exception=True))
 
     def test_parse_filter_dates_invalid(self):
         """Test parse of invalid data for filter date-based param should not succeed."""
         dh = DateHelper()
+        url = Mock(path="/api/cost-management/v1/organizations/aws/")
         scenarios = [
             {"start_date": dh.today.date()},
             {"end_date": dh.today.date()},
-            {"start_date": dh.yesterday.date(), "end_date": dh.tomorrow.date()},
+            {"start_date": dh.yesterday.date(), "end_date": dh.tomorrow.date() + relativedelta(days=1)},
+            {
+                "start_date": dh.tomorrow.date() + relativedelta(days=1),
+                "end_date": dh.tomorrow.date() + relativedelta(days=1),
+            },
             {"start_date": dh.n_days_ago(materialized_view_month_start(dh), 1).date(), "end_date": dh.today.date()},
             {"start_date": "llamas", "end_date": dh.yesterday.date()},
             {"start_date": dh.yesterday.date(), "end_date": "alpacas"},
@@ -166,5 +177,5 @@ class OrgQueryParamSerializerTest(TestCase):
 
         for params in scenarios:
             with self.subTest(params=params):
-                serializer = OrgQueryParamSerializer(data=params)
+                serializer = OrgQueryParamSerializer(data=params, context={"request": url})
                 self.assertFalse(serializer.is_valid())

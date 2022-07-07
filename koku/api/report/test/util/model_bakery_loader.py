@@ -476,7 +476,7 @@ class ModelBakeryDataLoader(DataLoader):
         """Load OCI data for tests."""
         bills = []
         provider_type = Provider.PROVIDER_OCI_LOCAL
-        pay_id = self.faker.uuid4()
+        pay_id = "8d361f2b-f1ff-4718-8159-181db259f6c9"
         credentials = {"tenant": pay_id}
         billing_source = {
             "data_source": {"bucket": "oci_bucket", "bucket_namespace": "oci_namespace", "region": "my-region"}
@@ -494,7 +494,7 @@ class ModelBakeryDataLoader(DataLoader):
             bill = self.create_bill(provider_type, provider, bill_date)
             bills.append(bill)
             with schema_context(self.schema):
-                days = (end_date - start_date).days
+                days = (end_date - start_date).days + 1
                 for i in range(days):
                     baker.make_recipe(
                         "api.report.test.util.oci_daily_summary",

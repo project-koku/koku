@@ -67,11 +67,13 @@ class AzureReportQueryHandler(ReportQueryHandler):
         units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback, output_field=CharField())),
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-            annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
+            annotations["usage_units"] = Coalesce(
+                self._mapper.usage_units_key, Value(units_fallback, output_field=CharField())
+            )
 
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
@@ -196,10 +198,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 query_data = self.order_by(query_data, query_order_by)
 
             if is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+                data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")

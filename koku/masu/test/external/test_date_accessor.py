@@ -38,6 +38,7 @@ class DateAccessorTest(MasuTestCase):
     def setUp(self):
         """Set up the tests."""
         DateAccessor.mock_date_time = None
+        DateAccessor.date_time_last_accessed = datetime.now(tz=pytz.UTC)
         Config.DEBUG = False
         Config.MASU_DATE_OVERRIDE = None
 

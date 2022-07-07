@@ -112,12 +112,18 @@ objects:
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
+        - name: RBAC_CACHE_TIMEOUT
+          value: ${RBAC_CACHE_TIMEOUT}
         image: ${IMAGE}:${IMAGE_TAG}
         initContainers:
         - command:
@@ -261,6 +267,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -396,6 +404,8 @@ objects:
           value: ${DATE_OVERRIDE}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
         - name: INITIAL_INGEST_NUM_MONTHS
           value: ${INITIAL_INGEST_NUM_MONTHS}
         - name: INITIAL_INGEST_OVERRIDE
@@ -410,6 +420,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -579,6 +591,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -697,6 +711,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -837,6 +853,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1006,6 +1024,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1181,6 +1201,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1354,6 +1376,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1529,6 +1553,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1702,6 +1728,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -1877,6 +1905,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2052,6 +2082,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2227,6 +2259,8 @@ objects:
           value: ${QE_SCHEMA}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
+        - name: ENHANCED_ORG_ADMIN
+          value: ${ENHANCED_ORG_ADMIN}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2318,6 +2352,7 @@ objects:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
+    - topicName: platform.notifications.ingress
     objectStore:
     - ${S3_BUCKET_NAME}
     optionalDependencies: []
@@ -2543,6 +2578,9 @@ parameters:
 - displayName: Retain num months
   name: RETAIN_NUM_MONTHS
   value: "3"
+- displayName: Notification check period
+  name: NOTIFICATION_CHECK_TIME
+  value: "24"
 - displayName: Initial ingest num months
   name: INITIAL_INGEST_NUM_MONTHS
   value: "3"
@@ -2614,6 +2652,13 @@ parameters:
   name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- description: Enhanced Org Admin
+  displayName: Enhanced Org Admin
+  name: ENHANCED_ORG_ADMIN
+  value: "False"
+- displayName: RBAC_CACHE_TIMEOUT
+  name: RBAC_CACHE_TIMEOUT
+  value: "300"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

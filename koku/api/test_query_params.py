@@ -31,6 +31,7 @@ PROVIDERS = [
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_OCP,
     Provider.PROVIDER_GCP,
+    Provider.PROVIDER_OCI,
     Provider.OCP_AWS,
     Provider.OCP_AZURE,
     Provider.OCP_ALL,
@@ -38,6 +39,7 @@ PROVIDERS = [
 ACCESS_KEYS = {
     Provider.PROVIDER_AWS.lower(): ["aws.account", "aws.organizational_unit"],
     Provider.PROVIDER_GCP.lower(): ["gcp.account", "gcp.project"],
+    Provider.PROVIDER_OCI.lower(): ["oci.payer_tenant_id"],
     Provider.PROVIDER_AZURE.lower(): ["azure.subscription_guid"],
     Provider.PROVIDER_OCP.lower(): ["openshift.cluster", "openshift.project", "openshift.node"],
     Provider.OCP_AWS.lower(): [
@@ -57,6 +59,8 @@ ACCESS_KEYS = {
         "aws.account",
         "aws.organizational_unit",
         "azure.subscription_guid",
+        "gcp.account",
+        "gcp.project",
         "openshift.cluster",
         "openshift.project",
         "openshift.node",
@@ -87,13 +91,9 @@ class QueryParametersTests(TestCase):
         This test is a bit fatter than it needs to be to help show how to mock
         out the Request and View objects.
         """
-
-        def fake_tags():
-            fake_tags = []
-            for _ in range(0, random.randint(2, 10)):
-                fake_tags.append({"key": self.FAKE.word(), "value": self.FAKE.word()})
-            return fake_tags
-
+        tag_keys = ["app", "az", "environment", "cost_center", "fake", "other", "this"]
+        fake_objects = Mock()
+        fake_objects.objects.values_list.return_value.distinct.return_value = tag_keys
         fake_request = Mock(
             spec=HttpRequest,
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
@@ -105,10 +105,7 @@ class QueryParametersTests(TestCase):
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[
-                Mock(objects=Mock(values=lambda _: fake_tags())),
-                Mock(objects=Mock(values=lambda _: fake_tags())),
-            ],
+            tag_handler=[fake_objects, fake_objects],
         )
         self.assertIsInstance(QueryParameters(fake_request, fake_view), QueryParameters)
 
@@ -593,6 +590,27 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.get_access("subscription_guid"), [guid1, guid2])
 
+    def test_update_query_parameters_add_tenant_id_filter_obj(self):
+        """Test that if no group_by or filter is present, access is the tenant_ids available."""
+        guid1 = uuid4()
+        guid2 = uuid4()
+        test_access = {"oci.payer_tenant_id": {"read": [guid1, guid2]}}
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=Provider.PROVIDER_OCI),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertEqual(params.get_access("payer_tenant_id"), [guid1, guid2])
+
     def test_update_query_parameters_filtered_intersection(self):
         """Test that a filter by cluster filtered list causes a 403 when filtering on accounts without access."""
         fake_uri = "filter[cluster]=cluster1&" "filter[cluster]=cluster3"
@@ -647,14 +665,15 @@ class QueryParametersTests(TestCase):
             user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
-        fake_objects = Mock(values=lambda _: [{"key": key, "value": self.FAKE.word()} for key in tag_keys])
+        fake_objects = Mock()
+        fake_objects.objects.values_list.return_value.distinct.return_value = tag_keys
         fake_view = Mock(
             spec=ReportView,
             provider=self.FAKE.word(),
             query_handler=Mock(provider=random.choice(PROVIDERS)),
             report=self.FAKE.word(),
             serializer=Mock,
-            tag_handler=[Mock(objects=fake_objects)],
+            tag_handler=[fake_objects],
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
@@ -825,6 +844,7 @@ class QueryParametersTests(TestCase):
             "aws.account": {"read": ["*"]},
             "aws.organizational_unit": {"read": ["*"]},
             "azure.subscription_guid": {"read": ["*"]},
+            "oci.payer_tenant_id": {"read": ["*"]},
             "openshift.cluster": {"read": ["my-ocp-cluster"]},
             "gcp.account": {"read": ["*"]},
             "gcp.project": {"read": ["*"]},

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for GCP Projects."""
+from django.conf import settings
 from django.db.models import F
 from django.db.models.functions import Coalesce
 from django.utils.decorators import method_decorator
@@ -13,6 +14,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from api.common import CACHE_RH_IDENTITY_HEADER
+from api.common.pagination import ResourceTypeViewPaginator
 from api.common.permissions.gcp_access import GcpAccessPermission
 from api.common.permissions.gcp_access import GcpProjectPermission
 from api.resource_types.serializers import ResourceTypeSerializer
@@ -29,6 +31,7 @@ class GCPProjectsView(generics.ListAPIView):
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering = ["value"]
     search_fields = ["value"]
+    pagination_class = ResourceTypeViewPaginator
 
     @method_decorator(vary_on_headers(CACHE_RH_IDENTITY_HEADER))
     def list(self, request):
@@ -52,7 +55,7 @@ class GCPProjectsView(generics.ListAPIView):
                             .values("value", "project")
                             .distinct()
                         )
-        if request.user.admin:
+        if settings.ENHANCED_ORG_ADMIN and request.user.admin:
             return super().list(request)
         if request.user.access:
             gcp_account_access = request.user.access.get("gcp.account", {}).get("read", [])

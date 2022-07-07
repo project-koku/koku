@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 
 from django.db.models import Max
 from django.db.models import Sum
@@ -365,8 +366,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
     def test_add_current_month_deltas_no_previous_data_w_query_data(self):
         """Test that current month deltas are calculated with no previous data for field two."""
-        url = "?filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1"
-        query_params = self.mocked_query_params(url, OCPCpuView)
+        url = "?filter[time_scope_value]=-1&filter[resolution]=monthly"
+        query_params = self.mocked_query_params(
+            url, OCPCpuView, path="/api/cost-management/v1/reports/openshift/compute/"
+        )
         handler = OCPReportQueryHandler(query_params)
         handler._delta = "usage__foo"
 
@@ -561,8 +564,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertIsNotNone(cluster_value["cluster"])
                     self.assertIsNotNone(cluster_value["clusters"])
 
-    def test_other_clusters(self):
+    @patch("api.report.queries.ReportQueryHandler.is_openshift", new_callable=PropertyMock)
+    def test_other_clusters(self, mock_is_openshift):
         """Test that group by cluster includes cluster and cluster_alias."""
+        mock_is_openshift.return_value = True
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&filter[limit]=1&group_by[cluster]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPCpuView)
         handler = OCPReportQueryHandler(query_params)
@@ -580,8 +585,10 @@ class OCPReportQueryHandlerTest(IamTestCase):
                         self.assertTrue(len(cluster_value.get("clusters", [])) > 1)
                         self.assertTrue(len(cluster_value.get("source_uuid", [])) > 1)
 
-    def test_subtotals_add_up_to_total(self):
+    @patch("api.report.queries.ReportQueryHandler.is_openshift", new_callable=PropertyMock)
+    def test_subtotals_add_up_to_total(self, mock_is_openshift):
         """Test the apply_group_by handles different grouping scenerios."""
+        mock_is_openshift.return_value = True
         group_by_list = [
             ("project", "cluster", "node"),
             ("project", "node", "cluster"),

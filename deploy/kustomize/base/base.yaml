@@ -32,6 +32,7 @@ objects:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
+    - topicName: platform.notifications.ingress
 
     objectStore:
     - ${S3_BUCKET_NAME}
@@ -317,6 +318,9 @@ parameters:
 - displayName: Retain num months
   name: RETAIN_NUM_MONTHS
   value: "3"
+- displayName: Notification check period
+  name: NOTIFICATION_CHECK_TIME
+  value: "24"
 - displayName: Initial ingest num months
   name: INITIAL_INGEST_NUM_MONTHS
   value: "3"
@@ -396,3 +400,10 @@ parameters:
   displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- description: Enhanced Org Admin
+  displayName: Enhanced Org Admin
+  name: ENHANCED_ORG_ADMIN
+  value: "False"
+- name: RBAC_CACHE_TIMEOUT
+  displayName: RBAC_CACHE_TIMEOUT
+  value: "300"

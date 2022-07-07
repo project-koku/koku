@@ -52,6 +52,9 @@ SECRET_KEY = ENVIRONMENT.get_value(
 # Default value: False
 DEBUG = ENVIRONMENT.bool("DEVELOPMENT", default=False)
 
+# Allow org admins to bypass RBAC permission checks
+ENHANCED_ORG_ADMIN = ENVIRONMENT.bool("ENHANCED_ORG_ADMIN", default=False)
+
 ALLOWED_HOSTS = ["*"]
 
 
@@ -227,6 +230,7 @@ else:
         "rbac": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/1",
+            "TIMEOUT": ENVIRONMENT.get_value("RBAC_CACHE_TIMEOUT", default=300),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
@@ -284,13 +288,14 @@ USE_TZ = True
 API_PATH_PREFIX = ENVIRONMENT.get_value("API_PATH_PREFIX", default="/api")
 DEFAULT_RETAIN_NUM_MONTHS = 4
 RETAIN_NUM_MONTHS = ENVIRONMENT.int("RETAIN_NUM_MONTHS", default=DEFAULT_RETAIN_NUM_MONTHS)
+NOTIFICATION_CHECK_TIME = ENVIRONMENT.int("NOTIFICATION_CHECK_TIME", default=24)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 STATIC_URL = "{}/static/".format(API_PATH_PREFIX.rstrip("/"))
 
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/source/specs")]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "..", "docs/specs")]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 INTERNAL_IPS = ["127.0.0.1"]
