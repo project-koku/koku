@@ -413,27 +413,31 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_kafka_username():
         """Obtain kafka username"""
-        return LoadedConfig.kafka.brokers[0].sasl.username
+        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
+        return getattr(sasl, "username", None)
 
     @staticmethod
     def get_kafka_password():
         """Obtain kafka password"""
-        return LoadedConfig.kafka.brokers[0].sasl.password
+        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
+        return getattr(sasl, "password", None)
 
     @staticmethod
     def get_kafka_sasl_mechanism():
         """Obtain kafka sasl mechanism"""
-        return LoadedConfig.kafka.brokers[0].sasl.saslMechanism
+        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
+        return getattr(sasl, "saslMechanism", None)
 
     @staticmethod
     def get_kafka_security_protocol():
         """Obtain kafka security protocol"""
-        return LoadedConfig.kafka.brokers[0].sasl.securityProtocol
+        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
+        return getattr(sasl, "securityProtocol", None)
 
     @staticmethod
     def get_kafka_cacert():
         """Obtain kafka CA Certificate"""
-        return LoadedConfig.kafka.brokers[0].cacert
+        return getattr(LoadedConfig.kafka.brokers[0], "cacert")
 
     @staticmethod
     def get_kafka_authtype():
