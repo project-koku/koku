@@ -161,6 +161,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         provider = Provider.objects.filter(uuid=self._provider_uuid).first()
         if provider.setup_complete:
             scan_start = dh.today - relativedelta(days=10)
+            # temporary fix to not download data past release date of new gcp changes
+            if scan_start < Config.GCP_STOP_GAP_DATE:
+                scan_start = datetime.datetime.strptime(Config.GCP_STOP_GAP_DATE, "%Y-%m-%d")
         else:
             months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
             scan_start = dh.today - relativedelta(months=months_delta)
