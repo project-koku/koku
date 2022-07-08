@@ -20,12 +20,12 @@ from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
+from kafka_utils.utils import _get_consumer_config
+from kafka_utils.utils import _get_producer_config
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
-from masu.external.kafka_msg_handler import _get_consumer_config
-from masu.external.kafka_msg_handler import _get_producer_config
 from masu.external.kafka_msg_handler import KafkaMsgHandlerError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
@@ -804,7 +804,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
         for k in KAFKA_KEY_MAP:
             setattr(Config, k, k)
-        conf = _get_consumer_config()
+        conf = _get_consumer_config(Config.INSIGHTS_KAFKA_ADDRESS)
         for v in KAFKA_KEY_MAP.values():
             self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
         for k, v in bkup_conf.items():
@@ -815,7 +815,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
         for k in KAFKA_KEY_MAP:
             setattr(Config, k, None)
-        conf = _get_consumer_config()
+        conf = _get_consumer_config(Config.INSIGHTS_KAFKA_ADDRESS)
         for v in KAFKA_KEY_MAP.values():
             self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
         for k, v in bkup_conf.items():
@@ -826,7 +826,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
         for k in KAFKA_KEY_MAP:
             setattr(Config, k, k)
-        conf = _get_producer_config()
+        conf = _get_producer_config(Config.INSIGHTS_KAFKA_ADDRESS)
         for v in KAFKA_KEY_MAP.values():
             self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
         for k, v in bkup_conf.items():
@@ -837,7 +837,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
         bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
         for k in KAFKA_KEY_MAP:
             setattr(Config, k, None)
-        conf = _get_producer_config()
+        conf = _get_producer_config(Config.INSIGHTS_KAFKA_ADDRESS)
         for v in KAFKA_KEY_MAP.values():
             self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
         for k, v in bkup_conf.items():

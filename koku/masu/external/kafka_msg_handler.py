@@ -17,8 +17,6 @@ from tarfile import ReadError
 from tarfile import TarFile
 
 import requests
-from confluent_kafka import Consumer
-from confluent_kafka import Producer
 from confluent_kafka import TopicPartition
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
@@ -27,6 +25,8 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import get_consumer as get_kafka_consumer
+from kafka_utils.utils import get_producer as get_kafka_producer
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -662,62 +662,19 @@ def process_messages(msg):
     return process_complete
 
 
-def _get_managed_kafka_config(conf=None):
-    """Create/Update a dict with managed Kafka configuration"""
-    if not isinstance(conf, dict):
-        conf = {}
-
-    if all(
-        (
-            Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
-            Config.INSIGHTS_KAFKA_SASL_MECHANISM,
-            Config.INSIGHTS_KAFKA_USER,
-            Config.INSIGHTS_KAFKA_PASSWORD,
-            Config.INSIGHTS_KAFKA_CACERT,
-        )
-    ):
-        conf["security_protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl_mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
-        conf["sasl_plain_username"] = Config.INSIGHTS_KAFKA_USER
-        conf["sasl_plain_password"] = Config.INSIGHTS_KAFKA_PASSWORD
-        conf["ssl_ca"] = Config.INSIGHTS_KAFKA_CACERT
-
-    return conf
-
-
-def _get_consumer_config():
-    """Return Kafka Consumer config"""
-
-    consumer_conf = {
-        "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
-        "group.id": "hccm-group",
-        "queued.max.messages.kbytes": 1024,
-        "enable.auto.commit": False,
-        "max.poll.interval.ms": 1080000,  # 18 minutes
-    }
-
-    return _get_managed_kafka_config(consumer_conf)
-
-
 def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
 
-    consumer = Consumer(_get_consumer_config(), logger=LOG)
-    consumer.subscribe([Config.HCCM_TOPIC])
+    consumer = get_kafka_consumer(Config.HCCM_TOPIC)
 
     return consumer
-
-
-def _get_producer_config():
-    """Return Kafka Producer config"""
-    producer_conf = {"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000}
-    return _get_managed_kafka_config(producer_conf)
 
 
 def get_producer():  # pragma: no cover
     """Create a Kafka producer."""
 
-    producer = Producer(_get_producer_config())
+    producer = get_kafka_producer()
+
     return producer
 
 
