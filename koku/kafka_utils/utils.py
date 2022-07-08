@@ -60,7 +60,7 @@ def get_consumer(*topics, address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings
     """Create a Kafka consumer."""
     conf = _get_consumer_config(address, **conf_settings)
     consumer = Consumer(conf, logger=LOG)
-    consumer.subscribe(topics)
+    consumer.subscribe(list(topics))
 
     return consumer
 
