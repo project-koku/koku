@@ -42,7 +42,7 @@ class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
-class GCPNewDownloaderVersion(Exception):
+class GCPSelfHealingComplete(Exception):
     """GCP Report Downloader error."""
 
 
@@ -183,9 +183,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
     def activate_self_healing(self):
         """Removes old manifest entry and csv/parquet files in trino."""
         with ReportManifestDBAccessor() as manifest_accessor:
-            bill_date = self.scan_start.replace(day=1)
-            old_manifests = manifest_accessor.get_outdated_gcp_manifests(self._provider_uuid, bill_date)
-            LOG.info(old_manifests)
+            old_manifests = manifest_accessor.gcp_self_healing_get_outdated_manifests(self._provider_uuid)
+            manifest_id_list = []
+            if not old_manifests:
+                # If no old manifests were found then we should raise the DataError.
+                return False
             for manifest in old_manifests:
                 start_of_invoice = manifest.billing_period_start_datetime
                 context = {
@@ -193,6 +195,8 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     "provider_type": self._provider_type,
                     "account": self.account,
                 }
+                # Build all of the s3 paths that may contain files for
+                # the outdated manifest so that they can be deleted.
                 s3_csv_path = get_path_prefix(
                     self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
                 )
@@ -218,12 +222,10 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     report_type=OPENSHIFT_REPORT_TYPE,
                 )
                 for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
-                    LOG.info("\n\n")
-                    LOG.info(pformat(s3_path))
-                    LOG.info("----------------")
-
-                    utils.remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
-                # TODO: delete manifest entry
+                    utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
+                manifest_id_list.append(manifest.id)
+            manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
+        return True
 
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
@@ -256,13 +258,20 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 last_export_time = manifests_dict.get(manifest.partition_date)
                 if not last_export_time or manifest.previous_export_time > last_export_time:
                     manifests_dict[manifest.partition_date] = manifest.previous_export_time
-        except DataError:
-            # Ensure that we don't try to run the new downloader version
-            # on manifests formatted with the old assembly_id version.
-            self.activate_self_healing()
-            # TODO: Remove the two lines below.
-            msg = "New downloader attempting to use old manifest version, stopping download."
-            raise GCPNewDownloaderVersion(msg)
+        except DataError as err:
+            # This DataError bubbles up from the old manifest assembly_id not
+            # containing the expected delimiter "|" for the new manifests
+            result = self.activate_self_healing()
+            if result:
+                # Since the start_date is a cached properity, but we have removed
+                # the manifest causing the scan start to be -10 days ago, we
+                # need a new class instance to retrigger an initial download.
+                # So we raise this error and retrigger the manifest processing
+                # on the Orchestrator side of things.
+                msg = f"Completed GCP self healing for provider {self._provider_uuid}"
+                raise GCPSelfHealingComplete(msg)
+            else:
+                raise GCPReportDownloaderError(err)
 
         return manifests_dict
 

@@ -29,6 +29,7 @@ from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from pprint import pformat
 
 LOG = logging.getLogger(__name__)
 
@@ -421,7 +422,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
+def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
@@ -443,8 +444,7 @@ def remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, c
                 manifest_id_str = str(manifest_id)
                 key = existing_object.key
                 if manifest == manifest_id_str:
-                    # TODO: Remove this when ready to test deletes.
-                    # s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."

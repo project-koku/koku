@@ -19,7 +19,7 @@ from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.gcp.gcp_report_downloader import GCPNewDownloaderVersion
+from masu.external.downloader.gcp.gcp_report_downloader import GCPSelfHealingComplete
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
@@ -288,8 +288,10 @@ class Orchestrator:
             _, reports_tasks_queued = self.start_manifest_processing(**account)
         except ReportDownloaderError as err:
             LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-        except GCPNewDownloaderVersion as msg_info:
+        except GCPSelfHealingComplete as msg_info:
             LOG.info(msg_info)
+            # Retry now that we have removed the old manifests
+            self.start_manifest_processing(**account)
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
