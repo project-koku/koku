@@ -1,4 +1,4 @@
-#! /usr/bin/env python3.8
+#! /usr/bin/env python3.9
 #
 # Copyright 2021 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
