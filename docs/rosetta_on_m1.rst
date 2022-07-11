@@ -62,18 +62,18 @@ And you can use all ``brew`` commands: ::
 3. Install Python
 -----------------
 
-1. Install Python 3.8 using Intel-based ``brew``: ::
+1. Install Python 3.9 using Intel-based ``brew``: ::
 
-    brow install python@3.8
+    brow install python@3.9
     brow list | grep python
 
 2. Assuming ``python`` and ``pip`` (comes with ``python`` installation above) currently do not point to any commands, add the following paths and aliases to ``~/.zshrc``: ::
 
-    export PATH="/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/python3.8:$PATH"
-    export PATH="/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/pip3:$PATH"
+    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/python3.9:$PATH"
+    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/pip3:$PATH"
 
-    alias python='/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/python3.8'
-    alias pip='/usr/local/homebrew/Cellar/python@3.8/3.8.13/bin/pip3'
+    alias python='/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/python3.9'
+    alias pip='/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/pip3'
 
 3. Implement the new changes in ``.zshrc`` file: ::
 
