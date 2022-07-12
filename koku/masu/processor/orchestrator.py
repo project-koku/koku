@@ -291,6 +291,11 @@ class Orchestrator:
         except GCPSelfHealingComplete as msg_info:
             LOG.info(msg_info)
             # Retry now that we have removed the old manifests
+            # we have to reset provider.setup_complete to False in order
+            # to re-calculate scan_start. Refer to GCPReportDownloader.scan_start
+            provider = Provider.objects.filter(uuid=provider_uuid).first()
+            provider.setup_complete = False
+            provider.save()
             self.start_manifest_processing(**account)
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
