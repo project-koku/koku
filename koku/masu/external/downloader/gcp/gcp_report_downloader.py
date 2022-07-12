@@ -189,40 +189,44 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # If no old manifests were found then we should raise the DataError.
                 return False
             for manifest in old_manifests:
-                start_of_invoice = manifest.billing_period_start_datetime
-                context = {
-                    "provider_uuid": self._provider_uuid,
-                    "provider_type": self._provider_type,
-                    "account": self.account,
-                }
-                # Build all of the s3 paths that may contain files for
-                # the outdated manifest so that they can be deleted.
-                s3_csv_path = get_path_prefix(
-                    self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-                )
-                s3_parquet_path = get_path_prefix(
-                    self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-                )
-                s3_daily_parquet_path = get_path_prefix(
-                    self.account,
-                    Provider.PROVIDER_GCP,
-                    self._provider_uuid,
-                    start_of_invoice,
-                    Config.PARQUET_DATA_TYPE,
-                    daily=True,
-                    report_type="raw",
-                )
-                s3_daily_openshift_path = get_path_prefix(
-                    self.account,
-                    Provider.PROVIDER_GCP,
-                    self._provider_uuid,
-                    start_of_invoice,
-                    Config.PARQUET_DATA_TYPE,
-                    daily=True,
-                    report_type=OPENSHIFT_REPORT_TYPE,
-                )
-                for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
-                    utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
+                # this month & the previous month
+                invoice_month = manifest.billing_period_start_datetime
+                dh = DateHelper()
+                # Catch the cross over data.
+                for start_of_invoice in [manifest.billing_period_start_datetime, dh.previous_month(invoice_month)]:
+                    context = {
+                        "provider_uuid": self._provider_uuid,
+                        "provider_type": self._provider_type,
+                        "account": self.account,
+                    }
+                    # Build all of the s3 paths that may contain files for
+                    # the outdated manifest so that they can be deleted.
+                    s3_csv_path = get_path_prefix(
+                        self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                    )
+                    s3_parquet_path = get_path_prefix(
+                        self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                    )
+                    s3_daily_parquet_path = get_path_prefix(
+                        self.account,
+                        Provider.PROVIDER_GCP,
+                        self._provider_uuid,
+                        start_of_invoice,
+                        Config.PARQUET_DATA_TYPE,
+                        daily=True,
+                        report_type="raw",
+                    )
+                    s3_daily_openshift_path = get_path_prefix(
+                        self.account,
+                        Provider.PROVIDER_GCP,
+                        self._provider_uuid,
+                        start_of_invoice,
+                        Config.PARQUET_DATA_TYPE,
+                        daily=True,
+                        report_type=OPENSHIFT_REPORT_TYPE,
+                    )
+                    for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
+                        utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
                 manifest_id_list.append(manifest.id)
             manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
         return True
