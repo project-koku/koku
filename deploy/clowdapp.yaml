@@ -15,7 +15,7 @@ objects:
     dependencies:
     - ingress
     - rbac
-    - sources-api
+    - sources-api-go
     deployments:
     - minReplicas: ${{KOKU_MIN_REPLICAS}}
       name: clowder-api
