@@ -1,0 +1,26 @@
+---
+generators:
+  - OCIComputeGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
+      compartment_name: richardprice
+      tenant_id: ocid1.tenancy.oc1..EfjkUPxyZSYLvd
+  - OCIBlockStorageGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
+      compartment_name: richardprice
+      tenant_id: ocid1.tenancy.oc1..EfjkUPxyZSYLvd
+  - OCINetworkGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
+      compartment_name: richardprice
+      tenant_id: ocid1.tenancy.oc1..EfjkUPxyZSYLvd
+  - OCIDatabaseGenerator:
+      start_date: {{start_date}}
+      end_date: {{end_date}}
+      currency: USD
+      compartment_name: richardprice
+      tenant_id: ocid1.tenancy.oc1..EfjkUPxyZSYLvd

@@ -47,6 +47,7 @@ from masu.processor._tasks.process import _process_report_file
 from masu.processor.expired_data_remover import ExpiredDataRemover
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
+from masu.processor.report_summary_updater import ReportSummaryUpdaterError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import get_report_files
@@ -352,6 +353,8 @@ class ProcessReportFileTests(MasuTestCase):
         report_meta["provider_type"] = Provider.PROVIDER_OCP
         report_meta["provider_uuid"] = self.ocp_test_provider_uuid
         report_meta["manifest_id"] = 1
+        report_meta["start"] = str(DateHelper().yesterday)
+        report_meta["end"] = str(DateHelper().today)
 
         # add a report with start/end dates specified
         report2_meta = {}
@@ -874,6 +877,33 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 synchronous=True,
             )
 
+    @patch("masu.processor.tasks.mark_manifest_complete")
+    @patch("masu.processor.tasks.ReportSummaryUpdater.update_summary_tables")
+    def test_update_summary_tables(self, mock_updater, mock_complete):
+        """Test that this task runs."""
+        start_date = DateHelper().this_month_start.date()
+        end_date = DateHelper().today.date()
+
+        update_summary_tables(
+            self.schema,
+            Provider.PROVIDER_AWS,
+            self.aws_provider_uuid,
+            str(start_date),
+            end_date,
+            synchronous=True,
+        )
+
+        mock_updater.side_effect = ReportSummaryUpdaterError
+        with self.assertRaises(ReportSummaryUpdaterError):
+            update_summary_tables(
+                self.schema,
+                Provider.PROVIDER_AWS,
+                self.aws_provider_uuid,
+                start_date,
+                end_date,
+                synchronous=True,
+            )
+
 
 class TestMarkManifestCompleteTask(MasuTestCase):
     """Test cases for Processor summary table Celery tasks."""
@@ -955,11 +985,11 @@ class TestWorkerCacheThrottling(MasuTestCase):
         """Test that the worker cache is used."""
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
         task_name = "masu.processor.tasks.update_summary_tables"
-        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid]
-        mock_lock.side_effect = self.lock_single_task
-
         start_date = DateHelper().this_month_start
         end_date = DateHelper().this_month_end
+        cache_args = [self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
+        mock_lock.side_effect = self.lock_single_task
+
         mock_daily.return_value = start_date, end_date
         mock_summary.return_value = start_date, end_date
         update_summary_tables(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid, start_date, end_date)
@@ -1149,7 +1179,7 @@ class TestWorkerCacheThrottling(MasuTestCase):
         mock_inspect.reserved.return_value = {"celery@kokuworker": []}
 
         task_name = "masu.processor.tasks.update_openshift_on_cloud"
-        cache_args = [self.schema, self.aws_provider_uuid]
+        cache_args = [self.schema, self.aws_provider_uuid, str(start_date.strftime("%Y-%m"))]
 
         manifest_dict = {
             "assembly_id": "12345",

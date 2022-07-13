@@ -200,7 +200,6 @@ class GCPProviderMap(ProviderMap):
                         "filter": [
                             {"field": "instance_type", "operation": "isnull", "parameter": False},
                             {"field": "unit", "operation": "exact", "parameter": "hour"},
-                            {"field": "sku_alias", "operation": "contains", "parameter": "Instance Core running"},
                         ],
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
@@ -297,7 +296,7 @@ class GCPProviderMap(ProviderMap):
                 ("gcp_project",): GCPCostSummaryByProjectP,
                 ("account", "gcp_project"): GCPCostSummaryByProjectP,
             },
-            "instance-type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
+            "instance_type": {"default": GCPComputeSummaryP, ("account",): GCPComputeSummaryByAccountP},
             "storage": {
                 "default": GCPStorageSummaryP,
                 ("account",): GCPStorageSummaryByAccountP,

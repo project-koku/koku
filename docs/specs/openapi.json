@@ -23,7 +23,11 @@
         },
         {
             "name": "GCP Reports",
-            "description": "Operations about Azure report interactions"
+            "description": "Operations about GCP report interactions"
+        },
+        {
+            "name": "OCI Reports",
+            "description": "Operations about OCI report interactions"
         },
         {
             "name": "Sources",
@@ -606,6 +610,51 @@
                 }]
             }
         },
+        "/forecasts/oci/costs/": {
+            "summary": "OCI Cost Forecasts",
+            "get": {
+                "tags":["Forecasts"],
+                "parameters": [{
+                    "$ref": "#/components/parameters/QueryFilter",
+                    "name":"QueryFilter"
+                }],
+                "responses": {
+                    "200": {
+                        "description": "An object describing the cost forecast.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Forecast"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Request Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/forecasts/openshift/costs/": {
             "summary": "OpenShift Cost Forecasts",
             "get": {
@@ -875,9 +924,6 @@
                     "basic_auth": []
                 }],
                 "parameters": [{
-                        "$ref": "#/components/parameters/QueryDelta"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -887,7 +933,7 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/schemas/OrganizationFilter"
+                        "$ref": "#/components/parameters/OrganizationFilter"
                     }
                 ],
                 "responses": {
@@ -1210,6 +1256,80 @@
                 }]
             }
         },
+        "/reports/oci/costs/": {
+            "get": {
+                "tags": [
+                    "OCI Reports"
+                ],
+                "summary": "Query to obtain cost reports",
+                "operationId": "getOciCostReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryDelta"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate",
+                        "name":"QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate",
+                        "name":"QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportCost"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/aws/instance-types/": {
             "get": {
                 "tags": [
@@ -1432,6 +1552,78 @@
                 }]
             }
         },
+        "/reports/oci/instance-types/": {
+            "get": {
+                "tags": [
+                    "OCI Reports"
+                ],
+                "summary": "Query to obtain OCI instance type data",
+                "operationId": "getOciInstanceReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportInstanceInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
         "/reports/aws/storage/": {
             "get": {
                 "tags": [
@@ -1509,7 +1701,7 @@
                 "tags": [
                     "Azure Reports"
                 ],
-                "summary": "Query to obtain AWS storage data",
+                "summary": "Query to obtain Azure storage data",
                 "operationId": "getAzureStorageReports",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
@@ -1583,6 +1775,78 @@
                 ],
                 "summary": "Query to obtain GCP storage data",
                 "operationId": "getGCPStorageReports",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryGroupBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrderBy"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryUnits"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryStartDate"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryEndDate"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportStorageInventory"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            },
+                            "text/csv": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/reports/oci/storage/": {
+            "get": {
+                "tags": [
+                    "OCI Reports"
+                ],
+                "summary": "Query to obtain OCI storage data",
+                "operationId": "getOciStorageReports",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -3127,6 +3391,108 @@
                 }
             }
         },
+        "/resource-types/oci-tenant-ids/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List OCI Subscription Guids For RBAC",
+                "operationId": "listResourcesOciTenantids",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/oci-services/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List OCI Services For RBAC",
+                "operationId": "listResourcesOciServices",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/resource-types/oci-regions/": {
+            "get": {
+                "tags": [
+                    "Resource Type"
+                ],
+                "summary": "List OCI Regions For RBAC",
+                "operationId": "listResourcesOciRegions",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryLimit"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryValue"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOrder"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "| - 200 response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResourceTypePagination"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/resource-types/openshift-clusters/": {
             "get": {
                 "tags": [
@@ -3476,79 +3842,6 @@
                         }
                     }
                 }
-            },
-            "patch": {
-                "tags": [
-                    "Sources"
-                ],
-                "summary": "Update a source",
-                "operationId": "updateSource",
-                "parameters": [{
-                    "name": "source_id",
-                    "in": "path",
-                    "description": "ID of source to update",
-                    "required": true,
-                    "schema": {
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
-                    }
-                }],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SourceIn"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "security": [{
-                    "basic_auth": []
-                }],
-                "responses": {
-                    "200": {
-                        "description": "A Source object",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SourceOut"
-                                }
-                            }
-                        }
-                    },
-                    "424": {
-                        "description": "Dependency not available",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/DependencyError"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Unexpected Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        }
-                    }
-                }
             }
         },
         "/sources/{source_id}/stats/": {
@@ -3753,7 +4046,7 @@
                 "tags": [
                     "Tags"
                 ],
-                "summary": "Query to obtain AWS tags",
+                "summary": "Query to obtain Azure tags",
                 "operationId": "getAzureTagData",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
@@ -3932,6 +4225,133 @@
                 ],
                 "summary": "Query to obtain GCP tags",
                 "operationId": "getGCPTagKeyData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    },
+                    {
+                        "name": "key",
+                        "in": "path",
+                        "description": "The tag key to get",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "production"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid query parameter",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/oci/": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OCI tags",
+                "operationId": "getOciTagData",
+                "parameters": [{
+                        "$ref": "#/components/parameters/QueryFilter"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryKeyOnly"
+                    },
+                    {
+                        "$ref": "#/components/parameters/QueryOffset"
+                    },
+                    {
+                        "$ref": "#/components/parameters/ReportQueryLimit"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A paginated report object",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Tags"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "500": {
+                        "description": "Unexpected Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [{
+                    "basic_auth": []
+                }]
+            }
+        },
+        "/tags/oci/{key}": {
+            "get": {
+                "tags": [
+                    "Tags"
+                ],
+                "summary": "Query to obtain OCI tags",
+                "operationId": "getOciTagKeyData",
                 "parameters": [{
                         "$ref": "#/components/parameters/QueryFilter"
                     },
@@ -4810,6 +5230,15 @@
                     "blended_cost",
                     "savingsplan_effective_cost"
                   ]
+                }
+            },
+            "OrganizationFilter": {
+                "name": "org_unit_id",
+                "required": false,
+                "in": "query",
+                "description": "String to indicate org unit id",
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationFilter"
                 }
             },
             "QueryComputeCount": {

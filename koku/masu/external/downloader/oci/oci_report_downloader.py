@@ -46,6 +46,8 @@ def divide_csv_monthly(file_path, filename):
 
     report_type = "usage" if "usage" in filename else "cost"
     unique_days = pd.to_datetime(data_frame["lineItem/intervalUsageStart"]).dt.date.unique()
+    days = list({day.strftime("%Y-%m-%d") for day in unique_days})
+    date_range = {"start": min(days), "end": max(days)}
     months = list({day.strftime("%Y-%m") for day in unique_days})
     monthly_data_frames = [
         {"data_frame": data_frame[data_frame["lineItem/intervalUsageStart"].str.contains(month)], "date": month}
@@ -62,7 +64,7 @@ def divide_csv_monthly(file_path, filename):
         monthly_files.append(
             {"filename": month_file, "filepath": month_filepath, "report_type": report_type, "start_date": start_date}
         )
-    return monthly_files
+    return monthly_files, date_range
 
 
 def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, context={}):
@@ -81,7 +83,7 @@ def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepa
     """
     monthly_file_names = []
 
-    monthly_files = divide_csv_monthly(filepath, filename)
+    monthly_files, date_range = divide_csv_monthly(filepath, filename)
     for monthly_file in monthly_files:
         # Push to S3
         s3_csv_path = get_path_prefix(
@@ -102,7 +104,7 @@ def create_monthly_archives(tracing_id, account, provider_uuid, filename, filepa
             context,
         )
         monthly_file_names.append(monthly_file.get("filepath"))
-    return monthly_file_names
+    return monthly_file_names, date_range
 
 
 class OCIReportDownloaderError(Exception):
@@ -291,11 +293,9 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             Manifest-like dict with list of relevant found files.
 
         """
-        invoice_month = start_date.strftime("%Y%m")
-        assembly_id = ":".join([str(self._provider_uuid), str(invoice_month)])
-
         dh = DateHelper()
-        start_date = dh.invoice_month_start(str(invoice_month))
+        start_date = dh.today
+        assembly_id = ":".join([str(self._provider_uuid), str(start_date)])
         bill_date = start_date
         file_names = self._extract_names(assembly_id, start_date)
 
@@ -362,7 +362,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             else:
                 self.update_last_reports("cost", key, manifest_id)
 
-            file_names = create_monthly_archives(
+            file_names, date_range = create_monthly_archives(
                 self.tracing_id,
                 self.account,
                 self._provider_uuid,
@@ -380,7 +380,7 @@ class OCIReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             raise OCIReportDownloaderError(err_msg)
 
-        return full_local_path, etag, file_creation_date, file_names
+        return full_local_path, etag, file_creation_date, file_names, date_range
 
     def _get_local_directory_path(self):
         """

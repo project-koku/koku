@@ -1067,7 +1067,6 @@ class OCPProviderMap(ProviderMap):
                             ),
                             "cost_units": Value("USD", output_field=CharField()),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
-                            "cost": Value(0, output_field=DecimalField()),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),

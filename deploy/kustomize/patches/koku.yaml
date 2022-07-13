@@ -111,6 +111,8 @@
           value: ${CACHED_VIEWS_DISABLED}
         - name: RETAIN_NUM_MONTHS
           value: ${RETAIN_NUM_MONTHS}
+        - name: NOTIFICATION_CHECK_TIME
+          value: ${NOTIFICATION_CHECK_TIME}
         - name: UNLEASH_CACHE_DIR
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
@@ -136,6 +138,8 @@
           value: 'true'
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: RBAC_CACHE_TIMEOUT
+          value: ${RBAC_CACHE_TIMEOUT}
       livenessProbe:
         httpGet:
           path: ${API_PATH_PREFIX}/v1/status/
