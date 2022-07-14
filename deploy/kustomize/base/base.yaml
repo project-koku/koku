@@ -117,6 +117,16 @@ objects:
     name: koku-gcp
   data:
     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-oci
+  data:
+    oci-credentials: "${OCI_CREDENTIALS_EPH}"
+  stringData:
+    oci-cli-user: "${OCI_CLI_USER_EPH}"
+    oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
+    oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
 
 parameters:
 - name: ENV_NAME
@@ -144,6 +154,9 @@ parameters:
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
+- name: OCI_CLI_KEY_FILE
+  description: OCI Credentials Location
+  value: "/etc/oci/oci-credentials.pem"
 
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
@@ -400,6 +413,22 @@ parameters:
   displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: OCI_CREDENTIALS_EPH
+  displayName: OCI Credentials (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: OCI_CLI_USER_EPH
+  displayName: OCI user (Ephemeral)
+  required: true
+  value: insert-string-value
+- name: OCI_CLI_FINGERPRINT_EPH
+  displayName: OCI user fingerprint (Ephemeral)
+  required: true
+  value: insert-string-value
+- name: OCI_CLI_TENANCY_EPH
+  displayName: OCI tenancy (Ephemeral)
+  required: true
+  value: insert-string-value
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
