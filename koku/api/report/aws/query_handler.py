@@ -196,6 +196,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         obtain the account results, and each sub_org results.
         Else it will return the original query.
         """
+
         original_filters = copy.deepcopy(self.parameters.parameters.get("filter"))
         sub_orgs_dict = {}
         query_data_results = {}
@@ -227,6 +228,24 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
             self.parameters.set_filter(org_unit_single_level=org_unit_group_by_data)
+            self.query_filter = self._get_filter()
+
+        acc_group_by_key = None
+        filters = self.parameters.get("filter", {})
+        if "account" in group_by_param and "org_unit_id" in filters:
+            # When we filter on org_unit and group_by an account outside that org_unit
+            # we are actually getting data from the org unit and the account
+            #  as long as the user has access to both the account and org unit
+            acc_group_by_key = "account"
+            acc_group_by_data = group_by_param.get(acc_group_by_key)
+            org_unit_list = filters.get("org_unit_id")
+            self.parameters.parameters["access"]["aws.organizational_unit"] = org_unit_list
+            self.parameters.parameters["access"]["aws.account"] = acc_group_by_data
+            sub_ou_list = self._get_sub_org_units(org_unit_list)
+
+            # add a key to parameters used in query filter composition in queries.py
+            self.parameters.set("ou_or_operator", True)
+            self.parameters._configure_access_params(self.parameters.caller)
             self.query_filter = self._get_filter()
 
         # grab the base query

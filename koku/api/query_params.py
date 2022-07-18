@@ -227,7 +227,7 @@ class QueryParameters:
                     raise PermissionDenied()
         return access_list
 
-    def _set_access(self, provider, filter_key, access_key, raise_exception=True):
+    def _set_access(self, provider, filter_key, access_key, raise_exception=True):  # noqa C901
         """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
@@ -236,6 +236,7 @@ class QueryParameters:
 
         # check group by
         group_by = self.parameters.get("group_by", {})
+        filters = self.parameters.get("filter", {})
         if access_key == "aws.organizational_unit":
             if "org_unit_id" in group_by or "or:org_unit_id" in group_by:
                 # Only check the tree hierarchy if we are grouping by org units.
@@ -243,8 +244,22 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+                access_list = filters.get("org_unit_id")
+                allowed_ous = (
+                    AWSOrganizationalUnit.objects.filter(
+                        reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in access_list))
+                    )
+                    .filter(account_alias__isnull=True)
+                    .order_by("org_unit_id", "-created_timestamp")
+                    .distinct("org_unit_id")
+                ).values_list("org_unit_id", flat=True)
+                access_list = list(allowed_ous)
+
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
+            if "org_unit_id" in filters and access_key == "aws.account" and self.is_admin_user:
+                access_list = self.parameters.get("access").get(access_key)
             result = get_replacement_result(items, access_list, raise_exception)
             if result:
                 self.parameters["access"][filter_key] = result
@@ -405,6 +420,14 @@ class QueryParameters:
         """Return user property."""
         return self.request.user
 
+    @property
+    def is_admin_user(self):
+        """Return user property."""
+        if not isinstance(self.user.admin, str) or (isinstance(self.user.admin, str) and self.user.admin == "True"):
+            return True
+        else:
+            return False
+
     def get(self, item, default=None):
         """Get parameter data, return default if param value is None or empty."""
         if self.parameters.get(item):
@@ -441,7 +464,7 @@ class QueryParameters:
             self.parameters["filter"][key] = val
 
 
-def get_replacement_result(param_res_list, access_list, raise_exception=True):
+def get_replacement_result(param_res_list, access_list, raise_exception=True, return_access=False):
     """Adjust param list based on access list."""
     if ReportQueryHandler.has_wildcard(param_res_list):
         return access_list
@@ -455,6 +478,8 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
             access_list,
         )
         raise PermissionDenied()
+    if return_access:
+        return access_list
     return param_res_list
 
 
