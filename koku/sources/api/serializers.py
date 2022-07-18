@@ -17,6 +17,7 @@ from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from providers.provider_errors import SkipStatusPush
 from sources.api import get_account_from_header
 from sources.api import get_auth_header
+from sources.api import get_org_id_from_header
 
 
 LOG = logging.getLogger(__name__)
@@ -103,10 +104,14 @@ class AdminSourcesSerializer(SourcesSerializer):
     def _validate_account_id(self, account_id):
         return get_account_from_header(self.context.get("request"))
 
+    def _validate_org_id(self, account_id):
+        return get_org_id_from_header(self.context.get("request"))
+
     def validate(self, data):
         data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
+        data["org_id"] = self._validate_org_id(data.get("org_id"))
         data["source_uuid"] = uuid4()
         return data
 

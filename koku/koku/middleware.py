@@ -205,22 +205,23 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
     customer_cache = TTLCache(maxsize=MAX_CACHE_SIZE, ttl=settings.MIDDLEWARE_TIME_TO_LIVE)
 
     @staticmethod
-    def create_customer(account):
+    def create_customer(account, org_id):
         """Create a customer.
         Args:
             account (str): The account identifier
+            org_id (str): The org_id identifier
         Returns:
             (Customer) The created customer
         """
         try:
             with transaction.atomic():
-                schema_name = create_schema_name(account)
-                customer = Customer(account_id=account, schema_name=schema_name)
+                schema_name = create_schema_name(org_id)
+                customer = Customer(account_id=account, org_id=org_id, schema_name=schema_name)
                 customer.save()
                 UNIQUE_ACCOUNT_COUNTER.inc()
-                LOG.info("Created new customer from account_id %s.", account)
+                LOG.info("Created new customer from account_id %s and org_id %s.", account, org_id)
         except IntegrityError:
-            customer = Customer.objects.filter(account_id=account).get()
+            customer = Customer.objects.filter(org_id=org_id).get()
 
         return customer
 
@@ -285,13 +286,14 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             raise PermissionDenied()
 
         account = json_rh_auth.get("identity", {}).get("account_number")
+        org_id = json_rh_auth.get("identity", {}).get("org_id")
         user = json_rh_auth.get("identity", {}).get("user", {})
         username = user.get("username")
         email = user.get("email")
         is_admin = user.get("is_org_admin")
         req_id = None
 
-        if username and email and account:
+        if username and email and org_id:
             # Get request ID
             req_id = request.META.get("HTTP_X_RH_INSIGHTS_REQUEST_ID")
             # Check for customer creation & user creation
@@ -303,19 +305,20 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                 "path": request.path + query_string,
                 "request_id": req_id,
                 "account": account,
+                "org_id": org_id,
                 "username": username,
                 "is_admin": is_admin,
             }
             LOG.info(stmt)
             try:
-                if account not in IdentityHeaderMiddleware.customer_cache:
-                    customer = Customer.objects.filter(account_id=account).get()
-                    IdentityHeaderMiddleware.customer_cache[account] = customer
-                    LOG.debug(f"Customer added to cache: {account}")
+                if org_id not in IdentityHeaderMiddleware.customer_cache:
+                    customer = Customer.objects.filter(org_id=org_id).get()
+                    IdentityHeaderMiddleware.customer_cache[org_id] = customer
+                    LOG.debug(f"Customer added to cache: {org_id}")
                 else:
-                    customer = IdentityHeaderMiddleware.customer_cache[account]
+                    customer = IdentityHeaderMiddleware.customer_cache[org_id]
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account)
+                customer = IdentityHeaderMiddleware.create_customer(account, org_id)
             except OperationalError as err:
                 LOG.error("IdentityHeaderMiddleware exception: %s", err)
                 DB_CONNECTION_ERRORS_COUNTER.inc()
@@ -367,6 +370,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         query_string = ""
         is_admin = False
         account = None
+        org_id = None
         username = None
         req_id = None
         if request.META.get("QUERY_STRING"):
@@ -375,6 +379,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
         if hasattr(request, "user") and request.user and request.user.customer:
             is_admin = request.user.admin
             account = request.user.customer.account_id
+            org_id = request.user.customer.org_id
             username = request.user.username
             req_id = request.user.req_id
 
@@ -384,6 +389,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             "status": response.status_code,
             "request_id": req_id,
             "account": account,
+            "org_id": org_id,
             "username": username,
             "is_admin": is_admin,
         }

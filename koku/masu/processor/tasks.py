@@ -151,7 +151,13 @@ def get_report_files(  # noqa: C901
         None
 
     """
-    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+    # TODO COREY: strip prefix for org or account?
+    context = {}
+    if customer_name.startswith("acct"):
+        context["account"] = customer_name[4:]
+    else:
+        context["org_id"] = customer_name[3:]
+    context["provider_uuid"] = provider_uuid
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month

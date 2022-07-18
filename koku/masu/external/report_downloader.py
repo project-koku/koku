@@ -56,7 +56,11 @@ class ReportDownloader:
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         if self.account is None:
-            self.account = customer_name[4:]
+            # TODO COREY: strip prefix for org or account?
+            if customer_name.startswith("acct"):
+                self.account = customer_name[4:]
+            else:
+                self.account = customer_name
         self.context = {
             "tracing_id": self.tracing_id,
             "provider_uuid": self.provider_uuid,

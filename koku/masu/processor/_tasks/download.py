@@ -46,7 +46,13 @@ def _get_report_files(
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+    # TODO COREY: strip prefix for org or account?
+    context = {}
+    if customer_name.startswith("acct"):
+        context["account"] = customer_name[4:]
+    else:
+        context["org_id"] = customer_name[3:]
+    context["provider_uuid"] = provider_uuid
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
     function_name = "masu.processor._tasks.download._get_report_files"
@@ -66,6 +72,10 @@ def _get_report_files(
         disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
     LOG.info(log_json(tracing_id, disk_msg, context))
 
+    if customer_name.startswith("acct"):
+        download_acct = customer_name[4:]
+    else:
+        download_acct = customer_name
     downloader = ReportDownloader(
         customer_name=customer_name,
         credentials=authentication,
@@ -73,7 +83,7 @@ def _get_report_files(
         provider_type=provider_type,
         provider_uuid=provider_uuid,
         report_name=None,
-        account=customer_name[4:],
+        account=download_acct,
         tracing_id=tracing_id,
     )
     return downloader.download_report(report_context)

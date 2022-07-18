@@ -96,7 +96,10 @@ class ParquetReportProcessor:
     @property
     def account(self):
         """The tenant account number as a string."""
-        return self._schema_name[4:]
+        # TODO COREY: strip prefix for org or account?
+        if self._schema_name.startswith("acct"):
+            return self._schema_name[4:]
+        return self._schema_name
 
     @property
     def provider_uuid(self):

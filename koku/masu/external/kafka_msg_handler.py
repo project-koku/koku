@@ -305,7 +305,11 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
-    report_meta["account"] = schema_name[4:]
+    # TODO COREY:
+    if schema_name.startswith("acct"):
+        report_meta[account] = schema_name[4:]
+    else:
+        report_meta[account] = schema_name
     report_meta["request_id"] = request_id
     report_meta["tracing_id"] = manifest_uuid
 
@@ -419,7 +423,8 @@ def handle_message(msg):
         value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
-        context = {"account": account}
+        org_id = value.get("org_id", "no_org_id")
+        context = {"account": account, "org_id": org_id}
         try:
             msg = f"Extracting Payload for msg: {str(value)}"
             LOG.info(log_json(request_id, msg, context))

@@ -29,6 +29,7 @@ KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_ACCOUNT_NUMBER = "x-rh-sources-account-number"
+KAFKA_HDR_ORG_ID = "x-rh-sources-org-id"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 
 SOURCES_OCP_SOURCE_NAME = "openshift"
@@ -91,8 +92,11 @@ class KafkaMessageProcessor:
         self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
             "identity", {}
         ).get("account_number")
-        if None in (self.account_number, self.auth_header):
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or account-number: {msg.headers()}"
+        self.org_id = extract_from_header(msg.headers(), KAFKA_HDR_ORG_ID) or decoded_header.get("identity", {}).get(
+            "org_id"
+        )
+        if None in (self.org_id, self.auth_header):
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or  org_id: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
@@ -127,7 +131,7 @@ class KafkaMessageProcessor:
         return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
 
     def get_source_details(self):
-        return SourceDetails(self.auth_header, self.source_id, self.account_number)
+        return SourceDetails(self.auth_header, self.source_id, self.account_number, self.org_id)
 
     def save_sources_details(self):
         """
@@ -235,7 +239,9 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
             LOG.debug(f"[ApplicationMsgProcessor] creating source for source_id: {self.source_id}")
-            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
+            storage.create_source_event(
+                self.source_id, self.account_number, self.org_id, self.auth_header, self.offset
+            )
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
@@ -281,7 +287,9 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
         """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
             LOG.debug(f"[AuthenticationMsgProcessor] creating source for source_id: {self.source_id}")
-            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
+            storage.create_source_event(
+                self.source_id, self.account_number, self.org_id, self.auth_header, self.offset
+            )
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):

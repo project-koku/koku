@@ -53,9 +53,14 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        if customer_name[4:] in settings.DEMO_ACCOUNTS:
-            demo_account = settings.DEMO_ACCOUNTS.get(customer_name[4:])
-            LOG.info(f"Info found for demo account {customer_name[4:]} = {demo_account}.")
+        # TODO COREY: strip prefix for org or account?
+        if customer_name.startswith("acct"):
+            demo_check = customer_name[4:]
+        else:
+            demo_check = customer_name
+        if demo_check in settings.DEMO_ACCOUNTS:
+            demo_account = settings.DEMO_ACCOUNTS.get(demo_check)
+            LOG.info(f"Info found for demo account {demo_check} = {demo_account}.")
             if credentials.get("client_id") in demo_account:
                 demo_info = demo_account.get(credentials.get("client_id"))
                 self.customer_name = customer_name.replace(" ", "_")

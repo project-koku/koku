@@ -58,9 +58,9 @@ def extract_header(request, header):
     return (rh_auth_header, json_rh_auth)
 
 
-def create_schema_name(account):
+def create_schema_name(org_id):
     """Create a database schema name."""
-    return f"acct{account}"
+    return f"org{org_id}"
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -84,12 +84,14 @@ class UserSerializer(serializers.ModelSerializer):
                 if (
                     json_rh_auth
                     and "identity" in json_rh_auth
-                    and "account_number" in json_rh_auth["identity"]  # noqa: W504
+                    # and "account_number" in json_rh_auth["identity"]  # noqa: W504
+                    and "org_id" in json_rh_auth["identity"]
                 ):
-                    account = json_rh_auth["identity"]["account_number"]
-                if account:
-                    schema_name = create_schema_name(account)
-                    customer = Customer.objects.get(schema_name=schema_name)
+                    # account = json_rh_auth["identity"]["account_number"]
+                    org_id = json_rh_auth["identity"]["org_id"]
+                if org_id:
+                    # schema_name = create_schema_name(org_id)
+                    customer = Customer.objects.get(org_id=org_id)
                 else:
                     key = "customer"
                     message = "Customer for requesting user could not be found."

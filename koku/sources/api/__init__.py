@@ -26,3 +26,17 @@ def get_account_from_header(request):
         except (binascii.Error, JSONDecodeError) as error:
             LOG.error(f"Error decoding authentication header: {str(error)}")
     return account_id
+
+
+def get_org_id_from_header(request):
+    """Get org_id from header."""
+    org_id = None
+    auth_header = get_auth_header(request)
+    if auth_header:
+        try:
+            decoded_rh_auth = b64decode(auth_header)
+            json_rh_auth = json_loads(decoded_rh_auth)
+            org_id = json_rh_auth.get("identity", {}).get("org_id")
+        except (binascii.Error, JSONDecodeError) as error:
+            LOG.error(f"Error decoding authentication header: {str(error)}")
+    return org_id
