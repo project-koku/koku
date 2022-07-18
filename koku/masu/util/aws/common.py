@@ -29,6 +29,7 @@ from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
+from pprint import pformat
 
 LOG = logging.getLogger(__name__)
 
@@ -410,6 +411,39 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
                 manifest_id_str = str(manifest_id)
                 key = existing_object.key
                 if manifest != manifest_id_str:
+                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+                    removed.append(key)
+            if removed:
+                msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
+                LOG.info(log_json(request_id, msg, context))
+        except (EndpointConnectionError, ClientError) as err:
+            msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason: {str(err)}"
+            LOG.info(log_json(request_id, msg, context))
+    return removed
+
+
+def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
+    """
+    Removes all files in a given prefix if they are not within the given set.
+    """
+    if not (
+        settings.ENABLE_S3_ARCHIVING
+        or enable_trino_processing(context.get("provider_uuid"), context.get("provider_type"), context.get("account"))
+    ):
+        return []
+
+    removed = []
+    if s3_path:
+        try:
+            s3_resource = get_s3_resource()
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                metadata = existing_object.metadata
+                manifest = metadata.get("manifestid")
+                manifest_id_str = str(manifest_id)
+                key = existing_object.key
+                if manifest == manifest_id_str:
                     s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
                     removed.append(key)
             if removed:
