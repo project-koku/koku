@@ -32,7 +32,6 @@ from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
 from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
-from pprint import pformat
 
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
@@ -202,10 +201,18 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     # Build all of the s3 paths that may contain files for
                     # the outdated manifest so that they can be deleted.
                     s3_csv_path = get_path_prefix(
-                        self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                        self.account,
+                        Provider.PROVIDER_GCP,
+                        self._provider_uuid,
+                        start_of_invoice,
+                        Config.CSV_DATA_TYPE,
                     )
                     s3_parquet_path = get_path_prefix(
-                        self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                        self.account,
+                        Provider.PROVIDER_GCP,
+                        self._provider_uuid,
+                        start_of_invoice,
+                        Config.CSV_DATA_TYPE,
                     )
                     s3_daily_parquet_path = get_path_prefix(
                         self.account,
@@ -226,7 +233,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                         report_type=OPENSHIFT_REPORT_TYPE,
                     )
                     for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
-                        utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(self.tracing_id, s3_path, manifest.id, context=context)
+                        utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+                            self.tracing_id, s3_path, manifest.id, context=context
+                        )
                 manifest_id_list.append(manifest.id)
             manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
         return True

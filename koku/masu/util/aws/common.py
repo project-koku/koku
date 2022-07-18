@@ -29,7 +29,6 @@ from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
 from reporting.provider.aws.models import PRESTO_REQUIRED_COLUMNS
-from pprint import pformat
 
 LOG = logging.getLogger(__name__)
 

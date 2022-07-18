@@ -264,9 +264,11 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest_id_list (list): list of manifest ids to delete.
         """
         # | is the new gcp manifests delimiter
-        delete_count = CostUsageReportManifest.objects.filter(
-            provider_id=provider_uuid, id__in=manifest_id_list
-        ).exclude(assembly_id__icontains="|").delete()
+        delete_count = (
+            CostUsageReportManifest.objects.filter(provider_id=provider_uuid, id__in=manifest_id_list)
+            .exclude(assembly_id__icontains="|")
+            .delete()
+        )
         LOG.info(
             "Removed %s outdated GCP manifests for provider_uuid %s",
             delete_count,
