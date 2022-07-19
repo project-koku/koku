@@ -155,6 +155,7 @@ def truncate_table(conn, trunc_info, worker_id):
     sql = f"truncate table {trunc_info['table_schema']}.{trunc_info['table_name']} ;"
     LOG.info(f"WORKER {worker_id}: Truncating table {trunc_info['table_schema']}.{trunc_info['table_name']}")
     _execute(conn, sql)
+    _execute(conn, "commit ;")
 
 
 def process_truncate(task_queue, comm_queue, worker_id):
