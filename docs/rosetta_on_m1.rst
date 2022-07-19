@@ -69,11 +69,11 @@ And you can use all ``brew`` commands: ::
 
 2. Assuming ``python`` and ``pip`` (comes with ``python`` installation above) currently do not point to any commands, add the following paths and aliases to ``~/.zshrc``: ::
 
-    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/python3.9:$PATH"
-    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/pip3:$PATH"
+    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13_1/bin/python3.9:$PATH"
+    export PATH="/usr/local/homebrew/Cellar/python@3.9/3.9.13_1/bin/pip3:$PATH"
 
-    alias python='/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/python3.9'
-    alias pip='/usr/local/homebrew/Cellar/python@3.9/3.9.13/bin/pip3'
+    alias python='/usr/local/homebrew/Cellar/python@3.9/3.9.13_1/bin/python3.9'
+    alias pip='/usr/local/homebrew/Cellar/python@3.9/3.9.13_1/bin/pip3'
 
 3. Implement the new changes in ``.zshrc`` file: ::
 
