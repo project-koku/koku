@@ -11,9 +11,7 @@ from UnleashClient.strategies import Strategy
 
 from .env import ENVIRONMENT
 
-
 LOG = logging.getLogger(__name__)
-
 
 log_level = getattr(logging, "WARNING")
 if isinstance(getattr(logging, settings.UNLEASH_LOGGING_LEVEL), int):
@@ -39,9 +37,9 @@ class KokuUnleashClient(UnleashClient):
 
 class SchemaStrategy(Strategy):
     def load_provisioning(self) -> list:
-        return self.parameters["schema-name"]
+        return self.parameters["schema-name"].split(",")
 
-    def apply(self, context):
+    def apply(self, context) -> bool:
         default_value = False
         if "schema" in context and context["schema"] is not None:
             default_value = context["schema"] in self.parsed_provisioning
