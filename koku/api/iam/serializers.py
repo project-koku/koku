@@ -117,7 +117,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ("uuid", "account_id", "date_created")
+        fields = ("uuid", "account_id", "org_id", "date_created")
 
 
 class AdminCustomerSerializer(CustomerSerializer):
@@ -127,7 +127,7 @@ class AdminCustomerSerializer(CustomerSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ("uuid", "account_id", "date_created", "schema_name")
+        fields = ("uuid", "account_id", "org_id", "date_created", "schema_name")
 
 
 class NestedUserSerializer(serializers.ModelSerializer):

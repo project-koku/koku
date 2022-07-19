@@ -36,6 +36,7 @@ class KokuTestRunner(DiscoverRunner):
     """Koku Test Runner for Unit Tests."""
 
     account = "10001"
+    org_id = "1234567"
     schema = f"acct{account}"
     settings.HOSTNAME = "koku-worker-10-abcdef"
 
@@ -81,7 +82,9 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         tenant.save()
                         tenant.create_schema()
                         customer, __ = Customer.objects.get_or_create(
-                            account_id=KokuTestRunner.account, schema_name=KokuTestRunner.schema
+                            account_id=KokuTestRunner.account,
+                            org_id=KokuTestRunner.org_id,
+                            schema_name=KokuTestRunner.schema,
                         )
                         ######### TODO: remove after azure has been converted ########
                         with tenant_context(tenant):
@@ -142,11 +145,13 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
 
                         # OCI
                         bakery_data_loader.load_oci_data()
-                        for account in [("10002", "acct10002"), ("12345", "acct12345")]:
+                        for account in [("10002", "org2222222", "2222222"), ("12345", "org3333333", "3333333")]:
                             tenant = Tenant.objects.get_or_create(schema_name=account[1])[0]
                             tenant.save()
                             tenant.create_schema()
-                            Customer.objects.get_or_create(account_id=account[0], schema_name=account[1])
+                            Customer.objects.get_or_create(
+                                account_id=account[0], org_id=account[2], schema_name=account[1]
+                            )
                 except Exception as err:
                     LOG.error(err)
                     raise err
