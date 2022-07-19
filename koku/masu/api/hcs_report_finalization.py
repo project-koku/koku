@@ -35,7 +35,7 @@ def hcs_report_finalization(request):
 
         for param in params:
             if param not in expected_params:
-                errmsg = f"'{param}' is not a valid Request parameter"
+                errmsg = f"{param}: is not a valid Request parameter." f"Valid params: {expected_params}"
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         month = params.get("month")
