@@ -12,7 +12,7 @@ class HCSTestCase(IamTestCase):
         """Create test case setup."""
         super().setUpClass()
 
-        cls.schema = "acct10001"
+        cls.schema = "org1234567"
         cls.acct = "10001"
 
     def setUp(self):

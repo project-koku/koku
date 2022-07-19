@@ -109,7 +109,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
         collect_hcs_report_data("10001", self.aws_provider_type, str(self.aws_provider.uuid), self.yesterday)
 
-        self.assertEqual("acct10001", self.schema)
+        self.assertEqual("org1234567", self.schema)
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest(self, rd, mock_ehp, mock_report):

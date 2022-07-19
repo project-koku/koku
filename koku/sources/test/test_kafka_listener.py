@@ -136,7 +136,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 11,
         }
         self.uuids = {

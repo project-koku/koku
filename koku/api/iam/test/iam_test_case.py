@@ -120,10 +120,7 @@ class IamTestCase(TestCase):
 
         """
         connection.set_schema_to_public()
-        if account == "10001":
-            schema_name = "acct10001"
-        else:
-            schema_name = create_schema_name(org_id)
+        schema_name = create_schema_name(org_id)
         customer = Customer.objects.get_or_create(account_id=account, org_id=org_id, schema_name=schema_name)[0]
         customer.save()
         if create_tenant:
