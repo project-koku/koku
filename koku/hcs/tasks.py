@@ -35,7 +35,7 @@ QUEUE_LIST = [HCS_QUEUE]
 
 def enable_hcs_processing(schema_name):  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
-    if schema_name and not schema_name.startswith("acct"):
+    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
         schema_name = f"acct{schema_name}"
 
     context = {"schema": schema_name}
@@ -108,7 +108,7 @@ def collect_hcs_report_data(
     Returns:
         None
     """
-    if schema_name and not schema_name.startswith("acct"):
+    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
         schema_name = f"acct{schema_name}"
 
     if start_date is None:
@@ -143,8 +143,8 @@ def collect_hcs_report_data(
         LOG.info(log_json(tracing_id, stmt))
 
 
-@celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
-def collect_hcs_report_finalization(  # noqa: C901
+@celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)  # noqa: C901
+def collect_hcs_report_finalization(
     month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
     """Run Finalization for Hybrid Committed Spend.
@@ -162,7 +162,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if schema_name and not schema_name.startswith("acct"):
+    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
         schema_name = f"acct{schema_name}"
 
     if provider_type is not None and provider_uuid is not None:

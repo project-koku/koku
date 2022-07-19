@@ -9,6 +9,7 @@ import pkgutil
 from jinjasql import JinjaSql
 
 from api.common import log_json
+from api.iam.models import Customer
 from api.provider.models import Provider
 from hcs.csv_file_handler import CSVFileHandler
 from hcs.exceptions import HCSTableNotFoundError
@@ -34,7 +35,12 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         :param schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        self._ebs_acct_num = schema.strip("acct")
+        if schema.startswith("acct"):
+            self._ebs_acct_num = schema.strip("acct")
+            self._org_id = Customer.objects.get(schema_name=schema).org_id
+        else:
+            self._ebs_acct_num = Customer.objects.get(schema_name=schema).account_id
+            self._org_id = schema.strip("org")
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 
@@ -50,7 +56,13 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         :returns (None)
         """
         LOG.info(log_json(tracing_id, "acquiring marketplace data..."))
-        LOG.info(log_json(tracing_id, f"schema: {self.schema}, provider: {provider}, date: {date}"))
+        LOG.info(
+            log_json(
+                tracing_id,
+                f"schema: {self.schema}, provider: {provider}, "
+                + f"date: {date}, org_id: {self._org_id}, ebs_num: {self._ebs_acct_num}",
+            )
+        )
 
         try:
             sql = pkgutil.get_data("hcs.database", sql_summary_file)
@@ -67,6 +79,7 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
                 "date": date,
                 "schema": self.schema,
                 "ebs_acct_num": self._ebs_acct_num,
+                "org_id": self._org_id,
                 "table": table,
             }
 
