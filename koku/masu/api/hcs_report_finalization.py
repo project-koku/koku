@@ -31,6 +31,13 @@ def hcs_report_finalization(request):
 
     if request.method == "GET":
         params = request.query_params
+        expected_params = ("month", "year", "provider_type", "provider_uuid", "schema_name")
+
+        for param in params:
+            if param not in expected_params:
+                errmsg = f"'{param}' is not a valid Request parameter"
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
         month = params.get("month")
         year = params.get("year")
         provider_type = params.get("provider_type")
