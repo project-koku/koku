@@ -31,11 +31,11 @@ def hcs_report_finalization(request):
 
     if request.method == "GET":
         params = request.query_params
-        expected_params = ("month", "year", "provider_type", "provider_uuid", "schema_name")
+        excepted_params = ("month", "year", "provider_type", "provider_uuid", "schema_name")
 
         for param in params:
-            if param not in expected_params:
-                errmsg = f"{param}: is not a valid Request parameter. Valid params: {expected_params}"
+            if param not in excepted_params:
+                errmsg = f"{param}: is not a valid Request parameter. Valid params: {excepted_params}"
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         month = params.get("month")
