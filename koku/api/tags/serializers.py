@@ -18,8 +18,8 @@ AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 GCP_FILTER_OP_FIELDS = ["account", "gcp_project"]
 OCI_FILTER_OP_FIELDS = ["payer_tenant_id"]
 day_list = ["-10", "-30", "-90"]
-month_list_string = ["-1", "-2", "-3"]
 month_list = [-1, -2, -3]
+month_list_string = [str(m) for m in month_list]
 
 
 class FilterSerializer(serializers.Serializer):
