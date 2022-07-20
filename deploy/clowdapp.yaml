@@ -2724,8 +2724,7 @@ objects:
         - -t
         - ${ORG_ID_TRANSLATE_TARGET}
         - --ean-translator-addr
-        - test
-        # - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+        - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
         - --prometheus-push-addr
         - ${PROMETHEUS_PUSHGATEWAY}
         env:
