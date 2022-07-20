@@ -425,6 +425,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         identity = {
             "identity": {
                 "account_number": str(fake.pyint()),
+                "org_id": str(fake.pyint()),
                 "type": "User",
                 "user": {
                     "username": fake.word(),

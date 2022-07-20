@@ -97,7 +97,7 @@ def mock_details_generator(provider_type, name, uid, source_id):
         with patch.object(
             SourcesHTTPClient, "get_source_type_name", return_value=SOURCE_TYPE_IDS.get(source_type_id, "unknown")
         ):
-            return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id, 10001)
+            return SourceDetails(Config.SOURCES_FAKE_HEADER, source_id, 10001, 1234567)
 
 
 class ConsumerRecord:
