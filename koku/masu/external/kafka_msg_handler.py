@@ -300,16 +300,19 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    context["account"] = schema_name[4:]
+    if schema_name.startswith("acct"):
+        context["account"] = schema_name[4:]
+    else:
+        context["org_id"] = schema_name[3:]
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
     # TODO COREY:
     if schema_name.startswith("acct"):
-        report_meta[account] = schema_name[4:]
+        report_meta["account"] = schema_name[4:]
     else:
-        report_meta[account] = schema_name
+        report_meta["account"] = schema_name
     report_meta["request_id"] = request_id
     report_meta["tracing_id"] = manifest_uuid
 

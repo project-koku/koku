@@ -137,6 +137,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
             "account_id": "org1234567",
+            "org_id": "1234567",
             "offset": 11,
         }
         self.uuids = {
@@ -161,6 +162,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "billing_source": {"data_source": {"bucket": "test_bucket"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
             Provider.PROVIDER_OCP: {
@@ -171,6 +173,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_1}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
         }
@@ -184,6 +187,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
             Provider.PROVIDER_OCP: {
@@ -194,6 +198,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_2}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
         }

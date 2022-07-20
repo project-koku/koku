@@ -62,8 +62,8 @@ class SourcesMessageError(ValidationError):
 class SourceDetails:
     """Sources Details object."""
 
-    def __init__(self, auth_header, source_id, account_id):
-        sources_network = SourcesHTTPClient(auth_header, source_id, account_id)
+    def __init__(self, auth_header, source_id, account_id, org_id):
+        sources_network = SourcesHTTPClient(auth_header, source_id, account_id, org_id)
         details = sources_network.get_source_details()
         self.name = details.get("name")
         self.source_type_id = int(details.get("source_type_id"))

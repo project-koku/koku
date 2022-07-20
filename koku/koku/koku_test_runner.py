@@ -37,7 +37,7 @@ class KokuTestRunner(DiscoverRunner):
 
     account = "10001"
     org_id = "1234567"
-    schema = f"acct{account}"
+    schema = f"org{org_id}"
     settings.HOSTNAME = "koku-worker-10-abcdef"
 
     def setup_databases(self, **kwargs):

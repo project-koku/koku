@@ -30,10 +30,10 @@ class ReportParquetProcessorBase:
         self._manifest_id = manifest_id
         self._account = account
         # TODO COREY: strip prefix for org or account?
-        if account.startswith("org"):
-            self._schema_name = str(account)
-        else:
+        if account.startswith("acct"):
             self._schema_name = f"acct{account}"
+        else:
+            self._schema_name = str(account)
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
