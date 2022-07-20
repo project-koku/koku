@@ -96,7 +96,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
     max_retries=10,
     retry_backoff=10,
 )
-def delete_archived_data(schema_name, provider_type, provider_uuid):
+def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C901
     """
     Delete archived data from our S3 bucket for a given provider.
 

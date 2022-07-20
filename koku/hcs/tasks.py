@@ -144,7 +144,7 @@ def collect_hcs_report_data(
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)  # noqa: C901
-def collect_hcs_report_finalization(
+def collect_hcs_report_finalization(  # noqa: C901
     month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
     """Run Finalization for Hybrid Committed Spend.
