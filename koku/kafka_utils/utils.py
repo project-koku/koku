@@ -18,25 +18,67 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 LOG = logging.getLogger(__name__)
 
 
-def get_consumer(topic, address):  # pragma: no cover
+def _get_managed_kafka_config(conf=None):
+    """Create/Update a dict with managed Kafka configuration"""
+    if not isinstance(conf, dict):
+        conf = {}
+
+    if all(
+        (
+            Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
+            Config.INSIGHTS_KAFKA_SASL_MECHANISM,
+            Config.INSIGHTS_KAFKA_USER,
+            Config.INSIGHTS_KAFKA_PASSWORD,
+            Config.INSIGHTS_KAFKA_CACERT,
+        )
+    ):
+        conf["security_protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
+        conf["sasl_mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl_plain_username"] = Config.INSIGHTS_KAFKA_USER
+        conf["sasl_plain_password"] = Config.INSIGHTS_KAFKA_PASSWORD
+        conf["ssl_ca"] = Config.INSIGHTS_KAFKA_CACERT
+
+    return conf
+
+
+def _get_consumer_config(address, **conf_settings):
+    """Get the default consumer config"""
+    conf = {
+        "bootstrap.servers": address,
+        "group.id": "hccm-group",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+        "max.poll.interval.ms": 1080000,  # 18 minutes
+    }
+    conf = _get_managed_kafka_config(conf)
+    conf.update(conf_settings)
+
+    return conf
+
+
+def get_consumer(*topics, address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings):  # pragma: no cover
     """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": address,
-            "group.id": "hccm-group",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-            "max.poll.interval.ms": 1080000,  # 18 minutes
-        },
-        logger=LOG,
-    )
-    consumer.subscribe([topic])
+    conf = _get_consumer_config(address, **conf_settings)
+    consumer = Consumer(conf, logger=LOG)
+    consumer.subscribe(list(topics))
+
     return consumer
 
 
-def get_producer():  # pragma: no cover
+def _get_producer_config(address, **conf_settings):
+    """Return Kafka Producer config"""
+    producer_conf = {"bootstrap.servers": address, "message.timeout.ms": 1000}
+    producer_conf = _get_managed_kafka_config(producer_conf)
+    producer_conf.update(**conf_settings)
+
+    return producer_conf
+
+
+def get_producer(address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings):  # pragma: no cover
     """Create a Kafka producer."""
-    producer = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
+    conf = _get_producer_config(address, **conf_settings)
+    producer = Producer(conf)
+
     return producer
 
 
