@@ -138,8 +138,13 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
-    def convert_currency(self, query_data, currency_identifier):
-        skip_columns = ["usage_start", currency_identifier]
+    @property
+    def cost_units_key(self):
+        """Return the cost_units_key property."""
+        return self.provider_map.report_type_map.get("cost_units_key")
+
+    def convert_currency(self, query_data):
+        skip_columns = ["usage_start", self.cost_units_key]
         if query_data:
             df = pd.DataFrame(query_data)
             try:
@@ -149,23 +154,27 @@ class Forecast:
                 LOG.warning(msg)
                 exchange_rates = {}
 
-            # converted earlier then stopped converting -_- I took out default
-            #  to 1 to see if it errors if one is a none type
-            # seems it is just keeping it the same or multiplying by 1
             columns = list(df.columns)
             for column in columns:
                 if column not in skip_columns:
                     df[column] = df.apply(
-                        lambda row: row[column] * exchange_rates.get(row[currency_identifier], {}).get(self.currency),
+                        lambda row: row[column]
+                        * exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
                         axis=1,
                     )
-                df[currency_identifier] = self.currency
+                df[self.cost_units_key] = self.currency
 
-            # aggs = {col: ["max"] if "units" in col else ["sum"] for col in columns if col not in skip_columns}
+            aggs = df.groupby("usage_start").agg({["sum"] for col in columns if col not in skip_columns})
+            print("AGGS: ", aggs)
 
-            # print("AGGS: ", aggs)
+            # grouped_df = df.agg(aggs, axis=1)
+            # columns = grouped_df.columns.droplevel(1)
+            # grouped_df.columns = columns
+            # grouped_df.reset_index(inplace=True)
+            # grouped_df = grouped_df.replace({np.nan: None})
+            # query_data = grouped_df.to_dict("records")
 
-            print("\n\nDATA FRAME: ", df)
+            print("FINAL QUERY DATA: ", query_data)
 
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
@@ -188,7 +197,9 @@ class Forecast:
                 )
             )
 
-            self.convert_currency(data, currency_identifier)
+            print("STARTING DATA: ", data)
+
+            self.convert_currency(data)
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
