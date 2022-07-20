@@ -211,11 +211,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     )
                     s3_paths.append(s3_csv_path)
                     s3_parquet_path = get_path_prefix(
-                        self.account,
-                        Provider.PROVIDER_GCP,
-                        self._provider_uuid,
-                        start_of_invoice,
-                        Config.CSV_DATA_TYPE,
+                        self.account, Provider.PROVIDER_GCP, self._provider_uuid, start_of_invoice, Config.PARQUET_DATA_TYPE
                     )
                     s3_paths.append(s3_parquet_path)
                     s3_daily_parquet_path = get_path_prefix(
