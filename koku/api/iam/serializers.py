@@ -81,16 +81,9 @@ class UserSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             if request and hasattr(request, "META"):
                 _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
-                if (
-                    json_rh_auth
-                    and "identity" in json_rh_auth
-                    # and "account_number" in json_rh_auth["identity"]  # noqa: W504
-                    and "org_id" in json_rh_auth["identity"]
-                ):
-                    # account = json_rh_auth["identity"]["account_number"]
+                if json_rh_auth and "identity" in json_rh_auth and "org_id" in json_rh_auth["identity"]:
                     org_id = json_rh_auth["identity"]["org_id"]
                 if org_id:
-                    # schema_name = create_schema_name(org_id)
                     customer = Customer.objects.get(org_id=org_id)
                 else:
                     key = "customer"

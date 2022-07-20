@@ -35,12 +35,9 @@ class HCSReportDBAccessor(ReportDBAccessorBase):
         :param schema (str): The customer schema to associate with
         """
         super().__init__(schema)
-        if schema.startswith("acct"):
-            self._ebs_acct_num = schema.strip("acct")
-            self._org_id = Customer.objects.get(schema_name=schema).org_id
-        else:
-            self._ebs_acct_num = Customer.objects.get(schema_name=schema).account_id
-            self._org_id = schema.strip("org")
+        hcs_cust = Customer.objects.filter(schema_name=schema).first()
+        self._ebs_acct_num = hcs_cust.account_id
+        self._org_id = hcs_cust.org_id
         self.date_accessor = DateAccessor()
         self.jinja_sql = JinjaSql()
 

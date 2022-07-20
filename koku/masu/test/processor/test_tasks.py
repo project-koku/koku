@@ -717,8 +717,10 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         os.environ["AUTOVACUUM_TUNING"] = json.dumps(scale_table)
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model "
-        expected += "set (autovacuum_vacuum_scale_factor = 0.0001);"
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model "
+            "set (autovacuum_vacuum_scale_factor = 0.0001);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)

@@ -17,7 +17,7 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
-from sources.api import get_account_from_header
+from sources.api import get_param_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
 from sources.config import Config
@@ -127,12 +127,12 @@ class AdminSourcesSerializerTests(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-    def test_negative_get_account_from_header(self):
+    def test_negative_get_param_from_header(self):
         """Test flow with out header."""
-        account = get_account_from_header(Mock(headers={}))
+        account = get_param_from_header(Mock(headers={}), "account_number")
         self.assertIsNone(account)
 
-        account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
+        account = get_param_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}), "account_number")
         self.assertIsNone(account)
 
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
