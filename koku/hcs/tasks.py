@@ -33,7 +33,7 @@ HCS_EXCEPTED_PROVIDERS = (
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_hcs_processing(schema_name):  # pragma: no cover #noqa
+def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
     if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
         schema_name = f"acct{schema_name}"
