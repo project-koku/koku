@@ -185,6 +185,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             old_manifests = manifest_accessor.gcp_self_healing_get_outdated_manifests(self._provider_uuid)
             manifest_id_list = []
             manifest_id_list_strings = []
+            s3_paths = []
             if not old_manifests:
                 # If no old manifests were found then we should raise the DataError.
                 return False
@@ -193,7 +194,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 invoice_month = manifest.billing_period_start_datetime
                 dh = DateHelper()
                 # Catch the cross over data.
-                s3_paths = []
                 for start_of_invoice in [manifest.billing_period_start_datetime, dh.previous_month(invoice_month)]:
                     context = {
                         "provider_uuid": self._provider_uuid,
