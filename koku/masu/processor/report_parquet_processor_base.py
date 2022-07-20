@@ -34,7 +34,7 @@ class ReportParquetProcessorBase:
         if account.startswith("org"):
             self._schema_name = str(account)
         else:
-            self._schema_name = f"{account}"
+            self._schema_name = f"acct{account}"
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid
