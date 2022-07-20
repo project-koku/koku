@@ -60,7 +60,8 @@ class AWSReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         arn = credentials.get("role_arn")
         bucket = data_source.get("bucket")
-        # TODO COREY: strip prefix for org or account?
+        # Existing schema will start with acct and we strip that prefix new customers
+        # include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
             demo_check = customer_name[4:]
         else:

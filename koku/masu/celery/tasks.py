@@ -143,7 +143,9 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         LOG.info(message)
 
     # We need to normalize capitalization and "-local" dev providers.
-    # TODO COREY: strip prefix for org or account?
+
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
     if schema_name.startswith("acct"):
         account = schema_name[4:]
     else:

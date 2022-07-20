@@ -53,7 +53,8 @@ class AzureReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """
         super().__init__(**kwargs)
 
-        # TODO COREY: strip prefix for org or account?
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
         if customer_name.startswith("acct"):
             demo_check = customer_name[4:]
         else:

@@ -96,7 +96,8 @@ class ParquetReportProcessor:
     @property
     def account(self):
         """The tenant account number as a string."""
-        # TODO COREY: strip prefix for org or account?
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
         if self._schema_name.startswith("acct"):
             return self._schema_name[4:]
         return self._schema_name

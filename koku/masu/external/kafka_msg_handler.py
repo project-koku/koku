@@ -308,7 +308,8 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
-    # TODO COREY:
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
     if schema_name.startswith("acct"):
         report_meta["account"] = schema_name[4:]
     else:

@@ -56,7 +56,8 @@ class ReportDownloader:
         self.request_id = tracing_id  # TODO: Remove this once the downloaders have been updated
         self.account = account
         if self.account is None:
-            # TODO COREY: strip prefix for org or account?
+            # Existing schema will start with acct and we strip that prefix for use later
+            # new customers include the org prefix in case an org-id and an account number might overlap
             if customer_name.startswith("acct"):
                 self.account = customer_name[4:]
             else:

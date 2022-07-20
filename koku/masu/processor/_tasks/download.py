@@ -46,7 +46,8 @@ def _get_report_files(
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    # TODO COREY: strip prefix for org or account?
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
     context = {}
     if customer_name.startswith("acct"):
         context["account"] = customer_name[4:]
