@@ -239,7 +239,7 @@ class ReportDownloaderTest(MasuTestCase):
     def test_download_manifest(self, mock_dl):
         """Test download_manifest."""
         downloader = self.create_downloader(Provider.PROVIDER_AWS)
-        mock_manifest = {"fake": "manifest"}
+        mock_manifest = [{"fake": "manifest"}]
         mock_date = FAKE.date()
 
         with patch.object(AWSReportDownloader, "get_manifest_context_for_date", return_value=mock_manifest):
