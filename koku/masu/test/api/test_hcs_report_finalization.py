@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the hcs_report_data endpoint view."""
-import uuid
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -22,13 +21,9 @@ class HCSFinalizationTests(TestCase):
     def test_get_report_finalization_data(self, mock_celery, _):
         """Test the hcs_report_finalization endpoint."""
 
-        params = {
-            "tracing_id": str(uuid.uuid4()),
-        }
-
         expected_key = "HCS Report Finalization"
 
-        response = self.client.get(reverse(self.ENDPOINT), params)
+        response = self.client.get(reverse(self.ENDPOINT))
         body = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertIn(expected_key, body)
@@ -68,6 +63,15 @@ class HCSFinalizationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(expected_key, result)
         mock_celery.s.assert_called()
+
+    def test_get_report_finalization_neg_param(self, mock_celery, _):
+        """Test GET hcs_report_finalization endpoint by providing bad parameter"""
+        params = {
+            "bogus": "bad_param",
+        }
+        response = self.client.get(reverse(self.ENDPOINT), params)
+
+        self.assertEqual(response.status_code, 400)
 
     def test_get_report_finalization_year_negative(self, mock_celery, _):
         """Test the GET hcs_report_finalization endpoint for you must provide 'month' when providing 'year'"""
