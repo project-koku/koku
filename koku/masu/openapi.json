@@ -301,17 +301,6 @@
         "description": "Finalize HCS report data.",
         "parameters": [
           {
-            "name": "tracing_id",
-            "in": "query",
-            "description": "The tracing UUID",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
-          },
-          {
             "name": "month",
             "in": "query",
             "description": "The month you want to finalize",
@@ -326,13 +315,55 @@
           {
             "name": "year",
             "in": "query",
-            "description": "The year you want to finalize, If no month is given then the previous month from today's date will be used",
+            "description": "The year you want to finalize, you must provide month when using this option",
             "required": false,
             "schema": {
               "type": "integer",
               "minimum": 2000,
               "maximum": 2050,
               "example": 2021
+            }
+          },
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID (not supported with provider_type or schema_name)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "description": "The provider type (not supported with provider_uuid)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "AWS"
+            }
+          },
+          {
+            "name": "schema_name",
+            "in": "query",
+            "description": "The database schema (not supported with provider_uuid)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "acct12345"
+            }
+          },
+          {
+            "name": "tracing_id",
+            "in": "query",
+            "description": "The tracing UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
             }
           }
         ],
@@ -342,11 +373,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                  "$ref": "#/components/schemas/HCSFinalizationDataGetResponse"
                 }
               }
             }
-          }
+          },
         },
         "tags": [
           "HCS Report Finalization"
@@ -1997,6 +2028,16 @@
         }
       },
       "HCSDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
+      "HCSFinalizationDataGetResponse": {
         "type": "object",
         "properties": {
           "Report Data Task ID": {

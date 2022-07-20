@@ -123,7 +123,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
     persistentvolumeclaim_capacity_gigabyte,
     persistentvolumeclaim_capacity_gigabyte_months,
     volume_request_storage_gigabyte_months,
-    persistentvolumeclaim_usage_gigabyte_months
+    persistentvolumeclaim_usage_gigabyte_months,
+    raw_currency
 )
     SELECT uuid() as uuid,
         ocp_gcp.report_period_id,
@@ -166,7 +167,8 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summa
         0 as persistentvolumeclaim_capacity_gigabyte,
         0 as persistentvolumeclaim_capacity_gigabyte_months,
         0 as volume_request_storage_gigabyte_months,
-        0 as persistentvolumeclaim_usage_gigabyte_months
+        0 as persistentvolumeclaim_usage_gigabyte_months,
+        max(ocp_gcp.currency) as raw_currency
     FROM postgres.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_p AS ocp_gcp
     JOIN postgres.{{schema | sqlsafe}}.reporting_ocpusagereportperiod AS rp
         ON ocp_gcp.cluster_id = rp.cluster_id

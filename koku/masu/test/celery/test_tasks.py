@@ -22,6 +22,7 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ManifestCreationHelper
@@ -314,6 +315,25 @@ class TestCeleryTasks(MasuTestCase):
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
             expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.CostModelDBAccessor")
+    def test_cost_model_status_check_with_provider_uuid(self, mock_cost_check):
+        """Test that only accounts associated with the provider_uuid are polled."""
+        mock_cost_check.cost_model_notification.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_cost_model_status(self.ocp_test_provider_uuid)
+            expected_log_msg = "Cost model status check found %s accounts to scan" % ("1")
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.CostModelDBAccessor")
+    def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
+        """Test that all polling accounts are used when no provider_uuid is provided."""
+        polling_accounts = AccountsAccessor().get_accounts()
+        mock_cost_check.cost_model_notification.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_cost_model_status()
+            expected_log_msg = "Cost model status check found %s accounts to scan" % (len(polling_accounts))
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.celery_app")
