@@ -86,7 +86,7 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["aws_line_items_daily"]
+    tables_to_drop = ["gcp_line_items_daily"]
     # columns_to_add = []
     # columns_to_drop = []
 
