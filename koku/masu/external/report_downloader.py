@@ -156,7 +156,10 @@ class ReportDownloader:
         Download current manifest description for date.
 
         """
-        return self._downloader.get_manifest_context_for_date(date)
+        manifest = self._downloader.get_manifest_context_for_date(date)
+        if not isinstance(manifest, list):
+            manifest = [manifest]
+        return manifest
 
     def download_report(self, report_context):
         """
