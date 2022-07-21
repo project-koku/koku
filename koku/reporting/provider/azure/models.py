@@ -26,6 +26,7 @@ PRESTO_COLUMNS = [
     "billingaccountid",
     "billingaccountname",
     "billingcurrencycode",
+    "billingcurrency",
     "billingprofileid",
     "billingprofilename",
     "chargetype",
