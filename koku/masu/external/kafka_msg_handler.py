@@ -310,10 +310,7 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
     report_meta["schema_name"] = schema_name
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
-    if schema_name.startswith("acct"):
-        report_meta["account"] = schema_name[4:]
-    else:
-        report_meta["account"] = schema_name
+    report_meta["account"] = schema_name.strip("acct")
     report_meta["request_id"] = request_id
     report_meta["tracing_id"] = manifest_uuid
 

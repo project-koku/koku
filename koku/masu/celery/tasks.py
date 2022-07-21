@@ -146,10 +146,7 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C9
 
     # Existing schema will start with acct and we strip that prefix for use later
     # new customers include the org prefix in case an org-id and an account number might overlap
-    if schema_name.startswith("acct"):
-        account = schema_name[4:]
-    else:
-        account = schema_name
+    account = schema_name.strip("acct")
 
     # Data in object storage does not use the local designation
     source_type = provider_type.replace("-local", "")

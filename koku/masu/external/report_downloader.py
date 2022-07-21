@@ -58,10 +58,7 @@ class ReportDownloader:
         if self.account is None:
             # Existing schema will start with acct and we strip that prefix for use later
             # new customers include the org prefix in case an org-id and an account number might overlap
-            if customer_name.startswith("acct"):
-                self.account = customer_name[4:]
-            else:
-                self.account = customer_name
+            self.account = customer_name.strip("acct")
         self.context = {
             "tracing_id": self.tracing_id,
             "provider_uuid": self.provider_uuid,

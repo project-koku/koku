@@ -51,8 +51,10 @@ def _get_report_files(
     context = {}
     if customer_name.startswith("acct"):
         context["account"] = customer_name[4:]
+        download_acct = customer_name[4:]
     else:
         context["org_id"] = customer_name[3:]
+        download_acct = customer_name
     context["provider_uuid"] = provider_uuid
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
@@ -73,10 +75,6 @@ def _get_report_files(
         disk_msg = f"{function_name}: Unable to find available disk space. {Config.PVC_DIR} does not exist"
     LOG.info(log_json(tracing_id, disk_msg, context))
 
-    if customer_name.startswith("acct"):
-        download_acct = customer_name[4:]
-    else:
-        download_acct = customer_name
     downloader = ReportDownloader(
         customer_name=customer_name,
         credentials=authentication,
