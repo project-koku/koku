@@ -445,7 +445,6 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
                     if manifest in manifest_list:
                         key = existing_object.key
                         bulk_delete_objects.append({"Key": key})
-                        removed.append(key)
             bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
             # split the bulk delete objects into x number of objects to delete at a time
             num_files_delete = 250
