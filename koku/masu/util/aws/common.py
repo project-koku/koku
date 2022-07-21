@@ -421,7 +421,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path_list, manifest_list, context={}):
+def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_id, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
@@ -432,22 +432,19 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
         return []
 
     removed = []
-    if s3_path_list:
+    if s3_path:
         try:
             s3_resource = get_s3_resource()
-            bulk_delete_objects = []
-            for s3_path in s3_path_list:
-                existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
-                for obj_summary in existing_objects:
-                    existing_object = obj_summary.Object()
-                    metadata = existing_object.metadata
-                    manifest = metadata.get("manifestid")
-                    if manifest in manifest_list:
-                        key = existing_object.key
-                        bulk_delete_objects.append({"Key": key})
-                        removed.append(key)
-            bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
-            bucket.delete_objects(Delete={"Objects": bulk_delete_objects})
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                metadata = existing_object.metadata
+                manifest = metadata.get("manifestid")
+                manifest_id_str = str(manifest_id)
+                key = existing_object.key
+                if manifest == manifest_id_str:
+                    s3_resource.Object(settings.S3_BUCKET_NAME, key).delete()
+                    removed.append(key)
             if removed:
                 msg = f"Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
                 LOG.info(log_json(request_id, msg, context))
