@@ -450,10 +450,12 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
             # split the bulk delete objects into x number of objects to delete at a time
             num_files_delete = 20
             for i in range(0, len(bulk_delete_objects), num_files_delete):
-                bucket.delete_objects(Delete={"Objects": bulk_delete_objects[i : i + num_files_delete]})  # noqa E203
-                removed.append(bulk_delete_objects[i : i + num_files_delete])  # noqa E203
+                sublist = bulk_delete_objects[i : i + num_files_delete]  # noqa E203
+                bucket.delete_objects(Delete={"Objects": sublist})
+                sublist_values = [val for obj in sublist for val in obj.values()]
+                removed.append(sublist_values)
                 if removed:
-                    msg = f"BULK: Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(removed)}."
+                    msg = f"BULK: Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(sublist_values)}."
                     LOG.info(log_json(request_id, msg, context))
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason:{str(err)}"
