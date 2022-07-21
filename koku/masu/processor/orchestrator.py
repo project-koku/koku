@@ -19,7 +19,6 @@ from masu.external.account_label import AccountLabel
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.gcp.gcp_report_downloader import GCPSelfHealingComplete
 from masu.external.report_downloader import ReportDownloader
 from masu.external.report_downloader import ReportDownloaderError
 from masu.processor.tasks import get_report_files
@@ -158,47 +157,80 @@ class Orchestrator:
             provider_uuid=provider_uuid,
             report_name=None,
         )
-        # only gcp returns more than one manifest at the moment.
-        manifest_list = downloader.download_manifest(report_month)
-        for manifest in manifest_list:
-            tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
-            files = manifest.get("files", [])
-            filenames = []
-            for file in files:
-                filenames.append(file.get("local_file"))
-            LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
+        manifest = downloader.download_manifest(report_month)
+        tracing_id = manifest.get("assembly_id", manifest.get("request_id", "no-request-id"))
+        files = manifest.get("files", [])
+        filenames = []
+        for file in files:
+            filenames.append(file.get("local_file"))
+        LOG.info(log_json(tracing_id, f"Report with manifest {tracing_id} contains the files: {filenames}"))
 
-            if manifest:
-                LOG.debug("Saving all manifest file names.")
-                record_all_manifest_files(
-                    manifest["manifest_id"],
-                    [report.get("local_file") for report in manifest.get("files", [])],
-                    tracing_id,
-                )
-
-            LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
-            report_tasks = self.create_report_tasks(
-                manifest=manifest,
-                tracing_id=tracing_id,
-                provider_uuid=provider_uuid,
-                provider_type=provider_type,
-                customer_name=customer_name,
-                credentials=credentials,
-                data_source=data_source,
-                report_month=report_month,
-                schema_name=schema_name,
-                REPORT_QUEUE=REPORT_QUEUE,
+        if manifest:
+            LOG.debug("Saving all manifest file names.")
+            record_all_manifest_files(
+                manifest["manifest_id"], [report.get("local_file") for report in manifest.get("files", [])], tracing_id
             )
 
-            if report_tasks:
-                reports_tasks_queued = True
-                hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
-                summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+        LOG.info(log_json(tracing_id, f"Found Manifests: {str(manifest)}"))
+        report_files = manifest.get("files", [])
+        report_tasks = []
+        last_report_index = len(report_files) - 1
+        for i, report_file_dict in enumerate(report_files):
+            local_file = report_file_dict.get("local_file")
+            report_file = report_file_dict.get("key")
 
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
-                LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+            # Check if report file is complete or in progress.
+            if record_report_status(manifest["manifest_id"], local_file, "no_request"):
+                LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
+                continue
 
-        return manifest_list, reports_tasks_queued
+            cache_key = f"{provider_uuid}:{report_file}"
+            if self.worker_cache.task_is_running(cache_key):
+                LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
+                continue
+
+            report_context = manifest.copy()
+            report_context["current_file"] = report_file
+            report_context["local_file"] = local_file
+            report_context["key"] = report_file
+            report_context["request_id"] = tracing_id
+
+            if (
+                provider_type
+                in [Provider.PROVIDER_OCP, Provider.PROVIDER_GCP, Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]
+                or i == last_report_index
+            ):
+                # This create_table flag is used by the ParquetReportProcessor
+                # to create a Hive/Trino table.
+                # To reduce the number of times we check Trino/Hive tables, we just do this
+                # on the final file of the set.
+                report_context["create_table"] = True
+
+            # add the tracing id to the report context
+            # This defaults to the celery queue
+            report_tasks.append(
+                get_report_files.s(
+                    customer_name,
+                    credentials,
+                    data_source,
+                    provider_type,
+                    schema_name,
+                    provider_uuid,
+                    report_month,
+                    report_context,
+                ).set(queue=REPORT_QUEUE)
+            )
+            LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
+
+        if report_tasks:
+            reports_tasks_queued = True
+            hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+            summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+
+            async_id = chord(report_tasks, group(summary_task, hcs_task))()
+            LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
+
+        return manifest, reports_tasks_queued
 
     def prepare(self):
         """
@@ -210,12 +242,7 @@ class Orchestrator:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider_type = provider_accessor.get_type()
 
-            if provider_type in [
-                Provider.PROVIDER_OCI,
-                Provider.PROVIDER_OCI_LOCAL,
-                Provider.PROVIDER_GCP,
-                Provider.PROVIDER_GCP_LOCAL,
-            ]:
+            if provider_type in [Provider.PROVIDER_OCI, Provider.PROVIDER_OCI_LOCAL]:
 
                 self.prepare_continious_report_sources(account, provider_uuid)
             else:
@@ -288,15 +315,6 @@ class Orchestrator:
             _, reports_tasks_queued = self.start_manifest_processing(**account)
         except ReportDownloaderError as err:
             LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
-        except GCPSelfHealingComplete as msg_info:
-            LOG.info(msg_info)
-            # Retry now that we have removed the old manifests
-            # we have to reset provider.setup_complete to False in order
-            # to re-calculate scan_start. Refer to GCPReportDownloader.scan_start
-            provider = Provider.objects.filter(uuid=provider_uuid).first()
-            provider.setup_complete = False
-            provider.save()
-            self.start_manifest_processing(**account)
         except Exception as err:
             # Broad exception catching is important here because any errors thrown can
             # block all subsequent account processing.
@@ -328,79 +346,3 @@ class Orchestrator:
             )
             async_results.append({"customer": account.get("customer_name"), "async_id": str(async_result)})
         return async_results
-
-    def create_report_tasks(
-        self,
-        manifest,
-        tracing_id,
-        provider_uuid,
-        provider_type,
-        customer_name,
-        credentials,
-        data_source,
-        report_month,
-        schema_name,
-        REPORT_QUEUE,
-    ):
-        report_files = manifest.get("files", [])
-        report_tasks = []
-        last_report_index = len(report_files) - 1
-        for i, report_file_dict in enumerate(report_files):
-            local_file = report_file_dict.get("local_file")
-            report_file = report_file_dict.get("key")
-
-            # Check if report file is complete or in progress.
-            if record_report_status(manifest["manifest_id"], local_file, "no_request"):
-                LOG.info(log_json(tracing_id, f"{local_file} was already processed"))
-                continue
-
-            cache_key = f"{provider_uuid}:{report_file}"
-            if self.worker_cache.task_is_running(cache_key):
-                LOG.info(log_json(tracing_id, f"{local_file} process is in progress"))
-                continue
-
-            report_context = manifest.copy()
-            report_context["current_file"] = report_file
-            report_context["local_file"] = local_file
-            report_context["key"] = report_file
-            report_context["request_id"] = tracing_id
-
-            if (
-                provider_type
-                in [
-                    Provider.PROVIDER_OCP,
-                    Provider.PROVIDER_GCP,
-                    Provider.PROVIDER_OCI,
-                    Provider.PROVIDER_OCI_LOCAL,
-                ]
-                or i == last_report_index
-            ):
-                # This create_table flag is used by the ParquetReportProcessor
-                # to create a Hive/Trino table.
-                # To reduce the number of times we check Trino/Hive tables, we just do this
-                # on the final file of the set.
-                report_context["create_table"] = True
-
-            # this is used to create bills for previous months on GCP
-            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
-                assembly_id = manifest.get("assembly_id", None)
-                if assembly_id:
-                    report_month = assembly_id.split("|")[0]
-
-            # add the tracing id to the report context
-            # This defaults to the celery queue
-            report_tasks.append(
-                get_report_files.s(
-                    customer_name,
-                    credentials,
-                    data_source,
-                    provider_type,
-                    schema_name,
-                    provider_uuid,
-                    report_month,
-                    report_context,
-                ).set(queue=REPORT_QUEUE)
-            )
-            LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
-
-        return report_tasks
