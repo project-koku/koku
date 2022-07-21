@@ -162,19 +162,17 @@ class Forecast:
                         * exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
                         axis=1,
                     )
-                df[self.cost_units_key] = self.currency
 
-            aggs = df.groupby("usage_start").agg({["sum"] for col in columns if col not in skip_columns})
-            print("AGGS: ", aggs)
+            aggs = {col: ["sum"] for col in columns if col not in skip_columns}
 
-            # grouped_df = df.agg(aggs, axis=1)
-            # columns = grouped_df.columns.droplevel(1)
-            # grouped_df.columns = columns
-            # grouped_df.reset_index(inplace=True)
-            # grouped_df = grouped_df.replace({np.nan: None})
-            # query_data = grouped_df.to_dict("records")
+            grouped_df = df.groupby("usage_start", dropna=False).agg(aggs, axis=1)
+            columns = grouped_df.columns.droplevel(1)
+            grouped_df.columns = columns
+            grouped_df.reset_index(inplace=True)
+            grouped_df = grouped_df.replace({np.nan: None})
+            query_data = grouped_df.to_dict("records")
 
-            print("FINAL QUERY DATA: ", query_data)
+            return query_data
 
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
@@ -199,7 +197,7 @@ class Forecast:
 
             print("STARTING DATA: ", data)
 
-            self.convert_currency(data)
+            data = self.convert_currency(data)
 
             for fieldname in COST_FIELD_NAMES:
                 uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
