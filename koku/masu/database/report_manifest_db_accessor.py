@@ -231,6 +231,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Return a list of GCP manifests for a date range."""
         manifests = (
             CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
+            .filter(assembly_id__contains="|")
             .annotate(
                 partition_date=Cast(
                     Func(F("assembly_id"), Value("|"), Value(1), function="split_part", output_field=DateField()),
