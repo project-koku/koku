@@ -202,6 +202,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     }
                     # Build all of the s3 paths that may contain files for
                     # the outdated manifest so that they can be deleted.
+                    LOG.info(f"Collecting files to remove for {start_of_invoice} on {context}")
                     s3_csv_path = get_path_prefix(
                         self.account,
                         Provider.PROVIDER_GCP,
