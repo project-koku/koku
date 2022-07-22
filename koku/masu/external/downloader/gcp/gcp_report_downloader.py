@@ -241,10 +241,11 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     manifest_id_list.append(manifest.id)
                     manifest_id_list_strings.append(str(manifest.id))
 
-            utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+            removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
                 self.tracing_id, s3_paths, manifest_id_list_strings, context=context
             )
-            manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
+            if removed:
+                manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
         return True
 
     def _get_dataset_name(self):
