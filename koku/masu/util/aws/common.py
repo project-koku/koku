@@ -461,6 +461,9 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
                 if removed:
                     msg = f"BULK: Removed files from s3 bucket {settings.S3_BUCKET_NAME}: {','.join(sublist_values)}."
                     LOG.info(log_json(request_id, msg, context))
+            if removed == []:
+                removed = "No files to remove for month path"
+                LOG.info(removed)
         except (EndpointConnectionError, ClientError) as err:
             msg = f"Unable to remove data in bucket {settings.S3_BUCKET_NAME}.  Reason:{str(err)}"
             LOG.info(log_json(request_id, msg, context))

@@ -249,6 +249,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                     manifest_id_list_strings.append(str(manifest.id))
 
             if s3_csv_removed and s3_parquet_removed and s3_daily_parquet_removed and s3_daily_openshift_removed:
+                LOG.info("Attempting to delete old manifests")
                 manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
         return True
 
