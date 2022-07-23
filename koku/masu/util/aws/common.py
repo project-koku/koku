@@ -421,7 +421,7 @@ def remove_files_not_in_set_from_s3_bucket(request_id, s3_path, manifest_id, con
     return removed
 
 
-def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path_list, manifest_list, context={}):
+def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_path, manifest_list, context={}):
     """
     Removes all files in a given prefix if they are not within the given set.
     """
@@ -432,24 +432,23 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
         return []
 
     removed = []
-    if s3_path_list:
+    if s3_path:
         try:
             s3_resource = get_s3_resource()
             bulk_delete_objects = []
-            for s3_path in s3_path_list:
-                existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
-                for obj_summary in existing_objects:
-                    existing_object = obj_summary.Object()
-                    # metadata = existing_object.metadata
-                    # manifest = metadata.get("manifestid")
-                    # We believe the reason the parquet files are not being deleted is associated
-                    # with this metadata check. We believe the parquet compactor is destroying the
-                    # metadata id associated with the parquet files.
-                    # to the this metadata check
-                    # if manifest in manifest_list:
-                    key = existing_object.key
-                    bulk_delete_objects.append({"Key": key})
-                    removed.append(key)
+            existing_objects = s3_resource.Bucket(settings.S3_BUCKET_NAME).objects.filter(Prefix=s3_path)
+            for obj_summary in existing_objects:
+                existing_object = obj_summary.Object()
+                # metadata = existing_object.metadata
+                # manifest = metadata.get("manifestid")
+                # We believe the reason the parquet files are not being deleted is associated
+                # with this metadata check. We believe the parquet compactor is destroying the
+                # metadata id associated with the parquet files.
+                # to the this metadata check
+                # if manifest in manifest_list:
+                key = existing_object.key
+                bulk_delete_objects.append({"Key": key})
+                removed.append(key)
             bucket = s3_resource.Bucket(settings.S3_BUCKET_NAME)
             # split the bulk delete objects into x number of objects to delete at a time
             num_files_delete = 250
