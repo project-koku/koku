@@ -433,6 +433,7 @@ def gcp_self_healing_remove_files_for_manifest_from_s3_bucket(request_id, s3_pat
 
     removed = []
     if s3_path:
+        LOG.info(f"Attempting to run bulk deletion on {s3_path}")
         try:
             s3_resource = get_s3_resource()
             bulk_delete_objects = []
