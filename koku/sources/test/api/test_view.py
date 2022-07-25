@@ -35,12 +35,13 @@ class SourcesViewTests(IamTestCase):
         """Set up tests."""
         super().setUp()
         self.test_account = "10001"
+        self.test_org_id = "1234567"
         user_data = self._create_user_data()
-        customer = self._create_customer_data(account=self.test_account)
+        customer = self._create_customer_data(account=self.test_account, org_id=self.test_org_id)
         self.request_context = self._create_request_context(customer, user_data, create_customer=True, is_admin=True)
         self.test_source_id = 1
         name = "Test Azure Source"
-        customer_obj = Customer.objects.get(account_id=customer.get("account_id"))
+        customer_obj = Customer.objects.get(org_id=customer.get("org_id"))
         self.azure_provider = Provider(name=name, type=Provider.PROVIDER_AZURE, customer=customer_obj)
         self.azure_provider.save()
 
@@ -48,6 +49,7 @@ class SourcesViewTests(IamTestCase):
             source_id=self.test_source_id,
             auth_header=self.request_context["request"].META,
             account_id=customer.get("account_id"),
+            org_id=customer.get("org_id"),
             offset=1,
             source_type=Provider.PROVIDER_AZURE,
             name=name,
