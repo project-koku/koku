@@ -240,50 +240,20 @@ class QueryParameters:
             .distinct("org_unit_id")
         )
 
-        # get all sub org units, looping through parent ids to find children 1 level below.
-        sub_ou_list = []
+        # get all accounts in the org unit hierarchy.
+        all_ou_accounts = []
         for org_unit_object in parent_org_units:
-            sub_query = (
-                AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
+            org_accounts = (
+                AWSOrganizationalUnit.objects.filter(level__gte=(org_unit_object.level))
                 .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
-                .filter(account_alias__isnull=True)
-                .exclude(org_unit_id__in=_org_units)
-                .order_by("org_unit_id", "-created_timestamp")
-                .distinct("org_unit_id")
+                .filter(account_alias__isnull=False)
+                .values_list("account_alias__account_id", flat=True)
+                .distinct()
             )
-            sub_ou_list.append(sub_query)
+            all_ou_accounts.extend(list(org_accounts))
 
-        if len(sub_ou_list) > 1:
-            sub_query_set = sub_ou_list.pop()
-            sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
-            # Note: The django orm won't let you do an order_by & distinct on the union of
-            # multiple queries. The additional order_by &  distinct is essential to handle
-            # use cases like OU_005 being moved from OU_002 to OU_001.
-            sub_orgs = (
-                AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
-                .filter(account_alias__isnull=True)
-                .order_by("org_unit_id", "-created_timestamp")
-                .distinct("org_unit_id")
-            )
-        else:
-            sub_orgs = sub_ou_list[0]
-
-        for org_object in sub_orgs:
-            _org_units.append(org_object.org_unit_id)
-
-        # get all accounts in org unit tree including sub org units
-        all_ou_accounts = (
-            AWSOrganizationalUnit.objects.filter(org_unit_id__in=_org_units)
-            .filter(account_alias__isnull=False)
-            .order_by("account_alias", "-created_timestamp")
-            .distinct("account_alias")
-            .values_list("account_alias__account_id", flat=True)
-        )
-
-        accounts = list(all_ou_accounts)
-        for account in group_by:
-            if account in accounts and account not in access_list:
-                access_list.append(account)
+        if set(group_by).issubset(all_ou_accounts):
+            return all_ou_accounts
         return access_list
 
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):  # noqa C901

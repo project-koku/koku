@@ -219,11 +219,11 @@ class AWSReportQueryHandler(ReportQueryHandler):
                     self.parameters._configure_access_params(self.parameters.caller)
 
             org_unit_objects = False
-            sub_ou_list = []
+            sub_ou_list = None
             if org_unit_group_by_data:
-                org_unit_objects = True
                 sub_ou_list = self._get_sub_org_units(org_unit_group_by_data)
-            if org_unit_objects:
+                org_unit_objects = True
+            if org_unit_objects and sub_ou_list:
                 for org_object in sub_ou_list:
                     sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
@@ -692,17 +692,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         return total_query
 
-    def _group_by_ranks(self, query, data):
-        """
-        AWS is special because account alias is a foreign key
-        and the query needs that for rankings to work.
-        """
-        if "account" in self._get_group_by():
-            query = query.annotate(
-                special_rank=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
-            )
-        return super()._group_by_ranks(query, data)
-
     def _get_sub_org_units(self, org_unit_list):
         """Get sub org units for a list of parent org units.
 
@@ -710,7 +699,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             org_unit_list (list): list of parent org units
 
         Returns:
-            sub_orgs (django.db.query.QuerySet): QuerySet of sub org units
+            sub_org_units (list): list of sub org units
         """
 
         # Parent Org Units
@@ -721,35 +710,16 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             .distinct("org_unit_id")
         )
 
-        # Sub Org Units
-        sub_ou_list = []
+        sub_org_units = []
         if org_unit_objects:
-            # Loop through parent ids to find children org units 1 level below.
-            # TODO: loop through multiple levels
+            # Loop through parent org units to get sub org units.
             for org_unit_object in org_unit_objects:
-                sub_query = (
+                sub_orgs = (
                     AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                     .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
-                    .filter(account_alias__isnull=True)
-                    .exclude(org_unit_id__in=org_unit_list)
-                    .order_by("org_unit_id", "-created_timestamp")
+                    .filter(account_alias__isnull=False)
                     .distinct("org_unit_id")
                 )
-                sub_ou_list.append(sub_query)
+                sub_org_units.extend(list(sub_orgs))
 
-        if len(sub_ou_list) > 1:
-            sub_query_set = sub_ou_list.pop()
-            sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
-            # Note: The django orm won't let you do an order_by & distinct on the union of
-            # multiple queries. The additional order_by &  distinct is essential to handle
-            # use cases like OU_005 being moved from OU_002 to OU_001.
-            sub_orgs = (
-                AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
-                .filter(account_alias__isnull=True)
-                .order_by("org_unit_id", "-created_timestamp")
-                .distinct("org_unit_id")
-            )
-        else:
-            sub_orgs = sub_ou_list[0] if len(sub_ou_list) == 1 else sub_ou_list
-
-        return sub_orgs
+        return sub_org_units
