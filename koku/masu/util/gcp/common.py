@@ -21,6 +21,7 @@ from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
 
 LOG = logging.getLogger(__name__)
+pd.options.mode.chained_assignment = None
 
 
 def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=None):
