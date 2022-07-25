@@ -81,7 +81,7 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
-    - name: org-id-populator
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
       podSpec:
         image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
         command:

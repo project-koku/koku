@@ -2712,7 +2712,7 @@ objects:
           requests:
             cpu: ${KOKU_CPU_REQUEST}
             memory: ${KOKU_MEMORY_REQUEST}
-    - name: org-id-populator
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
       podSpec:
         command:
         - ./org-id-column-populator
