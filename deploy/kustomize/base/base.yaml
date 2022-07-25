@@ -81,7 +81,7 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
-    - name: org-id-populator
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
       podSpec:
         image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
         command:
@@ -132,7 +132,7 @@ objects:
   spec:
     appName: koku
     jobs:
-      - org-id-populator
+      - org-id-populator-${POPULATOR_RUN_NUMBER}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
