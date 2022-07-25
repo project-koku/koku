@@ -2765,7 +2765,7 @@ objects:
   spec:
     appName: koku
     jobs:
-    - org-id-populator
+    - org-id-populator-${POPULATOR_RUN_NUMBER}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
