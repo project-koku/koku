@@ -213,6 +213,7 @@ generators:
       processor_arch: 32-bit
       resource_id: 25555555
       product_sku: VEAJHRNKTJZZ
+      legal_entity: 'Red Hat Inc.'
       region: us-east-1a
       tags:
         resourceTags/aws:createdBy: AssumedRole:AROAYSLL3JVQ6DYUNKWQJ:1637692740557658269
