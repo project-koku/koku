@@ -25,6 +25,7 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer as get_kafka_consumer
 from kafka_utils.utils import get_producer as get_kafka_producer
 from kafka_utils.utils import is_kafka_connected
@@ -420,7 +421,11 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic() == Config.HCCM_TOPIC:
+    if msg.topic() == Config.UPLOAD_TOPIC:
+        service = extract_from_header(msg.headers(), "service")
+        if service != "hccm":
+            LOG.debug("message not for cost-management")
+            return None, None, None
         value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
@@ -671,7 +676,7 @@ def process_messages(msg):
 def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
 
-    consumer = get_kafka_consumer(Config.HCCM_TOPIC)
+    consumer = get_kafka_consumer(Config.UPLOAD_TOPIC)
 
     return consumer
 
@@ -738,7 +743,7 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=Config.HCCM_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)
