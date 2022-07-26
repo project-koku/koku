@@ -76,10 +76,11 @@ class SourceNotFoundError(Exception):
 class SourcesHTTPClient:
     """Sources HTTP client for Sources API service."""
 
-    def __init__(self, auth_header, source_id=None, account_id=None):
+    def __init__(self, auth_header, source_id=None, account_id=None, org_id=None):
         """Initialize the client."""
         self._source_id = source_id
         self._account_id = account_id
+        self._org_id = org_id
         self._sources_host = Config.SOURCES_API_URL
         self._base_url = f"{self._sources_host}{Config.SOURCES_API_PREFIX}"
         self._internal_url = f"{self._sources_host}{Config.SOURCES_INTERNAL_API_PREFIX}"
@@ -88,6 +89,7 @@ class SourcesHTTPClient:
             "x-rh-sources-psk": Config.SOURCES_PSK,
             "x-rh-identity": auth_header,
             "x-rh-sources-account-number": account_id,
+            "x-rh-sources-org-id": org_id,
         }
 
         self.credential_map = {

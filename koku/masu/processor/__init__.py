@@ -18,7 +18,7 @@ ALLOWED_COMPRESSIONS = (UNCOMPRESSED, GZIP_COMPRESSED)
 
 def enable_trino_processing(source_uuid, source_type, account):  # noqa
     """Helper to determine if source is enabled for Trino."""
-    if account and not account.startswith("acct"):
+    if account and not account.startswith("acct") and not account.startswith("org"):
         account = f"acct{account}"
 
     context = {"schema": account, "source-type": source_type, "source-uuid": source_uuid}
