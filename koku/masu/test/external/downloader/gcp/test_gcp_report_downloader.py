@@ -1,27 +1,32 @@
 """Test the GCPReportDownloader class."""
+import datetime
 import logging
 import os
 import shutil
 import tempfile
 from unittest.mock import patch
+from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
 from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
+from pytz import timezone
 from rest_framework.exceptions import ValidationError
 
 from api.utils import DateHelper
+from masu.config import Config
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloaderError
-from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.test import MasuTestCase
 from masu.util.common import date_range_pair
+from reporting_common.models import CostUsageReportManifest
 
 LOG = logging.getLogger(__name__)
 
@@ -57,7 +62,6 @@ class GCPReportDownloaderTest(MasuTestCase):
         self,
         customer_name=FAKE.name(),
         dataset=FAKE.slug(),
-        provider_uuid=uuid4(),
         project_id=FAKE.slug(),
         table_id=FAKE.slug(),
     ):
@@ -79,45 +83,14 @@ class GCPReportDownloaderTest(MasuTestCase):
         """
         billing_source = {"table_id": table_id, "dataset": dataset}
         credentials = {"project_id": project_id}
-        with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
-            "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_etag",
-            return_value=self.etag,
-        ):
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
             downloader = GCPReportDownloader(
                 customer_name=customer_name,
                 data_source=billing_source,
-                provider_uuid=provider_uuid,
+                provider_uuid=self.gcp_provider_uuid,
                 credentials=credentials,
             )
         return downloader
-
-    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
-    def test_generate_etag_big_query_client_error(self, gcp_provider):
-        """Test BigQuery client is handled correctly in generate etag method."""
-        billing_source = {"table_id": FAKE.slug(), "dataset": FAKE.slug()}
-        credentials = {"project_id": FAKE.slug()}
-        err_msg = "GCP Error"
-        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
-            bigquery.Client.side_effect = GoogleCloudError(err_msg)
-            with self.assertRaisesRegex(ReportDownloaderWarning, err_msg):
-                GCPReportDownloader(
-                    customer_name=FAKE.name(),
-                    data_source=billing_source,
-                    provider_uuid=uuid4(),
-                    credentials=credentials,
-                )
-
-    @patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider")
-    def test_generate_etag(self, gcp_provider):
-        """Test BigQuery client is handled correctly in generate etag method."""
-        billing_source = {"table_id": FAKE.slug(), "dataset": FAKE.slug()}
-        credentials = {"project_id": FAKE.slug()}
-        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
-            bigquery.Client.return_value.get_table.return_value.modified.return_value = self.today
-            downloader = GCPReportDownloader(
-                customer_name=FAKE.name(), data_source=billing_source, provider_uuid=uuid4(), credentials=credentials
-            )
-            self.assertIsNotNone(downloader.etag)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
@@ -131,49 +104,6 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
-
-    def test_generate_monthly_pseudo_manifest(self):
-        """Assert _generate_monthly_pseudo_manifest returns a manifest-like dict."""
-        provider_uuid = uuid4()
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        invoice_month = start_date.strftime("%Y%m")
-        expected_assembly_id = ":".join([str(provider_uuid), self.etag, invoice_month])
-        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
-        downloader.scan_end = dh.this_month_end.date()
-        if self.today.date() < downloader.scan_end:
-            expected_end_date = self.today.date()
-        else:
-            expected_end_date = downloader.scan_end
-        result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
-        expected_files = create_expected_csv_files(
-            dh.this_month_start.date(), downloader.scan_end, invoice_month, self.etag
-        )
-        expected_manifest_data = {
-            "assembly_id": expected_assembly_id,
-            "compression": UNCOMPRESSED,
-            "start_date": start_date.date(),
-            "end_date": expected_end_date,  # inclusive end date
-            "file_names": expected_files,
-        }
-        self.assertEqual(result_manifest, expected_manifest_data)
-
-    def test_generate_assembly_id(self):
-        """Assert appropriate generation of assembly ID."""
-        provider_uuid = uuid4()
-        expected_assembly_id = ":".join([str(provider_uuid), self.etag, "1"])
-        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=provider_uuid)
-        assembly_id = downloader._generate_assembly_id("1")
-        self.assertEqual(assembly_id, expected_assembly_id)
-
-    def test_relevant_file_names(self):
-        """Assert relevant file name is generated correctly."""
-        downloader = self.create_gcp_downloader_with_mocked_values()
-        mock_invoice_month = self.today.strftime("%Y%m")
-        end_date = downloader.scan_end + relativedelta(days=1)
-        expected_file_name = [f"{mock_invoice_month}_{self.etag}_{downloader.scan_start}:{end_date}.csv"]
-        result_file_names = downloader._get_relevant_file_names(mock_invoice_month)
-        self.assertEqual(expected_file_name, result_file_names)
 
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
@@ -192,10 +122,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-            with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
-                full_path, etag, date, _, __ = downloader.download_file(key)
+            with patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_path, _, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
-                self.assertEqual(etag, self.etag)
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, expected_full_path)
 
@@ -210,10 +142,12 @@ class GCPReportDownloaderTest(MasuTestCase):
         expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
-            with patch("masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives"):
-                full_path, etag, date, _, __ = downloader.download_file(key)
+            with patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.create_daily_archives",
+                return_value=[["file_one", "file_two"], {"start": "", "end": ""}],
+            ):
+                full_path, _, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
-                self.assertEqual(etag, self.etag)
                 self.assertEqual(date, self.today)
                 self.assertEqual(full_path, expected_full_path)
 
@@ -239,37 +173,32 @@ class GCPReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_context_for_date(self):
         """Test successful return of get manifest context for date."""
+        manifests = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid)
+        for manifest in manifests:
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{DateHelper().today}"
+            manifest.save()
         self.maxDiff = None
         dh = DateHelper()
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
-        p_uuid = uuid4()
-        expected_assembly_id = f"{p_uuid}:{self.etag}:{invoice_month}"
-        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=p_uuid)
-        if self.today.date() < downloader.scan_end:
-            expected_end = self.today.date()
-        else:
-            expected_end = downloader.scan_end
-        expected_files = create_expected_csv_files(
-            dh.this_month_start.date(), expected_end, invoice_month, self.etag, True
-        )
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        mocked_mapping = {datetime.date.today(): DateHelper().today}
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
         ):
-            report_dict = downloader.get_manifest_context_for_date(start_date.date())
-        self.assertEqual(report_dict.get("manifest_id"), 2)
-        self.assertEqual(report_dict.get("files"), expected_files)
-        self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
-        self.assertEqual(report_dict.get("assembly_id"), expected_assembly_id)
-
-    def test_generate_monthly_pseudo_no_manifest(self):
-        """Test get monly psuedo manifest with no manifest."""
-        dh = DateHelper()
-        downloader = self.create_gcp_downloader_with_mocked_values(provider_uuid=uuid4())
-        start_date = dh.last_month_start
-        manifest_dict = downloader._generate_monthly_pseudo_manifest(start_date)
-        self.assertIsNotNone(manifest_dict)
+            with patch(
+                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader"
+                + ".bigquery_export_to_partition_mapping",
+                return_value=mocked_mapping,
+            ):
+                report_list = downloader.get_manifest_context_for_date(start_date)
+        expected_file = f"{invoice_month}_{DateHelper().today.date()}.csv"
+        expected_files = [{"key": expected_file, "local_file": expected_file}]
+        for report_dict in report_list:
+            self.assertEqual(report_dict.get("manifest_id"), 2)
+            self.assertEqual(report_dict.get("files"), expected_files)
+            self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
 
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
@@ -283,16 +212,19 @@ class GCPReportDownloaderTest(MasuTestCase):
         shutil.copy2(file_path, temp_path)
 
         expected_daily_files = [
-            f"{temp_dir}/202011_2020-11-08.csv",
-            f"{temp_dir}/202011_2020-11-09.csv",
-            f"{temp_dir}/202011_2020-11-10.csv",
-            f"{temp_dir}/202011_2020-11-11.csv",
+            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
         ]
 
         start_date = DateHelper().this_month_start
-        daily_file_names = create_daily_archives(
+        daily_file_names, date_range = create_daily_archives(
             "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
         )
+        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11"}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
 
         mock_s3.assert_called()
         self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
@@ -302,6 +234,20 @@ class GCPReportDownloaderTest(MasuTestCase):
             os.remove(daily_file)
 
         os.remove(temp_path)
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives_error_opening_file(self, mock_s3):
+        """
+        Test that we handle effor while opening csv file.
+        """
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.pd.read_csv") as mock_open:
+            err_msg = "bad_open"
+            mock_open.side_effect = IOError(err_msg)
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+                create_daily_archives(
+                    "request_id", "acccount", self.gcp_provider_uuid, "fake", "fake", None, "fake", None
+                )
 
     def test_get_dataset_name(self):
         """Test _get_dataset_name helper."""
@@ -314,16 +260,135 @@ class GCPReportDownloaderTest(MasuTestCase):
             billing_source = {"table_id": FAKE.slug(), "dataset": dataset}
             credentials = {"project_id": project_id}
 
-            with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"), patch(
-                "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._generate_etag",
-                return_value=self.etag,
-            ):
-                with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
-                    downloader = GCPReportDownloader(
-                        customer_name=FAKE.name(),
-                        data_source=billing_source,
-                        provider_uuid=uuid4(),
-                        credentials=credentials,
-                    )
+            with patch("masu.external.downloader.gcp.gcp_report_downloader.GCPProvider"):
+                downloader = GCPReportDownloader(
+                    customer_name=FAKE.name(),
+                    data_source=billing_source,
+                    provider_uuid=uuid4(),
+                    credentials=credentials,
+                )
 
             self.assertEqual(downloader._get_dataset_name(), dataset_name)
+
+    @patch("masu.external.downloader.gcp.gcp_report_downloader.Provider")
+    def test_scan_start_setup_complete(self, provider):
+        """Test scan start when provider setup is complete"""
+        provider.setup_complete = True
+        dh = DateHelper()
+        expected_scan_start = dh.today.date() - relativedelta(days=10)
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        self.assertEqual(downloader.scan_start, expected_scan_start)
+
+    def test_scan_start_setup_not_complete(self):
+        """Test scan start provider setup is not complete"""
+        dh = DateHelper()
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        if self.gcp_provider.setup_complete:
+            self.gcp_provider.setup_complete = False
+
+        months_delta = Config.INITIAL_INGEST_NUM_MONTHS - 1
+        expected_scan_start = dh.today.date() - relativedelta(months=months_delta)
+        expected_scan_start = expected_scan_start.replace(day=1)
+        self.assertEqual(downloader.scan_start, expected_scan_start)
+
+    def test_retrieve_current_manifests_mapping(self):
+        """Test retrieving existing manifests mapping given bill_date and provider"""
+        manifests = CostUsageReportManifest.objects.filter(provider_id=self.gcp_provider_uuid)
+        for manifest in manifests:
+            manifest.assembly_id = f"{manifest.billing_period_start_datetime.date()}|{DateHelper().today}"
+            manifest.save()
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        expected_manifest_mapping = {}
+        expected_manifests = []
+        with ReportManifestDBAccessor() as manifest_accessor:
+            expected_manifests = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                self.gcp_provider_uuid, downloader.scan_start, downloader.scan_end
+            )
+        for manifest in expected_manifests:
+            last_export_time = expected_manifest_mapping.get(manifest.partition_date)
+            if not last_export_time or manifest.previous_export_time > last_export_time:
+                expected_manifest_mapping[manifest.partition_date] = manifest.previous_export_time
+
+        current_manifests_mapping = downloader.retrieve_current_manifests_mapping()
+
+        self.assertEqual(current_manifests_mapping, expected_manifest_mapping)
+
+    def test_bigquery_export_to_partition_mapping_error(self):
+        """Test GCP error retrieving partition data."""
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        err_msg = "GCP Error"
+        with patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery") as bigquery:
+            bigquery.Client.side_effect = GoogleCloudError(err_msg)
+            with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
+                downloader.bigquery_export_to_partition_mapping()
+
+    def test_bigquery_export_to_partition_mapping_success(self):
+        """Test GCP error retrieving partition data."""
+        key = datetime.date.today()
+        now_utc = datetime.datetime.now(timezone("UTC"))
+        mocked_result = [[key, now_utc]]
+        with patch(
+            "masu.external.downloader.gcp.gcp_report_downloader.bigquery", new_callable=PropertyMock
+        ) as mock_bigquery:
+            mock_bigquery.Client.return_value.query.return_value.result.return_value = mocked_result
+            downloader = self.create_gcp_downloader_with_mocked_values()
+            mapping = downloader.bigquery_export_to_partition_mapping()
+            self.assertEqual(mapping, {key: now_utc})
+
+    def test_collect_new_manifest_initial_ingest(self):
+        """Test collecting new manifests on initial ingest"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        current_manifests = {}
+        bigquery_mapping = {partition_date: export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])
+
+    def test_collect_new_manifest(self):
+        """Test collecting new manifests when there is new data in BigQuery"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        new_export_time = export_time + datetime.timedelta(hours=2)
+        current_manifests = {partition_date: export_time}
+        bigquery_mapping = {partition_date: new_export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{new_export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])
+
+    def test_collect_new_manifest_no_bigquery_update(self):
+        """Test collecting new manifests when there is no new data in BigQuery"""
+        partition_date = datetime.date.today()
+        export_time = datetime.datetime.now()
+        current_manifests = {partition_date: export_time}
+        bigquery_mapping = {partition_date: export_time}
+
+        expected_bill_date = partition_date.replace(day=1)
+        expected_assembly_id = f"{partition_date}|{export_time}"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+
+        downloader = self.create_gcp_downloader_with_mocked_values()
+        new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [expected_filename])

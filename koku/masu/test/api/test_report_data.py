@@ -32,7 +32,7 @@ class ReportDataTests(TestCase):
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "start_date": start_date,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
         }
@@ -61,7 +61,7 @@ class ReportDataTests(TestCase):
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "start_date": start_date,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "queue": "ocp",
@@ -103,7 +103,7 @@ class ReportDataTests(TestCase):
     def test_get_report_data_provider_uuid_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing provider_uuid."""
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
-        params = {"start_date": start_date, "schema": "acct10001"}
+        params = {"start_date": start_date, "schema": "org1234567"}
 
         expected_key = "Error"
         expected_message = "provider_uuid or provider_type must be supplied as a parameter."
@@ -122,7 +122,7 @@ class ReportDataTests(TestCase):
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "start_date": start_date,
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
         }
         expected_key = "Error"
@@ -142,7 +142,7 @@ class ReportDataTests(TestCase):
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
         params = {
             "start_date": start_date,
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
             "queue": "not-a-real-queue",
         }
@@ -160,7 +160,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.update_summary_tables")
     def test_get_report_data_date_missing(self, mock_update, _):
         """Test GET report_data endpoint returns a 400 for missing date."""
-        params = {"schema": "acct10001", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
+        params = {"schema": "org1234567", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
         expected_key = "Error"
         expected_message = "start_date is a required parameter."
 
@@ -180,7 +180,7 @@ class ReportDataTests(TestCase):
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "provider_type": Provider.PROVIDER_OCP,
             "start_date": start_date,
@@ -207,7 +207,7 @@ class ReportDataTests(TestCase):
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
@@ -260,7 +260,7 @@ class ReportDataTests(TestCase):
         multiple_calls = start_date.month != end_date.month
 
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider_type": Provider.PROVIDER_AWS,
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
@@ -335,7 +335,7 @@ class ReportDataTests(TestCase):
     def test_remove_report_data(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider": Provider.PROVIDER_AWS,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "simulate": False,
@@ -358,7 +358,7 @@ class ReportDataTests(TestCase):
     def test_remove_report_data_simulate(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider": Provider.PROVIDER_AWS,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "simulate": True,
@@ -381,7 +381,7 @@ class ReportDataTests(TestCase):
     def test_remove_report_data_simulate_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "provider": Provider.PROVIDER_AWS,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
         }
@@ -421,7 +421,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.remove_expired_data")
     def test_remove_report_data_provider_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
-        params = {"schema": "acct10001", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64", "simulate": True}
+        params = {"schema": "org1234567", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64", "simulate": True}
         query_string = urlencode(params)
         expected_key = "Error"
         expected_message = "provider is a required parameter."
@@ -438,7 +438,7 @@ class ReportDataTests(TestCase):
     @patch("masu.api.report_data.remove_expired_data")
     def test_remove_report_data_provider_uuid_missing(self, mock_remove, _):
         """Test that the DELETE call to report_data works."""
-        params = {"schema": "acct10001", "provider": Provider.PROVIDER_AWS, "simulate": True}
+        params = {"schema": "org1234567", "provider": Provider.PROVIDER_AWS, "simulate": True}
         query_string = urlencode(params)
         expected_key = "Error"
         expected_message = "provider_uuid is a required parameter."

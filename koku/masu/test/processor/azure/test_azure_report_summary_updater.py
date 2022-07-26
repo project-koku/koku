@@ -31,7 +31,7 @@ class AzureReportSummaryUpdaterTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = AzureReportDBAccessor("acct10001")
+        cls.accessor = AzureReportDBAccessor("org1234567")
         cls.report_schema = cls.accessor.report_schema
         cls.all_tables = list(AZURE_REPORT_TABLE_MAP.values())
         cls.creator = ReportObjectCreator(cls.schema)

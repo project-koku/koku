@@ -89,14 +89,14 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         )
 
 
-@celery_app.task(
+@celery_app.task(  # noqa: C901
     name="masu.celery.tasks.delete_archived_data",
     queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def delete_archived_data(schema_name, provider_type, provider_uuid):
+def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C901
     """
     Delete archived data from our S3 bucket for a given provider.
 
@@ -143,7 +143,10 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         LOG.info(message)
 
     # We need to normalize capitalization and "-local" dev providers.
-    account = schema_name[4:]
+
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    account = schema_name.strip("acct")
 
     # Data in object storage does not use the local designation
     source_type = provider_type.replace("-local", "")
