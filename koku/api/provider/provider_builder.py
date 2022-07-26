@@ -84,6 +84,7 @@ class ProviderBuilder:
         if encoded_auth_header:
             identity = json.loads(b64decode(encoded_auth_header))
             account = identity.get("identity", {}).get("account_number")
+            org_id = identity.get("identity", {}).get("org_id")
             username = identity.get("identity", {}).get("user", {}).get("username")
             email = identity.get("identity", {}).get("user", {}).get("email")
             identity_type = identity.get("identity", {}).get("type", "User")
@@ -94,9 +95,9 @@ class ProviderBuilder:
                 email = ""
 
             try:
-                customer = Customer.objects.filter(account_id=account).get()
+                customer = Customer.objects.filter(org_id=org_id).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account)
+                customer = IdentityHeaderMiddleware.create_customer(account, org_id)
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
