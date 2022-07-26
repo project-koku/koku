@@ -175,7 +175,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         start_date = "1900-12-30"
         end_date = "1900-12-31"
         mock_date_check.return_value = (start_date, end_date)
-        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="INFO") as _logger:
+        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="WARNING") as _logger:
             self.updater.update_summary_tables(start_date, end_date)
             found_it = False
             for log_line in _logger.output:

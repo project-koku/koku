@@ -114,7 +114,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             with schema_context(self._schema):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
                 if not report_period:
-                    LOG.info(f"No report period for {self._provider.uuid} with start date {start_date}")
+                    LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
                     return start_date, end_date
                 report_period_id = report_period.id
 
