@@ -118,6 +118,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -163,6 +180,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -174,6 +194,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -265,6 +291,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -303,6 +346,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -316,6 +362,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -418,6 +470,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -454,6 +523,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -465,6 +537,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -589,6 +667,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -605,6 +700,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -616,6 +714,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: false
@@ -709,6 +813,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -745,6 +866,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -756,6 +880,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -851,6 +981,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -887,6 +1034,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -898,6 +1048,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1022,6 +1178,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1060,6 +1233,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1073,6 +1249,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1199,6 +1381,23 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1237,6 +1436,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1250,6 +1452,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1374,6 +1582,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1412,6 +1637,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1425,6 +1653,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1551,6 +1785,23 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1589,6 +1840,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1602,6 +1856,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1726,6 +1986,23 @@ objects:
           value: ${UNLEASH_CACHE_DIR}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1764,6 +2041,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1777,6 +2057,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -1903,6 +2189,23 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -1941,6 +2244,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -1954,6 +2260,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2080,6 +2392,23 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -2118,6 +2447,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -2131,6 +2463,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2257,6 +2595,23 @@ objects:
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: "true"
         - name: ENHANCED_ORG_ADMIN
@@ -2295,6 +2650,9 @@ objects:
         - mountPath: /etc/gcp
           name: gcp-credentials
           readOnly: true
+        - mountPath: /etc/oci
+          name: oci-credentials
+          readOnly: true
         - mountPath: ${TMP_DIR}
           name: tmp-data
         volumes:
@@ -2308,6 +2666,12 @@ objects:
             - key: gcp-credentials
               path: gcp-credentials.json
             secretName: koku-gcp
+        - name: oci-credentials
+          secret:
+            items:
+            - key: oci-credentials
+              path: oci-credentials.pem
+            secretName: koku-oci
       webServices:
         metrics:
           enabled: true
@@ -2348,6 +2712,34 @@ objects:
           requests:
             cpu: ${KOKU_CPU_REQUEST}
             memory: ${KOKU_MEMORY_REQUEST}
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
+      podSpec:
+        command:
+        - ./org-id-column-populator
+        - -C
+        - -a
+        - account_id
+        - -o
+        - org_id
+        - -t
+        - ${ORG_ID_TRANSLATE_TARGET}
+        - --ean-translator-addr
+        - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+        - --prometheus-push-addr
+        - ${PROMETHEUS_PUSHGATEWAY}
+        env:
+        - name: LOG_FORMAT
+          value: ${POPULATOR_LOG_FORMAT}
+        - name: LOG_BATCH_FREQUENCY
+          value: 1s
+        image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 512Mi
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.hccm
@@ -2366,6 +2758,14 @@ objects:
     appName: koku
     jobs:
     - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
+  spec:
+    appName: koku
+    jobs:
+    - org-id-populator-${POPULATOR_RUN_NUMBER}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
@@ -2385,6 +2785,16 @@ objects:
   kind: Secret
   metadata:
     name: koku-gcp
+- apiVersion: v1
+  data:
+    oci-credentials: ${OCI_CREDENTIALS_EPH}
+  kind: Secret
+  metadata:
+    name: koku-oci
+  stringData:
+    oci-cli-fingerprint: ${OCI_CLI_FINGERPRINT_EPH}
+    oci-cli-tenancy: ${OCI_CLI_TENANCY_EPH}
+    oci-cli-user: ${OCI_CLI_USER_EPH}
 parameters:
 - name: ENV_NAME
   required: true
@@ -2411,6 +2821,9 @@ parameters:
 - description: GCP Credentials Location
   name: GOOGLE_APPLICATION_CREDENTIALS
   value: /etc/gcp/gcp-credentials.json
+- description: OCI Credentials Location
+  name: OCI_CLI_KEY_FILE
+  value: /etc/oci/oci-credentials.pem
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
   required: true
@@ -2652,6 +3065,22 @@ parameters:
   name: GCP_CREDENTIALS_EPH
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: OCI Credentials (Ephemeral)
+  name: OCI_CREDENTIALS_EPH
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- displayName: OCI user (Ephemeral)
+  name: OCI_CLI_USER_EPH
+  required: true
+  value: insert-string-value
+- displayName: OCI user fingerprint (Ephemeral)
+  name: OCI_CLI_FINGERPRINT_EPH
+  required: true
+  value: insert-string-value
+- displayName: OCI tenancy (Ephemeral)
+  name: OCI_CLI_TENANCY_EPH
+  required: true
+  value: insert-string-value
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
@@ -2659,6 +3088,20 @@ parameters:
 - displayName: RBAC_CACHE_TIMEOUT
   name: RBAC_CACHE_TIMEOUT
   value: "300"
+- name: ORG_ID_TRANSLATE_TARGET
+  value: api_customer
+- name: TENANT_TRANSLATOR_HOST
+  required: true
+- name: TENANT_TRANSLATOR_PORT
+  value: "8892"
+- name: POPULATOR_LOG_FORMAT
+  value: text
+- name: POPULATOR_IMAGE
+  value: quay.io/cloudservices/tenant-utils
+- name: POPULATOR_IMAGE_TAG
+  value: latest
+- name: POPULATOR_RUN_NUMBER
+  value: "1"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true

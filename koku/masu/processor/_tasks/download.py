@@ -46,7 +46,16 @@ def _get_report_files(
                          '/var/tmp/masu/base/aws/professor-hour-industry-television.csv']
 
     """
-    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    context = {}
+    if customer_name.startswith("acct"):
+        context["account"] = customer_name[4:]
+        download_acct = customer_name[4:]
+    else:
+        context["org_id"] = customer_name[3:]
+        download_acct = customer_name
+    context["provider_uuid"] = provider_uuid
     month_string = report_month.strftime("%B %Y")
     report_context["date"] = report_month
     function_name = "masu.processor._tasks.download._get_report_files"
@@ -73,7 +82,7 @@ def _get_report_files(
         provider_type=provider_type,
         provider_uuid=provider_uuid,
         report_name=None,
-        account=customer_name[4:],
+        account=download_acct,
         tracing_id=tracing_id,
     )
     return downloader.download_report(report_context)

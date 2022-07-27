@@ -546,7 +546,7 @@ class ProviderSerializerTest(IamTestCase):
                     serializer.save()
 
     def test_create_same_provider_different_customers(self):
-        """Test that the same provider can be created for 2 different customers."""
+        """Test that the same provider can not be created for 2 different customers."""
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
             self.create_mock_customer_data(), user_data, create_tenant=True
@@ -556,18 +556,17 @@ class ProviderSerializerTest(IamTestCase):
                 data=self.generic_providers[Provider.PROVIDER_AZURE], context=self.request_context
             )
             if serializer.is_valid(raise_exception=True):
-                instance1 = serializer.save()
+                serializer.save()
 
-        with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
-            serializer = ProviderSerializer(
-                data=self.generic_providers[Provider.PROVIDER_AZURE], context=alt_request_context
-            )
-            if serializer.is_valid(raise_exception=True):
-                instance2 = serializer.save()
-
-        self.assertNotEqual(instance1.uuid, instance2.uuid)
-        self.assertEqual(instance1.billing_source_id, instance2.billing_source_id)
-        self.assertEqual(instance1.authentication_id, instance2.authentication_id)
+        with self.assertRaises(ValidationError) as excCtx:
+            with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
+                serializer = ProviderSerializer(
+                    data=self.generic_providers[Provider.PROVIDER_AZURE], context=alt_request_context
+                )
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+        validationErr = excCtx.exception.detail[ProviderErrors.DUPLICATE_AUTH][0]
+        self.assertTrue("Cost management does not allow duplicate accounts" in str(validationErr))
 
     def test_create_provider_for_demo_account(self):
         """Test creating a provider for a demo account."""
@@ -718,8 +717,8 @@ class AdminProviderSerializerTest(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-        account = self.customer.account_id
-        expected_schema_name = create_schema_name(account)
+        org_id = self.customer.org_id
+        expected_schema_name = create_schema_name(org_id)
         schema_name = serializer.data["customer"].get("schema_name")
         self.assertIsNotNone(schema_name)
         self.assertEqual(schema_name, expected_schema_name)

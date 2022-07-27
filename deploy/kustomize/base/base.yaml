@@ -81,6 +81,34 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
+      podSpec:
+        image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
+        command:
+          - ./org-id-column-populator
+          - -C
+          - -a
+          - account_id
+          - -o
+          - org_id
+          - -t
+          - ${ORG_ID_TRANSLATE_TARGET}
+          - --ean-translator-addr
+          - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          - --prometheus-push-addr
+          - ${PROMETHEUS_PUSHGATEWAY}
+        env:
+          - name: LOG_FORMAT
+            value: ${POPULATOR_LOG_FORMAT}
+          - name: LOG_BATCH_FREQUENCY
+            value: '1s'
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 512Mi
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -97,6 +125,14 @@ objects:
     appName: koku
     jobs:
       - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
+  spec:
+    appName: koku
+    jobs:
+      - org-id-populator-${POPULATOR_RUN_NUMBER}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
@@ -117,6 +153,16 @@ objects:
     name: koku-gcp
   data:
     gcp-credentials: "${GCP_CREDENTIALS_EPH}"
+- apiVersion: v1
+  kind: Secret # For ephemeral/local environment only
+  metadata:
+    name: koku-oci
+  data:
+    oci-credentials: "${OCI_CREDENTIALS_EPH}"
+  stringData:
+    oci-cli-user: "${OCI_CLI_USER_EPH}"
+    oci-cli-fingerprint: "${OCI_CLI_FINGERPRINT_EPH}"
+    oci-cli-tenancy: "${OCI_CLI_TENANCY_EPH}"
 
 parameters:
 - name: ENV_NAME
@@ -144,6 +190,9 @@ parameters:
 - name: GOOGLE_APPLICATION_CREDENTIALS
   description: GCP Credentials Location
   value: "/etc/gcp/gcp-credentials.json"
+- name: OCI_CLI_KEY_FILE
+  description: OCI Credentials Location
+  value: "/etc/oci/oci-credentials.pem"
 
 - description: DB Migrations Image Tag
   name: DBM_IMAGE_TAG
@@ -400,6 +449,22 @@ parameters:
   displayName: GCP Credentials (Ephemeral)
   required: true
   value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: OCI_CREDENTIALS_EPH
+  displayName: OCI Credentials (Ephemeral)
+  required: true
+  value: aW5zZXJ0LWJhc2U2NC1lbmNvZGVkLXZhbHVl
+- name: OCI_CLI_USER_EPH
+  displayName: OCI user (Ephemeral)
+  required: true
+  value: insert-string-value
+- name: OCI_CLI_FINGERPRINT_EPH
+  displayName: OCI user fingerprint (Ephemeral)
+  required: true
+  value: insert-string-value
+- name: OCI_CLI_TENANCY_EPH
+  displayName: OCI tenancy (Ephemeral)
+  required: true
+  value: insert-string-value
 - description: Enhanced Org Admin
   displayName: Enhanced Org Admin
   name: ENHANCED_ORG_ADMIN
@@ -407,3 +472,18 @@ parameters:
 - name: RBAC_CACHE_TIMEOUT
   displayName: RBAC_CACHE_TIMEOUT
   value: "300"
+
+- name: ORG_ID_TRANSLATE_TARGET
+  value: api_customer
+- name: TENANT_TRANSLATOR_HOST
+  required: true
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: POPULATOR_LOG_FORMAT
+  value: text
+- name: POPULATOR_IMAGE
+  value: quay.io/cloudservices/tenant-utils
+- name: POPULATOR_IMAGE_TAG
+  value: latest
+- name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
+  value: "1"

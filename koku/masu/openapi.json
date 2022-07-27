@@ -246,9 +246,9 @@
             }
           },
           {
-            "name": "schema",
+            "name": "schema_name",
             "in": "query",
-            "description": "The database schema",
+            "description": "The database schema_name",
             "required": true,
             "schema": {
               "type": "string",
@@ -377,7 +377,7 @@
                 }
               }
             }
-          },
+          }
         },
         "tags": [
           "HCS Report Finalization"
@@ -2077,7 +2077,7 @@
           },
           "schema_name": {
             "type": "string",
-            "example": "acct10001"
+            "example": "org1234567"
           }
         }
       },

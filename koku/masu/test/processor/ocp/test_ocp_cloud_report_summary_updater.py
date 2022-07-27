@@ -113,7 +113,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             credentials = provider_accessor.get_credentials()
         cluster_id = credentials.get("cluster_id")
         mock_map.return_value = {self.ocp_test_provider_uuid: (self.aws_provider_uuid, Provider.PROVIDER_AWS)}
-        updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+        updater = OCPCloudReportSummaryUpdater(schema="org1234567", provider=provider, manifest=None)
         updater.update_summary_tables(
             start_date, end_date, self.ocp_on_aws_ocp_provider.uuid, self.aws_provider.uuid, Provider.PROVIDER_AWS
         )
@@ -148,7 +148,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider = provider_accessor.get_provider()
 
-            updater = OCPCloudReportSummaryUpdater(schema="acct10001", provider=provider, manifest=None)
+            updater = OCPCloudReportSummaryUpdater(schema="org1234567", provider=provider, manifest=None)
             infra_map = updater.get_infra_map(start_date_str, end_date_str)
             for openshift_provider_uuid, infrastructure_tuple in infra_map.items():
                 updater.update_summary_tables(
