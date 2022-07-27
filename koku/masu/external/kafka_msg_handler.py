@@ -423,7 +423,7 @@ def handle_message(msg):
     """
     if msg.topic() == Config.UPLOAD_TOPIC:
         service = extract_from_header(msg.headers(), "service")
-        LOG.info(f"service: {service} | {msg.headers()}")
+        LOG.debug(f"service: {service} | {msg.headers()}")
         if service != "hccm":
             LOG.debug("message not for cost-management")
             return None, None, None
