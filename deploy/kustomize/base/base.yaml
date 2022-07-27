@@ -30,7 +30,7 @@ objects:
     # Request kafka topics for your application here
     kafkaTopics:
     - topicName: platform.sources.event-stream
-    - topicName: platform.upload.available
+    - topicName: platform.upload.announce
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
