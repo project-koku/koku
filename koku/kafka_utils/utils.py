@@ -32,11 +32,11 @@ def _get_managed_kafka_config(conf=None):
             Config.INSIGHTS_KAFKA_CACERT,
         )
     ):
-        conf["security_protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl_mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
-        conf["sasl_plain_username"] = Config.INSIGHTS_KAFKA_USER
-        conf["sasl_plain_password"] = Config.INSIGHTS_KAFKA_PASSWORD
-        conf["ssl_ca"] = Config.INSIGHTS_KAFKA_CACERT
+        conf["security.protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
+        conf["sasl.mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl.username"] = Config.INSIGHTS_KAFKA_USER
+        conf["sasl.password"] = Config.INSIGHTS_KAFKA_PASSWORD
+        conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
 
     return conf
 
