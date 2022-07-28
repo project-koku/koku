@@ -17,8 +17,6 @@ from tarfile import ReadError
 from tarfile import TarFile
 
 import requests
-from confluent_kafka import Consumer
-from confluent_kafka import Producer
 from confluent_kafka import TopicPartition
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
@@ -27,6 +25,8 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import get_consumer as get_kafka_consumer
+from kafka_utils.utils import get_producer as get_kafka_producer
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -664,23 +664,17 @@ def process_messages(msg):
 
 def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS,
-            "group.id": "hccm-group",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-            "max.poll.interval.ms": 1080000,  # 18 minutes
-        },
-        logger=LOG,
-    )
-    consumer.subscribe([Config.HCCM_TOPIC])
+
+    consumer = get_kafka_consumer(Config.HCCM_TOPIC)
+
     return consumer
 
 
 def get_producer():  # pragma: no cover
     """Create a Kafka producer."""
-    producer = Producer({"bootstrap.servers": Config.INSIGHTS_KAFKA_ADDRESS, "message.timeout.ms": 1000})
+
+    producer = get_kafka_producer()
+
     return producer
 
 
