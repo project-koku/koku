@@ -267,10 +267,10 @@ def _get_consumer_config():
             Config.SOURCES_KAFKA_CACERT,
         )
     ):
-        consumer_conf["security_protocol"] = Config.SOURCES_KAFKA_SECURITY_PROTOCOL
-        consumer_conf["sasl_mechanism"] = Config.SOURCES_KAFKA_SASL_MECHANISM
-        consumer_conf["sasl_plain_username"] = Config.SOURCES_KAFKA_USER
-        consumer_conf["sasl_plain_password"] = Config.SOURCES_KAFKA_PASSWORD
+        consumer_conf["security.protocol"] = Config.SOURCES_KAFKA_SECURITY_PROTOCOL
+        consumer_conf["sasl.mechanism"] = Config.SOURCES_KAFKA_SASL_MECHANISM
+        consumer_conf["sasl.username"] = Config.SOURCES_KAFKA_USER
+        consumer_conf["sasl.password"] = Config.SOURCES_KAFKA_PASSWORD
         consumer_conf["ssl_ca"] = Config.SOURCES_KAFKA_CACERT
 
     return consumer_conf
