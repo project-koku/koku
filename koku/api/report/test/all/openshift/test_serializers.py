@@ -16,7 +16,10 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True, path=""
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            self.user_data,
+            create_tenant=True,
+            path="",
         )
 
     def test_parse_query_params_success(self):
@@ -84,7 +87,7 @@ class OCPAllQueryParamSerializerTest(IamTestCase):
             "delta": "cost",
         }
         context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name},
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
             self._create_user_data(),
             create_tenant=True,
             path="/api/cost-management/v1/reports/openshift/infrastructures/all/costs/",

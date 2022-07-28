@@ -89,10 +89,10 @@ class IamTestCase(TestCase):
         super().tearDownClass()
 
     @classmethod
-    def _create_customer_data(cls, account=KokuTestRunner.account):
+    def _create_customer_data(cls, account=KokuTestRunner.account, org_id=KokuTestRunner.org_id):
         """Create customer data."""
         schema = KokuTestRunner.schema
-        return {"account_id": account, "schema_name": schema}
+        return {"account_id": account, "org_id": org_id, "schema_name": schema}
 
     @classmethod
     def _create_user_data(cls):
@@ -109,7 +109,7 @@ class IamTestCase(TestCase):
         return {"username": cls.fake.user_name(), "email": cls.fake.email(), "access": access}
 
     @classmethod
-    def _create_customer(cls, account, create_tenant=False):
+    def _create_customer(cls, account, org_id, create_tenant=False):
         """Create a customer.
 
         Args:
@@ -120,8 +120,8 @@ class IamTestCase(TestCase):
 
         """
         connection.set_schema_to_public()
-        schema_name = create_schema_name(account)
-        customer = Customer.objects.get_or_create(account_id=account, schema_name=schema_name)[0]
+        schema_name = create_schema_name(org_id)
+        customer = Customer.objects.get_or_create(account_id=account, org_id=org_id, schema_name=schema_name)[0]
         customer.save()
         if create_tenant:
             tenant = Tenant.objects.get_or_create(schema_name=schema_name)[0]
@@ -143,11 +143,13 @@ class IamTestCase(TestCase):
         """Create the request context for a user."""
         customer = customer_data
         account = customer.get("account_id")
+        org_id = customer.get("org_id")
         if create_customer:
-            cls.customer = cls._create_customer(account, create_tenant=create_tenant)
+            cls.customer = cls._create_customer(account, org_id, create_tenant=create_tenant)
         identity = {
             "identity": {
                 "account_number": account,
+                "org_id": org_id,
                 "type": "User",
                 "user": {
                     "username": user_data["username"],
@@ -173,8 +175,9 @@ class IamTestCase(TestCase):
     def create_mock_customer_data(self):
         """Create randomized data for a customer test."""
         account = self.fake.ean8()
-        schema = f"acct{account}"
-        return {"account_id": account, "schema_name": schema}
+        org_id = self.fake.ean8()
+        schema = f"org{org_id}"
+        return {"account_id": account, "org_id": org_id, "schema_name": schema}
 
     def mocked_query_params(self, url, view, path=None, access=None):
         """Create QueryParameters using a mocked Request."""
@@ -219,7 +222,7 @@ class RbacPermissions:
                 middleware.insert(5, dev_middleware)
 
             identity = {
-                "identity": {"account_number": "10001", "type": "User", "user": user},
+                "identity": {"account_number": "10001", "org_id": "1234567", "type": "User", "user": user},
                 "entitlements": {"cost_management": {"is_entitled": "True"}},
             }
 

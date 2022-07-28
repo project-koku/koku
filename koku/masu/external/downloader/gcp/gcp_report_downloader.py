@@ -184,6 +184,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         with ReportManifestDBAccessor() as manifest_accessor:
             old_manifests = manifest_accessor.gcp_self_healing_get_outdated_manifests(self._provider_uuid)
             manifest_id_list = []
+            manifest_id_list_strings = []
             if not old_manifests:
                 # If no old manifests were found then we should raise the DataError.
                 return False
@@ -207,12 +208,18 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                         start_of_invoice,
                         Config.CSV_DATA_TYPE,
                     )
+                    s3_csv_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+                        self.tracing_id, s3_csv_path, manifest_id_list_strings, context=context
+                    )
                     s3_parquet_path = get_path_prefix(
                         self.account,
                         Provider.PROVIDER_GCP,
                         self._provider_uuid,
                         start_of_invoice,
-                        Config.CSV_DATA_TYPE,
+                        Config.PARQUET_DATA_TYPE,
+                    )
+                    s3_parquet_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+                        self.tracing_id, s3_parquet_path, manifest_id_list_strings, context=context
                     )
                     s3_daily_parquet_path = get_path_prefix(
                         self.account,
@@ -223,6 +230,9 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                         daily=True,
                         report_type="raw",
                     )
+                    s3_daily_parquet_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+                        self.tracing_id, s3_daily_parquet_path, manifest_id_list_strings, context=context
+                    )
                     s3_daily_openshift_path = get_path_prefix(
                         self.account,
                         Provider.PROVIDER_GCP,
@@ -232,12 +242,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                         daily=True,
                         report_type=OPENSHIFT_REPORT_TYPE,
                     )
-                    for s3_path in [s3_csv_path, s3_parquet_path, s3_daily_parquet_path, s3_daily_openshift_path]:
-                        utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
-                            self.tracing_id, s3_path, manifest.id, context=context
-                        )
-                manifest_id_list.append(manifest.id)
-            manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
+                    s3_daily_openshift_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
+                        self.tracing_id, s3_daily_openshift_path, manifest_id_list_strings, context=context
+                    )
+                    manifest_id_list.append(manifest.id)
+                    manifest_id_list_strings.append(str(manifest.id))
+
+            if s3_csv_removed and s3_parquet_removed and s3_daily_parquet_removed and s3_daily_openshift_removed:
+                LOG.info("Attempting to delete old manifests")
+                manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
         return True
 
     def _get_dataset_name(self):

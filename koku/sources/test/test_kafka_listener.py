@@ -70,11 +70,11 @@ FAKE_CLUSTER_ID_2 = str(uuid4())
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 KAFKA_KEY_MAP = {
-    "SOURCES_KAFKA_USER": "sasl_plain_username",
-    "SOURCES_KAFKA_PASSWORD": "sasl_plain_password",
-    "SOURCES_KAFKA_SASL_MECHANISM": "sasl_mechanism",
-    "SOURCES_KAFKA_SECURITY_PROTOCOL": "security_protocol",
-    "SOURCES_KAFKA_CACERT": "ssl_ca",
+    "SOURCES_KAFKA_USER": "sasl.username",
+    "SOURCES_KAFKA_PASSWORD": "sasl.password",
+    "SOURCES_KAFKA_SASL_MECHANISM": "sasl.mechanism",
+    "SOURCES_KAFKA_SECURITY_PROTOCOL": "security.protocol",
+    "SOURCES_KAFKA_CACERT": "ssl.ca.location",
 }
 
 
@@ -131,7 +131,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         super().setUpClass()
         post_save.disconnect(storage_callback, sender=Sources)
         account = "12345"
-        IdentityHeaderMiddleware.create_customer(account)
+        org_id = "3333333"
+        IdentityHeaderMiddleware.create_customer(account, org_id)
 
     def setUp(self):
         """Setup the test method."""
@@ -144,7 +145,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
+            "account_id": "org1234567",
+            "org_id": "1234567",
             "offset": 11,
         }
         self.uuids = {
@@ -169,6 +171,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "billing_source": {"data_source": {"bucket": "test_bucket"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
             Provider.PROVIDER_OCP: {
@@ -179,6 +182,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_1}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
         }
@@ -192,6 +196,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "billing_source": {"data_source": {"bucket": "test_bucket_2"}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
             Provider.PROVIDER_OCP: {
@@ -202,6 +207,7 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 "authentication": {"credentials": {"cluster_id": FAKE_CLUSTER_ID_2}},
                 "auth_header": Config.SOURCES_FAKE_HEADER,
                 "account_id": "12345",
+                "org_id": "3333333",
                 "offset": 5,
             },
         }

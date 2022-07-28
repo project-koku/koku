@@ -25,7 +25,7 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
         """Set up the test class with required objects."""
         super().setUpClass()
 
-        cls.accessor = GCPReportDBAccessor("acct10001")
+        cls.accessor = GCPReportDBAccessor("org1234567")
 
         cls.report_schema = cls.accessor.report_schema
 
@@ -71,6 +71,6 @@ class GCPCostModelCostUpdaterTest(MasuTestCase):
         dh = DateHelper()
         end_date = dh.this_month_end.date()
         self.updater.update_summary_cost_model_costs(bill_date, end_date)
-        with GCPReportDBAccessor("acct10001") as accessor:
+        with GCPReportDBAccessor("org1234567") as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
             self.assertIsNotNone(bill.derived_cost_datetime)

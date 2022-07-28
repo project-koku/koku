@@ -45,7 +45,7 @@ class EnabledTagsTest(MasuTestCase):
         with schema_context(self.schema):
             OCPEnabledTagKeys.objects.all().delete()
 
-        post_data = {"schema": "acct10001", "action": "create", "tag_keys": ["tag1", "tag2"]}
+        post_data = {"schema": "org1234567", "action": "create", "tag_keys": ["tag1", "tag2"]}
         response = self.client.post(reverse("enabled_tags"), post_data, content_type="application/json")
         body = response.json()
 
@@ -61,7 +61,7 @@ class EnabledTagsTest(MasuTestCase):
             keys = [key[0] for key in keys]
             print(keys)
 
-        post_data = {"schema": "acct10001", "action": "delete", "tag_keys": keys}
+        post_data = {"schema": "org1234567", "action": "delete", "tag_keys": keys}
 
         response = self.client.post(reverse("enabled_tags"), post_data, content_type="application/json")
         body = response.json()
@@ -89,6 +89,6 @@ class EnabledTagsTest(MasuTestCase):
         with schema_context(self.schema):
             OCPEnabledTagKeys.objects.all().delete()
 
-        post_data = {"schema": "acct10001", "tag_keys": ["tag1", "tag2"]}
+        post_data = {"schema": "org1234567", "tag_keys": ["tag1", "tag2"]}
         response = self.client.post(reverse("enabled_tags"), post_data)
         self.assertEqual(response.status_code, 400)
