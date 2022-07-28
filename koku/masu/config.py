@@ -91,6 +91,7 @@ class Config:
     INSIGHTS_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
     INSIGHTS_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
     HCCM_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.hccm")
+    UPLOAD_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.announce")
     VALIDATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.upload.validation")
     NOTIFICATION_TOPIC = CONFIGURATOR.get_kafka_topic("platform.notifications.ingress")
 
