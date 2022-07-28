@@ -70,10 +70,10 @@ FAKE_CLUSTER_ID_2 = str(uuid4())
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
 
 KAFKA_KEY_MAP = {
-    "SOURCES_KAFKA_USER": "sasl_plain_username",
-    "SOURCES_KAFKA_PASSWORD": "sasl_plain_password",
-    "SOURCES_KAFKA_SASL_MECHANISM": "sasl_mechanism",
-    "SOURCES_KAFKA_SECURITY_PROTOCOL": "security_protocol",
+    "SOURCES_KAFKA_USER": "sasl.username",
+    "SOURCES_KAFKA_PASSWORD": "sasl.password",
+    "SOURCES_KAFKA_SASL_MECHANISM": "sasl.mechanism",
+    "SOURCES_KAFKA_SECURITY_PROTOCOL": "security.protocol",
     "SOURCES_KAFKA_CACERT": "ssl_ca",
 }
 
