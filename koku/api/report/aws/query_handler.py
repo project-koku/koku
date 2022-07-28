@@ -655,6 +655,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         query_data = query_data.values(*initial_group_by)
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
+        new_annotations = list(self.report_annotations.keys())
         if not self.parameters.parameters.get("compute_count"):
             # Query parameter indicates count should be removed from DB queries
             aggregates.pop("count", None)
@@ -671,7 +672,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         query_data = query_data.annotate(**aggregates)
         remove_columns = ["usage", "count"]
         skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
-        new_annotations = list(self.report_annotations.keys())
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")
         total_query = self.pandas_agg_for_total(query_data, skip_columns, new_annotations, remove_columns)
