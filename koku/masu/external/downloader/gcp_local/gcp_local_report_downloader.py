@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """GCP Local Report Downloader."""
+import datetime
 import logging
 import os
 
@@ -67,12 +68,9 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         file_mapping = {}
         for root, dirs, files in os.walk(self.storage_location, followlinks=True):
             for file in files:
-                if file.endswith(".csv"):
-                    report_name = os.path.splitext(file)[0]
+                report_name = os.path.splitext(file)[0]
+                if file.endswith(".csv") and ":" in report_name:
                     invoice_month, etag, date_range = report_name.split("_")
-                    if ":" not in date_range:
-                        # if date range does not contain the `:`, it is not a file to process
-                        continue
                     scan_start, scan_end = date_range.split(":")
                     file_info = {"start": scan_start, "end": scan_end, "filename": file}
                     if not file_mapping.get(invoice_month):
@@ -95,31 +93,26 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 files       - ([{"key": full_file_path "local_file": "local file name"}]): List of report files.
 
         """
-
-        manifest_dict = {}
-        report_dict = {}
-
-        manifest_dict = self._generate_monthly_pseudo_manifest(date)
-        if not manifest_dict:
-            return report_dict
-
-        file_names_count = len(manifest_dict["file_names"])
         dh = DateHelper()
-        manifest_id = self._process_manifest_db_record(
-            manifest_dict["assembly_id"], manifest_dict["start_date"], file_names_count, dh._now
-        )
+        manifest_list = self.collect_new_manifests()
+        reports_list = []
+        for manifest in manifest_list:
+            manifest_id = self._process_manifest_db_record(
+                manifest["assembly_id"], manifest["bill_date"], len(manifest["files"]), dh._now
+            )
+            files_list = [
+                {"key": key, "local_file": self.get_local_file_for_report(key)} for key in manifest.get("files")
+            ]
+            report_dict = {
+                "manifest_id": manifest_id,
+                "assembly_id": manifest["assembly_id"],
+                "compression": UNCOMPRESSED,
+                "files": files_list,
+            }
+            reports_list.append(report_dict)
+        return reports_list
 
-        report_dict["manifest_id"] = manifest_id
-        report_dict["assembly_id"] = manifest_dict.get("assembly_id")
-        report_dict["compression"] = manifest_dict.get("compression")
-        files_list = [
-            {"key": key, "local_file": self.get_local_file_for_report(key)}
-            for key in manifest_dict.get("file_names", [])
-        ]
-        report_dict["files"] = files_list
-        return report_dict
-
-    def _generate_monthly_pseudo_manifest(self, start_date):
+    def collect_new_manifests(self):
         """
         Generate a dict representing an analog to other providers' "manifest" files.
 
@@ -135,30 +128,30 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         etag = None
-        invoice_month = start_date.strftime("%Y%m")
-        etags = self.file_mapping.get(str(invoice_month), {})
-        for etag_key in etags.keys():
-            with ReportManifestDBAccessor() as manifest_accessor:
-                assembly_id = ":".join([str(self._provider_uuid), etag_key, str(invoice_month)])
-                manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
-            if manifest:
+        manifest_list = []
+        for invoice_month in self.file_mapping.keys():
+            etags = self.file_mapping.get(str(invoice_month), {})
+            for etag_key in etags.keys():
+                etag_data = etags.get(etag_key, {})
+                bill_date = datetime.datetime.strptime(etag_data["start"], "%Y-%m-%d").replace(day=1)
+                with ReportManifestDBAccessor() as manifest_accessor:
+                    assembly_id = "|".join([str(etag_data["start"]), str(etag_data["end"]), str(self._provider_uuid)])
+                    manifest = manifest_accessor.get_manifest(assembly_id, self._provider_uuid)
+                if manifest:
+                    continue
+                etag = etag_key
+                break
+            if not etag:
                 continue
-            etag = etag_key
-            break
-        if not etag:
-            return {}
-        dh = DateHelper()
-        start_date = dh.invoice_month_start(str(invoice_month))
-        end_date = self.file_mapping[invoice_month][etag]["end"]
-        file_names = [self.file_mapping[invoice_month][etag]["filename"]]
-        manifest_data = {
-            "assembly_id": assembly_id,
-            "compression": UNCOMPRESSED,
-            "start_date": start_date,
-            "end_date": end_date,  # inclusive end date
-            "file_names": file_names,
-        }
-        return manifest_data
+            file_names = [self.file_mapping[invoice_month][etag]["filename"]]
+            manifest_data = {
+                "assembly_id": assembly_id,
+                "bill_date": bill_date,
+                "compression": UNCOMPRESSED,
+                "files": file_names,
+            }
+            manifest_list.append(manifest_data)
+        return manifest_list
 
     def get_local_file_for_report(self, report):
         """
@@ -194,7 +187,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
         LOG.info(log_json(self.request_id, msg, self.context))
         dh = DateHelper()
 
-        file_names = create_daily_archives(
+        file_names, date_range = create_daily_archives(
             self.request_id,
             self.account,
             self._provider_uuid,
@@ -205,7 +198,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.context,
         )
 
-        return full_local_path, etag, dh.today, file_names, {}
+        return full_local_path, etag, dh.today, file_names, date_range
 
     def _get_local_file_path(self, key, etag):
         """

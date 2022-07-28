@@ -71,7 +71,16 @@ class MockError(KafkaError):
 class MockMessage:
     """Test class for kafka msg."""
 
-    def __init__(self, topic="mocked-topic", url="http://unreal", value_dict={}, offset=50, partition=0, error=None):
+    def __init__(
+        self,
+        topic="mocked-topic",
+        url="http://unreal",
+        value_dict={},
+        offset=50,
+        partition=0,
+        error=None,
+        service=None,
+    ):
         """Initialize Msg."""
         if error:
             assert isinstance(error, MockError)
@@ -82,6 +91,10 @@ class MockMessage:
         value_dict.update({"url": url})
         value_str = json.dumps(value_dict)
         self._value = value_str.encode("utf-8")
+        if service:
+            self._headers = (("service", bytes(service, encoding="utf-8")),)
+        else:
+            self._headers = (("service", bytes("hccm", encoding="utf-8")),)
 
     def error(self):
         return self._error
@@ -97,6 +110,9 @@ class MockMessage:
 
     def value(self):
         return self._value
+
+    def headers(self):
+        return self._headers
 
 
 class MockKafkaConsumer:
@@ -359,8 +375,13 @@ class KafkaMsgHandlerTest(MasuTestCase):
     @patch("masu.external.kafka_msg_handler.close_and_set_db_connection")
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
-        hccm_msg = MockMessage(Config.HCCM_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
-        advisor_msg = MockMessage("platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate")
+        hccm_msg = MockMessage(Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
+        advisor_msg = MockMessage(
+            Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate", service="advisor"
+        )
+        other_advisor_msg = MockMessage(
+            "platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate", service="advisor"
+        )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
@@ -372,6 +393,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         # Verify that when None status is returned for non-hccm messages (we don't confirm these)
         self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None, None))
+        self.assertEqual(msg_handler.handle_message(other_advisor_msg), (None, None, None))
 
         # Verify that when extract_payload has a OperationalError that KafkaMessageError is raised
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=OperationalError):

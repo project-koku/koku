@@ -29,7 +29,8 @@ class SourcesTasksTest(TestCase):
         super().setUpClass()
         post_save.disconnect(storage_callback, sender=Sources)
         account = "12345"
-        IdentityHeaderMiddleware.create_customer(account)
+        org_id = "3333333"
+        IdentityHeaderMiddleware.create_customer(account, org_id)
 
     def setUp(self):
         """Setup the test method."""
@@ -42,7 +43,7 @@ class SourcesTasksTest(TestCase):
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "fake-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 10,
             "pending_delete": True,
         }
@@ -55,7 +56,7 @@ class SourcesTasksTest(TestCase):
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "fake-local-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 11,
         }
 

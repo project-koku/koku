@@ -36,7 +36,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         data_frame.to_parquet(self.output_file, allow_truncated_timestamps=True, coerce_timestamps="ms")
 
         self.manifest_id = 1
-        self.account = 10001
+        self.account = "org1234567"
         self.s3_path = self.temp_dir
         self.provider_uuid = str(uuid.uuid4())
         self.local_parquet = self.output_file
@@ -72,7 +72,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
 
     def test_schema_name(self):
         """Test the account to schema name generation."""
-        expected_schema_name = f"acct{10001}"
+        expected_schema_name = "org1234567"
         self.assertEqual(self.processor._schema_name, expected_schema_name)
 
     def test_generate_column_list(self):
@@ -145,7 +145,7 @@ class ReportParquetProcessorBaseTest(MasuTestCase):
         """Test that hive partitions are synced."""
         expected_log = (
             "INFO:masu.processor.report_parquet_processor_base:"
-            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS acct{self.account}"
+            f"Create Trino/Hive schema SQL: CREATE SCHEMA IF NOT EXISTS {self.account}"
         )
         with self.assertLogs("masu.processor.report_parquet_processor_base", level="INFO") as logger:
             self.processor.create_schema()

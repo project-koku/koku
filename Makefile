@@ -328,8 +328,8 @@ docker-down:
 	$(PREFIX) make clear-testing
 
 docker-down-db:
-	$(DOCKER_COMPOSE) rm -s -v -f db
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
+	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server

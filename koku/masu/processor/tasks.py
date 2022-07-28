@@ -151,7 +151,14 @@ def get_report_files(  # noqa: C901
         None
 
     """
-    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    context = {}
+    if customer_name.startswith("acct"):
+        context["account"] = customer_name[4:]
+    else:
+        context["org_id"] = customer_name[3:]
+    context["provider_uuid"] = provider_uuid
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month

@@ -17,7 +17,7 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
-from sources.api import get_account_from_header
+from sources.api import get_param_from_header
 from sources.api import HEADER_X_RH_IDENTITY
 from sources.api.serializers import AdminSourcesSerializer
 from sources.config import Config
@@ -127,12 +127,12 @@ class AdminSourcesSerializerTests(IamTestCase):
             if serializer.is_valid(raise_exception=True):
                 serializer.save()
 
-    def test_negative_get_account_from_header(self):
+    def test_negative_get_param_from_header(self):
         """Test flow with out header."""
-        account = get_account_from_header(Mock(headers={}))
+        account = get_param_from_header(Mock(headers={}), "account_number")
         self.assertIsNone(account)
 
-        account = get_account_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}))
+        account = get_param_from_header(Mock(headers={HEADER_X_RH_IDENTITY: "badencoding&&&"}), "account_number")
         self.assertIsNone(account)
 
     @patch("api.provider.serializers.ProviderSerializer.get_request_info")
@@ -148,7 +148,7 @@ class AdminSourcesSerializerTests(IamTestCase):
             "authentication": {"credentials": {"role_arn": "arn:aws:iam::111111111111:role/CostManagement"}},
             "billing_source": {"data_source": {"bucket": "first-bucket"}},
             "auth_header": Config.SOURCES_FAKE_HEADER,
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 10,
         }
         with patch.object(ProviderAccessor, "cost_usage_source_ready", returns=True):
@@ -173,7 +173,7 @@ class AdminSourcesSerializerTests(IamTestCase):
                             "authentication": {"credentials": {"project_id": "test-project"}},
                             "billing_source": {"data_source": {"dataset": "first-dataset"}},
                             "auth_header": Config.SOURCES_FAKE_HEADER,
-                            "account_id": "acct10001",
+                            "account_id": "org1234567",
                             "offset": 10,
                         }
                     )
