@@ -700,8 +700,8 @@ class ReportQueryHandler(QueryHandler):
             if len(currencies) == 1 and currencies[0] == self.currency:
                 LOG.info("Bypassing the pandas total function because all currencies are the same.")
                 query_data = query_data.aggregate(**aggregates)
+                return query_data
 
-                return query_data.aggregate(**aggregates)
             columns = list(aggregates.keys())
             for col in remove_columns:
                 if col in columns:
