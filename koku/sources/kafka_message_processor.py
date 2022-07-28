@@ -8,6 +8,7 @@ import logging
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
+from kafka_utils.utils import extract_from_header
 from sources import storage
 from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
@@ -333,21 +334,6 @@ class SourceMsgProcessor(KafkaMessageProcessor):
             storage.enqueue_source_create_or_update(self.source_id)
         else:
             LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
-
-
-def extract_from_header(headers, header_type):
-    """Retrieve information from Kafka Headers."""
-    LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
-    if headers is None:
-        return
-    for header in headers:
-        if header_type in header:
-            for item in header:
-                if item == header_type:
-                    continue
-                else:
-                    return item.decode("ascii")
-    return
 
 
 def create_msg_processor(msg, cost_mgmt_id):
