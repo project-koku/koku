@@ -29,7 +29,12 @@ class ReportParquetProcessorBase:
     def __init__(self, manifest_id, account, s3_path, provider_uuid, parquet_local_path, column_types, table_name):
         self._manifest_id = manifest_id
         self._account = account
-        self._schema_name = f"acct{account}"
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
+        if account.startswith("org"):
+            self._schema_name = str(account)
+        else:
+            self._schema_name = f"acct{account}"
         self._parquet_path = parquet_local_path
         self._s3_path = s3_path
         self._provider_uuid = provider_uuid

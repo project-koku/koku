@@ -173,7 +173,7 @@ class crawlAccountHierarchyTest(MasuTestCase):
         params = {"provider_uuid": self.aws_test_provider_uuid}
         query_string = urlencode(params)
         url = reverse("crawl_account_hierarchy") + "?" + query_string
-        schema = "acct12345"
+        schema = "org3333333"
         self.tree_json["schema"] = schema
         response = self.client.post(url, self.tree_json, content_type="application/json")
         self.assertEqual(response.status_code, 200)

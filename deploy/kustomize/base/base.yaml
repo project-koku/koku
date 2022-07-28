@@ -30,6 +30,7 @@ objects:
     # Request kafka topics for your application here
     kafkaTopics:
     - topicName: platform.sources.event-stream
+    - topicName: platform.upload.announce
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
@@ -81,6 +82,34 @@ objects:
           value: ${DBM_INVOCATION}
         - name: _MIGRATION_DIRECTIVE
           value: ${_MIGRATION_DIRECTIVE}
+    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
+      podSpec:
+        image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
+        command:
+          - ./org-id-column-populator
+          - -C
+          - -a
+          - account_id
+          - -o
+          - org_id
+          - -t
+          - ${ORG_ID_TRANSLATE_TARGET}
+          - --ean-translator-addr
+          - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
+          - --prometheus-push-addr
+          - ${PROMETHEUS_PUSHGATEWAY}
+        env:
+          - name: LOG_FORMAT
+            value: ${POPULATOR_LOG_FORMAT}
+          - name: LOG_BATCH_FREQUENCY
+            value: '1s'
+        resources:
+          limits:
+            cpu: 300m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 512Mi
 
     # The bulk of your App. This is where your running apps will live
     deployments:
@@ -97,6 +126,14 @@ objects:
     appName: koku
     jobs:
       - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
+- apiVersion: cloud.redhat.com/v1alpha1
+  kind: ClowdJobInvocation
+  metadata:
+    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
+  spec:
+    appName: koku
+    jobs:
+      - org-id-populator-${POPULATOR_RUN_NUMBER}
 
 - apiVersion: v1
   kind: Secret # For ephemeral/local environment only
@@ -436,3 +473,18 @@ parameters:
 - name: RBAC_CACHE_TIMEOUT
   displayName: RBAC_CACHE_TIMEOUT
   value: "300"
+
+- name: ORG_ID_TRANSLATE_TARGET
+  value: api_customer
+- name: TENANT_TRANSLATOR_HOST
+  required: true
+- name: TENANT_TRANSLATOR_PORT
+  value: '8892'
+- name: POPULATOR_LOG_FORMAT
+  value: text
+- name: POPULATOR_IMAGE
+  value: quay.io/cloudservices/tenant-utils
+- name: POPULATOR_IMAGE_TAG
+  value: latest
+- name: POPULATOR_RUN_NUMBER # in case the populator needs to be run more than once increment this parameter to get a new job
+  value: "1"

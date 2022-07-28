@@ -8,6 +8,7 @@ import logging
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Provider
+from kafka_utils.utils import extract_from_header
 from sources import storage
 from sources.config import Config
 from sources.sources_http_client import AUTH_TYPES
@@ -29,6 +30,7 @@ KAFKA_SOURCE_UPDATE = "Source.update"
 KAFKA_SOURCE_DESTROY = "Source.destroy"
 KAFKA_HDR_RH_IDENTITY = "x-rh-identity"
 KAFKA_HDR_ACCOUNT_NUMBER = "x-rh-sources-account-number"
+KAFKA_HDR_ORG_ID = "x-rh-sources-org-id"
 KAFKA_HDR_EVENT_TYPE = "event_type"
 
 SOURCES_OCP_SOURCE_NAME = "openshift"
@@ -61,8 +63,8 @@ class SourcesMessageError(ValidationError):
 class SourceDetails:
     """Sources Details object."""
 
-    def __init__(self, auth_header, source_id, account_id):
-        sources_network = SourcesHTTPClient(auth_header, source_id, account_id)
+    def __init__(self, auth_header, source_id, account_id, org_id):
+        sources_network = SourcesHTTPClient(auth_header, source_id, account_id, org_id)
         details = sources_network.get_source_details()
         self.name = details.get("name")
         self.source_type_id = int(details.get("source_type_id"))
@@ -91,8 +93,11 @@ class KafkaMessageProcessor:
         self.account_number = extract_from_header(msg.headers(), KAFKA_HDR_ACCOUNT_NUMBER) or decoded_header.get(
             "identity", {}
         ).get("account_number")
-        if None in (self.account_number, self.auth_header):
-            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or account-number: {msg.headers()}"
+        self.org_id = extract_from_header(msg.headers(), KAFKA_HDR_ORG_ID) or decoded_header.get("identity", {}).get(
+            "org_id"
+        )
+        if None in (self.org_id, self.auth_header):
+            msg = f"[KafkaMessageProcessor] missing `{KAFKA_HDR_RH_IDENTITY}` or  org_id: {msg.headers()}"
             LOG.warning(msg)
             raise SourcesMessageError(msg)
         self.source_id = None
@@ -127,7 +132,7 @@ class KafkaMessageProcessor:
         return SourcesHTTPClient(self.auth_header, self.source_id, self.account_number)
 
     def get_source_details(self):
-        return SourceDetails(self.auth_header, self.source_id, self.account_number)
+        return SourceDetails(self.auth_header, self.source_id, self.account_number, self.org_id)
 
     def save_sources_details(self):
         """
@@ -235,7 +240,9 @@ class ApplicationMsgProcessor(KafkaMessageProcessor):
         """Process the message."""
         if self.event_type in (KAFKA_APPLICATION_CREATE,):
             LOG.debug(f"[ApplicationMsgProcessor] creating source for source_id: {self.source_id}")
-            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
+            storage.create_source_event(
+                self.source_id, self.account_number, self.org_id, self.auth_header, self.offset
+            )
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_APPLICATION_CREATE,):
@@ -281,7 +288,9 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
         """Process the message."""
         if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
             LOG.debug(f"[AuthenticationMsgProcessor] creating source for source_id: {self.source_id}")
-            storage.create_source_event(self.source_id, self.account_number, self.auth_header, self.offset)
+            storage.create_source_event(
+                self.source_id, self.account_number, self.org_id, self.auth_header, self.offset
+            )
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
@@ -325,21 +334,6 @@ class SourceMsgProcessor(KafkaMessageProcessor):
             storage.enqueue_source_create_or_update(self.source_id)
         else:
             LOG.info(f"[SourceMsgProcessor] source_id {self.source_id} not updated. No changes detected.")
-
-
-def extract_from_header(headers, header_type):
-    """Retrieve information from Kafka Headers."""
-    LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
-    if headers is None:
-        return
-    for header in headers:
-        if header_type in header:
-            for item in header:
-                if item == header_type:
-                    continue
-                else:
-                    return item.decode("ascii")
-    return
 
 
 def create_msg_processor(msg, cost_mgmt_id):

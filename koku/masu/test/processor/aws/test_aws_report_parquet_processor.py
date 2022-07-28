@@ -26,7 +26,7 @@ class AWSReportProcessorParquetTest(MasuTestCase):
         super().setUp()
 
         self.manifest_id = 1
-        self.account = 10001
+        self.account = "org1234567"
         self.s3_path = "/s3/path"
         self.local_parquet = "/local/path"
         self.processor = AWSReportParquetProcessor(
