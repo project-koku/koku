@@ -21,7 +21,7 @@ class AWSAccountAliasTest(MasuTestCase):
     def test_initializer(self):
         """Test AWSAccountAlias initializer."""
         arn = "roleArn"
-        schema = "acct10001"
+        schema = "org1234567"
         accessor = AWSAccountAlias(arn, schema)
         self.assertEqual(accessor._role_arn, arn)
         self.assertEqual(accessor._schema, schema)
@@ -32,10 +32,10 @@ class AWSAccountAliasTest(MasuTestCase):
         """Test updating alias when none is set."""
         mock_get_alias.return_value = (self.account_id, None)
         role_arn = f"arn:aws:iam::{self.account_id}:role/CostManagement"
-        accessor = AWSAccountAlias(role_arn, "acct10001")
+        accessor = AWSAccountAlias(role_arn, "org1234567")
         accessor.update_account_alias()
 
-        db_access = AccountAliasAccessor(self.account_id, "acct10001")
+        db_access = AccountAliasAccessor(self.account_id, "org1234567")
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertIsNone(db_access._obj.account_alias)
 
@@ -46,16 +46,16 @@ class AWSAccountAliasTest(MasuTestCase):
         alias = "hccm-alias"
         mock_get_alias.return_value = (self.account_id, alias)
         role_arn = f"arn:aws:iam::{self.account_id}:role/CostManagement"
-        accessor = AWSAccountAlias(role_arn, "acct10001")
+        accessor = AWSAccountAlias(role_arn, "org1234567")
         accessor.update_account_alias()
 
-        db_access = AccountAliasAccessor(self.account_id, "acct10001")
+        db_access = AccountAliasAccessor(self.account_id, "org1234567")
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertEqual(db_access._obj.account_alias, alias)
 
         mock_get_alias.return_value = (self.account_id, None)
         accessor.update_account_alias()
-        db_access = AccountAliasAccessor(self.account_id, "acct10001")
+        db_access = AccountAliasAccessor(self.account_id, "org1234567")
         self.assertIsNone(db_access._obj.account_alias)
 
     @patch("masu.external.accounts.labels.aws.aws_account_alias.get_account_names_by_organization")
@@ -72,14 +72,14 @@ class AWSAccountAliasTest(MasuTestCase):
         ]
         mock_get_account_names.return_value = account_names
         role_arn = f"arn:aws:iam::{self.account_id}:role/CostManagement"
-        accessor = AWSAccountAlias(role_arn, "acct10001")
+        accessor = AWSAccountAlias(role_arn, "org1234567")
         accessor.update_account_alias()
 
-        db_access = AccountAliasAccessor(self.account_id, "acct10001")
+        db_access = AccountAliasAccessor(self.account_id, "org1234567")
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertEqual(db_access._obj.account_alias, alias)
 
-        member_db_access = AccountAliasAccessor(member_account_id, "acct10001")
+        member_db_access = AccountAliasAccessor(member_account_id, "org1234567")
         self.assertEqual(member_db_access._obj.account_id, member_account_id)
         self.assertEqual(member_db_access._obj.account_alias, member_account_name)
 
@@ -93,13 +93,13 @@ class AWSAccountAliasTest(MasuTestCase):
         account_names = [{"id": self.account_id, "name": alias}, {"id": member_account_id}]
         mock_get_account_names.return_value = account_names
         role_arn = f"arn:aws:iam::{self.account_id}:role/CostManagement"
-        accessor = AWSAccountAlias(role_arn, "acct10001")
+        accessor = AWSAccountAlias(role_arn, "org1234567")
         accessor.update_account_alias()
 
-        db_access = AccountAliasAccessor(self.account_id, "acct10001")
+        db_access = AccountAliasAccessor(self.account_id, "org1234567")
         self.assertEqual(db_access._obj.account_id, self.account_id)
         self.assertEqual(db_access._obj.account_alias, alias)
 
-        member_db_access = AccountAliasAccessor(member_account_id, "acct10001")
+        member_db_access = AccountAliasAccessor(member_account_id, "org1234567")
         self.assertEqual(member_db_access._obj.account_id, member_account_id)
         self.assertEqual(member_db_access._obj.account_alias, member_account_id)

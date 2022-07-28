@@ -126,7 +126,7 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
         self.path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name},
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
             self.user_data,
             create_tenant=True,
             path=self.path,
@@ -182,7 +182,7 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             "delta": "usage",
         }
         context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name},
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
             self._create_user_data(),
             create_tenant=True,
             path="",

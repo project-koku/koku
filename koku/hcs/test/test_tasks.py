@@ -26,6 +26,7 @@ class TestHCSTasks(HCSTestCase):
         cls.today = DateHelper().today
         cls.yesterday = cls.today - timedelta(days=1)
         cls.tracing_id = str(uuid.uuid4())
+        cls.account_based_schema = "acct10001"
 
     def test_get_report_dates(self, mock_ehp, mock_report):
         """Test with start and end dates provided"""
@@ -109,7 +110,7 @@ class TestHCSTasks(HCSTestCase):
         mock_ehp.return_value = True
         collect_hcs_report_data("10001", self.aws_provider_type, str(self.aws_provider.uuid), self.yesterday)
 
-        self.assertEqual("acct10001", self.schema)
+        self.assertEqual("org1234567", self.schema)
 
     @patch("hcs.tasks.collect_hcs_report_data")
     def test_get_report_with_manifest(self, rd, mock_ehp, mock_report):
@@ -315,6 +316,19 @@ class TestHCSTasks(HCSTestCase):
 
         with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
             collect_hcs_report_finalization(schema_name="10001")
+
+            self.assertIn(f"provided schema_name: {self.account_based_schema}", _logs.output[0])
+            self.assertIn(f"schema_name: {self.account_based_schema}", _logs.output[1])
+
+    @patch("hcs.tasks.collect_hcs_report_data")
+    def test_hcs_report_finalization_schema_org_schema(self, rd, mock_ehp, mock_report):
+        """Test hcs finalization for a given schema_name when no 'acct' prefix is given"""
+        from hcs.tasks import collect_hcs_report_finalization
+
+        mock_ehp.return_value = True
+
+        with self.assertLogs("hcs.tasks", "DEBUG") as _logs:
+            collect_hcs_report_finalization(schema_name="org1234567")
 
             self.assertIn(f"provided schema_name: {self.schema}", _logs.output[0])
             self.assertIn(f"schema_name: {self.schema}", _logs.output[1])
