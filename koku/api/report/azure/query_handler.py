@@ -152,17 +152,17 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
-            query_data = query.annotate(**self.annotations)
+            og_query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
-                query_group_by, query_data, skip_columns, self.report_annotations
+                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data
             )
 
             if self._limit and query_data:

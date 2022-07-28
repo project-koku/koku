@@ -568,7 +568,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             LOG.debug(f"Using query table: {query_table}")
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
-            query_data = query.annotate(**self.annotations)
+            og_query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
             initial_group_by = query_group_by + [self._mapper.cost_units_key]
@@ -581,7 +581,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                 annotations.pop("count", None)
                 annotations.pop("count_units", None)
             annotations_keys = list(self.report_annotations.keys())
-            query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             if "account" in query_group_by:
                 query_data = query_data.annotate(
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
@@ -594,7 +594,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             remove_columns = ["count", "usage"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
-                query_group_by, query_data, skip_columns, annotations_keys, remove_columns
+                query_group_by, query_data, skip_columns, annotations_keys, og_query_data, remove_columns
             )
 
             if self._limit and query_data and not org_unit_applied:
@@ -681,7 +681,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             aggregates.pop("count", None)
 
         counts = None
-
         if "count" in aggregates:
             resource_ids = (
                 query_data.annotate(resource_id=Func(F("resource_ids"), function="unnest"))
