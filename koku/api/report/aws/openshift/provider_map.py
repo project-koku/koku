@@ -5,7 +5,6 @@
 """Provider Mapper for OCP on AWS Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
-from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max

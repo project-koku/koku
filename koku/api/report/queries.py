@@ -609,7 +609,7 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def pandas_agg_for_currency(
+    def pandas_agg_for_currency(  # noqa: C901
         self, query_group_by, query_data, skip_columns, annotations, og_query, remove_columns=[]
     ):
         """
