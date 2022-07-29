@@ -27,7 +27,7 @@ from django.utils.deprecation import MiddlewareMixin
 from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
-from django_tenants.middleware import TenantMainMiddleware
+from django_tenants.middleware import TenantMiddleware
 from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
@@ -133,7 +133,7 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             return paginator.get_paginated_response()
 
 
-class KokuTenantMiddleware(TenantMainMiddleware):
+class KokuTenantMiddleware(TenantMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
@@ -175,7 +175,7 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             DB_CONNECTION_ERRORS_COUNTER.inc()
             return HttpResponseFailedDependency({"source": "Database", "exception": err})
 
-    def get_tenant(self, model, hostname, request):
+    def no_tenant_found(self, request, hostname):
         """Override the tenant selection logic."""
         schema_name = "public"
         tenant_username = request.user.username
@@ -184,13 +184,13 @@ class KokuTenantMiddleware(TenantMainMiddleware):
             if not is_no_auth(request):
                 schema_name = request.user.customer.schema_name
 
-            tenant = model.objects.filter(schema_name=schema_name).first()
+            tenant = Tenant.objects.filter(schema_name=schema_name).first()
             if tenant and schema_name != "public":
                 with KokuTenantMiddleware.tenant_lock:
                     KokuTenantMiddleware.tenant_cache[tenant_username] = tenant
                     LOG.debug(f"Tenant added to cache: {tenant_username}")
             elif not tenant:
-                tenant, __ = model.objects.get_or_create(schema_name="public")
+                tenant, __ = Tenant.objects.get_or_create(schema_name="public")
 
         return tenant
 

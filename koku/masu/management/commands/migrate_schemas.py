@@ -22,6 +22,16 @@ class Command(migrate_schemas.Command):
 
     requires_system_checks = []
 
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        parser.add_argument(
+            "--skip-checks",
+            action="store_true",
+            dest="skip_checks",
+            default=False,
+            help="Skip the checks.",
+        )
+
     def handle(self, *args, **options):
         super(migrate_schemas.Command, self).handle(*args, **options)
         self.PUBLIC_SCHEMA_NAME = get_public_schema_name()

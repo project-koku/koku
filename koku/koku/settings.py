@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "querystring_parser",
     "django_prometheus",
+    "django_tenants",
     # local apps
     "api",
     "hcs",
@@ -82,13 +83,13 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "django_tenants",
 ]
 
 SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 
 SHARED_APPS = (
-    "django_tenants" "api",
+    "django_tenants",
+    "api",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
