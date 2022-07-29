@@ -246,7 +246,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                     new_user = serializer.save()
 
                 UNIQUE_USER_COUNTER.labels(account=customer.account_id, user=username).inc()
-                LOG.info("Created new user %s for customer(account_id %s).", username, customer.account_id)
+                LOG.info("Created new user %s for customer(org_id %s).", username, customer.org_id)
         except (IntegrityError, ValidationError):
             new_user = User.objects.get(username=username)
         return new_user

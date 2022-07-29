@@ -22,6 +22,7 @@ from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
+from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
@@ -43,6 +44,7 @@ urlpatterns = [
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
+    path("notification/", notification, name="notification"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),

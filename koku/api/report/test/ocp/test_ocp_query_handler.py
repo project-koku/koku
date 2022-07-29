@@ -10,6 +10,7 @@ from decimal import Decimal
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import Max
 from django.db.models import Sum
 from django.db.models.expressions import OrderBy
@@ -728,3 +729,15 @@ class OCPReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[project]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPCostView)
+
+    def test_ocp_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = DateHelper().today.date()
+        yesterday_month = yesterday - relativedelta(months=2)
+        url = f"?group_by[project]=*&order_by[cost]=desc&order_by[date]={yesterday_month}&end_date={yesterday}&start_date={yesterday_month}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPCostView)
+        handler = OCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)

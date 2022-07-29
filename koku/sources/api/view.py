@@ -163,16 +163,16 @@ class SourcesViewSet(*MIXIN_LIST):
     def get_queryset(self):
         """Get a queryset.
 
-        Restricts the returned Sources to the associated account,
-        by filtering against a `account_id` in the request.
+        Restricts the returned Sources to the associated org_id,
+        by filtering against a `org_id` in the request.
         """
         queryset = Sources.objects.none()
-        account_id = self.request.user.customer.account_id
+        org_id = self.request.user.customer.org_id
         try:
             excludes = self.get_excludes(self.request)
-            queryset = Sources.objects.filter(account_id=account_id).exclude(source_type__in=excludes)
+            queryset = Sources.objects.filter(org_id=org_id).exclude(source_type__in=excludes)
         except Sources.DoesNotExist:
-            LOG.error("No sources found for account id %s.", account_id)
+            LOG.error("No sources found for org id %s.", org_id)
 
         return queryset
 

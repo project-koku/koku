@@ -27,17 +27,24 @@ HCS_EXCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
 )
 
 # any additional queues should be added to this list
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover #noqa
-    """Helper to determine if source is enabled for HCS."""
-    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
+def check_schema_name(schema_name: str) -> str:
+    if schema_name and not schema_name.startswith(("acct", "org")):
         schema_name = f"acct{schema_name}"
 
+    return schema_name
+
+
+def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover #noqa
+    """Helper to determine if source is enabled for HCS."""
+    schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
@@ -108,8 +115,7 @@ def collect_hcs_report_data(
     Returns:
         None
     """
-    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
-        schema_name = f"acct{schema_name}"
+    schema_name = check_schema_name(schema_name)
 
     if start_date is None:
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
@@ -162,8 +168,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if schema_name and not schema_name.startswith("acct") and not schema_name.startswith("org"):
-        schema_name = f"acct{schema_name}"
+    schema_name = check_schema_name(schema_name)
 
     if provider_type is not None and provider_uuid is not None:
         LOG.warning(log_json(tracing_id, "'provider_type' and 'provider_uuid' are not supported in the same request"))
