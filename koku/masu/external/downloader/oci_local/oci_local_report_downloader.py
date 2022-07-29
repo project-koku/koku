@@ -129,7 +129,7 @@ class OCILocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
 
         """
         dh = DateHelper()
-        start_date = dh.today
+        start_date = dh.this_month_start
         assembly_id = ":".join([str(self._provider_uuid), str(start_date)])
         file_names = self.files_list
         manifest_data = {
