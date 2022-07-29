@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "cf002004105f4d197ae1b63f4e2673cb7ac1df71d77e95d744c71de05f76565d"
+            "sha256": "a48be9c8b557801b4974360e26a1e78ce8f09dfdb5ed8aefce0818df48004d25"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -2383,11 +2383,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:a1bb049b2bc7a1d568ee95047f5e8e328229a94e8585ae72174f25a93fac35a6",
-                "sha256:de3149cc175feac38e2c7f322913fbd720324b68fa1a39be1fe466d6bc9e00b0"
+                "sha256:15fd534f61f31f7334fd3d3216da757114c45d7700d206dece4e059b508b2b6c",
+                "sha256:1c3b5989700b1a50082994248f1e23d95f05487b9b9edeacf2ef6a60d1f2b02f"
             ],
             "index": "pypi",
-            "version": "==2.9.5"
+            "version": "==2.9.8"
         },
         "kubernetes": {
             "hashes": [
