@@ -1325,6 +1325,19 @@ class OCPGCPQueryHandlerTest(IamTestCase):
         total = query_output.get("total")
         self.assertEqual(total.get("cost", {}).get("total", {}).get("value", 0), current_totals.get("cost_total", 1))
 
+    def test_ocp_gcp_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = self.dh.yesterday.date()
+        yesterday_month = self.dh.yesterday - relativedelta(months=2)
+
+        url = f"?group_by[service]=*&order_by[cost]=desc&order_by[date]={yesterday_month.date()}&end_date={yesterday}&start_date={yesterday_month.date()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPGCPCostView)
+        handler = OCPGCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
 
 class OCPGCPReportQueryTestCurrency(IamTestCase):
     """Tests currency for report queries."""

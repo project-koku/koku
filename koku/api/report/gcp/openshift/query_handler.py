@@ -120,8 +120,11 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
-                    order_date = param
-                    break
+                    # Checks to see if the date is in the query_data
+                    if any(d["date"] == param for d in query_data):
+                        # Set order_date to a valid date
+                        order_date = param
+                        break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
                 sort_term = self._get_group_by()[0]
