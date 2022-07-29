@@ -11,6 +11,7 @@ import uuid
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
@@ -39,6 +40,10 @@ class NotificationService:
         Returns:
             notification message
         """
+        provider_uuid = account.get("provider_uuid")
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            name = provider_accessor.get_provider_name()
+
         notification_json = {
             "id": self.msg_uuid,
             "bundle": "openshift",
@@ -47,9 +52,9 @@ class NotificationService:
             "timestamp": self.timestamp,
             "account_id": account.get("schema_name"),
             "context": {
-                "source_id": str(account.get("provider_uuid")),
-                "source_name": account.get("name"),
-                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(account.get('provider_uuid'))}",
+                "source_id": str(provider_uuid),
+                "source_name": name,
+                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(provider_uuid)}",
             },
             "events": [
                 {
@@ -62,7 +67,7 @@ class NotificationService:
             ],
         }
         msg = bytes(json.dumps(notification_json), "utf-8")
-        LOG.info(msg)
+        LOG.info(f"Notification kafka message: {msg}")
         return msg
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()
