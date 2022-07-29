@@ -27,7 +27,7 @@ from django.utils.deprecation import MiddlewareMixin
 from django_prometheus.middleware import Metrics
 from django_prometheus.middleware import PrometheusAfterMiddleware
 from django_prometheus.middleware import PrometheusBeforeMiddleware
-from django_tenants.middleware import TenantMiddleware
+from django_tenants.middleware import TenantMainMiddleware
 from django_tenants.utils import schema_exists
 from prometheus_client import Counter
 from rest_framework.exceptions import ValidationError
@@ -133,7 +133,7 @@ class KokuTenantSchemaExistsMiddleware(MiddlewareMixin):
             return paginator.get_paginated_response()
 
 
-class KokuTenantMiddleware(TenantMiddleware):
+class KokuTenantMiddleware(TenantMainMiddleware):
     """A subclass of the Django-tenant-schemas tenant middleware.
     Determines which schema to use based on the customer's schema
     found from the user tied to a request.
@@ -192,7 +192,7 @@ class KokuTenantMiddleware(TenantMiddleware):
             elif not tenant:
                 tenant, __ = Tenant.objects.get_or_create(schema_name="public")
 
-        return tenant
+        request.tenant = tenant
 
 
 class IdentityHeaderMiddleware(MiddlewareMixin):
