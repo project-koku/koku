@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Interactions with the notifications service."""
+import datetime
 import json
 import logging
 import uuid
@@ -10,7 +11,7 @@ import uuid
 from kafka_utils.utils import delivery_callback
 from kafka_utils.utils import get_producer
 from masu.config import Config
-from masu.external.date_accessor import DateAccessor
+from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 
 LOG = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class NotificationService:
     def __init__(self):
         """Initialize Notifications class"""
         self.msg_uuid = str(uuid.uuid4())
-        self.timestamp = str(DateAccessor().today())
+        self.timestamp = datetime.datetime.utcnow().isoformat()
         # TODO Protecting your Kafka messages against duplicate processing
         # add header RecordHeaders().add("rh-message-id", messageId)
         # encoded_id = msg_uuid.encode()
@@ -39,6 +40,10 @@ class NotificationService:
         Returns:
             notification message
         """
+        provider_uuid = account.get("provider_uuid")
+        with ProviderDBAccessor(provider_uuid) as provider_accessor:
+            name = provider_accessor.get_provider_name()
+
         notification_json = {
             "id": self.msg_uuid,
             "bundle": "openshift",
@@ -46,11 +51,10 @@ class NotificationService:
             "event_type": event_type,
             "timestamp": self.timestamp,
             "account_id": account.get("schema_name"),
-            "org_id": account.get("org_id"),
             "context": {
-                "source_id": str(account.get("provider_uuid")),
-                "source_name": account.get("name"),
-                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(account.get('provider_uuid'))}",
+                "source_id": str(provider_uuid),
+                "source_name": name,
+                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(provider_uuid)}",
             },
             "events": [
                 {
@@ -63,6 +67,7 @@ class NotificationService:
             ],
         }
         msg = bytes(json.dumps(notification_json), "utf-8")
+        LOG.info(f"Notification kafka message: {msg}")
         return msg
 
     @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()

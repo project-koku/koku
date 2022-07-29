@@ -27,6 +27,8 @@ HCS_EXCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
 )
 
 # any additional queues should be added to this list

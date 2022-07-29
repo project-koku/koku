@@ -6,6 +6,7 @@ INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_s
     payer_tenant_id,
     product_service,
     region,
+    instance_type,
     resource_ids,
     resource_count,
     usage_amount,
@@ -28,6 +29,10 @@ SELECT uuid() as uuid,
     cast(payer_tenant_id AS varchar(80)),
     cast(product_service AS varchar(50)),
     cast(region AS varchar(50)),
+    CASE
+        WHEN product_service = 'COMPUTE' THEN instance_type
+        ELSE NULL
+    END AS instance_type,
     resource_ids,
     cast(resource_count AS integer),
     cast(CASE
@@ -63,6 +68,7 @@ FROM (
         c.lineitem_tenantid as payer_tenant_id,
         nullif(c.product_service, '') as product_service,
         nullif(c.product_region, '') as region,
+        nullif(u.product_resource, '') as instance_type,
         array_agg(DISTINCT c.product_resourceid) as resource_ids,
         count(DISTINCT c.product_resourceid) as resource_count,
         sum(u.usage_consumedquantity) as usage_amount,
@@ -85,6 +91,7 @@ FROM (
         c.product_region,
         c.tags,
         c.cost_mycost,
+        u.product_resource,
         u.usage_consumedquantityunits
 ) AS ds
 CROSS JOIN cte_pg_enabled_keys AS pek
