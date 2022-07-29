@@ -12,7 +12,7 @@ from decimal import DivisionByZero
 from decimal import InvalidOperation
 
 from django.db.models import F
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap

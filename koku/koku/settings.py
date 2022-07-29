@@ -82,14 +82,13 @@ INSTALLED_APPS = [
     "reporting_common",
     "cost_models",
     "sources",
-    "tenant_schemas",
+    "django_tenants",
 ]
 
-SILENCED_SYSTEM_CHECKS = ["tenant_schemas.W001"]
+SILENCED_SYSTEM_CHECKS = ["django_tenants.W001"]
 
 SHARED_APPS = (
-    "tenant_schemas",
-    "api",
+    "django_tenants" "api",
     "masu",
     "reporting_common",
     "django.contrib.contenttypes",
@@ -102,7 +101,7 @@ SHARED_APPS = (
 
 TENANT_APPS = ("reporting", "cost_models")
 
-DEFAULT_FILE_STORAGE = "tenant_schemas.storage.TenantFileSystemStorage"
+DEFAULT_FILE_STORAGE = "django_tenants.storage.TenantFileSystemStorage"
 
 ACCOUNT_ENHANCED_METRICS = ENVIRONMENT.bool("ACCOUNT_ENHANCED_METRICS", default=False)
 
@@ -207,8 +206,8 @@ if "test" in sys.argv:
         "default": {
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
         },
         "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
@@ -218,8 +217,8 @@ else:
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
-            "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "KEY_FUNCTION": "django_tenants.cache.make_key",
+            "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -248,7 +247,7 @@ if ENVIRONMENT.bool("CACHED_VIEWS_DISABLED", default=False):
     CACHES.update({"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
 DATABASES = {"default": database.config()}
 
-DATABASE_ROUTERS = ("tenant_schemas.routers.TenantSyncRouter",)
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 
 # Hive DB variables
 HIVE_DATABASE_USER = ENVIRONMENT.get_value("HIVE_DATABASE_USER", default="hive")
@@ -258,6 +257,7 @@ HIVE_PARTITION_DELETE_RETRIES = 5
 
 #
 TENANT_MODEL = "api.Tenant"
+TENANT_DOMAIN_MODEL = "api.Domain"
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 

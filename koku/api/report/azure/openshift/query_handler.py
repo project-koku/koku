@@ -7,7 +7,7 @@ import copy
 import logging
 
 from django.db.models import F
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Provider
 from api.report.azure.openshift.provider_map import OCPAzureProviderMap

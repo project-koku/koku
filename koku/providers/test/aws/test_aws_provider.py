@@ -10,7 +10,7 @@ from unittest.mock import patch
 from botocore.exceptions import ClientError
 from botocore.exceptions import ParamValidationError
 from django.test import TestCase
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from faker import Faker
 from rest_framework.exceptions import ValidationError
 

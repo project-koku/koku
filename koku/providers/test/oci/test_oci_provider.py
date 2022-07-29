@@ -6,7 +6,7 @@
 from unittest.mock import patch
 
 from django.test import TestCase
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from faker import Faker
 from oci.exceptions import ClientError
 from oci.exceptions import ServiceError

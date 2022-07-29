@@ -13,8 +13,8 @@ import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django_tenants.utils import schema_context
 from faker import Faker
-from tenant_schemas.utils import schema_context
 
 from api.provider.models import Provider
 from masu.config import Config

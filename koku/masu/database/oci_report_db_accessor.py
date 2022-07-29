@@ -9,8 +9,8 @@ import uuid
 
 from dateutil.parser import parse
 from django.db.models import F
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config

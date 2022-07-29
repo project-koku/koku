@@ -13,7 +13,7 @@ from django.conf import settings
 from django.db import connections
 from django.test.runner import DiscoverRunner
 from django.test.utils import get_unique_databases_and_mirrors
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.models import Customer
 from api.models import Provider

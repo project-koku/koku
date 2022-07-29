@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from django.utils.decorators import method_decorator
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from django.views.decorators.vary import vary_on_headers
 from pint.errors import DimensionalityError
 from pint.errors import UndefinedUnitError

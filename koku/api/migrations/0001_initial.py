@@ -3,7 +3,7 @@ import os
 import uuid
 
 import django.db.models.deletion
-import tenant_schemas.postgresql_backend.base
+import django_tenants.postgresql_backend.base
 from django.db import migrations
 from django.db import models
 
@@ -130,7 +130,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         max_length=63,
                         unique=True,
-                        validators=[tenant_schemas.postgresql_backend.base._check_schema_name],
+                        validators=[django_tenants.postgresql_backend.base._check_schema_name],
                     ),
                 ),
             ],

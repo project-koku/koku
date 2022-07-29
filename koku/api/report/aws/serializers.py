@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """AWS Report Serializers."""
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 

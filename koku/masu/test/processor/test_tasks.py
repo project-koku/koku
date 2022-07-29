@@ -24,7 +24,7 @@ from dateutil import relativedelta
 from django.core.cache import caches
 from django.db.utils import IntegrityError
 from django.test.utils import override_settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.iam.models import Tenant
 from api.models import Provider

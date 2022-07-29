@@ -24,8 +24,8 @@ from django.db.models import F
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 import koku.presto_database as kpdb

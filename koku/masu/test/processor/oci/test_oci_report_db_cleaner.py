@@ -9,7 +9,7 @@ import uuid
 import django
 import pytz
 from django.db import transaction
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from masu.database import OCI_CUR_TABLE_MAP

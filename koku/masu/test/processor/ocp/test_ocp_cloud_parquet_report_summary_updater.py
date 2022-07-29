@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from api.utils import DateHelper

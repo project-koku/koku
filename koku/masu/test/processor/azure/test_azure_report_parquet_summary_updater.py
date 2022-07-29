@@ -7,7 +7,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor

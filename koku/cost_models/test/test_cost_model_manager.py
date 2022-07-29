@@ -5,7 +5,7 @@
 """Test the Cost Model Manager."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.iam.models import Customer
 from api.iam.models import User

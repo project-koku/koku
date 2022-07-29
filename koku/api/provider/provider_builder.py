@@ -8,8 +8,8 @@ import logging
 from base64 import b64decode
 
 from django.db import connection
+from django_tenants.utils import schema_exists
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import schema_exists
 
 from api.models import Customer
 from api.models import Provider

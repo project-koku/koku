@@ -6,7 +6,7 @@
 import datetime
 import logging
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor

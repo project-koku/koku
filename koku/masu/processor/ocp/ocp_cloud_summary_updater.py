@@ -7,7 +7,7 @@ import logging
 from decimal import Decimal
 
 from dateutil import parser
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.provider.models import Provider
 from koku.pg_partition import PartitionHandlerMixin

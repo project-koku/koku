@@ -14,8 +14,8 @@ import pytz
 from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.utils import timezone
+from django_tenants.utils import schema_context
 from pint.errors import UndefinedUnitError
-from tenant_schemas.utils import schema_context
 
 from api.user_settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE

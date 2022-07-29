@@ -14,9 +14,9 @@ from functools import reduce
 import numpy as np
 import statsmodels.api as sm
 from django.db.models import Q
+from django_tenants.utils import tenant_context
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
-from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
 from api.query_filter import QueryFilter

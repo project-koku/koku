@@ -9,7 +9,7 @@ from datetime import datetime
 
 import ciso8601
 from django.conf import settings
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor

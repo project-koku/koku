@@ -14,7 +14,7 @@ from os.path import exists
 
 from dateutil import parser
 from django.test import TestCase
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 import masu.util.common as common_utils
 from api.models import Provider

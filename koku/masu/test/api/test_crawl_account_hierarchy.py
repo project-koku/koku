@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 from django.test.utils import override_settings
 from django.urls import reverse
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSOrganizationalUnit

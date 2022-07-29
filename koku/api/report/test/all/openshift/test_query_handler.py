@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
-from tenant_schemas.utils import tenant_context
+from django_tenants.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions

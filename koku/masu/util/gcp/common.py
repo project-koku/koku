@@ -11,7 +11,7 @@ from json.decoder import JSONDecodeError
 
 import ciso8601
 import pandas as pd
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.models import Provider
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor

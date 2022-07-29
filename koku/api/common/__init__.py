@@ -1,5 +1,5 @@
 # noqa
-from django.utils.translation import ugettext as _
+from django.utils.translation import gettext as _
 
 RH_IDENTITY_HEADER = "HTTP_X_RH_IDENTITY"
 

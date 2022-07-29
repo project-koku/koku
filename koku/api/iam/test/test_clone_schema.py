@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db import connection as conn
 from django.db import DatabaseError
-from tenant_schemas.utils import schema_exists
+from django_tenants.utils import schema_exists
 
 from ..models import CloneSchemaFuncMissing
 from ..models import Tenant

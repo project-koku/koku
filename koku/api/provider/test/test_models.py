@@ -10,8 +10,8 @@ from uuid import UUID
 
 from django.core.validators import ValidationError
 from django.test.utils import override_settings
+from django_tenants.utils import tenant_context
 from faker import Faker
-from tenant_schemas.utils import tenant_context
 
 from api.provider.models import Provider
 from api.provider.models import Sources

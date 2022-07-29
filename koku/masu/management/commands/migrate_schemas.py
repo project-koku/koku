@@ -5,11 +5,11 @@
 """command overrides."""
 import logging
 
-from tenant_schemas.management.commands import migrate_schemas
-from tenant_schemas.migration_executors import get_executor
-from tenant_schemas.utils import get_public_schema_name
-from tenant_schemas.utils import get_tenant_model
-from tenant_schemas.utils import schema_exists
+from django_tenants.management.commands import migrate_schemas
+from django_tenants.migration_executors import get_executor
+from django_tenants.utils import get_public_schema_name
+from django_tenants.utils import get_tenant_model
+from django_tenants.utils import schema_exists
 
 LOG = logging.getLogger(__name__)
 

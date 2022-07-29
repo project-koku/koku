@@ -7,7 +7,7 @@ import logging
 from decimal import Decimal
 
 from dateutil.parser import parse
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.metrics import constants as metric_constants
 from masu.database.cost_model_db_accessor import CostModelDBAccessor

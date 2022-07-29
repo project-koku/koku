@@ -5,8 +5,8 @@
 """Tests the Masu API `manifest` Serializers."""
 import datetime
 
+from django_tenants.utils import tenant_context
 from rest_framework import serializers
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider

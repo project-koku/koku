@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.database import OCP_REPORT_TABLE_MAP

@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """command overrides."""
-from tenant_schemas.management.commands import migrate
-from tenant_schemas.utils import django_is_in_test_mode
+from django_tenants.management.commands import migrate
+from django_tenants.utils import django_is_in_test_mode
 
 from .migrate_schemas import Command as MigrateSchemasCommand
 

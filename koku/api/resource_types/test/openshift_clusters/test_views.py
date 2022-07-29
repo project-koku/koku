@@ -6,9 +6,9 @@
 from django.db.models import F
 from django.db.models.functions.comparison import Coalesce
 from django.urls import reverse
+from django_tenants.utils import schema_context
 from rest_framework import status
 from rest_framework.test import APIClient
-from tenant_schemas.utils import schema_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.iam.test.iam_test_case import RbacPermissions

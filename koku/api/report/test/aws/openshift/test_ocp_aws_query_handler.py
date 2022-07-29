@@ -7,8 +7,8 @@ import copy
 import logging
 from datetime import timedelta
 
+from django_tenants.utils import tenant_context
 from rest_framework.exceptions import ValidationError
-from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler

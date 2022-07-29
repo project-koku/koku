@@ -15,8 +15,8 @@ from dateutil.relativedelta import relativedelta
 from django.conf import settings
 from django.db import connection
 from django.db.models import F
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
 from api.utils import DateHelper

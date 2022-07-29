@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the AzureReportParquetProcessor."""
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.azure.azure_report_parquet_processor import AzureReportParquetProcessor

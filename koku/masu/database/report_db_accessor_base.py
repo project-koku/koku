@@ -16,8 +16,8 @@ from dateutil.relativedelta import relativedelta
 from django.db import connection
 from django.db import OperationalError
 from django.db import transaction
+from django_tenants.utils import schema_context
 from jinjasql import JinjaSql
-from tenant_schemas.utils import schema_context
 
 import koku.presto_database as kpdb
 from api.common import log_json

@@ -5,7 +5,7 @@
 """Test the OCIReportParquetProcessor."""
 from unittest.mock import patch
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from api.utils import DateHelper
 from masu.processor.oci.oci_report_parquet_processor import OCIReportParquetProcessor

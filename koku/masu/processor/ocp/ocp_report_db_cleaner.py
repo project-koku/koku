@@ -6,7 +6,7 @@
 import logging
 from datetime import date
 
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from koku.database import cascade_delete
 from koku.database import execute_delete_sql

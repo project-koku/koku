@@ -7,7 +7,7 @@ import datetime
 
 import ciso8601
 import pytz
-from tenant_schemas.utils import schema_context
+from django_tenants.utils import schema_context
 
 from masu.processor.report_parquet_processor_base import ReportParquetProcessorBase
 from masu.util.common import month_date_range
