@@ -159,14 +159,14 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_process_status(self):
         """Test that the request gets a user."""
         mock_request = Mock(path="/api/v1/status/")
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, "user"))
 
     def test_process_not_status(self):
         """Test that the customer, tenant and user are created."""
         mock_request = self.request
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, "user"))
         customer = Customer.objects.get(account_id=self.customer.account_id)
@@ -181,7 +181,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_process_not_status_caching(self):
         """Test that the customer, tenant and user are created and cached"""
         mock_request = self.request
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         self.assertEqual(MD.USER_CACHE.currsize, 0)
         self.assertEqual(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the mocked user cache has been updated
         self.assertEqual(IdentityHeaderMiddleware.customer_cache.currsize, 0)
@@ -210,7 +210,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         request_context = self._create_request_context(customer, user_data, create_customer=False, create_user=False)
         mock_request = request_context["request"]
         mock_request.path = "/api/v1/tags/aws/"
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, "user"))
         with self.assertRaises(Customer.DoesNotExist):
@@ -231,7 +231,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_race_condition_user(self):
         """Test case where another request may create the user in a race condition."""
         mock_request = self.request
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertTrue(hasattr(mock_request, "user"))
         customer = Customer.objects.get(account_id=self.customer.account_id)
@@ -246,7 +246,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
     def test_race_condition_user_caching(self):
         """Test case for caching where another request may create the user in a race condition."""
         mock_request = self.request
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         self.assertEqual(MD.USER_CACHE.maxsize, 5)  # Confirm that the size of the user cache has changed
         self.assertEqual(MD.USER_CACHE.currsize, 0)  # Confirm that the user cache is empty
         middleware.process_request(mock_request)
@@ -290,7 +290,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
 
         user_uuid = mock_request.user.uuid
@@ -312,7 +312,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
 
@@ -327,7 +327,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["HTTP_X_RH_IDENTITY"] = "not a header"
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         with self.assertRaises(PermissionDenied):
             middleware.process_request(mock_request)
 
@@ -343,7 +343,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.META["QUERY_STRING"] = ""
         mock_request.META["HTTP_REFERER"] = "http://cost.com/beta/report"
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertTrue(mock_request.user.beta)
 
@@ -359,7 +359,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.META["QUERY_STRING"] = ""
         mock_request.META["HTTP_REFERER"] = "http://cost.com/report"
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         middleware.process_request(mock_request)
         self.assertFalse(mock_request.user.beta)
 
@@ -378,7 +378,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with patch("koku.middleware.Customer.objects") as mock_customer:
             mock_customer.filter.side_effect = OperationalError
 
-            middleware = IdentityHeaderMiddleware()
+            middleware = IdentityHeaderMiddleware(mock_request)
             response = middleware.process_request(mock_request)
             self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
 
@@ -394,7 +394,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
         response = middleware.process_request(mock_request)
         self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
         mocked_get.assert_called()
@@ -411,7 +411,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         mock_request.path = "/api/v1/tags/aws/"
         mock_request.META["QUERY_STRING"] = ""
 
-        middleware = IdentityHeaderMiddleware()
+        middleware = IdentityHeaderMiddleware(mock_request)
 
         response = middleware.process_request(mock_request)
         self.assertEqual(response.status_code, status.HTTP_424_FAILED_DEPENDENCY)
@@ -459,7 +459,7 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
 
         logging.disable(logging.NOTSET)
         with self.assertLogs(logger="koku.middleware", level=logging.WARNING):
-            middleware = IdentityHeaderMiddleware()
+            middleware = IdentityHeaderMiddleware(mock_request)
             middleware.process_request(mock_request)
 
 
