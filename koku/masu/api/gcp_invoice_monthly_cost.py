@@ -61,11 +61,27 @@ def gcp_invoice_monthly_cost(request):
     client = bigquery.Client()
     try:
         for key, invoice_month in mapping.items():
-            query = f"SELECT sum(cost) FROM {table_name} WHERE invoice.month = '{invoice_month}'"
+            start_date = dh.invoice_month_start(invoice_month).date()
+            end_date = dh.today.date()
+            if start_date == dh.today:
+                end_date = dh.tomorrow.date()
+            query = f"""
+            SELECT sum(cost) as cost,
+                sum(c.amount) as credit_amount,
+                sum(cost + c.amount) as total
+                FROM {table_name}
+                LEFT JOIN unnest(credits) as c
+                WHERE DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
+                AND invoice.month = '{invoice_month}'
+            """
             rows = client.query(query).result()
             for row in rows:
+                # TODO: Remove this line once QE has updated their tests to the new key.
                 results[key] = row[0]
-                break
+                metadata = {"invoice_month": invoice_month}
+                for meta_key in ["cost", "credit_amount", "total"]:
+                    metadata[meta_key] = row.get(meta_key)
+                results[key+"_metadata"] = metadata
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
