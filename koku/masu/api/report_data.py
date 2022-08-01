@@ -45,7 +45,7 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        ocp_on_cloud = bool(strtobool(params.get("ocp_on_cloud", "false")))
+        ocp_on_cloud = bool(strtobool(params.get("ocp_on_cloud", "true")))
         queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
