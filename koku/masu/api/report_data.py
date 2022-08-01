@@ -5,7 +5,6 @@
 """View for report_data endpoint."""
 # flake8: noqa
 import logging
-from distutils.util import strtobool
 
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -45,7 +44,9 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
-        ocp_on_cloud = bool(strtobool(params.get("ocp_on_cloud", "true")))
+
+        ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
+        ocp_on_cloud = True if ocp_on_cloud == "true" else False
         queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
