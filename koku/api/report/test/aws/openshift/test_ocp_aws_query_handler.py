@@ -535,7 +535,7 @@ class OCPAWSReportQueryTestCurrency(IamTestCase):
         dates = self.dh.list_days(self.ten_days_ago, self.dh.today)
         with tenant_context(self.tenant):
             for table in self.tables:
-                kwargs = table.objects.filter(usage_start__gt=self.dh.last_month_end).values().first()
+                kwargs = table.objects.filter(usage_start__gt=self.neg_ten).values().first()
                 for date in dates:
                     kwargs["usage_start"] = date
                     kwargs["usage_end"] = date
