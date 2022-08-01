@@ -2731,14 +2731,6 @@ objects:
     appName: koku
     jobs:
     - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
-  spec:
-    appName: koku
-    jobs:
-    - org-id-populator-${POPULATOR_RUN_NUMBER}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
