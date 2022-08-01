@@ -72,8 +72,6 @@ def update_openshift_on_cloud(request):
 
         for month in months:
             tracing_id = uuid4()
-            LOG.info("Triggering update_openshift_on_cloud task with params:")
-            LOG.info(params)
             params = {
                 "schema_name": schema_name,
                 "openshift_provider_uuid": openshift_provider_uuid,
@@ -84,6 +82,8 @@ def update_openshift_on_cloud(request):
                 "queue_name": queue_name,
                 "tracing_id": tracing_id,
             }
+            LOG.info("Triggering update_openshift_on_cloud task with params:")
+            LOG.info(params)
             async_result = update_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name or PRIORITY_QUEUE)
             async_results.append({str(month): str(async_result)})
 
