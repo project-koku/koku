@@ -69,6 +69,7 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 customer=Mock(
                     account_id=identity_header.get("account_number", "10001"),
                     org_id=identity_header.get("org_id", "1234567"),
+                    schema_name=f'org{identity_header.get("org_id", "1234567")}',
                 ),
                 req_id="DEVELOPMENT",
             )
