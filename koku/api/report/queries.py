@@ -698,7 +698,7 @@ class ReportQueryHandler(QueryHandler):
             currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
             if len(currencies) == 1 and currencies[0] == self.currency:
-                if not self.parameters.parameters.get("compute_count"):
+                if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
                     # Query parameter indicates count should be removed from DB queries
                     aggregates.pop("count", None)
                 LOG.info("Bypassing the pandas total function because all currencies are the same.")
