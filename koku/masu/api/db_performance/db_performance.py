@@ -393,7 +393,7 @@ select schema_name,
              join pg_class t
                on t.relnamespace = n.oid
               and t.relkind in ('r', 'p')
-            where n.nspname not in ('public','pg_catalog','information_schema','template0')
+            where n.nspname not in ('pg_catalog','information_schema')
               and pg_total_relation_size(t.oid) > 0
             group
                by n.nspname
