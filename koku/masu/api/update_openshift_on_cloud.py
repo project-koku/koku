@@ -43,7 +43,7 @@ def update_openshift_on_cloud(request):
         queue_name = params.get("queue") or PRIORITY_QUEUE
 
         if openshift_provider_uuid is None:
-            errmsg = "provider_uuid must be supplied as a parameter."
+            errmsg = "provider_uuid is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         if queue_name not in QUEUE_LIST:
             errmsg = f"'queue' must be one of {QUEUE_LIST}."
@@ -58,7 +58,7 @@ def update_openshift_on_cloud(request):
         try:
             provider = Provider.objects.get(uuid=openshift_provider_uuid)
         except Provider.DoesNotExist:
-            errmsg = f"provider_uuid: {openshift_provider_uuid} does not correspond to a provider."
+            errmsg = f"provider_uuid: {openshift_provider_uuid} does not exist."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider.type != Provider.PROVIDER_OCP:
