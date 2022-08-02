@@ -459,6 +459,15 @@
               "format": "date",
               "example": "2019-12-31"
             }
+          },
+          {
+            "name": "ocp_on_cloud",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
