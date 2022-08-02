@@ -2723,6 +2723,10 @@ objects:
         - org_id
         - -t
         - ${ORG_ID_TRANSLATE_TARGET}
+        - --batch-size
+        - ${ORG_ID_BATCH_SIZE}
+        - --ean-translator-timeout
+        - ${ORG_ID_TRANSLATE_TIMEOUT}
         - --ean-translator-addr
         - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
         - --prometheus-push-addr
@@ -3089,6 +3093,10 @@ parameters:
 - displayName: RBAC_CACHE_TIMEOUT
   name: RBAC_CACHE_TIMEOUT
   value: "300"
+- name: ORG_ID_BATCH_SIZE
+  value: "50"
+- name: ORG_ID_TRANSLATE_TIMEOUT
+  value: "20"
 - name: ORG_ID_TRANSLATE_TARGET
   value: api_customer
 - name: TENANT_TRANSLATOR_HOST

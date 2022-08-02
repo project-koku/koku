@@ -182,8 +182,8 @@ class SourcesViewSet(*MIXIN_LIST):
         pk = self.kwargs.get("pk")
         try:
             uuid = UUIDField().to_internal_value(data=pk)
-            account_id = self.request.user.customer.account_id
-            obj = Sources.objects.get(account_id=account_id, source_uuid=uuid)
+            org_id = self.request.user.customer.org_id
+            obj = Sources.objects.get(org_id=org_id, source_uuid=uuid)
             if obj:
                 return obj
         except (ValidationError, Sources.DoesNotExist):

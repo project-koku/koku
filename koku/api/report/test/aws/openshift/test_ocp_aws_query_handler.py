@@ -7,6 +7,7 @@ import copy
 import logging
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
 from rest_framework.exceptions import ValidationError
 from tenant_schemas.utils import tenant_context
 
@@ -471,3 +472,16 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCPAWSCostView)
+
+    def test_ocp_aws_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = self.dh.yesterday.date()
+        yesterday_month = self.dh.yesterday - relativedelta(months=2)
+
+        url = f"?group_by[service]=*&order_by[cost]=desc&order_by[date]={yesterday_month.date()}&end_date={yesterday}&start_date={yesterday_month.date()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
