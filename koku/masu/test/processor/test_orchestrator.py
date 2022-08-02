@@ -178,7 +178,9 @@ class OrchestratorTest(MasuTestCase):
         expected_results = [{"account_payer_id": "999999999", "billing_period_start": "2018-06-24 15:47:33.052509"}]
         mock_remover.return_value = expected_results
 
-        expected = "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: acct10001, Task ID: {}"
+        expected = (
+            "INFO:masu.processor.orchestrator:Expired data removal queued - schema_name: org1234567, Task ID: {}"
+        )
         # unset disabling all logging below CRITICAL from masu/__init__.py
         logging.disable(logging.NOTSET)
         with self.assertLogs("masu.processor.orchestrator", level="INFO") as logger:
@@ -297,17 +299,19 @@ class OrchestratorTest(MasuTestCase):
     def test_start_manifest_processing(self, mock_download_manifest, mock_task, mock_inspect):
         """Test start_manifest_processing."""
         test_matrix = [
-            {"mock_downloader_manifest": {}, "expect_chord_called": False},
+            {"mock_downloader_manifest_list": [], "expect_chord_called": False},
             {
-                "mock_downloader_manifest": {
-                    "manifest_id": 1,
-                    "files": [{"local_file": "file1.csv", "key": "filekey"}],
-                },
+                "mock_downloader_manifest_list": [
+                    {
+                        "manifest_id": 1,
+                        "files": [{"local_file": "file1.csv", "key": "filekey"}],
+                    }
+                ],
                 "expect_chord_called": True,
             },
         ]
         for test in test_matrix:
-            mock_download_manifest.return_value = test.get("mock_downloader_manifest")
+            mock_download_manifest.return_value = test.get("mock_downloader_manifest_list")
             orchestrator = Orchestrator()
             account = self.mock_accounts[0]
             orchestrator.start_manifest_processing(
@@ -363,11 +367,13 @@ class OrchestratorTest(MasuTestCase):
             },
         ]
         mock_manifest = {
-            "mock_downloader_manifest": {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
+            "mock_downloader_manifest_list": [
+                {"manifest_id": 1, "files": [{"local_file": "file1.csv", "key": "filekey"}]}
+            ]
         }
         for test in test_queues:
             with self.subTest(test=test.get("name")):
-                mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest")
+                mock_download_manifest.return_value = mock_manifest.get("mock_downloader_manifest_list")
                 orchestrator = Orchestrator(provider_uuid=test.get("provider_uuid"), queue_name=test.get("queue-name"))
                 account = self.mock_accounts[0]
                 orchestrator.start_manifest_processing(

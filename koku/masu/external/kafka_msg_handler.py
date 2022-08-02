@@ -25,6 +25,7 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
+from kafka_utils.utils import extract_from_header
 from kafka_utils.utils import get_consumer as get_kafka_consumer
 from kafka_utils.utils import get_producer as get_kafka_producer
 from kafka_utils.utils import is_kafka_connected
@@ -300,12 +301,17 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    context["account"] = schema_name[4:]
+    if schema_name.startswith("acct"):
+        context["account"] = schema_name[4:]
+    else:
+        context["org_id"] = schema_name[3:]
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
-    report_meta["account"] = schema_name[4:]
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    report_meta["account"] = schema_name.strip("acct")
     report_meta["request_id"] = request_id
     report_meta["tracing_id"] = manifest_uuid
 
@@ -415,11 +421,17 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic() == Config.HCCM_TOPIC:
+    if msg.topic() == Config.UPLOAD_TOPIC:
+        service = extract_from_header(msg.headers(), "service")
+        LOG.debug(f"service: {service} | {msg.headers()}")
+        if service != "hccm":
+            LOG.debug("message not for cost-management")
+            return None, None, None
         value = json.loads(msg.value().decode("utf-8"))
         request_id = value.get("request_id", "no_request_id")
         account = value.get("account", "no_account")
-        context = {"account": account}
+        org_id = value.get("org_id", "no_org_id")
+        context = {"account": account, "org_id": org_id}
         try:
             msg = f"Extracting Payload for msg: {str(value)}"
             LOG.info(log_json(request_id, msg, context))
@@ -665,7 +677,7 @@ def process_messages(msg):
 def get_consumer():  # pragma: no cover
     """Create a Kafka consumer."""
 
-    consumer = get_kafka_consumer(Config.HCCM_TOPIC)
+    consumer = get_kafka_consumer(Config.UPLOAD_TOPIC)
 
     return consumer
 
@@ -732,7 +744,7 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=Config.HCCM_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
         process_messages(msg)

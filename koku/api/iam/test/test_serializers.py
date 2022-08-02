@@ -43,7 +43,7 @@ class AdminCustomerSerializerTest(IamTestCase):
         serializer = AdminCustomerSerializer(data=customer)
         serializer.is_valid()
         serializer.save()
-        expected_schema_name = create_schema_name(serializer.data.get("account_id"))
+        expected_schema_name = create_schema_name(serializer.data.get("org_id"))
         schema_name = serializer.data.get("schema_name")
         self.assertIsNotNone(schema_name)
         self.assertEqual(schema_name, expected_schema_name)

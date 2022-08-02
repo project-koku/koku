@@ -116,7 +116,7 @@ if "__main__" in __name__:
     sys_args.pop(0)
     tree_yaml = "dev/scripts/aws_org_tree.yml"
     nise_yaml = "dev/scripts/nise_ymls/org_tree_aws_static_data.yml"
-    schema = "acct10001"
+    schema = "org1234567"
     start_date = str(datetime.today().date())
     masu_host = require_env("MASU_API_HOSTNAME")
     masu_port = require_env("MASU_PORT")
