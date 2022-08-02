@@ -2,7 +2,6 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import logging
 from unittest.mock import patch
 
 from django.db import connection
@@ -14,9 +13,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 from masu.api.db_performance.db_performance import SERVER_VERSION
-
-
-LOG = logging.getLogger(__name__)
 
 
 class TestDBPerformanceClass(IamTestCase):
@@ -164,7 +160,7 @@ class TestDBPerformanceClass(IamTestCase):
         for bad_sql in bad_statements:
             with self.assertRaises(ProgrammingError, msg=f"Failing statement is {bad_sql}"):
                 with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-                    res = dbp.explain_sql("analyze select 1")
+                    res = dbp.explain_sql(bad_sql)
 
         expected = [{"query_plan": "Result  (cost=0.00..0.01 rows=1 width=4)\n  Output: 1", "query_text": "select 1"}]
 
@@ -173,17 +169,18 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(res, expected)
 
     def test_get_databases(self):
+        with connection.cursor() as cur:
+            cur.execute("select datname from pg_database where datname !~ '^templ';")
+            expected = len(cur.fetchall())
+
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.get_databases()
-            LOG.critical(res)
-            self.assertTrue(len(res) > 0)
+            self.assertEqual(len(res), expected)
 
     def test_get_schema_sizes(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.get_schema_sizes()
-            LOG.critical(res)
             self.assertTrue(len(res) > 0)
-            self.assertTrue(any(rec["schema_name"] == "acct10001" for rec in res))
 
     def test_get_schema_sizes_with_tables(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
