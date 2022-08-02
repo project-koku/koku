@@ -152,7 +152,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                    count_units_value = query_data[0].get("count_units")
+                    count_units_value = query_data[0].get("count_units") or count_units_value
 
             if is_csv_output:
                 data = list(query_data)
@@ -164,6 +164,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
         init_order_keys = []
         query_sum["cost_units"] = self.currency
+        if query_sum.get("count"):
+            query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value

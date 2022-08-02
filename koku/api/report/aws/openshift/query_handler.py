@@ -120,6 +120,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
         query_sum["cost_units"] = self.currency
+        if query_sum.get("count"):
+            query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
