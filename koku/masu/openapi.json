@@ -991,9 +991,20 @@
           "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
           "parameters": [
             {
+              "name": "dbname",
+              "in": "query",
+              "description": "Specify a database in the cluster. Default is the application DB",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "minlength": 4,
+                "maxlength": 100
+              }
+            },
+            {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set",
+              "description": "Limit of the returned result set. Default is 100",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1033,10 +1044,21 @@
           "operationId": "dbPerformanceStatActivity",
           "description": "Returns a HTML document showing current connection activity.",
           "parameters": [
-            {
+              {
+                "name": "dbname",
+                "in": "query",
+                "description": "Specify a database in the cluster. Default is the application DB",
+                "required": false,
+                "schema": {
+                  "type": "string",
+                  "minlength": 4,
+                  "maxlength": 100
+                }
+              },
+              {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set. The default is 500.",
+              "description": "Limit of the returned result set. The default is 100.",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1082,26 +1104,6 @@
                     "maxlength": 100
                 }
               }
-            },
-            {
-              "name": "include_self",
-              "in": "query",
-              "description": "If true, include the pid of the connection running the DB Performance queries",
-              "required": false,
-              "schema": {
-                "type": "boolean"
-              }
-            },
-            {
-              "name": "records_per_db",
-              "in": "query",
-              "description": "If there are multiple databases hosted by the engine, then how many records per db to include up to the limit. The default is 100.",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "format": "int32",
-                "minimum": 1
-              }
             }
           ],
           "responses": {
@@ -1125,9 +1127,20 @@
           "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
           "parameters": [
             {
+              "name": "dbname",
+              "in": "query",
+              "description": "Specify a database in the cluster. Default is the application DB",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "minlength": 4,
+                "maxlength": 100
+              }
+            },
+            {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set",
+              "description": "Limit of the returned result set. Default is 100",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1158,6 +1171,60 @@
           "tags": [
             "db-performance",
             "lock-info"
+          ]
+        }
+      },
+      "/db-performance/schema-sizes/": {
+        "get": {
+          "summary": "Return a table listing dtabase schemata and the assiciated storage size.",
+          "operationId": "dbPerformanceSchemaSize",
+          "description": "Returns a HTML document showing schema sizes.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set. The default is 500.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records. The default is no offset.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "top",
+              "in": "query",
+              "description": "Also include top n tables by storage size (if > 0). Default is zero",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing current connection activity.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-activity"
           ]
         }
       },

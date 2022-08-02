@@ -26,6 +26,7 @@ from masu.api.views import notification
 from masu.api.views import pg_engine_version
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
+from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
 from masu.api.views import update_cost_model_costs
@@ -80,6 +81,7 @@ urlpatterns = [
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
     path("db-performance/explain-query/", explain_query, name="explain_query"),
     path("db-performance/db-version/", pg_engine_version, name="db_version"),
+    path("db-performance/schema-sizes/", schema_sizes, name="schema_sizes"),
 ]
 
 urlpatterns += ROUTER.urls

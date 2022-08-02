@@ -2,8 +2,6 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
-import os
-import re
 from unittest.mock import patch
 
 from django.db import connection
@@ -114,11 +112,11 @@ class TestDBPerformanceClass(IamTestCase):
 
     def test_handle_lockinfo(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            lockinfo = dbp.get_lock_info()
+            lockinfo = dbp.get_lock_info("test_postgres")
             if lockinfo:
                 self.assertTrue(len(lockinfo) < 500)
 
-            lockinfo = dbp.get_lock_info(limit=1)
+            lockinfo = dbp.get_lock_info("test_postgres", limit=1)
             if lockinfo:
                 self.assertTrue(len(lockinfo) < 1)
 
@@ -126,16 +124,10 @@ class TestDBPerformanceClass(IamTestCase):
         """Test that the correct connection activty is returned."""
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             dbpid = dbp.conn.get_backend_pid()
-            activity = dbp.get_activity()
+            activity = dbp.get_activity("test_postgres")
             self.assertTrue(all(a["backend_pid"] != dbpid for a in activity))
 
-            activity = dbp.get_activity(include_self=True)
-            self.assertTrue(any(a["backend_pid"] == dbpid for a in activity))
-
-            activity = dbp.get_activity(include_self=True, pid=[dbpid])
-            self.assertTrue(all(a["backend_pid"] == dbpid for a in activity))
-
-            activity = dbp.get_activity(state=["COMPLETELY INVALID STATE HERE!"])
+            activity = dbp.get_activity("test_postgres", state=["COMPLETELY INVALID STATE HERE!"])
             self.assertEqual(activity, [])
 
     def test_get_stmt_stats(self):
@@ -144,28 +136,14 @@ class TestDBPerformanceClass(IamTestCase):
             has_pss, pss_ver = dbp._validate_pg_stat_statements()
             if has_pss:
                 self.assertIsNotNone(pss_ver)
-                stats = dbp.get_statement_stats()
+                stats = dbp.get_statement_stats("test_postgres")
                 self.assertTrue(0 < len(stats) <= 500)
                 self.assertIn("calls", stats[0])
             else:
                 self.assertIsNone(pss_ver)
-                stats = dbp.get_statement_stats()
+                stats = dbp.get_statement_stats("test_postgres")
                 self.assertEqual(len(stats), 1)
                 self.assertIn("Result", stats[0])
-
-    def test_case_ranking(self):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            res = dbp._case_db_ordering_clause("eek")
-            self.assertEqual(res, ("", {}))
-
-        with DBPerformanceStats("KOKU", CONFIGURATOR, database_ranking=["zero", "one"]) as dbp:
-            case, params = dbp._case_db_ordering_clause("eek")
-            case = re.sub(" +", " ", case.replace(os.linesep, " ").lower())
-            expected = (
-                "case eek when %(db_val_0)s then %(db_rank_0)s "
-                + "when %(db_val_1)s then %(db_rank_1)s else %(def_case_val)s end::text || eek"
-            )
-            self.assertEqual(case, expected)
 
     def test_explain(self):
         bad_statements = [
@@ -189,3 +167,20 @@ class TestDBPerformanceClass(IamTestCase):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.explain_sql("select 1")
             self.assertEqual(res, expected)
+
+    def test_get_databases(self):
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp.get_databases()
+            self.assertTrue(len(res) > 0)
+
+    def test_get_schema_sizes(self):
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp.get_schema_sizes()
+            self.assertTrue(len(res) > 0)
+            self.assertTrue(any(rec["schema_name"] == "acct10001" for rec in res))
+
+    def test_get_schema_sizes_with_tables(self):
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+            res = dbp.get_schema_sizes(top=10)
+            self.assertTrue(len(res) > 0)
+            self.assertIn("table_size_gb", res[0])

@@ -16,13 +16,24 @@ from django.urls import reverse
 
 from api.common import RH_IDENTITY_HEADER
 from api.iam.test.iam_test_case import IamTestCase
+from koku.configurator import CONFIGURATOR
+from masu.api.db_performance.db_performance import DBPerformanceStats
+from masu.api.db_performance.dbp_views import APPLICATION_DBNAME
+from masu.api.db_performance.dbp_views import get_database_list
 from masu.api.db_performance.dbp_views import get_limit_offset
 from masu.api.db_performance.dbp_views import get_menu
 from masu.api.db_performance.dbp_views import get_parameter_bool
 from masu.api.db_performance.dbp_views import get_parameter_list
+from masu.api.db_performance.dbp_views import make_db_options
+from masu.api.db_performance.dbp_views import make_pagination
 
 
 LOG = logging.getLogger(__name__)
+
+
+class _dikt(dict):
+    def dict(self):
+        return self
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -147,6 +158,7 @@ class TestDBPerformance(IamTestCase):
         self.assertIn("Connection Activity", res)
         self.assertIn("Statement Statistics", res)
         self.assertIn("Lock Information", res)
+        self.assertIn("Schema Sizes", res)
         self.assertIn("Explain Query", res)
 
         res = get_menu("conn_activity")
@@ -159,7 +171,7 @@ class TestDBPerformance(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_limit_offset(self, mok_middl):
-        _default_limit = 500
+        _default_limit = 100
         request = Mock()
 
         request.query_params = {}
@@ -250,3 +262,70 @@ class TestDBPerformance(IamTestCase):
         for p_val in truthy:
             request.query_params["a_param"] = p_val
             self.assertTrue(get_parameter_bool(request, "a_param"))
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_make_pagination(self, mok_middl):
+        request = Mock()
+        data = ["a"] * 10
+        request.query_params = _dikt(limit=10, offset=0)
+        path = reverse("schema_sizes")
+
+        # test full first page
+        res = make_pagination(10, None, data, request, "schema_sizes")
+        self.assertIn(path, res)
+        self.assertEqual(res.count("<span"), 2)
+        self.assertEqual(res.count("<a"), 1)
+        self.assertIn("limit=20", res)
+        self.assertIn("offset=10", res)
+
+        # test middle of pages
+        request.query_params["limit"] = 20
+        request.query_params["offset"] = 10
+        res = make_pagination(20, 10, data, request, "schema_sizes")
+        self.assertIn(path, res)
+        self.assertEqual(res.count("<span"), 1)
+        self.assertEqual(res.count("<a"), 2)
+        self.assertIn("limit=10", res)
+        self.assertIn("offset=0", res)
+        self.assertIn("limit=30", res)
+        self.assertIn("offset=20", res)
+
+        # test end of pages
+        request.query_params["limit"] = 20
+        request.query_params["offset"] = 10
+        data = data[:2]
+        res = make_pagination(20, 10, data, request, "schema_sizes")
+        self.assertIn(path, res)
+        self.assertEqual(res.count("<span"), 2)
+        self.assertEqual(res.count("<a"), 1)
+        self.assertIn("limit=10", res)
+        self.assertIn("offset=0", res)
+
+        # test no pagination
+        request.query_params["limit"] = 10
+        request.query_params["offset"] = 0
+        res = make_pagination(10, 0, data, request, "schema_sizes")
+        self.assertFalse(path in res)
+        self.assertEqual(res.count("<span"), 3)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_database_list(self, mok_middl):
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
+            res = get_database_list(dbps)
+            self.assertIn(APPLICATION_DBNAME, res[0])
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_make_db_options(self, mok_middl):
+        request = Mock()
+        request.query_params = _dikt(dbname="test_postgres")
+
+        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
+            databases = get_database_list(dbps)
+            res = make_db_options(databases, "test_postgres", request, "schema_sizes")
+            found = False
+            for line in res.split(os.linesep):
+                found = "test_postgres" in line
+                if found:
+                    self.assertIn("selected", line)
+                    break
+            self.assertTrue(found)
