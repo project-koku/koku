@@ -132,11 +132,13 @@ class ReportManifestDBAccessor(KokuDBAccess):
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
 
-    def get_last_manifest_ingest_datetime(self, provider_uuid=None):
-        """Return all ocp manifests."""
+    def get_last_manifest_upload_datetime(self, provider_uuid=None):
+        """Return all ocp manifests with lastest upload datetime."""
         if provider_uuid:
-            return CostUsageReportManifest.objects.filter(provider_id=provider_uuid).annotate(
-                most_recent_manifest=Max("manifest_creation_datetime")
+            return (
+                CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
+                .values("provider_id")
+                .annotate(most_recent_manifest=Max("manifest_creation_datetime"))
             )
         else:
             return CostUsageReportManifest.objects.values("provider_id").annotate(

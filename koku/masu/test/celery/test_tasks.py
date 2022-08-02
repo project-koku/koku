@@ -345,7 +345,7 @@ class TestCeleryTasks(MasuTestCase):
 
     def test_stale_ocp_source_check_without_provider_uuid(self):
         """Test that all polling accounts are used when no provider_uuid is provided."""
-        manifests = ReportManifestDBAccessor().get_last_manifest_ingest_datetime()
+        manifests = ReportManifestDBAccessor().get_last_manifest_upload_datetime()
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_for_stale_ocp_source()
             expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
