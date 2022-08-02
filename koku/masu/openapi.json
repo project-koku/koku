@@ -112,6 +112,16 @@
             "format": "date",
             "example": "2019-01-01"
           }
+        },
+        {
+          "name": "summarize_reports",
+          "in": "query",
+          "description": "Whether to trigger summarization after the download and process.",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "example": true
+          }
         }
       ]
     },
