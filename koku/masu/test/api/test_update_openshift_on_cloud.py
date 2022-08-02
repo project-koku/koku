@@ -39,25 +39,6 @@ class UpdateOpenShiftOnCloudTest(MasuTestCase):
         self.assertIn(expected_key, body)
         mock_update.s.return_value.apply_async.assert_called()
 
-    # @patch("koku.middleware.MASU", return_value=True)
-    # @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
-    # def test_get_update_openshift_on_cloud_with_dates(self, mock_update, _):
-    #     """Test the GET report_data endpoint."""
-    #     params = {
-    #         "schema": self.schema,
-    #         "provider_uuid": self.ocpaws_provider_uuid,
-    #         "start_date": "2022-01-01",
-    #         "end_date": "2022-01-30",
-    #     }
-    #     expected_key = "Update Cost Model Cost Task ID"
-
-    #     response = self.client.get(reverse("update_openshift_on_cloud"), params)
-    #     body = response.json()
-
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertIn(expected_key, body)
-    #     mock_update.s.return_value.set.return_value.apply_async.assert_called()
-
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.update_openshift_on_cloud.update_openshift_on_cloud_task")
     def test_get_update_openshift_on_cloud_schema_missing(self, mock_update, _):
