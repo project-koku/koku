@@ -109,6 +109,7 @@ class TestDBPerformance(IamTestCase):
         html = response.content.decode("utf-8")
         self.assertIn('id="stmt_stats_table"', html)
         self.assertIn("Statement Statistics", html)
+        LOG.critical(html)
         self.assertTrue("calls" in html or "Result" in html)
 
         mock_ret_val = [
