@@ -213,19 +213,15 @@ class AWSReportQueryHandler(ReportQueryHandler):
             # and filtering on the org unit. Therefore we are removing the group by org unit.
             org_unit_group_by_data = group_by_param.pop(ou_group_by_key)
 
+            # adding a group by account.
             if not self.parameters.parameters["group_by"].get("account"):
                 self.parameters.parameters["group_by"]["account"] = ["*"]
                 if self.access:
                     self.parameters._configure_access_params(self.parameters.caller)
 
-            org_unit_objects = False
-            sub_ou_list = None
-            if org_unit_group_by_data:
-                sub_ou_list = self._get_sub_org_units(org_unit_group_by_data)
-                org_unit_objects = True
-            if org_unit_objects and sub_ou_list:
-                for org_object in sub_ou_list:
-                    sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
+            sub_orgs = self._get_sub_org_units(org_unit_list=org_unit_group_by_data)
+            for org_object in sub_orgs:
+                sub_orgs_dict[org_object.org_unit_name] = org_object.org_unit_id, org_object.org_unit_path
             # First we need to modify the parameters to get all accounts if org unit group_by is used
             self.parameters.set_filter(org_unit_single_level=org_unit_group_by_data)
             self.query_filter = self._get_filter()
@@ -241,7 +237,6 @@ class AWSReportQueryHandler(ReportQueryHandler):
             org_unit_list = filters.get("org_unit_id")
             self.parameters.parameters["access"]["aws.organizational_unit"] = org_unit_list
             self.parameters.parameters["access"]["aws.account"] = acc_group_by_data
-            sub_ou_list = self._get_sub_org_units(org_unit_list)
 
             # add a key to parameters used in query filter composition in queries.py
             self.parameters.set("ou_or_operator", True)
@@ -701,25 +696,47 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         Returns:
             sub_org_units (list): list of sub org units
         """
+        sub_org_units = None
+        try:
+            # Parent OU filters
+            org_unit_objects = (
+                AWSOrganizationalUnit.objects.filter(org_unit_id__in=org_unit_list)
+                .filter(account_alias__isnull=True)
+                .order_by("org_unit_id", "-created_timestamp")
+                .distinct("org_unit_id")
+            )
 
-        # Parent Org Units
-        org_unit_objects = (
-            AWSOrganizationalUnit.objects.filter(org_unit_id__in=org_unit_list)
-            .filter(account_alias__isnull=True)
-            .order_by("org_unit_id", "-created_timestamp")
-            .distinct("org_unit_id")
-        )
+            sub_org_units = None
+            if org_unit_objects:
+                sub_ou_list = []
+                # Loop through parent ids to find children org units 1 level below.
+                for org_unit_object in org_unit_objects:
+                    sub_query = (
+                        AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
+                        .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
+                        .filter(account_alias__isnull=True)
+                        .exclude(org_unit_id__in=org_unit_list)
+                        .order_by("org_unit_id", "-created_timestamp")
+                        .distinct("org_unit_id")
+                    )
+                    sub_ou_list.append(sub_query)
 
-        sub_org_units = []
-        if org_unit_objects:
-            # Loop through parent org units to get sub org units.
-            for org_unit_object in org_unit_objects:
-                sub_orgs = (
-                    AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
-                    .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
-                    .filter(account_alias__isnull=False)
-                    .distinct("org_unit_id")
-                )
-                sub_org_units.extend(list(sub_orgs))
-
+                # only do a union if more than one org_unit_id was passed in.
+                if len(sub_ou_list) > 1:
+                    sub_query_set = sub_ou_list.pop()
+                    sub_ou_ids_list = sub_query_set.union(*sub_ou_list).values_list("org_unit_id", flat=True)
+                    # Note: The django orm won't let you do an order_by & distinct on the union of
+                    # multiple queries. The additional order_by &  distinct is essential to handle
+                    # use cases like OU_005 being moved from OU_002 to OU_001.
+                    sub_org_units = (
+                        AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
+                        .filter(account_alias__isnull=True)
+                        .order_by("org_unit_id", "-created_timestamp")
+                        .distinct("org_unit_id")
+                    )
+                else:
+                    sub_org_units = list(sub_ou_list[0])
+        except Exception as e:
+            LOG.error(f"Error getting sub org units: \n{e}")
+            sub_org_units = []
         return sub_org_units
