@@ -15,6 +15,16 @@ from masu.api.db_performance.db_performance import DBPerformanceStats
 from masu.api.db_performance.db_performance import SERVER_VERSION
 
 
+TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
+
+
+def _get_database_name():
+    return "test_postgres"
+
+
+TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
+
+
 class TestDBPerformanceClass(IamTestCase):
     @classmethod
     def setUpClass(cls):
@@ -173,17 +183,17 @@ class TestDBPerformanceClass(IamTestCase):
             cur.execute("select datname from pg_database where datname !~ '^templ';")
             expected = len(cur.fetchall())
 
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             res = dbp.get_databases()
             self.assertEqual(len(res), expected)
 
     def test_get_schema_sizes(self):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             res = dbp.get_schema_sizes()
             self.assertTrue(len(res) > 0)
 
     def test_get_schema_sizes_with_tables(self):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             res = dbp.get_schema_sizes(top=10)
             self.assertTrue(len(res) > 0)
             self.assertIn("table_size_gb", res[0])

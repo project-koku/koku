@@ -31,6 +31,16 @@ from masu.api.db_performance.dbp_views import make_pagination
 LOG = logging.getLogger(__name__)
 
 
+TEST_CONFIGURATOR = type("TEST_CONFIGURATOR", CONFIGURATOR.__bases__, dict(CONFIGURATOR.__dict__))
+
+
+def _get_database_name():
+    return "test_postgres"
+
+
+TEST_CONFIGURATOR.get_database_name = staticmethod(_get_database_name)
+
+
 class _dikt(dict):
     def dict(self):
         return self
@@ -310,7 +320,7 @@ class TestDBPerformance(IamTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_database_list(self, mok_middl):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbps:
             res = get_database_list(dbps)
             self.assertIn(APPLICATION_DBNAME, res[0])
 
@@ -319,7 +329,7 @@ class TestDBPerformance(IamTestCase):
         request = Mock()
         request.query_params = _dikt(dbname="test_postgres")
 
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbps:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbps:
             databases = get_database_list(dbps)
             res = make_db_options(databases, "test_postgres", request, "schema_sizes")
             found = False
