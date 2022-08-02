@@ -323,7 +323,7 @@ def stat_statements(request):
 
         # action_urls.append(reverse("stat_statements_reset"))
     else:
-        data = [{"Response": "No data matching the criteria"}]
+        data = [{"Result": "No data matching the criteria"}]
 
     page_header = "Statement Statistics"
     db_options = make_db_options(databases, selected_db, request, "stmt_stats")
