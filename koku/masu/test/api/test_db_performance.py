@@ -2,6 +2,7 @@
 # Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
+import logging
 from unittest.mock import patch
 
 from django.db import connection
@@ -13,6 +14,9 @@ from api.iam.test.iam_test_case import IamTestCase
 from koku.configurator import CONFIGURATOR
 from masu.api.db_performance.db_performance import DBPerformanceStats
 from masu.api.db_performance.db_performance import SERVER_VERSION
+
+
+LOG = logging.getLogger(__name__)
 
 
 class TestDBPerformanceClass(IamTestCase):
@@ -171,11 +175,13 @@ class TestDBPerformanceClass(IamTestCase):
     def test_get_databases(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.get_databases()
+            LOG.critical(res)
             self.assertTrue(len(res) > 0)
 
     def test_get_schema_sizes(self):
         with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
             res = dbp.get_schema_sizes()
+            LOG.critical(res)
             self.assertTrue(len(res) > 0)
             self.assertTrue(any(rec["schema_name"] == "acct10001" for rec in res))
 
