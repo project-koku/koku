@@ -132,20 +132,16 @@ class ReportManifestDBAccessor(KokuDBAccess):
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
 
-    def get_openshift_manifest_list(self, provider_uuid=None):
+    def get_last_manifest_ingest_datetime(self, provider_uuid=None):
         """Return all ocp manifests."""
         if provider_uuid:
-            return CostUsageReportManifest.objects.filter(provider_id=provider_uuid, cluster_id__isnull=False)
+            return CostUsageReportManifest.objects.filter(provider_id=provider_uuid).annotate(
+                most_recent_manifest=Max("manifest_creation_datetime")
+            )
         else:
-            return CostUsageReportManifest.objects.filter(cluster_id__isnull=False)
-
-    def get_last_manifest_ingest_datetime(self, provider_uuid):
-        """Return last manifest ingest completion datetime."""
-        return (
-            CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
-            .aggregate(Max("manifest_completed_datetime"))
-            .get("manifest_completed_datetime__max")
-        )
+            return CostUsageReportManifest.objects.values("provider_id").annotate(
+                most_recent_manifest=Max("manifest_creation_datetime")
+            )
 
     def get_last_seen_manifest_ids(self, bill_date):
         """Return a tuple containing the assembly_id of the last seen manifest and a boolean

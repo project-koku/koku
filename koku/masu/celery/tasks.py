@@ -384,19 +384,19 @@ def check_for_stale_ocp_source(provider_uuid=None):
     """Scheduled task to initiate source check and fire notifications."""
     manifest_accessor = ReportManifestDBAccessor()
     if provider_uuid:
-        manifests = manifest_accessor.get_openshift_manifest_list(provider_uuid)
+        manifest_data = manifest_accessor.get_last_manifest_ingest_datetime(provider_uuid)
     else:
-        manifests = manifest_accessor.get_openshift_manifest_list()
-    if manifests:
-        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifests))
+        manifest_data = manifest_accessor.get_last_manifest_ingest_datetime()
+    if manifest_data:
+        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
         processed = 0
         skipped = 0
         today = DateAccessor().today()
         check_date = DateHelper().n_days_ago(today, 3)
-        for manifest in manifests:
-            last_ingest_time = manifest_accessor.get_last_manifest_ingest_datetime(provider_uuid=manifest.provider_id)
-            if not last_ingest_time or last_ingest_time < check_date:
-                accounts = AccountsAccessor().get_accounts(manifest.provider_id)
+        for data in manifest_data:
+            last_upload_time = data.get("most_recent_manifest")
+            if not last_upload_time or last_upload_time < check_date:
+                accounts = AccountsAccessor().get_accounts(data.provider_id)
                 NotificationService().ocp_stale_source_notification(accounts[0])
                 processed += 1
             else:
