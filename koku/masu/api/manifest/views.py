@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
+import logging
+
 from django.forms.models import model_to_dict
 from django.utils.encoding import force_text
 from rest_framework import permissions
@@ -16,6 +18,11 @@ from masu.api.manifest.serializers import ManifestSerializer
 from masu.api.manifest.serializers import UsageReportStatusSerializer
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+
+
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
 
 
 class ManifestPermission(permissions.BasePermission):
@@ -51,6 +58,9 @@ class ManifestView(viewsets.ModelViewSet):
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
     http_method_names = ["get"]
+    # ordering = ["manifest_creation_datetime"]
+    # ordering_fields = ("manifest_creation_datetime")
+    # ordering = ("manifest_creation_datetime")
 
     def get_provider_UUID(request, provider):
         """returns provider uuid based on provider name"""
@@ -62,8 +72,9 @@ class ManifestView(viewsets.ModelViewSet):
     @staticmethod
     def check_filters(dict_):
         """Check if filter parameters are valid"""
-        valid_query_params = ["name", "limit", "offset"]
+        valid_query_params = ["name", "limit", "offset", "timestamp"]
         params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
+
         if params:
             raise ManifestInvalidFilterException("Invalid Filter Parameter")
 
@@ -78,6 +89,12 @@ class ManifestView(viewsets.ModelViewSet):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
+        if request.GET.get("timestamp") == "asc":
+            queryset = self.queryset.order_by("manifest_creation_datetime")
+            pagination = self.set_pagination(self, queryset, ManifestSerializer)
+            if pagination is not None:
+                return self.get_paginated_response(pagination)
+            return Response(ManifestSerializer(queryset).data, many=True)
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
             queryset = self.queryset.filter(provider_id=providers["uuid"])

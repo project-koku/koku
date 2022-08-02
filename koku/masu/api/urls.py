@@ -70,6 +70,11 @@ urlpatterns = [
         ManifestView.as_view({"get": "get_one_manifest_file"}),
         name="get_one_manifest_file",
     ),
+    path(
+        "manifests/<int:asc>/",
+        ManifestView.as_view({"get": "get_timestamp_filter"}),
+        name="timestamp_filter",
+    ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),

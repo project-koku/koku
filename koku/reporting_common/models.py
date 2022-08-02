@@ -14,6 +14,7 @@ class CostUsageReportManifest(models.Model):
         """Meta for CostUsageReportManifest."""
 
         unique_together = ("provider", "assembly_id")
+        ordering = ["-manifest_creation_datetime"]
 
     assembly_id = models.TextField()
     manifest_creation_datetime = models.DateTimeField(null=True, default=timezone.now)
