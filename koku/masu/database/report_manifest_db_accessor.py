@@ -9,6 +9,7 @@ from django.db.models import DateField
 from django.db.models import DateTimeField
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Max
 from django.db.models import Value
 from django.db.models.expressions import Window
 from django.db.models.functions import Cast
@@ -131,6 +132,21 @@ class ReportManifestDBAccessor(KokuDBAccess):
         filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
         return CostUsageReportManifest.objects.filter(**filters).all()
 
+    def get_openshift_manifest_list(self, provider_uuid=None):
+        """Return all ocp manifests."""
+        if provider_uuid:
+            return CostUsageReportManifest.objects.filter(provider_id=provider_uuid, cluster_id__isnull=False)
+        else:
+            return CostUsageReportManifest.objects.filter(cluster_id__isnull=False)
+
+    def get_last_manifest_ingest_datetime(self, provider_uuid):
+        """Return last manifest ingest completion datetime."""
+        return (
+            CostUsageReportManifest.objects.filter(provider_id=provider_uuid)
+            .aggregate(Max("manifest_completed_datetime"))
+            .get("manifest_completed_datetime__max")
+        )
+
     def get_last_seen_manifest_ids(self, bill_date):
         """Return a tuple containing the assembly_id of the last seen manifest and a boolean
 
@@ -219,13 +235,6 @@ class ReportManifestDBAccessor(KokuDBAccess):
         if manifest:
             manifest.s3_parquet_cleared = True
             manifest.save()
-
-    def get_last_reports_for_manifests(self, provider_uuid, bill_date):
-        """Return the last reports downloaded for manifests given provider."""
-        filters = {"provider_id": provider_uuid, "billing_period_start_datetime__date": bill_date}
-        manifests = CostUsageReportManifest.objects.filter(**filters).all()
-        last_reports = manifests.aggregate("last_reports")
-        return last_reports
 
     def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
         """Return a list of GCP manifests for a date range."""
