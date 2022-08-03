@@ -58,9 +58,6 @@ class ManifestView(viewsets.ModelViewSet):
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
     http_method_names = ["get"]
-    # ordering = ["manifest_creation_datetime"]
-    # ordering_fields = ("manifest_creation_datetime")
-    # ordering = ("manifest_creation_datetime")
 
     def get_provider_UUID(request, provider):
         """returns provider uuid based on provider name"""
