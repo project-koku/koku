@@ -609,7 +609,9 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def pandas_agg_for_currency(self, query_group_by, query_data, skip_columns, annotations, remove_columns=[]):
+    def pandas_agg_for_currency(  # noqa: C901
+        self, query_group_by, query_data, skip_columns, annotations, og_query, remove_columns=[]
+    ):
         """
         Applies the exhange rates to different base currencies for the data section
         of the api response.
@@ -619,6 +621,7 @@ class ReportQueryHandler(QueryHandler):
             query_data (queryset): queryset of the query data.
             skip_columns (list): columns to skip.
             annotations: report annotations.
+            og_query: the original query to return if the currencies are all the same.
             remove_columns (list): columns to remove from conversion.
 
         Note:
@@ -629,7 +632,23 @@ class ReportQueryHandler(QueryHandler):
             (dictionary): A dictionary of query data"""
         if query_data:
             df = pd.DataFrame(query_data)
+            currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
+            if len(currencies) == 1 and currencies[0] == self.currency:
+                LOG.info("Bypassing the pandas data function because all currencies are the same.")
+                if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
+                    annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
+                    if not self.parameters.parameters.get("compute_count"):
+                        # Query parameter indicates count should be removed from DB queries
+                        annotations.pop("count", None)
+                        annotations.pop("count_units", None)
+                query_data = og_query.values(*query_group_by).annotate(**annotations)
+                if self.provider == Provider.PROVIDER_AWS:
+                    if "account" in query_group_by:
+                        query_data = query_data.annotate(
+                            account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
+                        )
+                return query_data
             try:
                 exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
             except AttributeError as err:
@@ -660,7 +679,9 @@ class ReportQueryHandler(QueryHandler):
             query_data = grouped_df.to_dict("records")
         return query_data
 
-    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):  # noqa: C901
+    def pandas_agg_for_total(  # noqa: C901
+        self, query_data, skip_columns, annotations, og_query, remove_columns=[], units=None
+    ):
         """
         Applies the exhange rates to different base currencies for the total section
         of the api response.
@@ -676,7 +697,16 @@ class ReportQueryHandler(QueryHandler):
             (dictionary): A dictionary of query sum data"""
         if query_data:
             df = pd.DataFrame(query_data)
+            currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
+            if len(currencies) == 1 and currencies[0] == self.currency:
+                if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
+                    # Query parameter indicates count should be removed from DB queries
+                    aggregates.pop("count", None)
+                LOG.info("Bypassing the pandas total function because all currencies are the same.")
+                query_data = og_query.aggregate(**aggregates)
+                return query_data
+
             columns = list(aggregates.keys())
             for col in remove_columns:
                 if col in columns:

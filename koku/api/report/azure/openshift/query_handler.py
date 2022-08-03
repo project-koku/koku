@@ -77,20 +77,20 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
-            query_data = query.annotate(**self.annotations)
+            og_query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
             query_group_by = ["date"] + group_by_value
             query_order_by = ["-date"]
             initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*initial_group_by).annotate(**annotations)
+            query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             aggregates = self._mapper.report_type_map.get("aggregates")
             query_sum_data = query_data.annotate(**aggregates)
             remove_columns = ["cost_units", "usage_units", "count"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
-                query_group_by, query_data, skip_columns, self.report_annotations, remove_columns
+                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
             )
 
             if self._limit and query_data:
@@ -109,7 +109,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 ]
                 remove_columns = ["usage", "cost_units", "usage_units", "count"]
                 query_sum = self.pandas_agg_for_total(
-                    query_sum_data, skip_columns, self.report_annotations, remove_columns
+                    query_sum_data, skip_columns, self.report_annotations, query, remove_columns
                 )
 
             if self._delta:
@@ -120,8 +120,11 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
-                    order_date = param
-                    break
+                    # Checks to see if the date is in the query_data
+                    if any(d["date"] == param for d in query_data):
+                        # Set order_date to a valid date
+                        order_date = param
+                        break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
                 sort_term = self._get_group_by()[0]
@@ -149,7 +152,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                    count_units_value = query_data[0].get("count_units")
+                    count_units_value = query_data[0].get("count_units") or count_units_value
 
             if is_csv_output:
                 data = list(query_data)
@@ -161,6 +164,8 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
 
         init_order_keys = []
         query_sum["cost_units"] = self.currency
+        if query_sum.get("count"):
+            query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value

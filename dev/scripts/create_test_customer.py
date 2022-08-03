@@ -89,7 +89,10 @@ class KokuCustomerOnboarder:
         self.endpoint_base = uri.format(*uri_params)
 
         self.auth_token = get_token(
-            self.customer.get("account_id"), self.customer.get("user"), self.customer.get("email")
+            self.customer.get("account_id"),
+            self.customer.get("org_id"),
+            self.customer.get("user"),
+            self.customer.get("email"),
         )
 
     def create_customer(self):
@@ -218,10 +221,11 @@ def get_headers(token):
     return {"x-rh-identity": token}
 
 
-def get_token(account_id, username, email):
+def get_token(account_id, org_id, username, email):
     """Authenticate with the Koku API and obtain an auth token."""
     identity = {
         "account_number": account_id,
+        "org_id": org_id,
         "type": "User",
         "user": {"username": username, "email": email, "is_org_admin": True},
     }

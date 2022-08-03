@@ -58,9 +58,9 @@ def extract_header(request, header):
     return (rh_auth_header, json_rh_auth)
 
 
-def create_schema_name(account):
+def create_schema_name(org_id):
     """Create a database schema name."""
-    return f"acct{account}"
+    return f"org{org_id}"
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -81,15 +81,10 @@ class UserSerializer(serializers.ModelSerializer):
             request = self.context.get("request")
             if request and hasattr(request, "META"):
                 _, json_rh_auth = extract_header(request, RH_IDENTITY_HEADER)
-                if (
-                    json_rh_auth
-                    and "identity" in json_rh_auth
-                    and "account_number" in json_rh_auth["identity"]  # noqa: W504
-                ):
-                    account = json_rh_auth["identity"]["account_number"]
-                if account:
-                    schema_name = create_schema_name(account)
-                    customer = Customer.objects.get(schema_name=schema_name)
+                if json_rh_auth and "identity" in json_rh_auth and "org_id" in json_rh_auth["identity"]:
+                    org_id = json_rh_auth["identity"]["org_id"]
+                if org_id:
+                    customer = Customer.objects.get(org_id=org_id)
                 else:
                     key = "customer"
                     message = "Customer for requesting user could not be found."
@@ -115,7 +110,7 @@ class CustomerSerializer(serializers.ModelSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ("uuid", "account_id", "date_created")
+        fields = ("uuid", "account_id", "org_id", "date_created")
 
 
 class AdminCustomerSerializer(CustomerSerializer):
@@ -125,7 +120,7 @@ class AdminCustomerSerializer(CustomerSerializer):
         """Metadata for the serializer."""
 
         model = Customer
-        fields = ("uuid", "account_id", "date_created", "schema_name")
+        fields = ("uuid", "account_id", "org_id", "date_created", "schema_name")
 
 
 class NestedUserSerializer(serializers.ModelSerializer):

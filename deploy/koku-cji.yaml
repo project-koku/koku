@@ -48,6 +48,8 @@ objects:
           value: ${CJI_TRUNC_TABLES}
         - name: CJI_TRUNC_PROVIDER_TYPES
           value: ${CJI_TRUNC_PROVIDER_TYPES}
+        - name: NUM_TRUNC_WORKERS
+          value: ${NUM_TRUNC_WORKERS}
         image: ${IMAGE}:${IMAGE_TAG}
         resources:
           limits:
@@ -121,3 +123,5 @@ parameters:
   value: ""
 - name: CJI_TRUNC_PROVIDER_TYPES
   value: ""
+- name: NUM_TRUNC_WORKERS
+  value: 4

@@ -19,6 +19,7 @@ from masu.api.gcp_invoice_monthly_cost import gcp_invoice_monthly_cost
 from masu.api.hcs_report_data import hcs_report_data
 from masu.api.hcs_report_finalization import hcs_report_finalization
 from masu.api.manifest.views import ManifestView
+from masu.api.notifications import notification
 from masu.api.report_data import report_data
 from masu.api.running_celery_tasks import celery_queue_lengths
 from masu.api.running_celery_tasks import running_celery_tasks
@@ -27,3 +28,4 @@ from masu.api.sources.views import SourcesViewSet
 from masu.api.status import get_status
 from masu.api.update_cost_model_costs import update_cost_model_costs
 from masu.api.update_exchange_rates import update_exchange_rates
+from masu.api.update_openshift_on_cloud import update_openshift_on_cloud
