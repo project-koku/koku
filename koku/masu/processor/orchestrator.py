@@ -44,7 +44,7 @@ class Orchestrator:
 
     """
 
-    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None):
+    def __init__(self, billing_source=None, provider_uuid=None, bill_date=None, queue_name=None, **kwargs):
         """
         Orchestrator for processing.
 
@@ -58,6 +58,7 @@ class Orchestrator:
         self.provider_uuid = provider_uuid
         self.queue_name = queue_name
         self._accounts, self._polling_accounts = self.get_accounts(self.billing_source, self.provider_uuid)
+        self._summarize_reports = kwargs.get("summarize_reports", True)
 
     @staticmethod
     def get_accounts(billing_source=None, provider_uuid=None):
@@ -191,11 +192,14 @@ class Orchestrator:
             )
 
             if report_tasks:
-                reports_tasks_queued = True
-                hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
-                summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+                if self._summarize_reports:
+                    reports_tasks_queued = True
+                    hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
+                    summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
 
-                async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                    async_id = chord(report_tasks, group(summary_task, hcs_task))()
+                else:
+                    async_id = group(report_tasks)()
                 LOG.info(log_json(tracing_id, f"Manifest Processing Async ID: {async_id}"))
 
         return manifest_list, reports_tasks_queued
