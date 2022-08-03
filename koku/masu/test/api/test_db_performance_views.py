@@ -188,6 +188,7 @@ class TestDBPerformance(IamTestCase):
         self.assertEqual(response.status_code, 200)
 
     @patch("koku.middleware.MASU", return_value=True)
+    @patch("koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name())
     def test_get_schema_sizes(self, mok_middl):
         headers = self._get_headers()
         response = self.client.get(reverse("schema_sizes"), **headers)
