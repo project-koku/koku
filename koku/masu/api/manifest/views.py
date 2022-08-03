@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Views for Masu API `manifest`."""
-import logging
-
 from django.forms.models import model_to_dict
 from django.utils.encoding import force_text
 from rest_framework import permissions
@@ -18,11 +16,6 @@ from masu.api.manifest.serializers import ManifestSerializer
 from masu.api.manifest.serializers import UsageReportStatusSerializer
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-
-
-logging.basicConfig()
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.INFO)
 
 
 class ManifestPermission(permissions.BasePermission):

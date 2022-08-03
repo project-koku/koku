@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Views."""
-import logging
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -15,11 +14,6 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
-
-
-logging.basicConfig()
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.INFO)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
