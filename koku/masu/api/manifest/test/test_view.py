@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Tests the Masu API `manifest` Views."""
+import logging
 from unittest.mock import patch
 
 from django.test.utils import override_settings
@@ -14,6 +15,11 @@ from api.iam.test.iam_test_case import IamTestCase
 from api.provider.models import Provider
 from reporting_common.models import CostUsageReportManifest
 from reporting_common.models import CostUsageReportStatus
+
+
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -151,3 +157,15 @@ class ManifestViewTests(IamTestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_all_manifests_ordered(self, _):
+        """Test Get all manifests"""
+        url = "%s?timestamp=asc" % reverse("all_manifests")
+        response = self.client.get(url)
+        json_result = response.json()
+        results = json_result.get("data")[0].get("id")
+        self.assertNotEqual(len(results), 0)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # This checks that the first id in the data is the first one created.
+        self.assertEqual(json_result.get("data")[0].get("id"), 1)
