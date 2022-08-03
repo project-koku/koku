@@ -51,8 +51,8 @@ class NotificationService:
 
         if event_type in ["cost-model-create", "cost-model-update", "cost-model-remove"]:
             context = {
-                "cost_model_id": str(cost_model.cost_model_uuid),
-                "cost_model_name": cost_model.cost_model_name,
+                "cost_model_id": str(cost_model.get("cost_model_uuid")),
+                "cost_model_name": cost_model.get("cost_model_name"),
                 "host_url": "https://console.redhat.com/openshift/cost-management/cost-models/",
             }
         else:
