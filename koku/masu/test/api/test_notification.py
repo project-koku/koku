@@ -25,6 +25,20 @@ class NotificationAPIViewTest(TestCase):
         Tenant.objects.get_or_create(schema_name="public")
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_notification_endpoint_no_param(self, file_list):
+        """Test the Notification cost model endpoint."""
+        url = reverse("notification")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_notification_endpoint_invalid_uuid(self, file_list):
+        """Test the Notification cost model endpoint."""
+        url_w_params = reverse("notification") + "?cost_model_check&provider_uuid=dc"
+        response = self.client.get(url_w_params)
+        self.assertEqual(response.status_code, 400)
+
+    @patch("koku.middleware.MASU", return_value=True)
     @patch(
         "masu.celery.tasks.check_cost_model_status.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
@@ -35,14 +49,12 @@ class NotificationAPIViewTest(TestCase):
         params = {"cost_model_check": ""}
         response = self.client.get(url, params)
         body = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertIn("Notification Request Task ID", body)
 
-        url_w_params = reverse("notification") + "?cost_model_check&uuid=1"
+        url_w_params = reverse("notification") + "?cost_model_check&provider_uuid=dc350f15-ffc7-4fcb-92d7-2a9f1275568e"
         response = self.client.get(url_w_params)
         body = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertIn("Notification Request Task ID", body)
 
@@ -57,13 +69,11 @@ class NotificationAPIViewTest(TestCase):
         params = {"stale_ocp_check": ""}
         response = self.client.get(url, params)
         body = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertIn("Notification Request Task ID", body)
 
-        url_w_params = reverse("notification") + "?stale_ocp_check&uuid=1"
+        url_w_params = reverse("notification") + "?stale_ocp_check&provider_uuid=dc350f15-ffc7-4fcb-92d7-2a9f1275568e"
         response = self.client.get(url_w_params)
         body = response.json()
-
         self.assertEqual(response.status_code, 200)
         self.assertIn("Notification Request Task ID", body)
