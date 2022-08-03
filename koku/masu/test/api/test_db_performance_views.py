@@ -94,9 +94,38 @@ class TestDBPerformance(IamTestCase):
             self.assertIn("blocked_pid", html)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_get_conn_activity(self, mok_middl):
+    @patch("koku.configurator.CONFIGURATOR.get_database_name", return_value=TEST_CONFIGURATOR.get_database_name())
+    def test_get_conn_activity(self, mok_conf, mok_middl):
         """Test the stat activity view."""
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
+            activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name())
+        pid = activity[0]["backend_pid"]
+        state = activity[0]["state"]
         response = self.client.get(reverse("conn_activity"), **self._get_headers())
+        html = response.content.decode("utf-8")
+        self.assertIn('id="term_action_table"', html)
+        self.assertIn("Connection Activity", html)
+        self.assertIn("backend_pid", html)
+
+        response = self.client.get(reverse("conn_activity"), {"pid": pid}, **self._get_headers())
+        html = response.content.decode("utf-8")
+        self.assertIn('id="term_action_table"', html)
+        self.assertIn("Connection Activity", html)
+        self.assertIn("backend_pid", html)
+
+        response = self.client.get(reverse("conn_activity"), {"pid": [pid]}, **self._get_headers())
+        html = response.content.decode("utf-8")
+        self.assertIn('id="term_action_table"', html)
+        self.assertIn("Connection Activity", html)
+        self.assertIn("backend_pid", html)
+
+        response = self.client.get(reverse("conn_activity"), {"state": state}, **self._get_headers())
+        html = response.content.decode("utf-8")
+        self.assertIn('id="term_action_table"', html)
+        self.assertIn("Connection Activity", html)
+        self.assertIn("backend_pid", html)
+
+        response = self.client.get(reverse("conn_activity"), {"state": [state]}, **self._get_headers())
         html = response.content.decode("utf-8")
         self.assertIn('id="term_action_table"', html)
         self.assertIn("Connection Activity", html)
@@ -157,6 +186,24 @@ class TestDBPerformance(IamTestCase):
         payload = json.dumps({"sql_statement": "select 1;\nselect 2;"})
         response = self.client.post(reverse("explain_query"), payload, "json", **headers)
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_schema_sizes(self, mok_middl):
+        headers = self._get_headers()
+        response = self.client.get(reverse("schema_sizes"), **headers)
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode("utf-8")
+        self.assertIn("schema_name", html)
+        self.assertIn("schema_size_gb", html)
+        self.assertNotIn("table_name", html)
+
+        headers["HTTP_X_REQUESTED_WITH"] = "XMLHttpRequest"
+        response = self.client.get(reverse("schema_sizes"), {"top": "5"}, **headers)
+        html = response.content.decode("utf-8")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("schema_name", html)
+        self.assertIn("schema_size_gb", html)
+        self.assertIn("table_name", html)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_get_menu(self, mok_middl):
@@ -327,14 +374,15 @@ class TestDBPerformance(IamTestCase):
     @patch("koku.middleware.MASU", return_value=True)
     def test_make_db_options(self, mok_middl):
         request = Mock()
-        request.query_params = _dikt(dbname="test_postgres")
+        target_db = TEST_CONFIGURATOR.get_database_name()
+        request.query_params = _dikt(dbname=target_db)
 
         with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbps:
             databases = get_database_list(dbps)
-            res = make_db_options(databases, "test_postgres", request, "schema_sizes")
+            res = make_db_options(databases, target_db, request, "schema_sizes")
             found = False
             for line in res.split(os.linesep):
-                found = "test_postgres" in line
+                found = target_db in line
                 if found:
                     self.assertIn("selected", line)
                     break

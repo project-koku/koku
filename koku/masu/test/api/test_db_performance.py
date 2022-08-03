@@ -121,37 +121,39 @@ class TestDBPerformanceClass(IamTestCase):
             self.assertEqual(params, {"offset": 10})
 
     def test_handle_lockinfo(self):
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
-            lockinfo = dbp.get_lock_info("test_postgres")
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
+            lockinfo = dbp.get_lock_info(TEST_CONFIGURATOR.get_database_name())
             if lockinfo:
-                self.assertTrue(len(lockinfo) < 500)
+                self.assertTrue(len(lockinfo) <= 100)
 
-            lockinfo = dbp.get_lock_info("test_postgres", limit=1)
+            lockinfo = dbp.get_lock_info(TEST_CONFIGURATOR.get_database_name(), limit=1)
             if lockinfo:
-                self.assertTrue(len(lockinfo) < 1)
+                self.assertTrue(len(lockinfo) <= 1)
 
     def test_get_conn_activity(self):
         """Test that the correct connection activty is returned."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             dbpid = dbp.conn.get_backend_pid()
-            activity = dbp.get_activity("test_postgres")
-            self.assertTrue(all(a["backend_pid"] != dbpid for a in activity))
+            activity = dbp.get_activity(TEST_CONFIGURATOR.get_database_name())
+            self.assertTrue(any(a["backend_pid"] == dbpid for a in activity))
 
-            activity = dbp.get_activity("test_postgres", state=["COMPLETELY INVALID STATE HERE!"])
+            activity = dbp.get_activity(
+                TEST_CONFIGURATOR.get_database_name(), state=["COMPLETELY INVALID STATE HERE!"]
+            )
             self.assertEqual(activity, [])
 
     def test_get_stmt_stats(self):
         """Test that statement statistics are returned."""
-        with DBPerformanceStats("KOKU", CONFIGURATOR) as dbp:
+        with DBPerformanceStats("KOKU", TEST_CONFIGURATOR) as dbp:
             has_pss, pss_ver = dbp._validate_pg_stat_statements()
             if has_pss:
                 self.assertIsNotNone(pss_ver)
-                stats = dbp.get_statement_stats("test_postgres")
-                self.assertTrue(0 < len(stats) <= 500)
+                stats = dbp.get_statement_stats(TEST_CONFIGURATOR.get_database_name())
+                self.assertTrue(0 < len(stats) <= 100)
                 self.assertIn("calls", stats[0])
             else:
                 self.assertIsNone(pss_ver)
-                stats = dbp.get_statement_stats("test_postgres")
+                stats = dbp.get_statement_stats(TEST_CONFIGURATOR.get_database_name())
                 self.assertEqual(len(stats), 1)
                 self.assertIn("Result", stats[0])
 

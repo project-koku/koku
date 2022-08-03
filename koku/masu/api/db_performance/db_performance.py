@@ -354,6 +354,7 @@ select datname as "dbname",
         limit_clause = self._handle_limit(limit, params)
         offset_clause = self._handle_offset(offset, params)
         if top > 0:
+            LOG.debug(f"Getting schema size and top {top} tables")
             sql = f"""
 select schema_name,
        table_name,
@@ -382,6 +383,7 @@ select schema_name,
 ;
 """
         else:
+            LOG.debug("Getting schema size only")
             sql = f"""
 select schema_name,
        round(schema_size::numeric / %(db_gb)s::numeric, 10) as "schema_size_gb"
