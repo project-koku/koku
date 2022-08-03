@@ -29,7 +29,7 @@ class NotificationService:
         # encoded_id = msg_uuid.encode()
         # message_id = bytearray(encoded_id)
 
-    def build_notification_json(self, account, event_type, host_url, description):
+    def build_notification_json(self, account, event_type, host_url, description, cost_model=None):
         """
         Build json message for sending to notifications service
         Args:
@@ -44,18 +44,31 @@ class NotificationService:
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
             name = provider_accessor.get_provider_name()
 
+        account_id = (account.get("account_id").strip("acct"), "")
+        org_id = (account.get("org_id").strip("org"), "")
+
+        if event_type in ["cost-model-create", "cost-model-update", "cost-model-remove"]:
+            context = {
+                "cost_model_id": str(cost_model.cost_model_uuid),
+                "cost_model_name": cost_model.cost_model_name,
+                "host_url": "https://console.redhat.com/openshift/cost-management/cost-models/",
+            }
+        else:
+            context = {
+                "source_id": str(provider_uuid),
+                "source_name": name,
+                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(provider_uuid)}",
+            }
+
         notification_json = {
             "id": self.msg_uuid,
             "bundle": "openshift",
             "application": "cost-management",
             "event_type": event_type,
             "timestamp": self.timestamp,
-            "account_id": account.get("schema_name").strip("acct").strip("org"),
-            "context": {
-                "source_id": str(provider_uuid),
-                "source_name": name,
-                "host_url": f"https://console.redhat.com/settings/sources/detail/{str(provider_uuid)}",
-            },
+            "account_id": account_id,
+            "org_id": org_id,
+            "context": context,
             "events": [
                 {
                     "metadata": {},
@@ -94,19 +107,19 @@ class NotificationService:
         msg = self.build_notification_json(account, event_type, host_url, description)
         self.send_notification(msg)
 
-    def cost_model_crud_notification(self, account):
+    def cost_model_crud_notification(self, account, cost_model, cost_model_type):
         """Send cost-model notifications via kafka"""
-        event_type = "cost-model-crud"
+        event_type = f"cost-model-{cost_model_type}"
         host_url = "https://console.redhat.com/openshift/cost-management/cost-models"
-        description = "Cost model added/updated or deleted."
-        msg = self.build_notification_json(account, event_type, host_url, description)
+        description = f"Cost model {cost_model_type}."
+        msg = self.build_notification_json(account, event_type, host_url, description, cost_model)
         self.send_notification(msg)
 
     def ocp_stale_source_notification(self, account):
         """Send notifications for stale openshift clusters via kafka"""
         event_type = "cm-operator-stale"
         host_url = "https://console.redhat.com/openshift/cost-management/ocp"
-        description = "Openshift source has not recieved data for at least 3 days."
+        description = "Openshift source has not received data for at least 3 days."
         msg = self.build_notification_json(account, event_type, host_url, description)
         self.send_notification(msg)
 
@@ -120,8 +133,8 @@ class NotificationService:
 
     def ocp_data_received_notification(self, account):
         """Send notifications for stale openshift clusters via kafka"""
-        event_type = "cm-operator-data-recieved"
+        event_type = "cm-operator-data-received"
         host_url = "https://console.redhat.com/openshift/cost-management/ocp"
-        description = "Openshift cluster data recieved for processing."
+        description = "Openshift cluster data received for processing."
         msg = self.build_notification_json(account, event_type, host_url, description)
         self.send_notification(msg)
