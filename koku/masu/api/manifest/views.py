@@ -54,7 +54,7 @@ class ManifestInvalidFilterException(APIException):
 class ManifestView(viewsets.ModelViewSet):
     """Manifest View class."""
 
-    queryset = CostUsageReportManifest.objects.all()
+    queryset = CostUsageReportManifest.objects.all().order_by("-manifest_creation_datetime")
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
     http_method_names = ["get"]
