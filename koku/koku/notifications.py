@@ -43,9 +43,11 @@ class NotificationService:
         provider_uuid = account.get("provider_uuid")
         with ProviderDBAccessor(provider_uuid) as provider_accessor:
             name = provider_accessor.get_provider_name()
+            account_id = provider_accessor.get_account_id()
+            org_id = provider_accessor.get_org_id()
 
-        account_id = (account.get("account_id").strip("acct"), "")
-        org_id = (account.get("org_id").strip("org"), "")
+        account_id = account_id if account_id else ""
+        org_id = org_id if org_id else ""
 
         if event_type in ["cost-model-create", "cost-model-update", "cost-model-remove"]:
             context = {
