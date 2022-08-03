@@ -50,7 +50,7 @@ class NotificationService:
             "application": "cost-management",
             "event_type": event_type,
             "timestamp": self.timestamp,
-            "account_id": account.get("schema_name"),
+            "account_id": account.get("schema_name").strip("acct").strip("org"),
             "context": {
                 "source_id": str(provider_uuid),
                 "source_name": name,
@@ -87,9 +87,41 @@ class NotificationService:
         producer.flush(1)
 
     def cost_model_notification(self, account):
-        """Send a cost-model to notification service via kafka"""
+        """Send cost-model notifications via kafka"""
         event_type = "missing-cost-model"
         host_url = "https://console.redhat.com/openshift/cost-management/cost-models"
         description = "Openshift source has no cost model assigned, add one via the following link."
+        msg = self.build_notification_json(account, event_type, host_url, description)
+        self.send_notification(msg)
+
+    def cost_model_crud_notification(self, account):
+        """Send cost-model notifications via kafka"""
+        event_type = "cost-model-crud"
+        host_url = "https://console.redhat.com/openshift/cost-management/cost-models"
+        description = "Cost model added/updated or deleted."
+        msg = self.build_notification_json(account, event_type, host_url, description)
+        self.send_notification(msg)
+
+    def ocp_stale_source_notification(self, account):
+        """Send notifications for stale openshift clusters via kafka"""
+        event_type = "cm-operator-stale"
+        host_url = "https://console.redhat.com/openshift/cost-management/ocp"
+        description = "Openshift source has not recieved data for at least 3 days."
+        msg = self.build_notification_json(account, event_type, host_url, description)
+        self.send_notification(msg)
+
+    def ocp_data_processed_notification(self, account):
+        """Send notifications for stale openshift clusters via kafka"""
+        event_type = "cm-operator-data-processed"
+        host_url = "https://console.redhat.com/openshift/cost-management/ocp"
+        description = "Openshift cluster processing complete."
+        msg = self.build_notification_json(account, event_type, host_url, description)
+        self.send_notification(msg)
+
+    def ocp_data_received_notification(self, account):
+        """Send notifications for stale openshift clusters via kafka"""
+        event_type = "cm-operator-data-recieved"
+        host_url = "https://console.redhat.com/openshift/cost-management/ocp"
+        description = "Openshift cluster data recieved for processing."
         msg = self.build_notification_json(account, event_type, host_url, description)
         self.send_notification(msg)
