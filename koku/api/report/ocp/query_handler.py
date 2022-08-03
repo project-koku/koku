@@ -26,7 +26,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.models import OCPUsageLineItemDailySummary
 
-# TODO: remove this import after debugging
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +79,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
-    # TODO: We most likely want to move this to its own relation table.
     def build_source_to_currency_map(self):
         """
         OCP sources do not have costs associated, so we need to
