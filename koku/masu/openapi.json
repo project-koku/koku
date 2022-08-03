@@ -39,6 +39,10 @@
       "description": "Operations about updating cost model costs"
     },
     {
+      "name": "OCP on Cloud Report Data",
+      "description": "Summarize an OpenShift on Cloud source's summary data"
+    },
+    {
       "name": "Status",
       "description": "Operations about status"
     },
@@ -455,6 +459,15 @@
               "format": "date",
               "example": "2019-12-31"
             }
+          },
+          {
+            "name": "ocp_on_cloud",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -792,6 +805,83 @@
         },
         "tags": [
           "Update Cost Model Cost"
+        ]
+      },
+      "parameters": []
+    },
+    "/update_openshift_on_cloud/": {
+      "get": {
+        "operationId": "getOCPOnCloudReportData",
+        "description": "Update report summary tables in the database.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The OpenShift provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "org1234567"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "The date to begin summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
+          },
+          {
+            "name": "queue",
+            "in": "query",
+            "description": "The celery queue to use",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "summary"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "OCP on Cloud Report Data"
         ]
       },
       "parameters": []
