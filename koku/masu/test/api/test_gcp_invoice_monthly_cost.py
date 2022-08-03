@@ -4,9 +4,8 @@
 #
 """Test the update_cost_model_costs endpoint view."""
 import logging
-from unittest.mock import patch
-from unittest.mock import MagicMock
 from collections import OrderedDict
+from unittest.mock import patch
 from urllib.parse import urlencode
 
 from django.test.utils import override_settings
@@ -25,7 +24,6 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
     def test_success_gcp_invoice_monthly(self, _):
         """Test successful endpoint return"""
         expected_value = 308.45
-        # mocked_value = MagicMock()
         dict = OrderedDict()
         dict["cost"] = expected_value
         dict[0] = expected_value

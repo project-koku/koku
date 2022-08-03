@@ -81,7 +81,7 @@ def gcp_invoice_monthly_cost(request):
                 metadata = {"invoice_month": invoice_month}
                 for meta_key in ["cost", "credit_amount", "total"]:
                     metadata[meta_key] = row.get(meta_key)
-                results[key+"_metadata"] = metadata
+                results[key + "_metadata"] = metadata
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
