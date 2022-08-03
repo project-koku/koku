@@ -66,7 +66,9 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 remove_columns = ["usage", "usage_units", "cost_units", "count"]
                 skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
                 new_annotations = list(self.report_annotations.keys())
-                query_sum = self.pandas_agg_for_total(query_sum_data, skip_columns, new_annotations, remove_columns)
+                query_sum = self.pandas_agg_for_total(
+                    query_sum_data, skip_columns, new_annotations, query, remove_columns
+                )
 
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)

@@ -262,7 +262,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         query_data = query_data.annotate(**aggregates)
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
-        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, units=units)
+        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, query, units=units)
 
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value

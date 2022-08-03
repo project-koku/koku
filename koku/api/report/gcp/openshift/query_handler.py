@@ -109,7 +109,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 remove_columns = ["usage", "cost_units", "usage_units"]
                 skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias", "usage_units"]
                 query_sum = self.pandas_agg_for_total(
-                    query_sum_data, skip_columns, self.report_annotations, remove_columns
+                    query_sum_data, skip_columns, self.report_annotations, query, remove_columns
                 )
 
             if self._delta:

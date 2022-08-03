@@ -679,7 +679,9 @@ class ReportQueryHandler(QueryHandler):
             query_data = grouped_df.to_dict("records")
         return query_data
 
-    def pandas_agg_for_total(self, query_data, skip_columns, annotations, remove_columns=[], units=None):  # noqa: C901
+    def pandas_agg_for_total(  # noqa: C901
+        self, query_data, skip_columns, annotations, og_query, remove_columns=[], units=None
+    ):
         """
         Applies the exhange rates to different base currencies for the total section
         of the api response.
@@ -702,7 +704,7 @@ class ReportQueryHandler(QueryHandler):
                     # Query parameter indicates count should be removed from DB queries
                     aggregates.pop("count", None)
                 LOG.info("Bypassing the pandas total function because all currencies are the same.")
-                query_data = query_data.aggregate(**aggregates)
+                query_data = og_query.aggregate(**aggregates)
                 return query_data
 
             columns = list(aggregates.keys())

@@ -249,7 +249,9 @@ class AzureReportQueryHandler(ReportQueryHandler):
         query_data = query_data.annotate(**aggregates)
         remove_columns = ["usage"]
         skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
-        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, remove_columns)
+        total_query = self.pandas_agg_for_total(
+            query_data, skip_columns, self.report_annotations, query, remove_columns
+        )
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
             if unit_key not in ["usage_units", "count_units"]:

@@ -109,7 +109,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
                 ]
                 remove_columns = ["usage", "cost_units", "usage_units", "count"]
                 query_sum = self.pandas_agg_for_total(
-                    query_sum_data, skip_columns, self.report_annotations, remove_columns
+                    query_sum_data, skip_columns, self.report_annotations, query, remove_columns
                 )
 
             if self._delta:

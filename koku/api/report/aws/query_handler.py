@@ -676,7 +676,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")
-        total_query = self.pandas_agg_for_total(query_data, skip_columns, new_annotations, remove_columns)
+        total_query = self.pandas_agg_for_total(query_data, skip_columns, new_annotations, query, remove_columns)
 
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
