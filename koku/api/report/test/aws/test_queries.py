@@ -2694,6 +2694,21 @@ class AWSReportQueryTest(IamTestCase):
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
 
+    def test_get_sub_org_units(self):
+        """Check that the correct sub org units are returned."""
+        with tenant_context(self.tenant):
+            org_unit = "OU_001"
+            org_group_by_url = f"?filter[org_unit_id]={org_unit}"
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            sub_orgs = handler._get_sub_org_units([org_unit])
+            sub_orgs_ids = []
+            for sub_ou in sub_orgs:
+                # grab the sub org ids
+                sub_orgs_ids.append(sub_ou.org_unit_id)
+            expected_sub_org_units = self.ou_to_account_subou_map.get(org_unit).get("org_units")
+            self.assertEqual(sub_orgs_ids, expected_sub_org_units)
+
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
     """Tests the report queries."""

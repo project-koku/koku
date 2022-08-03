@@ -704,10 +704,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
     def _get_sub_org_units(self, org_unit_list):
         """Get sub org units for a list of parent org units.
-
         Args:
             org_unit_list (list): list of parent org units
-
         Returns:
             sub_org_unit_list (list): list of sub org units
         """
@@ -728,7 +726,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     sub_query = (
                         AWSOrganizationalUnit.objects.filter(level=(org_unit_object.level + 1))
                         .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
-                        .filter(account_alias__isnull=True)
+                        .filter(account_alias__isnull=False)
                         .exclude(org_unit_id__in=org_unit_list)
                         .order_by("org_unit_id", "-created_timestamp")
                         .distinct("org_unit_id")
@@ -744,7 +742,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     # use cases like OU_005 being moved from OU_002 to OU_001.
                     sub_org_unit_list = (
                         AWSOrganizationalUnit.objects.filter(org_unit_id__in=sub_ou_ids_list)
-                        .filter(account_alias__isnull=True)
+                        .filter(account_alias__isnull=False)
                         .order_by("org_unit_id", "-created_timestamp")
                         .distinct("org_unit_id")
                     )

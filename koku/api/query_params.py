@@ -227,10 +227,14 @@ class QueryParameters:
                     raise PermissionDenied()
         return access_list
 
-    def _check_org_unit_account_hierarchy(self, group_by, org_unit_list):
-        """Get all acounts in an org unit"""
+    def _get_org_unit_account_hierarchy(self, org_unit_list):
+        """Get all acounts in org unit tree
+        Args:
+            org_unit_list (list): list of parent org units
+        Returns:
+            org_unit_accounts (list): list of org unit accounts
+        """
         _org_units = org_unit_list if org_unit_list else []
-        access_list = group_by if group_by else []
 
         # get all parent org units:
         parent_org_units = (
@@ -241,7 +245,7 @@ class QueryParameters:
         )
 
         # get all accounts in the org unit hierarchy.
-        all_ou_accounts = []
+        org_unit_accounts = []
         for org_unit_object in parent_org_units:
             org_accounts = (
                 AWSOrganizationalUnit.objects.filter(level__gte=(org_unit_object.level))
@@ -250,11 +254,8 @@ class QueryParameters:
                 .values_list("account_alias__account_id", flat=True)
                 .distinct()
             )
-            all_ou_accounts.extend(list(org_accounts))
-
-        if set(group_by).issubset(all_ou_accounts):
-            return all_ou_accounts
-        return access_list
+            org_unit_accounts.extend(list(org_accounts))
+        return org_unit_accounts
 
     def _set_access(self, provider, filter_key, access_key, raise_exception=True):  # noqa C901
         """Alter query parameters based on user access."""
@@ -298,7 +299,8 @@ class QueryParameters:
                 and set(org_unit_filter).issubset(org_unit_access_list)
             ):
                 account_group_by = group_by.get(filter_key, [])
-                access_list = self._check_org_unit_account_hierarchy(account_group_by, org_unit_access_list)
+                org_unit_accts = self._get_org_unit_account_hierarchy(org_unit_access_list)
+                access_list = org_unit_accts if set(account_group_by).issubset(org_unit_accts) else account_group_by
 
             result = get_replacement_result(items, access_list, raise_exception)
             if result:
