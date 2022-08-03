@@ -168,12 +168,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
             for column in columns:
-                # temp currency version
                 df[column] = df.apply(
                     lambda row: row[column]
+                    * exchange_rates.get(row["raw_currency"], {}).get(self.currency, Decimal(1.0))
+                    if row["raw_currency"] else row[column]
                     * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
-                        self.currency, Decimal(1.0)
-                    ),
+                        self.currency, Decimal(1.0)),
                     axis=1,
                 )
                 df["cost_units"] = self.currency
@@ -221,9 +221,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for column in columns:
             df[column] = df.apply(
                 lambda row: row[column]
+                * exchange_rates.get(row["raw_currency"], {}).get(self.currency, Decimal(1.0))
+                if row["raw_currency"] else row[column]
                 * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
-                    self.currency, Decimal(1.0)
-                ),
+                    self.currency, Decimal(1.0)),
                 axis=1,
             )
             df["cost_units"] = self.currency
@@ -271,6 +272,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.query_table == OCPUsageLineItemDailySummary:
                 self.report_annotations.pop("source_uuid")
             initial_group_by.append(source_column)
+            initial_group_by.append("raw_currency")
             annotations = self._mapper.report_type_map.get("annotations")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
