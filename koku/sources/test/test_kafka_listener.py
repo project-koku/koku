@@ -74,7 +74,7 @@ KAFKA_KEY_MAP = {
     "SOURCES_KAFKA_PASSWORD": "sasl.password",
     "SOURCES_KAFKA_SASL_MECHANISM": "sasl.mechanism",
     "SOURCES_KAFKA_SECURITY_PROTOCOL": "security.protocol",
-    "SOURCES_KAFKA_CACERT": "ssl.ca.location",
+    "SOURCES_KAFKA_CACERT": "ssl_ca",
 }
 
 
