@@ -147,6 +147,16 @@ class Forecast:
         skip_columns = ["usage_start", self.cost_units_key]
         if query_data:
             df = pd.DataFrame(query_data)
+            currencies = df[self.cost_units_key].unique()
+
+            if len(currencies) == 1 and currencies[0] == self.currency:
+                LOG.info("Bypassing the pandas total function because all currencies are the same.")
+                query_data = df.drop(self.cost_units_key, axis=1)
+                query_data = query_data.replace({np.nan: None})
+                query_data = query_data.to_dict("records")
+                print("QUERY DATA NOW: ", query_data)
+                return query_data
+
             try:
                 exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
             except AttributeError as err:
@@ -171,23 +181,17 @@ class Forecast:
             grouped_df.reset_index(inplace=True)
             grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
-
+            print("QUERY DATA: ", query_data)
             return query_data
 
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
         with tenant_context(self.params.tenant):
-
-            if self.provider is Provider.PROVIDER_AWS:
-                currency_identifier = "currency_code"
-            else:
-                currency_identifier = "currency"
-
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start", currency_identifier)
+                .values("usage_start", self.cost_units_key)
                 .annotate(
                     total_cost=self.total_cost_term,
                     supplementary_cost=self.supplementary_cost_term,
@@ -415,6 +419,7 @@ class Forecast:
         results = model.fit()
         return LinearForecastResult(results, exog=to_predict)
 
+    # TODO: following function is going to need to take a list or dict for new currency conversion method
     def _uniquify_qset(self, qset, field="total_cost"):
         """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
 
