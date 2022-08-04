@@ -348,6 +348,7 @@ def update_summary_tables(  # noqa: C901
     queue_name=None,
     synchronous=False,
     tracing_id=None,
+    ocp_on_cloud=True,
 ):
     """Populate the summary tables for reporting.
 
@@ -405,7 +406,8 @@ def update_summary_tables(  # noqa: C901
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
         start_date, end_date = updater.update_daily_tables(start_date, end_date)
         updater.update_summary_tables(start_date, end_date, tracing_id)
-        ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+        if ocp_on_cloud:
+            ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(tracing_id, f"Failed to correlate OpenShift metrics for provider: {provider_uuid}. Error: {ex}")

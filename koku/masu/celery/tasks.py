@@ -379,6 +379,33 @@ def check_cost_model_status(provider_uuid=None):
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 
+@celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
+def check_for_stale_ocp_source(provider_uuid=None):
+    """Scheduled task to initiate source check and fire notifications."""
+    manifest_accessor = ReportManifestDBAccessor()
+    if provider_uuid:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
+    else:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    if manifest_data:
+        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        processed = 0
+        skipped = 0
+        today = DateAccessor().today()
+        check_date = DateHelper().n_days_ago(today, 3)
+        for data in manifest_data:
+            last_upload_time = data.get("most_recent_manifest")
+            if not last_upload_time or last_upload_time < check_date:
+                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(accounts[0])
+                processed += 1
+            else:
+                skipped += 1
+        LOG.info(
+            f"Openshift stale source status check finished. {processed} notifications fired and {skipped} skipped"
+        )
+
+
 @celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)
 def delete_provider_async(name, provider_uuid, schema_name):
     with schema_context(schema_name):
