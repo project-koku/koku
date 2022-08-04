@@ -50,6 +50,7 @@ class ReportDataTests(TestCase):
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=PRIORITY_QUEUE,
+            ocp_on_cloud=True,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -80,6 +81,7 @@ class ReportDataTests(TestCase):
             params["start_date"],
             DateHelper().today.date().strftime("%Y-%m-%d"),
             queue_name=OCP_QUEUE,
+            ocp_on_cloud=True,
         )
 
     @patch("koku.middleware.MASU", return_value=True)
@@ -222,6 +224,7 @@ class ReportDataTests(TestCase):
                 params["start_date"],
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
+                ocp_on_cloud=True,
             )
         ]
 
@@ -234,6 +237,7 @@ class ReportDataTests(TestCase):
                     params["start_date"],
                     params["start_date"],
                     queue_name=PRIORITY_QUEUE,
+                    ocp_on_cloud=True,
                 ),
                 call(
                     params["schema"],
@@ -242,6 +246,7 @@ class ReportDataTests(TestCase):
                     params["end_date"],
                     params["end_date"],
                     queue_name=PRIORITY_QUEUE,
+                    ocp_on_cloud=True,
                 ),
             ]
 
@@ -274,6 +279,7 @@ class ReportDataTests(TestCase):
                 params["start_date"],
                 params["end_date"],
                 queue_name=PRIORITY_QUEUE,
+                ocp_on_cloud=True,
             )
         ]
 
@@ -286,6 +292,7 @@ class ReportDataTests(TestCase):
                     params["start_date"],
                     params["start_date"],
                     queue_name=PRIORITY_QUEUE,
+                    ocp_on_cloud=True,
                 ),
                 call(
                     params["schema"],
@@ -294,6 +301,7 @@ class ReportDataTests(TestCase):
                     params["end_date"],
                     params["end_date"],
                     queue_name=PRIORITY_QUEUE,
+                    ocp_on_cloud=True,
                 ),
             ]
 
@@ -450,3 +458,34 @@ class ReportDataTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(expected_key, body)
         self.assertEqual(body[expected_key], expected_message)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
+    @patch("masu.api.report_data.update_summary_tables")
+    def test_get_report_data_ocp_on_cloud_false(self, mock_update, mock_accessor, _):
+        """Test the GET report_data endpoint."""
+        provider_type = Provider.PROVIDER_AWS
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        start_date = DateHelper().today.date().strftime("%Y-%m-%d")
+        params = {
+            "schema": "org1234567",
+            "start_date": start_date,
+            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "ocp_on_cloud": "false",
+        }
+        expected_key = "Report Data Task IDs"
+
+        response = self.client.get(reverse("report_data"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_update.s.assert_called_with(
+            params["schema"],
+            Provider.PROVIDER_AWS,
+            params["provider_uuid"],
+            params["start_date"],
+            DateHelper().today.date().strftime("%Y-%m-%d"),
+            queue_name=PRIORITY_QUEUE,
+            ocp_on_cloud=False,
+        )

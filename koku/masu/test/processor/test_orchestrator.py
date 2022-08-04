@@ -392,6 +392,49 @@ class OrchestratorTest(MasuTestCase):
                 self.assertEqual(hcs_actual_queue, test.get("hcs-expected"))
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.group")
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_no_resummary(
+        self, mock_download_manifest, mock_chord, mock_group, mock_inspect
+    ):
+        """Test start_manifest_processing."""
+        test_matrix = [
+            {"mock_downloader_manifest_list": [], "expect_chord_called": False, "expected_chain_called": False},
+            {
+                "mock_downloader_manifest_list": [
+                    {
+                        "manifest_id": 1,
+                        "files": [{"local_file": "file1.csv", "key": "filekey"}],
+                    }
+                ],
+                "expect_chord_called": False,
+                "expected_chain_called": True,
+            },
+        ]
+        for test in test_matrix:
+            mock_download_manifest.return_value = test.get("mock_downloader_manifest_list")
+            orchestrator = Orchestrator(summarize_reports=False)
+            account = self.mock_accounts[0]
+            orchestrator.start_manifest_processing(
+                account.get("customer_name"),
+                account.get("credentials"),
+                account.get("data_source"),
+                "AWS-local",
+                account.get("schema_name"),
+                account.get("provider_uuid"),
+                DateAccessor().get_billing_months(1)[0],
+            )
+            if test.get("expect_chord_called"):
+                mock_chord.assert_called()
+            else:
+                mock_chord.assert_not_called()
+            if test.get("expected_chain_called"):
+                mock_group.assert_called()
+            else:
+                mock_group.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.database.provider_db_accessor.ProviderDBAccessor.get_setup_complete")
     def test_get_reports(self, fake_accessor, mock_inspect):
         """Test get_reports for combinations of setup_complete and ingest override."""
