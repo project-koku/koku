@@ -89,14 +89,14 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         )
 
 
-@celery_app.task(
+@celery_app.task(  # noqa: C901
     name="masu.celery.tasks.delete_archived_data",
     queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def delete_archived_data(schema_name, provider_type, provider_uuid):
+def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C901
     """
     Delete archived data from our S3 bucket for a given provider.
 
@@ -143,7 +143,10 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         LOG.info(message)
 
     # We need to normalize capitalization and "-local" dev providers.
-    account = schema_name[4:]
+
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    account = schema_name.strip("acct")
 
     # Data in object storage does not use the local designation
     source_type = provider_type.replace("-local", "")
@@ -374,6 +377,33 @@ def check_cost_model_status(provider_uuid=None):
                 NotificationService().cost_model_notification(account)
                 processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
+def check_for_stale_ocp_source(provider_uuid=None):
+    """Scheduled task to initiate source check and fire notifications."""
+    manifest_accessor = ReportManifestDBAccessor()
+    if provider_uuid:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
+    else:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    if manifest_data:
+        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        processed = 0
+        skipped = 0
+        today = DateAccessor().today()
+        check_date = DateHelper().n_days_ago(today, 3)
+        for data in manifest_data:
+            last_upload_time = data.get("most_recent_manifest")
+            if not last_upload_time or last_upload_time < check_date:
+                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(accounts[0])
+                processed += 1
+            else:
+                skipped += 1
+        LOG.info(
+            f"Openshift stale source status check finished. {processed} notifications fired and {skipped} skipped"
+        )
 
 
 @celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)

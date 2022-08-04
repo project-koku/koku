@@ -32,11 +32,11 @@ def _get_managed_kafka_config(conf=None):
             Config.INSIGHTS_KAFKA_CACERT,
         )
     ):
-        conf["security_protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl_mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
-        conf["sasl_plain_username"] = Config.INSIGHTS_KAFKA_USER
-        conf["sasl_plain_password"] = Config.INSIGHTS_KAFKA_PASSWORD
-        conf["ssl_ca"] = Config.INSIGHTS_KAFKA_CACERT
+        conf["security.protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
+        conf["sasl.mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl.username"] = Config.INSIGHTS_KAFKA_USER
+        conf["sasl.password"] = Config.INSIGHTS_KAFKA_PASSWORD
+        conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
 
     return conf
 
@@ -120,3 +120,18 @@ def is_kafka_connected(host, port):
             backoff(count)
             count += 1
     return result
+
+
+def extract_from_header(headers, header_type):
+    """Retrieve information from Kafka Headers."""
+    LOG.debug(f"[extract_from_header] extracting `{header_type}` from headers: {headers}")
+    if headers is None:
+        return
+    for header in headers:
+        if header_type in header:
+            for item in header:
+                if item == header_type:
+                    continue
+                else:
+                    return item.decode("ascii")
+    return

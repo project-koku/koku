@@ -1635,3 +1635,16 @@ class AzureReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service_name]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AzureCostView)
+
+    def test_azure_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = self.dh.yesterday.date()
+        yesterday_month = self.dh.yesterday - relativedelta(months=2)
+
+        url = f"?group_by[service_name]=*&order_by[cost]=desc&order_by[date]={yesterday_month.date()}&end_date={yesterday}&start_date={yesterday_month.date()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AzureCostView)
+        handler = AzureReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
