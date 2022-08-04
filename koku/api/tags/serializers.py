@@ -17,13 +17,16 @@ AWS_FILTER_OP_FIELDS = ["account"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 GCP_FILTER_OP_FIELDS = ["account", "gcp_project"]
 OCI_FILTER_OP_FIELDS = ["payer_tenant_id"]
+day_list = ["-10", "-30", "-90"]
+month_list = [-1, -2, -3]
+month_list_string = [str(m) for m in month_list]
 
 
 class FilterSerializer(serializers.Serializer):
     """Serializer for handling tag query parameter filter."""
 
     RESOLUTION_CHOICES = (("daily", "daily"), ("monthly", "monthly"))
-    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-1", "-1"), ("-2", "-2"))
+    TIME_CHOICES = (("-10", "-10"), ("-30", "-30"), ("-90", "-90"), ("-1", "-1"), ("-2", "-2"), ("-3", "-3"))
     TIME_UNIT_CHOICES = (("day", "day"), ("month", "month"))
 
     key = StringOrListField(required=False)
@@ -51,8 +54,8 @@ class FilterSerializer(serializers.Serializer):
 
         if time_scope_units and time_scope_value:
             msg = "Valid values are {} when time_scope_units is {}"
-            if time_scope_units == "day" and time_scope_value in ["-1", "-2"]:  # noqa: W504
-                valid_values = ["-10", "-30"]
+            if time_scope_units == "day" and time_scope_value in month_list_string:  # noqa: W504
+                valid_values = day_list
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
@@ -61,12 +64,11 @@ class FilterSerializer(serializers.Serializer):
                 valid_vals = ", ".join(valid_values)
                 error = {"resolution": msg.format(valid_vals, "day")}
                 raise serializers.ValidationError(error)
-            if time_scope_units == "month" and time_scope_value in ["-10", "-30"]:  # noqa: W504
-                valid_values = ["-1", "-2"]
+            if time_scope_units == "month" and time_scope_value in day_list:  # noqa: W504
+                valid_values = month_list_string
                 valid_vals = ", ".join(valid_values)
                 error = {"time_scope_value": msg.format(valid_vals, "month")}
                 raise serializers.ValidationError(error)
-
         return data
 
 
