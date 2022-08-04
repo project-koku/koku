@@ -21,6 +21,7 @@ from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
+from api.tags.serializers import month_list
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -364,14 +365,13 @@ class QueryParameters:
         start_date = self.get_start_date()
         end_date = self.get_end_date()
         resolution = self.get_filter("resolution")
-
         if not (start_date or end_date):
             if not time_scope_value:
                 time_scope_value = -1 if time_scope_units == "month" else -10
             if not time_scope_units:
-                time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
+                time_scope_units = "month" if int(time_scope_value) in month_list else "day"
             if not resolution:
-                resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
+                resolution = "monthly" if int(time_scope_value) in month_list else "daily"
             self.set_filter(
                 time_scope_value=str(time_scope_value),
                 time_scope_units=str(time_scope_units),

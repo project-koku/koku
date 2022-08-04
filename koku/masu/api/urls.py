@@ -30,6 +30,7 @@ from masu.api.views import stat_activity
 from masu.api.views import stat_statements
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
+from masu.api.views import update_openshift_on_cloud
 
 ROUTER = DefaultRouter()
 ROUTER.register(r"sources", SourcesViewSet, basename="sources")
@@ -46,6 +47,7 @@ urlpatterns = [
     path("source_cleanup/", cleanup, name="cleanup"),
     path("notification/", notification, name="notification"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
+    path("update_openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
