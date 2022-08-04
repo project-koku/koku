@@ -396,7 +396,7 @@ def check_for_stale_ocp_source(provider_uuid=None):
         for data in manifest_data:
             last_upload_time = data.get("most_recent_manifest")
             if not last_upload_time or last_upload_time < check_date:
-                accounts = AccountsAccessor().get_accounts(data.provider_id)
+                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
                 NotificationService().ocp_stale_source_notification(accounts[0])
                 processed += 1
             else:

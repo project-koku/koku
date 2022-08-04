@@ -437,7 +437,9 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_kafka_cacert():
         """Obtain kafka CA Certificate"""
-        return getattr(LoadedConfig.kafka.brokers[0], "cacert")
+        if getattr(LoadedConfig.kafka.brokers[0], "cacert", None):
+            return LoadedConfig.kafka_ca()
+        return None
 
     @staticmethod
     def get_kafka_authtype():
