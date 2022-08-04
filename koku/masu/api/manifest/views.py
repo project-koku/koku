@@ -79,18 +79,22 @@ class ManifestView(viewsets.ModelViewSet):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
-        filtered = False
+        response = None
         if request.GET.get("name"):
-            filtered = True
             providers = self.get_provider_UUID(param["name"])
             self.queryset = self.queryset.filter(provider_id=providers["uuid"])
             pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
+            response = self.check_pagnation(pagination)
         if request.GET.get("timestamp") == "asc":
-            filtered = True
             self.queryset = self.queryset.order_by("manifest_creation_datetime")
             pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
-        if not filtered:
+            response = self.check_pagnation(pagination)
+        if response is not None:
+            return response
+        else:
             return super().list(request)
+
+    def check_pagnation(self, pagination):
         if pagination is not None:
             return self.get_paginated_response(pagination)
         else:
