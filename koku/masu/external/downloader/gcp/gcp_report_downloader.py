@@ -26,8 +26,6 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor import enable_trino_processing
-from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
-from masu.util.aws import common as utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
