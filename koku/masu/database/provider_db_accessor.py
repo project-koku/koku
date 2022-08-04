@@ -221,6 +221,30 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         return self.provider.customer.schema_name
 
+    def get_account_id(self):
+        """
+        Return the account id for the customer.
+
+        Args:
+            None
+        Returns:
+            (String): "account id",
+
+        """
+        return self.provider.customer.account_id
+
+    def get_org_id(self):
+        """
+        Return the org id for the customer.
+
+        Args:
+            None
+        Returns:
+            (String): "org id",
+
+        """
+        return self.provider.customer.org_id
+
     def get_infrastructure_type(self):
         """Retrun the infrastructure type for an OpenShift provider."""
         if self.infrastructure:
