@@ -53,7 +53,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
                 f"Marking manifest {manifest.id} "
                 f"\nassembly_id {manifest.assembly_id} "
                 f"\nfor provider {manifest.provider_id} "
-                f"\nmanifest_completed_datetime: {updated_datetime}."
+                f"\nmanifest_updated_datetime: {updated_datetime}."
             )
             LOG.info(msg)
             manifest.manifest_updated_datetime = updated_datetime
