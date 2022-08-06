@@ -29,6 +29,7 @@ from masu.api.views import running_celery_tasks
 from masu.api.views import schema_sizes
 from masu.api.views import stat_activity
 from masu.api.views import stat_statements
+from masu.api.views import trino_query
 from masu.api.views import update_cost_model_costs
 from masu.api.views import update_exchange_rates
 from masu.api.views import update_openshift_on_cloud
@@ -46,6 +47,7 @@ urlpatterns = [
     path("hcs_report_finalization/", hcs_report_finalization, name="hcs_report_finalization"),
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
+    path("trino/query/", trino_query, name="trino_query"),
     path("notification/", notification, name="notification"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("update_openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
