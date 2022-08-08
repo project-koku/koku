@@ -207,6 +207,7 @@ objects:
           enabled: false
         public:
           enabled: true
+          apiPath: cost-management
     - minReplicas: ${{LISTENER_MIN_REPLICAS}}
       name: clowder-listener
       podSpec:
