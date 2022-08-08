@@ -164,7 +164,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
 
         init_order_keys = []
         query_sum["cost_units"] = self.currency
-        if query_sum.get("count"):
+        if query_sum.get("count") and isinstance(query_sum.get("count"), list):
             query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
