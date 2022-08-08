@@ -327,6 +327,15 @@ class TestCeleryTasks(MasuTestCase):
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
+    def test_cost_model_status_check_with_incompatible_provider_uuid(self, mock_cost_check):
+        """Test that only accounts associated with the provider_uuid are polled."""
+        mock_cost_check.cost_model_notification.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_cost_model_status(self.gcp_test_provider_uuid)
+            expected_log_msg = f"Source {self.gcp_test_provider_uuid} is not an openshift source."
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.CostModelDBAccessor")
     def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
         """Test that all polling accounts are used when no provider_uuid is provided."""
         polling_accounts = AccountsAccessor().get_accounts()
