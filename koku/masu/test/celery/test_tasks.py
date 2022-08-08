@@ -23,7 +23,6 @@ from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts_accessor import AccountsAccessor
-from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ManifestCreationHelper
 
@@ -310,11 +309,11 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.AWSOrgUnitCrawler")
     def test_crawl_account_hierarchy_without_provider_uuid(self, mock_crawler):
         """Test that all polling accounts for user are used when no provider_uuid is provided."""
-        _, polling_accounts = Orchestrator.get_accounts()
+        providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
         mock_crawler.crawl_account_hierarchy.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.crawl_account_hierarchy()
-            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(polling_accounts))
+            expected_log_msg = "Account hierarchy crawler found %s accounts to scan" % (len(providers))
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
@@ -323,7 +322,7 @@ class TestCeleryTasks(MasuTestCase):
         mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.ocp_test_provider_uuid)
-            expected_log_msg = "Cost model status check found %s accounts to scan" % ("1")
+            expected_log_msg = "Cost model status check found %s providers to scan" % ("1")
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
