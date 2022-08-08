@@ -69,6 +69,10 @@
     {
       "name": "Update exchange rates",
       "description": "Updates and returns the list of exchange rates"
+    },
+    {
+      "name": "Trino",
+      "description": "An endpoint to interact with Trino."
     }
   ],
   "paths": {
@@ -886,43 +890,42 @@
       },
       "parameters": []
     },
-    "paths": {
-      "/notification/": {
-        "get": {
-          "summary": "check and send notifications",
-          "operationId": "getNotifications",
-          "description": "Return notification file async task ID.",
-          "parameters": [],
-          "responses": {
-            "200": {
-              "description": "The celery task ID of the notification task",
-              "content": {
-                "application/json": {
-                  "schema": {
-                    "$ref": "#/components/schemas/NotificationGetResponse"
-                  }
+    "/notification/": {
+      "get": {
+        "summary": "check and send notifications",
+        "operationId": "getNotifications",
+        "description": "Return notification file async task ID.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The celery task ID of the notification task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationGetResponse"
                 }
               }
             }
-          },
-          "tags": [
-            "Notification"
-          ]
-        },
-        "parameters": [
-          {
-            "name": "provider_uuid",
-            "in": "query",
-            "description": "The provider UUID",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-            }
           }
+        },
+        "tags": [
+          "Notification"
         ]
       },
+      "parameters": [
+        {
+          "name": "provider_uuid",
+          "in": "query",
+          "description": "The provider UUID",
+          "required": false,
+          "schema": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      ]
+    },
     "/crawl_account_hierarchy/": {
       "get": {
         "summary": "Start the crawler for account hierarchy.",
@@ -1638,6 +1641,45 @@
           }
         }
       }
+    },
+    "/trino/query/": {
+      "post": {
+        "summary": "Returns JSON or CSV with query output.",
+        "operationId": "TrinoQuery",
+        "description": "Returns JSON or CSV with query output.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrinoQueryPost"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrinoQueryPostResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "example": "column_one,column_two,column_three"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Trino"
+        ]
+      }
     }
   },
   "components": {
@@ -1739,6 +1781,30 @@
           "type": "object",
           "properties": {
             "query_plan": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TrinoQueryPost":{
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "example": "SELECT * FROM aws_openshift_daily"
+          },
+          "schema": {
+            "type": "string",
+            "example": "org1234567"
+          }
+        }
+      },
+      "TrinoQueryPostResponse":{
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "column_name": {
               "type": "string"
             }
           }
