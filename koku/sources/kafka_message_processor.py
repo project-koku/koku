@@ -294,6 +294,8 @@ class AuthenticationMsgProcessor(KafkaMessageProcessor):
 
         if storage.is_known_source(self.source_id):
             if self.event_type in (KAFKA_AUTHENTICATION_CREATE):
+                if not storage.get_source_type(self.source_id):
+                    self.save_sources_details()
                 self.save_source_info(auth=True)
             if self.event_type in (KAFKA_AUTHENTICATION_UPDATE):
                 if storage.get_source_type(self.source_id) == Provider.PROVIDER_AZURE:
