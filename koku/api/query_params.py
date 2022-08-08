@@ -237,8 +237,8 @@ class QueryParameters:
         """
         if not org_unit_list:
             return []
-            
-        _org_units = org_unit_list 
+
+        _org_units = org_unit_list
 
         # get all parent org units:
         parent_org_units = (
