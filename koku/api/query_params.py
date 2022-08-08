@@ -235,7 +235,10 @@ class QueryParameters:
         Returns:
             org_unit_accounts (list): list of org unit accounts
         """
-        _org_units = org_unit_list if org_unit_list else []
+        if not org_unit_list:
+            return []
+            
+        _org_units = org_unit_list 
 
         # get all parent org units:
         parent_org_units = (
