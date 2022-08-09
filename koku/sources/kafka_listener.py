@@ -419,4 +419,5 @@ def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()
+    event_loop_thread.join()
     LOG.info("Listening for kafka events")
