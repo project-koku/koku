@@ -866,3 +866,31 @@ class QueryParametersTests(TestCase):
         access_list = params._get_providers(Provider.OCP_ALL.lower())
         result = params._check_restrictions(access_list)
         self.assertFalse(result)
+
+    def test_get_org_unit_account_hierarchy(self):
+        """Test aws get org unit account hierarchy returns list of all accounts in org units tree."""
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["OU_001"]},
+        }
+        expected = ["999999991", "999999992", "999999995"]
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.PROVIDER_AWS,
+            query_handler=Mock(provider=Provider.PROVIDER_AWS),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        with patch.object(params, "_get_org_unit_account_hierarchy") as mock_method:
+            org_unit_access_list = self.test_read_access.get("aws.organizational_unit", {}).get("read", [])
+            mock_method.return_value = expected
+            result = params._get_org_unit_account_hierarchy(org_unit_access_list)
+            mock_method.assert_called_once_with(org_unit_access_list)
+            self.assertEqual(result, expected)
