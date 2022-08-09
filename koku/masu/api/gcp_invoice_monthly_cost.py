@@ -67,8 +67,7 @@ def gcp_invoice_monthly_cost(request):
                 end_date = dh.tomorrow.date()
             query = f"""
             SELECT sum(cost) as cost,
-                sum(c.amount) as credit_amount,
-                sum(cost + c.amount) as total
+                sum(c.amount) as credit_amount
                 FROM {table_name}
                 LEFT JOIN unnest(credits) as c
                 WHERE DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
@@ -79,8 +78,10 @@ def gcp_invoice_monthly_cost(request):
                 # TODO: Remove this line once QE has updated their tests to the new key.
                 results[key] = row[0]
                 metadata = {"invoice_month": invoice_month}
-                for meta_key in ["cost", "credit_amount", "total"]:
-                    metadata[meta_key] = row.get(meta_key)
+                metadata["cost"] = row.get("cost")
+                metadata["credit_amount"] = row.get("credit_amount")
+                if row.get("cost") and row.get("credit_amount"):
+                    metadata["total"] = row.get("cost") + row.get("credit_amount")
                 results[key + "_metadata"] = metadata
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
