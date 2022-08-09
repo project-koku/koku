@@ -162,6 +162,14 @@ class ReportQueryHandler(QueryHandler):
             LOG.warning(msg)
         return query_table
 
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
+
     @property
     def is_openshift(self):
         """Determine if we are working with an OpenShift API."""
@@ -664,12 +672,7 @@ class ReportQueryHandler(QueryHandler):
                             account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                         )
                 return query_data
-            try:
-                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-            except AttributeError as err:
-                msg = f"Exchange rates dictionary is not populated resulting in {err}."
-                LOG.warning(msg)
-                exchange_rates = {}
+
             columns = list(aggregates.keys())
             for col in remove_columns:
                 if col in columns:
@@ -678,7 +681,7 @@ class ReportQueryHandler(QueryHandler):
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
                     axis=1,
                 )
                 df["cost_units"] = self.currency
@@ -726,16 +729,11 @@ class ReportQueryHandler(QueryHandler):
             for col in remove_columns:
                 if col in columns:
                     columns.remove(col)
-            try:
-                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-            except AttributeError as err:
-                msg = f"Exchange rates dictionary is not populated resulting in {err}."
-                LOG.warning(msg)
-                exchange_rates = {}
+
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
                     axis=1,
                 )
                 df["cost_units"] = self.currency
