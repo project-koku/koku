@@ -13,13 +13,13 @@ export SONAR_SCANNER_OPTS="-Djavax.net.ssl.trustStore=$PWD/sonarqube/store/RH-IT
 export PATH="$PWD/sonarqube/extract/$SONAR_SCANNER_NAME/bin:$PATH"
 
 export SONAR_USER_HOME=/tmp
-mkdir /tmp/marketplace
-cp -R /home/jboss/marketplace /tmp/marketplace
+mkdir /tmp/koku
+cp -R /home/jboss/koku /tmp/koku
 cd /tmp
 
 sonar-scanner \
-  -Dsonar.projectKey=console.redhat.com:marketplace-processor \
-  -Dsonar.sources=./marketplace \
+  -Dsonar.projectKey=console.redhat.com:cost-management \
+  -Dsonar.sources=./koku \
   -Dsonar.host.url=$SONARQUBE_REPORT_URL \
   -Dsonar.projectVersion=$COMMIT_SHORT \
   -Dsonar.login=$SONARQUBE_TOKEN
