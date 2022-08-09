@@ -382,7 +382,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer.flush(1)
 
 
-def handle_message(msg):
+def handle_message(kmsg):
     """
     Handle messages from message pending queue.
 
@@ -405,7 +405,7 @@ def handle_message(msg):
 
 
     Args:
-        msg - Upload Service message containing usage payload information.
+        kmsg - Upload Service message containing usage payload information.
 
     Returns:
         (String, [dict]) - String: Upload Service confirmation status
@@ -421,35 +421,26 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic() == Config.UPLOAD_TOPIC:
-        service = extract_from_header(msg.headers(), "service")
-        LOG.debug(f"service: {service} | {msg.headers()}")
-        if service != "hccm":
-            LOG.debug("message not for cost-management")
-            return None, None, None
-        value = json.loads(msg.value().decode("utf-8"))
-        request_id = value.get("request_id", "no_request_id")
-        account = value.get("account", "no_account")
-        org_id = value.get("org_id", "no_org_id")
-        context = {"account": account, "org_id": org_id}
-        try:
-            msg = f"Extracting Payload for msg: {str(value)}"
-            LOG.info(log_json(request_id, msg, context))
-            report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
-            return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
-        except (OperationalError, InterfaceError) as error:
-            close_and_set_db_connection()
-            msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
-            LOG.error(log_json(request_id, msg, context))
-            raise KafkaMsgHandlerError(msg)
-        except Exception as error:  # noqa
-            traceback.print_exc()
-            msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
-            LOG.warning(log_json(request_id, msg, context))
-            return FAILURE_CONFIRM_STATUS, None, None
-    else:
-        LOG.error("Unexpected Message")
-    return None, None, None
+    value = json.loads(kmsg.value().decode("utf-8"))
+    request_id = value.get("request_id", "no_request_id")
+    account = value.get("account", "no_account")
+    org_id = value.get("org_id", "no_org_id")
+    context = {"account": account, "org_id": org_id}
+    try:
+        msg = f"Extracting Payload for msg: {str(value)}"
+        LOG.info(log_json(request_id, msg, context))
+        report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
+        return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
+    except (OperationalError, InterfaceError) as error:
+        close_and_set_db_connection()
+        msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
+        LOG.error(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError(msg) from error
+    except Exception as error:  # noqa
+        traceback.print_exc()
+        msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg, context))
+        return FAILURE_CONFIRM_STATUS, None, None
 
 
 def get_account(provider_uuid, manifest_uuid, context={}):
@@ -702,6 +693,16 @@ def listen_for_messages_loop():
         if msg.error():
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error(f"[listen_for_messages_loop] consumer.poll message: {msg}. Error: {msg.error()}")
+            continue
+
+        service = extract_from_header(msg.headers(), "service")
+        LOG.debug(f"service: {service} | {msg.headers()}")
+        if service != "hccm":
+            LOG.debug("message not for cost-management")
+            continue
+
+        if msg.topic() != Config.UPLOAD_TOPIC:
+            LOG.warning("unexpected message")
             continue
 
         listen_for_messages(msg, consumer)
