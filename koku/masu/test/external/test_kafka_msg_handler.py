@@ -170,8 +170,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             None,
             MockMessage(offset=2, error=MockError(KafkaError._PARTITION_EOF)),
             MockMessage(offset=3, error=MockError(KafkaError._MSG_TIMED_OUT)),
-            MockMessage(offset=4, topic="wrong-topic"),
-            MockMessage(offset=5, service="wrong-service"),
             MockMessage(offset=1),  # this is the only message that will cause the `mock_listen` to assert called once
         ]
         mock_consumer.return_value = MockKafkaConsumer(msg_list)

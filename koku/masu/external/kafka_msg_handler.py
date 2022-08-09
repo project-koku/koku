@@ -695,17 +695,6 @@ def listen_for_messages_loop():
             LOG.error(f"[listen_for_messages_loop] consumer.poll message: {msg}. Error: {msg.error()}")
             continue
 
-        service = extract_from_header(msg.headers(), "service")
-        LOG.debug(f"service: {service} | {msg.headers()}")
-        if service != "hccm":
-            LOG.debug("message not for cost-management")
-            consumer.commit()
-            continue
-
-        if msg.topic() != Config.UPLOAD_TOPIC:
-            LOG.warning("unexpected message")
-            continue
-
         listen_for_messages(msg, consumer)
 
 
@@ -749,7 +738,10 @@ def listen_for_messages(msg, consumer):
     topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        process_messages(msg)
+        service = extract_from_header(msg.headers(), "service")
+        LOG.debug(f"service: {service} | {msg.headers()}")
+        if service == "hccm":
+            process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
