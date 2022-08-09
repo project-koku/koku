@@ -20,9 +20,10 @@ From the current list of packages used by Koku, only ``confluent-kafka`` has no 
 
     brew install librdkafka
 
-2. Add the following line into ``~/.zshrc`` and run ``source ~/.zshrc``. *Note:* Replace ``<version>`` with the version of librdkafka you installed above: ::
+2. Add the following lines into ``~/.zshrc`` and run ``source ~/.zshrc`` ::
 
-    C_INCLUDE_PATH=/opt/homebrew/Cellar/librdkafka/<version>/include LIBRARY_PATH=/opt/homebrew/Cellar/librdkafka/<version>/lib pip3 install confluent_kafka
+    export C_INCLUDE_PATH=$(brew --prefix)/include
+    export LIBRARY_PATH=$(brew --prefix)/lib
 
 After compoleting these steps, you should be able to follow the development on `Koku's README`_. Make sure to install the versions of Docker and Homebrew that are made for M1 Macs.
 
