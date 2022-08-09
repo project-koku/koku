@@ -699,6 +699,7 @@ def listen_for_messages_loop():
         LOG.debug(f"service: {service} | {msg.headers()}")
         if service != "hccm":
             LOG.debug("message not for cost-management")
+            consumer.commit()
             continue
 
         if msg.topic() != Config.UPLOAD_TOPIC:
