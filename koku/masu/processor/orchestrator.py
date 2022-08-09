@@ -241,11 +241,12 @@ class Orchestrator:
                 )
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
+        manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
         if report_tasks:
             if self._summarize_reports:
                 reports_tasks_queued = True
                 hcs_task = collect_hcs_report_data_from_manifest.s().set(queue=HCS_Q)
-                summary_task = summarize_reports.s().set(queue=SUMMARY_QUEUE)
+                summary_task = summarize_reports.s(manifest_list=manifest_list).set(queue=SUMMARY_QUEUE)
                 async_id = chord(report_tasks, group(summary_task, hcs_task))()
             else:
                 async_id = group(report_tasks)()
