@@ -350,7 +350,7 @@ def update_summary_tables(  # noqa: C901
     synchronous=False,
     tracing_id=None,
     ocp_on_cloud=True,
-    manifest_list=None
+    manifest_list=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -720,7 +720,8 @@ def mark_manifest_complete(  # noqa: C901
             manifest_accessor.mark_manifest_as_completed(manifest)
     if manifest_list:
         with ReportManifestDBAccessor() as manifest_accessor:
-                manifest_accessor.mark_manifest_as_completed_bulk(manifest_list)
+            manifest_accessor.mark_manifest_as_completed_bulk(manifest_list)
+
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
 def vacuum_schema(schema_name):
