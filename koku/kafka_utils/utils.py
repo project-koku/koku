@@ -37,10 +37,6 @@ def _get_consumer_config(address, **conf_settings):
     """Get the default consumer config"""
     conf = {
         "bootstrap.servers": address,
-        "group.id": "hccm-group",
-        "queued.max.messages.kbytes": 1024,
-        "enable.auto.commit": False,
-        "max.poll.interval.ms": 1080000,  # 18 minutes
         "api.version.request": False,
         "broker.version.fallback": "0.10.2",
     }
@@ -71,9 +67,7 @@ def _get_producer_config(address, **conf_settings):
 def get_producer(address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings):  # pragma: no cover
     """Create a Kafka producer."""
     conf = _get_producer_config(address, **conf_settings)
-    producer = Producer(conf)
-
-    return producer
+    return Producer(conf)
 
 
 def delivery_callback(err, msg):
