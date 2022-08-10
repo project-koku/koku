@@ -33,7 +33,7 @@ def _get_managed_kafka_config(conf=None):
         )
     ):
         conf["security.protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl.mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl.mechanisms"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
         conf["sasl.username"] = Config.INSIGHTS_KAFKA_USER
         conf["sasl.password"] = Config.INSIGHTS_KAFKA_PASSWORD
         conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
