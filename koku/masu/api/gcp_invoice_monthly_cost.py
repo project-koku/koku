@@ -75,7 +75,7 @@ def gcp_invoice_monthly_cost(request):
             """
             rows = client.query(query).result()
             for row in rows:
-                # TODO: Remove this line once QE has updated their tests to the new key.
+                # TODO: Remove this line once QE has updated their tests to the new ways.
                 results[key] = row[0]
                 metadata = {"invoice_month": invoice_month}
                 metadata["cost"] = row.get("cost")
