@@ -31,7 +31,6 @@ from providers.provider_access import ProviderAccessor
 from providers.provider_errors import SkipStatusPush
 from sources import storage
 from sources.config import Config
-from sources.kafka_listener import _get_consumer_config
 from sources.kafka_listener import PROCESS_QUEUE
 from sources.kafka_listener import process_synchronize_sources_msg
 from sources.kafka_listener import SourcesIntegrationError
@@ -68,14 +67,6 @@ FAKE_AWS_ARN2 = "arn:aws:iam::22222222222:role/CostManagement"
 FAKE_CLUSTER_ID_1 = str(uuid4())
 FAKE_CLUSTER_ID_2 = str(uuid4())
 SOURCES_APPS = "http://www.sources.com/api/v1.0/applications?filter[application_type_id]={}&filter[source_id]={}"
-
-KAFKA_KEY_MAP = {
-    "SOURCES_KAFKA_USER": "sasl.username",
-    "SOURCES_KAFKA_PASSWORD": "sasl.password",
-    "SOURCES_KAFKA_SASL_MECHANISM": "sasl.mechanisms",
-    "SOURCES_KAFKA_SECURITY_PROTOCOL": "security.protocol",
-    "SOURCES_KAFKA_CACERT": "ssl.ca.location",
-}
 
 
 def raise_source_manager_error(param_a, param_b, param_c, param_d, param_e):
@@ -950,36 +941,3 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
             storage_callback("", local_source)
             _, msg = PROCESS_QUEUE.get_nowait()
             self.assertEqual(msg.get("operation"), "destroy")
-
-    def test_sources_config(self):
-        for key in (
-            "SOURCES_KAFKA_USER",
-            "SOURCES_KAFKA_PASSWORD",
-            "SOURCES_KAFKA_SASL_MECHANISM",
-            "SOURCES_KAFKA_SECURITY_PROTOCOL",
-            "SOURCES_KAFKA_CACERT",
-            "SOURCES_KAFKA_AUTHTYPE",
-        ):
-            self.assertTrue(hasattr(Config, key), f"Key {key} is not present in sources Config")
-
-    def test_sources_consumer_config_with_man_kafka(self):
-        """Test sources consumer config returns correctly set config dict for managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, k)
-        conf = _get_consumer_config()
-        for v in KAFKA_KEY_MAP.values():
-            self.assertFalse(conf[v] is None, f"result of sources._get_consumer_config()['{v}'] is None!")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)
-
-    def test_sources_consumer_config_without_man_kafka(self):
-        """Test sources consumer config returns correctly set config dict with NO managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, None)
-        conf = _get_consumer_config()
-        for v in KAFKA_KEY_MAP.values():
-            self.assertNotIn(v, conf, f"sources._get_consumer_config()['{v}'] exists.")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)
