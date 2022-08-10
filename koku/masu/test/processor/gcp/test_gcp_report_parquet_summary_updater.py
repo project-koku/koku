@@ -33,13 +33,11 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
     def test_get_sql_inputs(self):
         """Test that dates are returned."""
         # Previous month
-        start_date = self.dh.last_month_end - timedelta(days=3)
-        start_str = start_date.isoformat()
-        end_date = self.dh.last_month_end
-        end_str = end_date.isoformat()
+        start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
+        end_str = self.dh.last_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(end, end_date.date())
-        self.assertEqual(start, start_date.date())
+        self.assertEqual(start, self.dh.last_month_start.date())
+        self.assertEqual(end, self.dh.last_month_end.date())
 
         # Current month
         with ReportManifestDBAccessor() as manifest_accessor:
