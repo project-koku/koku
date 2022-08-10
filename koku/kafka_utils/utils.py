@@ -23,19 +23,11 @@ def _get_managed_kafka_config(conf=None):
     if not isinstance(conf, dict):
         conf = {}
 
-    if all(
-        (
-            Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL,
-            Config.INSIGHTS_KAFKA_SASL_MECHANISM,
-            Config.INSIGHTS_KAFKA_USER,
-            Config.INSIGHTS_KAFKA_PASSWORD,
-            Config.INSIGHTS_KAFKA_CACERT,
-        )
-    ):
-        conf["security.protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl.mechanisms"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
-        conf["sasl.username"] = Config.INSIGHTS_KAFKA_USER
-        conf["sasl.password"] = Config.INSIGHTS_KAFKA_PASSWORD
+    if Config.INSIGHTS_KAFKA_SASL:
+        conf["security.protocol"] = Config.INSIGHTS_KAFKA_SASL.securityProtocol
+        conf["sasl.mechanisms"] = Config.INSIGHTS_KAFKA_SASL.saslMechanism
+        conf["sasl.username"] = Config.INSIGHTS_KAFKA_SASL.username
+        conf["sasl.password"] = Config.INSIGHTS_KAFKA_SASL.password
         conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
 
     return conf

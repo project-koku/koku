@@ -260,20 +260,11 @@ def _get_consumer_config():
         "broker.version.fallback": "0.10.2",
     }
 
-    if all(
-        (
-            Config.SOURCES_KAFKA_SECURITY_PROTOCOL,
-            Config.SOURCES_KAFKA_SASL_MECHANISM,
-            Config.SOURCES_KAFKA_USER,
-            Config.SOURCES_KAFKA_PASSWORD,
-            Config.SOURCES_KAFKA_CACERT,
-        )
-    ):
-        consumer_conf["security.protocol"] = Config.SOURCES_KAFKA_SECURITY_PROTOCOL
-        consumer_conf["sasl.mechanisms"] = Config.SOURCES_KAFKA_SASL_MECHANISM
-        consumer_conf["sasl.username"] = Config.SOURCES_KAFKA_USER
-        consumer_conf["sasl.password"] = Config.SOURCES_KAFKA_PASSWORD
-        consumer_conf["ssl.ca.location"] = Config.SOURCES_KAFKA_CACERT
+    if Config.SOURCES_KAFKA_SASL:
+        consumer_conf["security.protocol"] = Config.SOURCES_KAFKA_SASL.securityProtocol
+        consumer_conf["sasl.mechanisms"] = Config.SOURCES_KAFKA_SASL.saslMechanism
+        consumer_conf["sasl.username"] = Config.SOURCES_KAFKA_SASL.username
+        consumer_conf["sasl.password"] = Config.SOURCES_KAFKA_SASL.password
 
     return consumer_conf
 
