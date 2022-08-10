@@ -33,7 +33,7 @@ def _get_managed_kafka_config(conf=None):
         )
     ):
         conf["security.protocol"] = Config.INSIGHTS_KAFKA_SECURITY_PROTOCOL
-        conf["sasl.mechanism"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
+        conf["sasl.mechanisms"] = Config.INSIGHTS_KAFKA_SASL_MECHANISM
         conf["sasl.username"] = Config.INSIGHTS_KAFKA_USER
         conf["sasl.password"] = Config.INSIGHTS_KAFKA_PASSWORD
         conf["ssl.ca.location"] = Config.INSIGHTS_KAFKA_CACERT
@@ -49,6 +49,7 @@ def _get_consumer_config(address, **conf_settings):
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
         "max.poll.interval.ms": 1080000,  # 18 minutes
+        "api.version.request": False,
         "broker.version.fallback": "0.10.2",
     }
     conf = _get_managed_kafka_config(conf)
