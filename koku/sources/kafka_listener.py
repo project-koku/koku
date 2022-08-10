@@ -242,7 +242,8 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
     }
-    consumer = get_consumer(Config.SOURCES_TOPIC, conf_settings=kafka_conf)
+    consumer = get_consumer(kafka_conf)
+    consumer.subscribe([Config.SOURCES_TOPIC])
     LOG.info("Listener started.  Waiting for messages...")
     while True:
         msg_list = consumer.consume()

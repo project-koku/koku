@@ -398,12 +398,12 @@ class ClowderConfigurator(Configurator):
     @staticmethod
     def get_kafka_sasl():
         """Obtain kafka sasl"""
-        return getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
+        return LoadedConfig.kafka.brokers[0].sasl
 
     @staticmethod
     def get_kafka_cacert():
         """Obtain kafka CA Certificate"""
-        if getattr(LoadedConfig.kafka.brokers[0], "cacert", None):
+        if LoadedConfig.kafka.brokers[0].cacert:
             return LoadedConfig.kafka_ca()
         return None
 

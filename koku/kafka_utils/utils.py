@@ -46,13 +46,11 @@ def _get_consumer_config(address, conf_settings):
     return conf
 
 
-def get_consumer(topics, conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
+def get_consumer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
     """Create a Kafka consumer."""
     conf = _get_consumer_config(address, conf_settings)
-    consumer = Consumer(conf, logger=LOG)
-    consumer.subscribe(list(topics))
-
-    return consumer
+    LOG.info(f"Consumer config {conf}")
+    return Consumer(conf, logger=LOG)
 
 
 def _get_producer_config(address, conf_settings):

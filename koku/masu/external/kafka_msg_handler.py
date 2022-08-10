@@ -673,7 +673,8 @@ def listen_for_messages_loop():
         "enable.auto.commit": False,
         "max.poll.interval.ms": 1080000,  # 18 minutes
     }
-    consumer = get_consumer(Config.UPLOAD_TOPIC, conf_settings=kafka_conf)
+    consumer = get_consumer(kafka_conf)
+    consumer.subscribe([Config.UPLOAD_TOPIC])
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
         msg = consumer.poll(timeout=1.0)
