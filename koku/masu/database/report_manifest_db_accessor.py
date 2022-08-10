@@ -260,33 +260,3 @@ class ReportManifestDBAccessor(KokuDBAccess):
             .filter(partition_date__gte=start_date, partition_date__lte=end_date)
         )
         return manifests
-
-    def gcp_self_healing_get_outdated_manifests(self, provider_uuid):
-        """Returns all manifests for a provider that are outdated.
-
-        The new gcp manifest contain "|" that is used to get the
-        partition date."""
-        manifests = CostUsageReportManifest.objects.filter(
-            provider_id=provider_uuid,
-        ).exclude(assembly_id__icontains="|")
-        return manifests
-
-    def gcp_self_healing_bulk_delete_old_manifests(self, provider_uuid, manifest_id_list):
-        """
-        Deletes a specific manifest given manifest_id & provider_uui
-
-        Args:
-            provider_uuid (uuid): The provider uuid to use to delete associated manifests
-            manifest_id_list (list): list of manifest ids to delete.
-        """
-        # | is the new gcp manifests delimiter
-        delete_count = (
-            CostUsageReportManifest.objects.filter(provider_id=provider_uuid, id__in=manifest_id_list)
-            .exclude(assembly_id__icontains="|")
-            .delete()
-        )
-        LOG.info(
-            "Removed %s outdated GCP manifests for provider_uuid %s",
-            delete_count,
-            provider_uuid,
-        )

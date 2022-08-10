@@ -4,6 +4,7 @@
 #
 """Test the update_cost_model_costs endpoint view."""
 import logging
+from collections import OrderedDict
 from unittest.mock import patch
 from urllib.parse import urlencode
 
@@ -20,20 +21,22 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
     """Test Cases for the gcp invoice monthly cost endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_success(self, _):
+    def test_success_gcp_invoice_monthly(self, _):
         """Test successful endpoint return"""
-        # Start Response
         expected_value = 308.45
+        dict = OrderedDict()
+        dict["cost"] = expected_value
+        dict[0] = expected_value
+        mocked_value = [dict]
         params = {"provider_uuid": self.gcp_provider_uuid}
         query_string = urlencode(params)
         url = reverse("gcp_invoice_monthly_cost") + "?" + query_string
         with patch("masu.api.gcp_invoice_monthly_cost.bigquery") as bigquery:
-            bigquery.Client.return_value.query.return_value.result.return_value = [[expected_value]]
+            bigquery.Client.return_value.query.return_value.result.return_value = mocked_value
             response = self.client.get(url)
         body = response.json()
         mapping = body.get("monthly_invoice_cost_mapping")
-        for _, cost in mapping.items():
-            self.assertEqual(cost, expected_value)
+        self.assertEqual(mapping["previous"], expected_value)
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_require_provider_uuid(self, _):
