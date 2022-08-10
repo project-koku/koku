@@ -265,6 +265,7 @@ def _get_consumer_config():
         consumer_conf["sasl.mechanisms"] = Config.SOURCES_KAFKA_SASL.saslMechanism
         consumer_conf["sasl.username"] = Config.SOURCES_KAFKA_SASL.username
         consumer_conf["sasl.password"] = Config.SOURCES_KAFKA_SASL.password
+        consumer_conf["ssl.ca.location"] = Config.SOURCES_KAFKA_CACERT
 
     return consumer_conf
 
