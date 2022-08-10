@@ -18,7 +18,7 @@ from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 LOG = logging.getLogger(__name__)
 
 
-def _get_managed_kafka_config(conf=None):
+def _get_managed_kafka_config(conf=None):  # pragma: no cover
     """Create/Update a dict with managed Kafka configuration"""
     if not isinstance(conf, dict):
         conf = {}
@@ -35,7 +35,7 @@ def _get_managed_kafka_config(conf=None):
     return conf
 
 
-def _get_consumer_config(address, conf_settings):
+def _get_consumer_config(address, conf_settings):  # pragma: no cover
     """Get the default consumer config"""
     conf = {
         "bootstrap.servers": address,
@@ -55,7 +55,7 @@ def get_consumer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragm
     return Consumer(conf, logger=LOG)
 
 
-def _get_producer_config(address, conf_settings):
+def _get_producer_config(address, conf_settings):  # pragma: no cover
     """Return Kafka Producer config"""
     producer_conf = {"bootstrap.servers": address, "message.timeout.ms": 1000}
     producer_conf = _get_managed_kafka_config(producer_conf)
