@@ -36,7 +36,7 @@ from masu.test import MasuTestCase
 KAFKA_KEY_MAP = {
     "INSIGHTS_KAFKA_USER": "sasl.username",
     "INSIGHTS_KAFKA_PASSWORD": "sasl.password",
-    "INSIGHTS_KAFKA_SASL_MECHANISM": "sasl.mechanism",
+    "INSIGHTS_KAFKA_SASL_MECHANISM": "sasl.mechanisms",
     "INSIGHTS_KAFKA_SECURITY_PROTOCOL": "security.protocol",
     "INSIGHTS_KAFKA_CACERT": "ssl.ca.location",
 }
@@ -73,7 +73,7 @@ class MockMessage:
 
     def __init__(
         self,
-        topic="mocked-topic",
+        topic=Config.UPLOAD_TOPIC,
         url="http://unreal",
         value_dict={},
         offset=50,
@@ -168,12 +168,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
         """Test that the message loop only calls listen for messages on valid messages."""
         msg_list = [
             None,
-            MockMessage(offset=1),
             MockMessage(offset=2, error=MockError(KafkaError._PARTITION_EOF)),
             MockMessage(offset=3, error=MockError(KafkaError._MSG_TIMED_OUT)),
+            MockMessage(offset=4, topic="wrong-topic"),
+            MockMessage(offset=5, service="wrong-service"),
+            MockMessage(offset=1),  # this is the only message that will cause the `mock_listen` to assert called once
         ]
         mock_consumer.return_value = MockKafkaConsumer(msg_list)
-        with patch("itertools.count", side_effect=[[0, 1, 2, 3]]):  # mocking the infinite loop
+        with patch("itertools.count", side_effect=[range(len(msg_list))]):  # mocking the infinite loop
             with self.assertLogs(logger="masu.external.kafka_msg_handler", level=logging.WARNING):
                 msg_handler.listen_for_messages_loop()
         mock_listen.assert_called_once()
@@ -376,12 +378,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
     def test_handle_messages(self, _):
         """Test to ensure that kafka messages are handled."""
         hccm_msg = MockMessage(Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate")
-        advisor_msg = MockMessage(
-            Config.UPLOAD_TOPIC, "http://insights-upload.com/quarnantine/file_to_validate", service="advisor"
-        )
-        other_advisor_msg = MockMessage(
-            "platform.upload.advisor", "http://insights-upload.com/quarnantine/file_to_validate", service="advisor"
-        )
 
         # Verify that when extract_payload is successful with 'hccm' message that SUCCESS_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", return_value=(None, None)):
@@ -390,10 +386,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
         # Verify that when extract_payload is not successful with 'hccm' message that FAILURE_CONFIRM_STATUS is returned
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=msg_handler.KafkaMsgHandlerError):
             self.assertEqual(msg_handler.handle_message(hccm_msg), (msg_handler.FAILURE_CONFIRM_STATUS, None, None))
-
-        # Verify that when None status is returned for non-hccm messages (we don't confirm these)
-        self.assertEqual(msg_handler.handle_message(advisor_msg), (None, None, None))
-        self.assertEqual(msg_handler.handle_message(other_advisor_msg), (None, None, None))
 
         # Verify that when extract_payload has a OperationalError that KafkaMessageError is raised
         with patch("masu.external.kafka_msg_handler.extract_payload", side_effect=OperationalError):
