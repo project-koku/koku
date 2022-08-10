@@ -64,9 +64,9 @@ def _get_producer_config(address, conf_settings):
     return producer_conf
 
 
-def get_producer(address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings):  # pragma: no cover
+def get_producer(conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
     """Create a Kafka producer."""
-    conf = _get_producer_config(address, **conf_settings)
+    conf = _get_producer_config(address, conf_settings)
     return Producer(conf)
 
 
