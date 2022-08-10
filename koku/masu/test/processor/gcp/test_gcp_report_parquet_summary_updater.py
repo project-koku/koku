@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCPReportParquetSummaryUpdater."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 from django.conf import settings
