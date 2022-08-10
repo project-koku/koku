@@ -256,6 +256,7 @@ def _get_consumer_config():
         "group.id": "hccm-sources",
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
+        "api.version.request": False,
         "broker.version.fallback": "0.10.2",
     }
 
