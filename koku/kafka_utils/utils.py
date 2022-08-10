@@ -49,6 +49,7 @@ def _get_consumer_config(address, **conf_settings):
         "queued.max.messages.kbytes": 1024,
         "enable.auto.commit": False,
         "max.poll.interval.ms": 1080000,  # 18 minutes
+        "broker.version.fallback": "0.10.2",
     }
     conf = _get_managed_kafka_config(conf)
     conf.update(conf_settings)
