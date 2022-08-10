@@ -33,7 +33,7 @@ def _get_managed_kafka_config(conf=None):
     return conf
 
 
-def _get_consumer_config(address, **conf_settings):
+def _get_consumer_config(address, conf_settings):
     """Get the default consumer config"""
     conf = {
         "bootstrap.servers": address,
@@ -46,20 +46,20 @@ def _get_consumer_config(address, **conf_settings):
     return conf
 
 
-def get_consumer(*topics, address=Config.INSIGHTS_KAFKA_ADDRESS, **conf_settings):  # pragma: no cover
+def get_consumer(topics, conf_settings, address=Config.INSIGHTS_KAFKA_ADDRESS):  # pragma: no cover
     """Create a Kafka consumer."""
-    conf = _get_consumer_config(address, **conf_settings)
+    conf = _get_consumer_config(address, conf_settings)
     consumer = Consumer(conf, logger=LOG)
     consumer.subscribe(list(topics))
 
     return consumer
 
 
-def _get_producer_config(address, **conf_settings):
+def _get_producer_config(address, conf_settings):
     """Return Kafka Producer config"""
     producer_conf = {"bootstrap.servers": address, "message.timeout.ms": 1000}
     producer_conf = _get_managed_kafka_config(producer_conf)
-    producer_conf.update(**conf_settings)
+    producer_conf.update(conf_settings)
 
     return producer_conf
 
