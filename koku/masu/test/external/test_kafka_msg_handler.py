@@ -122,6 +122,9 @@ class MockKafkaConsumer:
     def commit(self):
         self.preloaded_messages.pop()
 
+    def subscribe(self, *args, **kwargs):
+        pass
+
 
 class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
