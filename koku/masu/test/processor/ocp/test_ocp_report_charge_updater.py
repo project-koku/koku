@@ -644,3 +644,11 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         # assert that the Cluster call includes relevant information and the call for node and pvc
         # do not happen since they did not have a rate included
         mock_update_monthly.assert_called_once()
+
+    def test_delete_tag_usage_costs_no_report_period(self):
+        """Test that a delete without a matching report period no longer throws an error"""
+        start_date = "2000-01-01"
+        end_date = "2000-02-01"
+        updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
+        # delete would throw an error if we didn't handle a missing report period.
+        updater._delete_tag_usage_costs(start_date, end_date, "")
