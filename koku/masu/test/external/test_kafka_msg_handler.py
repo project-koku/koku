@@ -20,8 +20,6 @@ from requests.exceptions import HTTPError
 
 import masu.external.kafka_msg_handler as msg_handler
 from api.provider.models import Provider
-from kafka_utils.utils import _get_consumer_config
-from kafka_utils.utils import _get_producer_config
 from masu.config import Config
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
@@ -31,15 +29,6 @@ from masu.processor.report_processor import ReportProcessorError
 from masu.processor.tasks import OCP_QUEUE
 from masu.prometheus_stats import WORKER_REGISTRY
 from masu.test import MasuTestCase
-
-
-KAFKA_KEY_MAP = {
-    "INSIGHTS_KAFKA_USER": "sasl.username",
-    "INSIGHTS_KAFKA_PASSWORD": "sasl.password",
-    "INSIGHTS_KAFKA_SASL_MECHANISM": "sasl.mechanism",
-    "INSIGHTS_KAFKA_SECURITY_PROTOCOL": "security.protocol",
-    "INSIGHTS_KAFKA_CACERT": "ssl.ca.location",
-}
 
 
 def raise_exception():
@@ -133,6 +122,9 @@ class MockKafkaConsumer:
     def commit(self):
         self.preloaded_messages.pop()
 
+    def subscribe(self, *args, **kwargs):
+        pass
+
 
 class KafkaMsgHandlerTest(MasuTestCase):
     """Test Cases for the Kafka msg handler."""
@@ -170,8 +162,6 @@ class KafkaMsgHandlerTest(MasuTestCase):
             None,
             MockMessage(offset=2, error=MockError(KafkaError._PARTITION_EOF)),
             MockMessage(offset=3, error=MockError(KafkaError._MSG_TIMED_OUT)),
-            MockMessage(offset=4, topic="wrong-topic"),
-            MockMessage(offset=5, service="wrong-service"),
             MockMessage(offset=1),  # this is the only message that will cause the `mock_listen` to assert called once
         ]
         mock_consumer.return_value = MockKafkaConsumer(msg_list)
@@ -192,8 +182,14 @@ class KafkaMsgHandlerTest(MasuTestCase):
                     "category": "tar",
                     "metadata": {"reporter": "", "stale_timestamp": "0001-01-01T00:00:00Z"},
                 },
+                "service": "hccm",
                 "expected_process": True,
-            }
+            },
+            {
+                "test_value": {},
+                "service": "not-hccm",
+                "expected_process": False,
+            },
         ]
         for test in test_matrix:
             msg = MockMessage(
@@ -201,6 +197,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 offset=5,
                 url="https://insights-quarantine.s3.amazonaws.com/myfile",
                 value_dict=test.get("test_value"),
+                service=test.get("service"),
             )
 
             mock_consumer = MockKafkaConsumer([msg])
@@ -210,6 +207,7 @@ class KafkaMsgHandlerTest(MasuTestCase):
                 mock_process_message.assert_called()
             else:
                 mock_process_message.assert_not_called()
+            mock_process_message.reset_mock()
 
     @patch("masu.external.kafka_msg_handler.process_messages")
     def test_listen_for_messages_db_error(self, mock_process_message):
@@ -801,58 +799,3 @@ class KafkaMsgHandlerTest(MasuTestCase):
 
         reports = msg_handler.construct_parquet_reports(1, "context", report_meta, "/payload/path", "report_file")
         self.assertEqual(reports, [])
-
-    def test_masu_config(self):
-        for key in (
-            "INSIGHTS_KAFKA_USER",
-            "INSIGHTS_KAFKA_PASSWORD",
-            "INSIGHTS_KAFKA_SASL_MECHANISM",
-            "INSIGHTS_KAFKA_SECURITY_PROTOCOL",
-            "INSIGHTS_KAFKA_CACERT",
-            "INSIGHTS_KAFKA_AUTHTYPE",
-        ):
-            self.assertTrue(hasattr(Config, key), f"Key {key} is not present in masu external Config")
-
-    def test_masu_consumer_config_with_man_kafka(self):
-        """Test masu consumer config returns correctly set config dict for managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, k)
-        conf = _get_consumer_config(Config.INSIGHTS_KAFKA_ADDRESS)
-        for v in KAFKA_KEY_MAP.values():
-            self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)
-
-    def test_masu_consumer_config_without_man_kafka(self):
-        """Test masu consumer config returns correctly set config dict with NO managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, None)
-        conf = _get_consumer_config(Config.INSIGHTS_KAFKA_ADDRESS)
-        for v in KAFKA_KEY_MAP.values():
-            self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)
-
-    def test_masu_producer_config_with_man_kafka(self):
-        """Test masu producer config returns correctly set config dict for managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, k)
-        conf = _get_producer_config(Config.INSIGHTS_KAFKA_ADDRESS)
-        for v in KAFKA_KEY_MAP.values():
-            self.assertFalse(conf[v] is None, f"result of masu._get_consumer_config()['{v}'] is None!")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)
-
-    def test_masu_producer_config_without_man_kafka(self):
-        """Test masu producer config returns correctly set config dict with NO managed kafka"""
-        bkup_conf = {k: getattr(Config, k, None) for k in KAFKA_KEY_MAP}
-        for k in KAFKA_KEY_MAP:
-            setattr(Config, k, None)
-        conf = _get_producer_config(Config.INSIGHTS_KAFKA_ADDRESS)
-        for v in KAFKA_KEY_MAP.values():
-            self.assertNotIn(v, conf, f"masu._get_consumer_config()['{v}'] exists.")
-        for k, v in bkup_conf.items():
-            setattr(Config, k, v)

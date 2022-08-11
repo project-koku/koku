@@ -26,8 +26,8 @@ from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
 from kafka_utils.utils import extract_from_header
-from kafka_utils.utils import get_consumer as get_kafka_consumer
-from kafka_utils.utils import get_producer as get_kafka_producer
+from kafka_utils.utils import get_consumer
+from kafka_utils.utils import get_producer
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -665,25 +665,16 @@ def process_messages(msg):
     return process_complete
 
 
-def get_consumer():  # pragma: no cover
-    """Create a Kafka consumer."""
-
-    consumer = get_kafka_consumer(Config.UPLOAD_TOPIC)
-
-    return consumer
-
-
-def get_producer():  # pragma: no cover
-    """Create a Kafka producer."""
-
-    producer = get_kafka_producer()
-
-    return producer
-
-
 def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
-    consumer = get_consumer()
+    kafka_conf = {
+        "group.id": "hccm-group",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+        "max.poll.interval.ms": 1080000,  # 18 minutes
+    }
+    consumer = get_consumer(kafka_conf)
+    consumer.subscribe([Config.UPLOAD_TOPIC])
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
         msg = consumer.poll(timeout=1.0)
@@ -693,16 +684,6 @@ def listen_for_messages_loop():
         if msg.error():
             KAFKA_CONNECTION_ERRORS_COUNTER.inc()
             LOG.error(f"[listen_for_messages_loop] consumer.poll message: {msg}. Error: {msg.error()}")
-            continue
-
-        service = extract_from_header(msg.headers(), "service")
-        LOG.debug(f"service: {service} | {msg.headers()}")
-        if service != "hccm":
-            LOG.debug("message not for cost-management")
-            continue
-
-        if msg.topic() != Config.UPLOAD_TOPIC:
-            LOG.warning("unexpected message")
             continue
 
         listen_for_messages(msg, consumer)
@@ -748,7 +729,10 @@ def listen_for_messages(msg, consumer):
     topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        process_messages(msg)
+        service = extract_from_header(msg.headers(), "service")
+        LOG.debug(f"service: {service} | {msg.headers()}")
+        if service == "hccm":
+            process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
