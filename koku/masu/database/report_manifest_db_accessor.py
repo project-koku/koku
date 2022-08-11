@@ -67,10 +67,10 @@ class ReportManifestDBAccessor(KokuDBAccess):
             bulk_manifest_query.filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
                 msg = (
-                f"Marking manifest {manifest.id} "
-                f"\nassembly_id {manifest.assembly_id} "
-                f"\nfor provider {manifest.provider_id} "
-                f"\nmanifest_completed_datetime: {completed_datetime}."
+                    f"Marking manifest {manifest.id} "
+                    f"\nassembly_id {manifest.assembly_id} "
+                    f"\nfor provider {manifest.provider_id} "
+                    f"\nmanifest_completed_datetime: {completed_datetime}."
                 )
                 LOG.info(msg)
                 manifest.manifest_completed_datetime = completed_datetime

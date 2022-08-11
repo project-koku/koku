@@ -6,7 +6,8 @@
 import logging
 import random
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 from uuid import uuid4
 
 import faker
@@ -70,13 +71,13 @@ class OrchestratorTest(MasuTestCase):
                 "provider_type": Provider.PROVIDER_AWS,
                 "schema_name": self.fake.word(),
             },
-             {
+            {
                 "credentials": {},
                 "data_source": {},
                 "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_GCP,
                 "schema_name": self.fake.word(),
-            }
+            },
         ]
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
@@ -268,9 +269,7 @@ class OrchestratorTest(MasuTestCase):
         self, mock_download_manifest, mock_chord, mock_task, mock_inspect
     ):
         """Test start_manifest_processing with report already processed."""
-        mock_manifests = [
-            {"manifest_id": "1", "files": [{"local_file": {}}]}
-        ]
+        mock_manifests = [{"manifest_id": "1", "files": [{"local_file": {}}]}]
         mock_download_manifest.return_value = mock_manifests
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
@@ -320,13 +319,9 @@ class OrchestratorTest(MasuTestCase):
     @patch("masu.processor.orchestrator.WorkerCache.task_is_running", return_value=True)
     @patch("masu.processor.orchestrator.chord")
     @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
-    def test_start_manifest_processing_in_progress(
-        self, mock_download, mock_chord, mock_worker_cache, mock_inspect
-    ):
+    def test_start_manifest_processing_in_progress(self, mock_download, mock_chord, mock_worker_cache, mock_inspect):
         """Test start_manifest_processing with report in progressed."""
-        mock_manifests = [
-            {"manifest_id": "1", "files": [{"local_file": {}}]}
-        ]
+        mock_manifests = [{"manifest_id": "1", "files": [{"local_file": {}}]}]
         mock_download.return_value = mock_manifests
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
