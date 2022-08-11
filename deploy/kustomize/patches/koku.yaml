@@ -6,6 +6,7 @@
     webServices:
       public:
         enabled: true
+        apiPath: cost-management
       private:
         enabled: false
       metrics:

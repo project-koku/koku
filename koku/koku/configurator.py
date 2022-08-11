@@ -216,24 +216,9 @@ class EnvConfigurator(Configurator):
         return requestedName
 
     @staticmethod
-    def get_kafka_username():
-        """Obtain kafka username"""
-        return None
-
-    @staticmethod
-    def get_kafka_password():
-        """Obtain kafka password"""
-        return None
-
-    @staticmethod
-    def get_kafka_sasl_mechanism():
-        """Obtain kafka sasl mechanism"""
-        return None
-
-    @staticmethod
-    def get_kafka_security_protocol():
-        """Obtain kafka security protocol"""
-        return None
+    def get_kafka_sasl():
+        """Obtain kafka sasl"""
+        return {}
 
     @staticmethod
     def get_kafka_cacert():
@@ -411,33 +396,14 @@ class ClowderConfigurator(Configurator):
         return KafkaTopics.get(requestedName).name
 
     @staticmethod
-    def get_kafka_username():
-        """Obtain kafka username"""
-        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
-        return getattr(sasl, "username", None)
-
-    @staticmethod
-    def get_kafka_password():
-        """Obtain kafka password"""
-        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
-        return getattr(sasl, "password", None)
-
-    @staticmethod
-    def get_kafka_sasl_mechanism():
-        """Obtain kafka sasl mechanism"""
-        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
-        return getattr(sasl, "saslMechanism", None)
-
-    @staticmethod
-    def get_kafka_security_protocol():
-        """Obtain kafka security protocol"""
-        sasl = getattr(LoadedConfig.kafka.brokers[0], "sasl", None)
-        return getattr(sasl, "securityProtocol", None)
+    def get_kafka_sasl():
+        """Obtain kafka sasl"""
+        return LoadedConfig.kafka.brokers[0].sasl
 
     @staticmethod
     def get_kafka_cacert():
         """Obtain kafka CA Certificate"""
-        if getattr(LoadedConfig.kafka.brokers[0], "cacert", None):
+        if LoadedConfig.kafka.brokers[0].cacert:
             return LoadedConfig.kafka_ca()
         return None
 
