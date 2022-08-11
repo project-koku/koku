@@ -59,28 +59,22 @@ class ReportManifestDBAccessor(KokuDBAccess):
             manifest.manifest_updated_datetime = updated_datetime
             manifest.save()
 
-    def mark_manifest_as_completed(self, manifest):
+    def mark_manifests_as_completed(self, manifest_list):
         """Update the updated timestamp."""
-        if manifest:
-            completed_datetime = self.date_accessor.today_with_timezone("UTC")
-            msg = (
+        completed_datetime = self.date_accessor.today_with_timezone("UTC")
+        if manifest_list:
+            bulk_manifest_query = self._get_db_obj_query()
+            bulk_manifest_query.filter(id__in=manifest_list)
+            for manifest in bulk_manifest_query:
+                msg = (
                 f"Marking manifest {manifest.id} "
                 f"\nassembly_id {manifest.assembly_id} "
                 f"\nfor provider {manifest.provider_id} "
                 f"\nmanifest_completed_datetime: {completed_datetime}."
-            )
-            LOG.info(msg)
-            manifest.manifest_completed_datetime = completed_datetime
-            manifest.save()
-
-    def mark_manifest_as_completed_bulk(self, manifest_list):
-        """Update the updated timestamp."""
-        completed_datetime = self.date_accessor.today_with_timezone("UTC")
-        query = self._get_db_obj_query()
-        query.filter(id__in=manifest_list)
-        for object in query:
-            object.manifest_completed_datetime = completed_datetime
-            object.save()
+                )
+                LOG.info(msg)
+                manifest.manifest_completed_datetime = completed_datetime
+                object.save()
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""

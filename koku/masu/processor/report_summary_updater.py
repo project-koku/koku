@@ -177,8 +177,8 @@ class ReportSummaryUpdater:
         msg = f"Summary processing starting for source {self._provider_uuid}"
         LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
-        LOG.debug(log_json(tracing_id, f"Using start date: {start_date}"))
-        LOG.debug(log_json(tracing_id, f"Using end date: {end_date}"))
+        LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
+        LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 

@@ -104,10 +104,10 @@ class ReportManifestDBAccessorTest(IamTestCase):
         except Exception as err:
             self.fail(f"Test failed with error: {err}")
 
-    def test_mark_manifest_as_completed_none_manifest(self):
+    def test_mark_manifests_as_completed_none_manifest(self):
         """Test that a none manifest doesn't complete failure."""
         try:
-            self.manifest_accessor.mark_manifest_as_completed(None)
+            self.manifest_accessor.mark_manifests_as_completed(None)
         except Exception as err:
             self.fail(f"Test failed with error: {err}")
 

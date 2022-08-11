@@ -691,7 +691,6 @@ def update_cost_model_costs(
 def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
-    manifest_id=None,
     provider_uuid="",
     synchronous=False,
     queue_name=None,
@@ -704,7 +703,6 @@ def mark_manifest_complete(  # noqa: C901
         f" schema_name: {schema_name}, "
         f" provider_type: {provider_type}, "
         f" provider_uuid: {provider_uuid}, "
-        f" manifest_id: {manifest_id}, "
         f" synchronous: {synchronous}, "
         f" queue_name: {queue_name}, "
         f" tracing_id: {tracing_id}"
@@ -713,14 +711,8 @@ def mark_manifest_complete(  # noqa: C901
     LOG.info(log_json(tracing_id, stmt))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
-    if manifest_list:
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_accessor.mark_manifest_as_completed_bulk(manifest_list)
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest_accessor.mark_manifests_as_completed(manifest_list)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
