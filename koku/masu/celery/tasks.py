@@ -373,9 +373,9 @@ def check_cost_model_status(provider_uuid=None):
     processed = 0
     skipped = 0
     for provider in providers:
-        provider_uuid = provider_uuid if provider_uuid else provider.uuid
-        account = AccountsAccessor().get_accounts(provider_uuid)[0]
-        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider_uuid)
+        uuid = provider_uuid if provider_uuid else provider.uuid
+        account = AccountsAccessor().get_accounts(uuid)[0]
+        cost_model_map = CostModelDBAccessor(account.get("schema_name"), uuid)
         if cost_model_map.cost_model:
             skipped += 1
         else:
