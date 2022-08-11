@@ -33,30 +33,29 @@ class OCIReportParquetSummaryUpdaterTest(MasuTestCase):
     def test_get_sql_inputs(self):
         """Test that dates are returned."""
         # Previous month
-        start_str = (self.dh.last_month_end - timedelta(days=3)).isoformat()
-        end_str = self.dh.last_month_end.isoformat()
-        start, end = self.updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(start, self.dh.last_month_start.date())
-        self.assertEqual(end, self.dh.last_month_end.date())
+        org_start = self.dh.last_month_end - timedelta(days=3)
+        org_end = self.dh.last_month_end
+        start, end = self.updater._get_sql_inputs(org_start.isoformat(), org_end.isoformat())
+        self.assertEqual(start, org_start.date())
+        self.assertEqual(end, org_end.date())
 
         # Current month
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest = manifest_accessor.get_manifest_by_id(2)
         updater = OCIReportParquetSummaryUpdater(self.schema_name, self.oci_provider, manifest)
-        start_str = self.dh.this_month_start.isoformat()
-        end_str = self.dh.this_month_end.isoformat()
-        start, end = updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(start, self.dh.this_month_start.date())
-        self.assertEqual(end, self.dh.this_month_end.date())
+        org_start = self.dh.this_month_start
+        org_end = self.dh.this_month_end
+        start, end = updater._get_sql_inputs(org_start.isoformat(), org_end.isoformat())
+        self.assertEqual(start, org_start.date())
+        self.assertEqual(end, org_end.date())
 
         # No manifest
         updater = OCIReportParquetSummaryUpdater(self.schema_name, self.oci_provider, None)
-        start_date = self.dh.last_month_end - timedelta(days=3)
-        start_str = start_date.isoformat()
-        end_str = self.dh.last_month_end.isoformat()
-        start, end = updater._get_sql_inputs(start_str, end_str)
-        self.assertEqual(start, start_date.date())
-        self.assertEqual(end, self.dh.last_month_end.date())
+        org_start = self.dh.last_month_end - timedelta(days=3)
+        org_end = self.dh.last_month_end
+        start, end = updater._get_sql_inputs(org_start.isoformat(), org_end.isoformat())
+        self.assertEqual(start, org_start.date())
+        self.assertEqual(end, org_end.date())
 
     def test_update_daily_tables(self):
         """Test that this is a placeholder method."""
