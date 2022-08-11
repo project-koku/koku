@@ -44,16 +44,16 @@ jobs:
     needs: setup
     if: ${{ needs.setup.outputs.run-tests == 'true' }}
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ matrix.experimental }}
+    # continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
-        python-version: [3.8]
-        experimental: [false]
-        include:
-          - python-version: 3.9
-            experimental: true
+        python-version: [3.9]
+        # experimental: [false]
+        # include:
+        #   - python-version: 3.10
+        #     experimental: true
     env:
       COMPOSE_FILE: .github/postgres/docker-compose.yaml
 

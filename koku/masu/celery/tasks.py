@@ -360,22 +360,27 @@ def crawl_account_hierarchy(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.check_cost_model_status", queue=DEFAULT)
 def check_cost_model_status(provider_uuid=None):
     """Scheduled task to initiate source check and notification fire."""
-    accounts = []
+    providers = []
     if provider_uuid:
-        accounts = AccountsAccessor().get_accounts(provider_uuid)
+        provider = Provider.objects.filter(uuid=provider_uuid).values("uuid", "type")
+        if provider[0].get("type") == Provider.PROVIDER_OCP:
+            providers = provider
+        else:
+            LOG.info(f"Source {provider_uuid} is not an openshift source.")
     else:
-        accounts = AccountsAccessor().get_accounts()
-    LOG.info("Cost model status check found %s accounts to scan" % len(accounts))
+        providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
+    LOG.info("Cost model status check found %s providers to scan" % len(providers))
     processed = 0
     skipped = 0
-    for account in accounts:
-        if account.get("provider_type") == Provider.PROVIDER_OCP:
-            cost_model_map = CostModelDBAccessor(account.get("schema_name"), account.get("provider_uuid"))
-            if cost_model_map.cost_model:
-                skipped += 1
-            else:
-                NotificationService().cost_model_notification(account)
-                processed += 1
+    for provider in providers:
+        provider_uuid = provider_uuid if provider_uuid else provider.uuid
+        account = AccountsAccessor().get_accounts(provider_uuid)[0]
+        cost_model_map = CostModelDBAccessor(account.get("schema_name"), provider_uuid)
+        if cost_model_map.cost_model:
+            skipped += 1
+        else:
+            NotificationService().cost_model_notification(account)
+            processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
 
 

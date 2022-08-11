@@ -206,6 +206,7 @@ objects:
         private:
           enabled: false
         public:
+          apiPath: cost-management
           enabled: true
     - minReplicas: ${{LISTENER_MIN_REPLICAS}}
       name: clowder-listener
