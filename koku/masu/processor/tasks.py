@@ -477,6 +477,9 @@ def update_summary_tables(  # noqa: C901
         else:
             group(signature_list).apply_async()
 
+    if not manifest_list and manifest_id:
+        manifest_list = [manifest_id]
+
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
