@@ -5,8 +5,6 @@
 """Test the Orchestrator object."""
 import logging
 import random
-from unittest import mock
-from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 

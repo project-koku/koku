@@ -74,7 +74,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
                 )
                 LOG.info(msg)
                 manifest.manifest_completed_datetime = completed_datetime
-                object.save()
+                manifest.save()
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""
