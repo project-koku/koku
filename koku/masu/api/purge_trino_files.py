@@ -6,6 +6,7 @@
 import logging
 
 from django.conf import settings
+from masu.config import Config
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -36,11 +37,12 @@ def purge_trino_files(request):
         provider_uuid - source_uuid
         schema - account schema
         bill_date - usually the start of the month example 08-12-2022
-    Optional:
-        simulate - returns the s3 paths that would be deleted.
     """
     # Parameter Validation
     params = request.query_params
+    simulate = True
+    if request.method == "DELETE" and Config.DEBUG:
+        simulate = False
     if not params:
         errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -62,7 +64,7 @@ def purge_trino_files(request):
         report_path=None,
         provider_uuid=provider_uuid,
         provider_type=provider_type,
-        manifest=None,
+        manifest_id=None,
         context=context,
     )
     path_info = {
@@ -77,29 +79,33 @@ def purge_trino_files(request):
             bill_date: {bill_date}
             provider_type: {provider_type}
             provider_uuid: {provider_uuid}
+            simulate: {simulate}
         """
     LOG.info(log_msg)
-    if params.get("stimulate"):
+    if simulate:
         return Response(path_info)
 
     # Checking to see if account is enabled in unleash
-    if schema and not schema.startswith("acct"):
-        schema = f"acct{schema}"
-
     context = {"schema": schema}
     LOG.info(f"enable-purge-turnpikes context: {context}")
+    UNLEASH_CLIENT.initialize_client()
     unleash_check = bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
-    if not unleash_check:
-        errmsg = f"Schema {schema} not enabled in unleash."
-        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+    UNLEASH_CLIENT.destroy()
 
-    for _, file_prefix in path_info.items():
-        LOG.info(f"Starting to delete for path: {file_prefix}")
-        remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
-        LOG.info(f"remaining_objects: {remaining_objects}")
 
-    with ReportManifestDBAccessor() as manifest_accessor:
-        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            provider_uuid=provider_uuid, bill_date=bill_date
-        )
-        manifest_accessor.bulk_delete_manifests([manifest.id for manifest in manifest_list])
+    if request.method == "DELETE":
+        if not unleash_check:
+            errmsg = f"Schema {schema} not enabled in unleash."
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        for _, file_prefix in path_info.items():
+            LOG.info(f"Starting to delete for path: {file_prefix}")
+            remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
+            LOG.info(f"remaining_objects: {remaining_objects}")
+            path_info["remaining_objects"] = remaining_objects
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                provider_uuid=provider_uuid, bill_date=bill_date
+            )
+            manifest_accessor.bulk_delete_manifests([manifest.id for manifest in manifest_list])
+    return Response({})

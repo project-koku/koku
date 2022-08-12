@@ -38,7 +38,7 @@
         },
         {
             "name": "enable-purge-turnpike",
-            "description": "Toggle to enable trino processing",
+            "description": "Toggle to enable purging of trino files.",
             "type": "permission",
             "project": "default",
             "enabled": true,

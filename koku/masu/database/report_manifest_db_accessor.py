@@ -259,6 +259,8 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider_uuid (uuid): The provider uuid to use to delete associated manifests
             manifest_id_list (list): list of manifest ids to delete.
         """
+        if not manifest_id_list:
+            return
         delete_count = CostUsageReportManifest.objects.filter(
             provider_id=provider_uuid, id__in=manifest_id_list
         ).delete()
