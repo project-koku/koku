@@ -63,8 +63,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """Update the updated timestamp."""
         completed_datetime = self.date_accessor.today_with_timezone("UTC")
         if manifest_list:
-            bulk_manifest_query = self._get_db_obj_query()
-            bulk_manifest_query.filter(id__in=manifest_list)
+            bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
             for manifest in bulk_manifest_query:
                 msg = (
                     f"Marking manifest {manifest.id} "
