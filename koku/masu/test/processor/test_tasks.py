@@ -636,7 +636,11 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
             ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | mark_manifest_complete.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+                self.schema,
+                provider,
+                provider_uuid=provider_aws_uuid,
+                manifest_list=[manifest_id],
+                tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
 
@@ -928,7 +932,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         )
         manifest.save()
         mark_manifest_complete(
-            self.schema, provider.type, manifest_id=manifest.id, provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema, provider.type, manifest_list=[manifest.id], provider_uuid=str(provider.uuid), tracing_id=1
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
@@ -941,7 +945,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         provider = self.ocp_provider
         initial_update_time = provider.data_updated_timestamp
         mark_manifest_complete(
-            self.schema, provider.type, manifest_id=None, provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema, provider.type, manifest_list=None, provider_uuid=str(provider.uuid), tracing_id=1
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
