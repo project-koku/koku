@@ -251,3 +251,19 @@ class ReportManifestDBAccessor(KokuDBAccess):
             .filter(partition_date__gte=start_date, partition_date__lte=end_date)
         )
         return manifests
+
+    def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
+        """
+        Deletes a specific manifest given manifest_id & provider_uui
+        Args:
+            provider_uuid (uuid): The provider uuid to use to delete associated manifests
+            manifest_id_list (list): list of manifest ids to delete.
+        """
+        delete_count = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, id__in=manifest_id_list
+        ).delete()
+        LOG.info(
+            "Removed %s outdated GCP manifests for provider_uuid %s",
+            delete_count,
+            provider_uuid,
+        )

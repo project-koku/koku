@@ -87,6 +87,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         LOG.warning(
             "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
         )
+    return remaining_objects
 
 
 @celery_app.task(  # noqa: C901

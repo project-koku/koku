@@ -4,7 +4,6 @@
 #
 """View for removing parquet & csv files for a particular provider."""
 import logging
-from uuid import UUID
 
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -19,17 +18,8 @@ from rest_framework.settings import api_settings
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.celery.tasks import deleted_archived_with_prefix
 from masu.database.provider_collector import ProviderCollector
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
-
-
-def enable_purge_turnpikes(account):  # pragma: no cover #noqa
-    """Helper to determine if source is enabled for HCS."""
-    if account and not account.startswith("acct"):
-        account = f"acct{account}"
-
-    context = {"schema": account}
-    LOG.info(f"enable-purge-turnpikes context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
 
 
 LOG = logging.getLogger(__name__)
@@ -93,11 +83,23 @@ def purge_trino_files(request):
         return Response(path_info)
 
     # Checking to see if account is enabled in unleash
-    unleash_check = enable_purge_turnpikes(schema)
+    if schema and not schema.startswith("acct"):
+        schema = f"acct{schema}"
+
+    context = {"schema": schema}
+    LOG.info(f"enable-purge-turnpikes context: {context}")
+    unleash_check = bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
     if not unleash_check:
         errmsg = f"Schema {schema} not enabled in unleash."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     for _, file_prefix in path_info.items():
         LOG.info(f"Starting to delete for path: {file_prefix}")
-        deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
+        remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
+        LOG.info(f"remaining_objects: {remaining_objects}")
+
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            provider_uuid=provider_uuid, bill_date=bill_date
+        )
+        manifest_accessor.bulk_delete_manifests([manifest.id for manifest in manifest_list])
