@@ -15,11 +15,12 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.celery.tasks import deleted_archived_with_prefix
-
-from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.database.provider_collector import ProviderCollector
+from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+
 
 def enable_purge_turnpikes(account):  # pragma: no cover #noqa
     """Helper to determine if source is enabled for HCS."""
@@ -30,7 +31,9 @@ def enable_purge_turnpikes(account):  # pragma: no cover #noqa
     LOG.info(f"enable-purge-turnpikes context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
 
+
 LOG = logging.getLogger(__name__)
+
 
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
@@ -70,7 +73,7 @@ def purge_trino_files(request):
         provider_uuid=provider_uuid,
         provider_type=provider_type,
         manifest=None,
-        context=context
+        context=context,
     )
     path_info = {
         "s3_csv_path": pq_processor_object.csv_path_s3,
@@ -98,7 +101,3 @@ def purge_trino_files(request):
     for _, file_prefix in path_info.items():
         LOG.info(f"Starting to delete for path: {file_prefix}")
         deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
-
-
-
-
