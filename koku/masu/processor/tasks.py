@@ -272,7 +272,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None):
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):
     """
     Summarize reports returned from line summary task.
 
@@ -334,6 +334,7 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                         manifest_id=report.get("manifest_id"),
                         queue_name=queue_name,
                         tracing_id=tracing_id,
+                        manifest_list=manifest_list,
                     ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
@@ -349,6 +350,7 @@ def update_summary_tables(  # noqa: C901
     synchronous=False,
     tracing_id=None,
     ocp_on_cloud=True,
+    manifest_list=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -475,11 +477,14 @@ def update_summary_tables(  # noqa: C901
         else:
             group(signature_list).apply_async()
 
+    if not manifest_list and manifest_id:
+        manifest_list = [manifest_id]
+
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
             queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
@@ -487,7 +492,7 @@ def update_summary_tables(  # noqa: C901
         stmt = f"update_cost_model_costs skipped. schema_name: {schema_name}, provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = mark_manifest_complete.s(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
 
     chain(linked_tasks).apply_async()
@@ -689,11 +694,11 @@ def update_cost_model_costs(
 def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
-    manifest_id=None,
     provider_uuid="",
     synchronous=False,
     queue_name=None,
     tracing_id=None,
+    manifest_list=None,
 ):
     """Mark a manifest and provider as complete"""
     stmt = (
@@ -701,19 +706,16 @@ def mark_manifest_complete(  # noqa: C901
         f" schema_name: {schema_name}, "
         f" provider_type: {provider_type}, "
         f" provider_uuid: {provider_uuid}, "
-        f" manifest_id: {manifest_id}, "
         f" synchronous: {synchronous}, "
         f" queue_name: {queue_name}, "
         f" tracing_id: {tracing_id}"
+        f" manifest_list: {manifest_list}"
     )
     LOG.info(log_json(tracing_id, stmt))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest_accessor.mark_manifests_as_completed(manifest_list)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
