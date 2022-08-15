@@ -370,7 +370,7 @@ delete
 """
         with transaction.get_connection().cursor() as cur:
             cur.execute(_sql, (target_values,))
-            LOG.info(f"Deleted {cur.rowcount} recurds from {qual_table_name}")
+            LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
 
 class Sources(RunTextFieldValidators, models.Model):

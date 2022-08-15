@@ -68,7 +68,14 @@ class OrchestratorTest(MasuTestCase):
                 "customer_name": self.fake.word(),
                 "provider_type": Provider.PROVIDER_AWS,
                 "schema_name": self.fake.word(),
-            }
+            },
+            {
+                "credentials": {},
+                "data_source": {},
+                "customer_name": self.fake.word(),
+                "provider_type": Provider.PROVIDER_GCP,
+                "schema_name": self.fake.word(),
+            },
         ]
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")  # noqa: C901
@@ -156,9 +163,12 @@ class OrchestratorTest(MasuTestCase):
         fake_source = random.choice(self.mock_accounts)
 
         individual = Orchestrator(fake_source.get("data_source"))
-        self.assertEqual(len(individual._accounts), 1)
-        found_account = individual._accounts[0]
-        self.assertEqual(found_account.get("data_source"), fake_source.get("data_source"))
+        self.assertEqual(len(individual._accounts), len(self.mock_accounts))
+        data_sources = []
+        for mocked in self.mock_accounts:
+            data_sources.append(mocked.get("data_source"))
+        for found_account in individual._accounts:
+            self.assertIn(found_account.get("data_source"), data_sources)
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
@@ -251,12 +261,14 @@ class OrchestratorTest(MasuTestCase):
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.record_report_status", return_value=True)
-    @patch("masu.processor.orchestrator.chord", return_value=True)
-    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
     def test_start_manifest_processing_already_progressed(
-        self, mock_record_report_status, mock_download_manifest, mock_task, mock_inspect
+        self, mock_download_manifest, mock_chord, mock_task, mock_inspect
     ):
         """Test start_manifest_processing with report already processed."""
+        mock_manifests = [{"manifest_id": "1", "files": [{"local_file": {}}]}]
+        mock_download_manifest.return_value = mock_manifests
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
 
@@ -269,16 +281,46 @@ class OrchestratorTest(MasuTestCase):
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
-        mock_task.assert_not_called()
+        mock_chord.assert_not_called()
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.orchestrator.record_report_status", return_value=False)
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_record_report_status_return_false(
+        self, mock_download, mock_chord, mock_task, mock_inspect
+    ):
+        """Test start_manifest_processing with report already processed."""
+        mock_manifests = [
+            {
+                "manifest_id": "1",
+                "files": [{"local_file": {}}],
+                "assembly_id": "1234",
+            }
+        ]
+        mock_download.return_value = mock_manifests
+        orchestrator = Orchestrator()
+        account = self.mock_accounts[0]
+
+        orchestrator.start_manifest_processing(
+            account.get("customer_name"),
+            account.get("credentials"),
+            account.get("data_source"),
+            "AWS-local",
+            account.get("schema_name"),
+            account.get("provider_uuid"),
+            DateAccessor().get_billing_months(1)[0],
+        )
+        mock_chord.assert_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.WorkerCache.task_is_running", return_value=True)
-    @patch("masu.processor.orchestrator.chord", return_value=True)
-    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest", return_value={})
-    def test_start_manifest_processing_in_progress(
-        self, mock_record_report_status, mock_download_manifest, mock_task, mock_inspect
-    ):
+    @patch("masu.processor.orchestrator.chord")
+    @patch("masu.processor.orchestrator.ReportDownloader.download_manifest")
+    def test_start_manifest_processing_in_progress(self, mock_download, mock_chord, mock_worker_cache, mock_inspect):
         """Test start_manifest_processing with report in progressed."""
+        mock_manifests = [{"manifest_id": "1", "files": [{"local_file": {}}]}]
+        mock_download.return_value = mock_manifests
         orchestrator = Orchestrator()
         account = self.mock_accounts[0]
 
@@ -291,7 +333,7 @@ class OrchestratorTest(MasuTestCase):
             account.get("provider_uuid"),
             DateAccessor().get_billing_months(1)[0],
         )
-        mock_task.assert_not_called()
+        mock_chord.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch("masu.processor.orchestrator.chord")
