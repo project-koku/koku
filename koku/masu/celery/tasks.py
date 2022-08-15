@@ -66,7 +66,7 @@ def remove_expired_data(simulate=False):
 
 
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
-def purge_trino_files(prefix, schema_name, provider_type, provider_uuid):
+def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     """Remove files in a particular path prefix."""
     LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
     if not enable_purge_trino_files(schema_name):

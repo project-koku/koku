@@ -14,8 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from masu.celery.tasks import purge_trino_files as purge_files
-from masu.config import Config
+from masu.celery.tasks import purge_s3_files
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
@@ -39,7 +38,7 @@ def purge_trino_files(request):
     # Parameter Validation
     params = request.query_params
     simulate = True
-    if request.method == "DELETE" and Config.DEBUG:
+    if request.method == "DELETE":
         simulate = False
     if not params:
         errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
@@ -92,19 +91,17 @@ def purge_trino_files(request):
     if simulate:
         return Response(path_info)
 
-    if request.method == "DELETE":
-        async_results = {}
-        for _, file_prefix in path_info.items():
-            async_purge_result = purge_files.delay(
-                provider_uuid=provider_uuid, provider_type=provider_type, schema_name=schema, prefix=file_prefix
-            )
-            async_results[str(async_purge_result)] = file_prefix
+    async_results = {}
+    for _, file_prefix in path_info.items():
+        async_purge_result = purge_s3_files.delay(
+            provider_uuid=provider_uuid, provider_type=provider_type, schema_name=schema, prefix=file_prefix
+        )
+        async_results[str(async_purge_result)] = file_prefix
 
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                provider_uuid=provider_uuid, bill_date=bill_date
-            )
-            manifest_id_list = [manifest.id for manifest in manifest_list]
-            manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
-        return Response(async_results)
-    return Response({})
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+            provider_uuid=provider_uuid, bill_date=bill_date
+        )
+        manifest_id_list = [manifest.id for manifest in manifest_list]
+        manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+    return Response(async_results)
