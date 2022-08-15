@@ -6,7 +6,6 @@
 import logging
 
 from django.conf import settings
-from masu.config import Config
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -18,6 +17,7 @@ from rest_framework.settings import api_settings
 
 from koku.feature_flags import UNLEASH_CLIENT
 from masu.celery.tasks import deleted_archived_with_prefix
+from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
@@ -56,7 +56,15 @@ def purge_trino_files(request):
 
     provider_type = provider.type
     schema = params.get("schema")
+    if not schema:
+        errmsg = "Parameter missing. Required: schema"
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
     bill_date = params.get("bill_date")
+    if not bill_date:
+        errmsg = "Parameter missing. Required: bill_date"
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
     context = {"start_date": bill_date}
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
@@ -92,13 +100,13 @@ def purge_trino_files(request):
     unleash_check = bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
     UNLEASH_CLIENT.destroy()
 
-
     if request.method == "DELETE":
         if not unleash_check:
             errmsg = f"Schema {schema} not enabled in unleash."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         for _, file_prefix in path_info.items():
             LOG.info(f"Starting to delete for path: {file_prefix}")
+            LOG.info(f"Bucket Name: {settings.S3_BUCKET_NAME}")
             remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
             LOG.info(f"remaining_objects: {remaining_objects}")
             path_info["remaining_objects"] = remaining_objects
