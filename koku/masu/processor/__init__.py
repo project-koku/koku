@@ -30,3 +30,12 @@ def enable_trino_processing(source_uuid, source_type, account):  # noqa
         or account in settings.ENABLE_TRINO_ACCOUNTS
         or UNLEASH_CLIENT.is_enabled("cost-trino-processor", context)
     )
+
+def enable_purge_trino_files(account):
+    """Helper to determine if account is enabled for deleting trino files."""
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"enable_purge_trino_files context: {context}")
+    return bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))

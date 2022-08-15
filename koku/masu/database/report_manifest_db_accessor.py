@@ -267,7 +267,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
             provider_id=provider_uuid, id__in=manifest_id_list
         ).delete()
         LOG.info(
-            "Removed %s outdated GCP manifests for provider_uuid %s",
+            "Removed %s manifests for provider_uuid %s",
             delete_count,
             provider_uuid,
         )

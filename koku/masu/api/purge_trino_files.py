@@ -14,9 +14,9 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from masu.celery.tasks import purge_trino_files as purge_files
 
 from koku.feature_flags import UNLEASH_CLIENT
-from masu.celery.tasks import deleted_archived_with_prefix
 from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -94,27 +94,19 @@ def purge_trino_files(request):
     if simulate:
         return Response(path_info)
 
-    # Checking to see if account is enabled in unleash
-    context = {"schema": schema}
-    LOG.info(f"enable-purge-turnpikes context: {context}")
-    UNLEASH_CLIENT.initialize_client()
-    unleash_check = bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
-    UNLEASH_CLIENT.destroy()
-
     if request.method == "DELETE":
-        if not unleash_check:
-            errmsg = f"Schema {schema} not enabled in unleash."
-            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+        async_results = {}
         for _, file_prefix in path_info.items():
-            LOG.info(f"Starting to delete for path: {file_prefix}")
-            LOG.info(f"Bucket Name: {settings.S3_BUCKET_NAME}")
-            remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, file_prefix)
-            LOG.info(f"remaining_objects: {remaining_objects}")
-            path_info["remaining_objects"] = remaining_objects
+            async_purge_result = purge_files.delay(
+                provider_uuid=provider_uuid, provider_type=provider_type, schema_name=schema, prefix=file_prefix
+            )
+            async_results[str(async_purge_result)] = file_prefix
 
         with ReportManifestDBAccessor() as manifest_accessor:
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
                 provider_uuid=provider_uuid, bill_date=bill_date
             )
-            manifest_accessor.bulk_delete_manifests([manifest.id for manifest in manifest_list])
+            manifest_id_list = [manifest.id for manifest in manifest_list]
+            manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+        return Response(async_results)
     return Response({})

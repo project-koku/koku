@@ -35,6 +35,7 @@ from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnit
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor import enable_trino_processing
+from masu.processor import enable_purge_trino_files
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -62,6 +63,49 @@ def remove_expired_data(simulate=False):
     LOG.info("Removing expired data at %s", str(today))
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
+
+@celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
+def purge_trino_files(prefix, schema_name, provider_type, provider_uuid):
+    """Remove files in a particular path prefix."""
+    LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
+    if not enable_purge_trino_files(schema_name):
+        msg = f"Schema {schema_name} not enabled in unleash."
+        LOG.info(msg)
+        return msg
+    if not schema_name or not provider_type or not provider_uuid:
+        # Sanity-check all of these inputs in case somehow any receives an
+        # empty value such as None or '' because we need to minimize the risk
+        # of deleting unrelated files from our S3 bucket.
+        messages = []
+        if not schema_name:
+            message = "missing required argument: schema_name"
+            LOG.error(message)
+            messages.append(message)
+        if not provider_type:
+            message = "missing required argument: provider_type"
+            LOG.error(message)
+            messages.append(message)
+        if not provider_uuid:
+            message = "missing required argument: provider_uuid"
+            LOG.error(message)
+            messages.append(message)
+        raise TypeError("purge_trino_files() %s", ", ".join(messages))
+
+
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
+        LOG.info("Skipping purge_trino_files. Upload feature is disabled.")
+        return
+    elif settings.SKIP_MINIO_DATA_DELETION:
+        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        return
+    else:
+        message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
+        LOG.info(message)
+
+    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+    remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
+    LOG.info(f"Deletion complete. Remaining objects: {remaining_objects}")
+    return remaining_objects
 
 
 def deleted_archived_with_prefix(s3_bucket_name, prefix):
