@@ -5,7 +5,6 @@
 """View for removing parquet & csv files for a particular provider."""
 import logging
 
-from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -14,9 +13,8 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from masu.celery.tasks import purge_trino_files as purge_files
 
-from koku.feature_flags import UNLEASH_CLIENT
+from masu.celery.tasks import purge_trino_files as purge_files
 from masu.config import Config
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor

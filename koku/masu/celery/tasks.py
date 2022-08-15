@@ -34,8 +34,8 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.processor import enable_trino_processing
 from masu.processor import enable_purge_trino_files
+from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
 from masu.processor.tasks import DEFAULT
@@ -64,6 +64,7 @@ def remove_expired_data(simulate=False):
     orchestrator = Orchestrator()
     orchestrator.remove_expired_report_data(simulate)
 
+
 @celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
 def purge_trino_files(prefix, schema_name, provider_type, provider_uuid):
     """Remove files in a particular path prefix."""
@@ -90,7 +91,6 @@ def purge_trino_files(prefix, schema_name, provider_type, provider_uuid):
             LOG.error(message)
             messages.append(message)
         raise TypeError("purge_trino_files() %s", ", ".join(messages))
-
 
     if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
         LOG.info("Skipping purge_trino_files. Upload feature is disabled.")
