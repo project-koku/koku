@@ -254,7 +254,7 @@ class ReportManifestDBAccessor(KokuDBAccess):
 
     def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
         """
-        Deletes a specific manifest given manifest_id & provider_uui
+        Deletes a specific manifest given manifest_id & provider_uuid
         Args:
             provider_uuid (uuid): The provider uuid to use to delete associated manifests
             manifest_id_list (list): list of manifest ids to delete.

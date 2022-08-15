@@ -4,15 +4,17 @@
 #
 """Test the purge_trino_files endpoint view."""
 from unittest.mock import patch
-
-# from django.test import TestCase
-from django.test.utils import override_settings
-from django.urls import reverse
 from urllib.parse import urlencode
 
-from masu.config import Config
-from masu.processor.orchestrator import Orchestrator
+from django.test.utils import override_settings
+from django.urls import reverse
+
 from masu.test import MasuTestCase
+
+# from masu.config import Config
+# from masu.processor.orchestrator import Orchestrator
+
+# from django.test import TestCase
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
@@ -108,32 +110,6 @@ class PurgeTrinoFilesTest(MasuTestCase):
         self.assertEqual(response.status_code, 200)
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_successful_get_request(self, _):
-        """Test the purge_trino_files endpoint with no parameters."""
-        params = {
-            "provider_uuid": self.aws_provider_uuid,
-            "schema": "org1234567",
-            "bill_date": "08-01-2022",
-        }
-        query_string = urlencode(params)
-        url = reverse("purge_trino_files") + "?" + query_string
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_successful_get_request(self, _):
-        """Test the purge_trino_files endpoint with no parameters."""
-        params = {
-            "provider_uuid": self.aws_provider_uuid,
-            "schema": "org1234567",
-            "bill_date": "08-01-2022",
-        }
-        query_string = urlencode(params)
-        url = reverse("purge_trino_files") + "?" + query_string
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 200)
-
-    @patch("koku.middleware.MASU", return_value=True)
     def test_unleash_delete_request(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
@@ -145,6 +121,3 @@ class PurgeTrinoFilesTest(MasuTestCase):
         url = reverse("purge_trino_files") + "?" + query_string
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 200)
-
-
-

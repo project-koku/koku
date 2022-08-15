@@ -36,7 +36,7 @@ def purge_trino_files(request):
     Required Params:
         provider_uuid - source_uuid
         schema - account schema
-        bill_date - usually the start of the month example 08-12-2022
+        bill_date - usually the start of the month example 2022-08-12
     """
     # Parameter Validation
     params = request.query_params
@@ -60,6 +60,7 @@ def purge_trino_files(request):
         errmsg = "Parameter missing. Required: schema"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    # TODO: make sure the bill date comes in the yyyy-mm-dd format
     bill_date = params.get("bill_date")
     if not bill_date:
         errmsg = "Parameter missing. Required: bill_date"
