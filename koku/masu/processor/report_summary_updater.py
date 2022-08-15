@@ -182,7 +182,7 @@ class ReportSummaryUpdater:
 
         start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
-        msg = f"Summary processing completed for source {self._provider_uuid}"
+        msg = f"Summary processing completed for source {self._provider_uuid} start: {start_date} - end: {end_date}"
         LOG.info(log_json(self._tracing_id, msg))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
