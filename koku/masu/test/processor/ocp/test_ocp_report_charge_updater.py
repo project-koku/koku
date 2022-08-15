@@ -650,5 +650,5 @@ class OCPCostModelCostUpdaterTest(MasuTestCase):
         start_date = "2000-01-01"
         end_date = "2000-02-01"
         updater = OCPCostModelCostUpdater(schema=self.schema, provider=self.provider)
-        # delete would throw an error if we didn't handle a missing report period.
         updater._delete_tag_usage_costs(start_date, end_date, "")
+        self.assertLogs("masu.processor.ocp", level="WARNING")
