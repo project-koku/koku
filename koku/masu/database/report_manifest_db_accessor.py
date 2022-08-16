@@ -263,6 +263,12 @@ class ReportManifestDBAccessor(KokuDBAccess):
         """
         if not manifest_id_list:
             return
+        msg = f"""
+        Attempting to delete the following manifests:
+           manifest_list: {manifest_id_list}
+           manifest_count: {len(manifest_id_list)}
+        """
+        LOG.info(msg)
         delete_count = CostUsageReportManifest.objects.filter(
             provider_id=provider_uuid, id__in=manifest_id_list
         ).delete()

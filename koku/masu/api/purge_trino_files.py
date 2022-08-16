@@ -18,11 +18,13 @@ from masu.celery.tasks import purge_s3_files
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
+from api.models import Provider
 
 
 LOG = logging.getLogger(__name__)
 
 
+# WARNING ONLY MANUALLY TESTED FOR GCP AT THE MOMENT
 @never_cache
 @api_view(http_method_names=["GET", "DELETE"])
 @permission_classes((AllowAny,))
@@ -104,4 +106,9 @@ def purge_trino_files(request):
         )
         manifest_id_list = [manifest.id for manifest in manifest_list]
         manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    provider.setup_complete = False
+    provider.save
+    LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
+
     return Response(async_results)
