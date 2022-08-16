@@ -24,6 +24,7 @@ from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
+from masu.api.views import purge_trino_files
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import stat_activity
@@ -75,6 +76,7 @@ urlpatterns = [
         name="get_one_manifest_file",
     ),
     path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
+    path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),
