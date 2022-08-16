@@ -1680,6 +1680,118 @@
           "Trino"
         ]
       }
+    },
+    "/purge_trino_files/": {
+      "get": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFiles",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      },
+      "delete": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFiles",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      }
     }
   },
   "components": {
@@ -1966,6 +2078,20 @@
               "current": {
                 "type": "number",
                 "example": 204.51
+              }
+            }
+          }
+        }
+      },
+      "purgeTrinoFiles": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "1234-3234-2342-2343": {
+                "type": "string",
+                "example": "/path/in/s3"
               }
             }
           }

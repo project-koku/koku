@@ -219,7 +219,9 @@ class ReportManifestDBAccessorTest(IamTestCase):
                 manifest = self.manifest_accessor.add(**self.manifest_dict)
                 manifest_list.append(manifest.id)
             self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
-            current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(self.provider_uuid, self.billing_start)
+            current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                self.provider_uuid, self.billing_start
+            )
             current_manifests = [manifest.id for manifest in current_manifests]
         for deleted_manifest in manifest_list:
             self.assertNotIn(deleted_manifest, current_manifests)

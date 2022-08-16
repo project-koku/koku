@@ -13,6 +13,7 @@ from django.urls import reverse
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 
+
 class FakeManifest:
     def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
         manifest_dict = {
