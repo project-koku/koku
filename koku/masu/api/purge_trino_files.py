@@ -14,11 +14,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.models import Provider
 from masu.celery.tasks import purge_s3_files
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
-from api.models import Provider
 
 
 LOG = logging.getLogger(__name__)
@@ -108,7 +108,7 @@ def purge_trino_files(request):
         manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
     provider = Provider.objects.filter(uuid=provider_uuid).first()
     provider.setup_complete = False
-    provider.save
+    provider.save()
     LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
 
     return Response(async_results)
