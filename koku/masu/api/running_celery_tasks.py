@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
 from koku import CELERY_INSPECT
+from koku.celery import app
 from masu.celery.tasks import collect_queue_metrics
 
 LOG = logging.getLogger(__name__)
@@ -44,3 +45,14 @@ def celery_queue_lengths(request):
     queue_len = collect_queue_metrics()
     LOG.info(f"Celery queue backlog info: {queue_len}")
     return Response(queue_len)
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def clear_celery_queues(request):
+    """Clear the celery queues."""
+    purged_tasks = app.control.purge()
+    LOG.info(f"Celery purged tasks: {purged_tasks}")
+    return Response({"purged_tasks": purged_tasks})
