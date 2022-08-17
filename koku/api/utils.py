@@ -417,7 +417,7 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
     if start_date < summary_month.strftime("%Y-%m-01"):
         start_date = summary_month.strftime("%Y-%m-01")
 
-    if report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+    if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
         return [(start_date, end_date, invoice_month)]
 
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)

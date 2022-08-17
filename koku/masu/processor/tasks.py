@@ -294,7 +294,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        if report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
             reports_deduplicated += deduplicate_reports_for_gcp(report_list)
         else:
             for report in report_list:

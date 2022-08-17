@@ -23,6 +23,7 @@ from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
+from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"
@@ -69,10 +70,11 @@ def report_data(request):
 
         invoice_month = None
         # For GCP invoice month summary periods
-        if end_date:
-            invoice_month = end_date[0:4] + end_date[5:7]
-        else:
-            invoice_month = start_date[0:4] + start_date[5:7]
+        if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            if end_date:
+                invoice_month = end_date[0:4] + end_date[5:7]
+            else:
+                invoice_month = start_date[0:4] + start_date[5:7]
 
         months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
 
