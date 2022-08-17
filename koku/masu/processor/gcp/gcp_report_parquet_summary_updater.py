@@ -81,7 +81,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
                 if invoice_month:
-                    invoice_month_date = DateHelper().invoice_month_start(invoice_month)
+                    invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
                     bill_ids = [str(bill.id) for bill in bills]
                     current_bill_id = bills.first().id if bills else None
