@@ -10,7 +10,6 @@ from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from api.utils import DateHelper
 from masu.processor.gcp.gcp_report_summary_updater import GCPReportSummaryUpdater
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator

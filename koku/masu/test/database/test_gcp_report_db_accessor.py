@@ -335,7 +335,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         end_date = dh.this_month_end
         invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
         invoice_month_date = dh.invoice_month_start(invoice_month)
-        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date, invoice_month_date)
+        self.accessor.populate_gcp_topology_information_tables(
+            self.gcp_provider, start_date, end_date, invoice_month_date
+        )
 
         with schema_context(self.schema):
             records = GCPTopology.objects.all()

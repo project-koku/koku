@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.models import Provider
 from api.utils import get_months_in_date_range
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import PRIORITY_QUEUE
@@ -23,7 +24,6 @@ from masu.processor.tasks import QUEUE_LIST
 from masu.processor.tasks import remove_expired_data
 from masu.processor.tasks import update_all_summary_tables
 from masu.processor.tasks import update_summary_tables
-from api.models import Provider
 
 LOG = logging.getLogger(__name__)
 REPORT_DATA_KEY = "Report Data Task IDs"

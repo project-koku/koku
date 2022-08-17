@@ -9,6 +9,7 @@ import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -80,9 +81,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
                 if invoice_month:
-                    invoice_month_date, _ = self._get_sql_inputs(
-                        f"{invoice_month[0:4]}-{invoice_month[4:6]}-01", end_date
-                    )
+                    invoice_month_date = DateHelper().invoice_month_start(invoice_month)
                     bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
                     bill_ids = [str(bill.id) for bill in bills]
                     current_bill_id = bills.first().id if bills else None

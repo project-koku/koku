@@ -44,7 +44,7 @@ class GCPReportSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date, invoice_month):
+    def update_daily_tables(self, start_date, end_date):
         """Populate the daily tables for reporting.
 
         Args:
