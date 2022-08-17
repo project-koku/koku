@@ -46,6 +46,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
+from masu.util.gcp.common import deduplicate_reports_for_gcp
 
 
 LOG = logging.getLogger(__name__)
@@ -207,6 +208,7 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
+            "invoice": report_dict.get("invoice"),
         }
 
         try:
@@ -292,24 +294,27 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        for report in report_list:
-            if report.get("start") and report.get("end"):
-                starts.append(report.get("start"))
-                ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
+        if report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            reports_deduplicated += deduplicate_reports_for_gcp(report_list)
+        else:
+            for report in report_list:
+                if report.get("start") and report.get("end"):
+                    starts.append(report.get("start"))
+                    ends.append(report.get("end"))
+                start = min(starts) if starts != [] else None
+                end = max(ends) if ends != [] else None
 
-        reports_deduplicated.append(
-            {
-                "manifest_id": report.get("manifest_id"),
-                "tracing_id": report.get("tracing_id"),
-                "schema_name": report.get("schema_name"),
-                "provider_type": report.get("provider_type"),
-                "provider_uuid": report.get("provider_uuid"),
-                "start": start,
-                "end": end,
-            }
-        )
+            reports_deduplicated.append(
+                {
+                    "manifest_id": report.get("manifest_id"),
+                    "tracing_id": report.get("tracing_id"),
+                    "schema_name": report.get("schema_name"),
+                    "provider_type": report.get("provider_type"),
+                    "provider_uuid": report.get("provider_uuid"),
+                    "start": start,
+                    "end": end,
+                }
+            )
 
     for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
@@ -335,6 +340,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
                         queue_name=queue_name,
                         tracing_id=tracing_id,
                         manifest_list=manifest_list,
+                        invoice_month=month[2],
                     ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
@@ -351,6 +357,7 @@ def update_summary_tables(  # noqa: C901
     tracing_id=None,
     ocp_on_cloud=True,
     manifest_list=None,
+    invoice_month=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -387,6 +394,7 @@ def update_summary_tables(  # noqa: C901
                 start_date,
                 end_date=end_date,
                 manifest_id=manifest_id,
+                invoice_month=invoice_month,
                 queue_name=queue_name,
                 tracing_id=tracing_id,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
@@ -399,6 +407,7 @@ def update_summary_tables(  # noqa: C901
         f" provider: {provider}, "
         f" start_date: {start_date}, "
         f" end_date: {end_date}, "
+        f" invoice_month: {invoice_month}, "
         f" manifest_id: {manifest_id}, "
         f" tracing_id: {tracing_id}"
     )
@@ -406,8 +415,12 @@ def update_summary_tables(  # noqa: C901
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
-        start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date, tracing_id)
+        if provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month)
+            updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month)
+        else:
+            start_date, end_date = updater.update_daily_tables(start_date, end_date)
+            updater.update_summary_tables(start_date, end_date, tracing_id)
         if ocp_on_cloud:
             ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:

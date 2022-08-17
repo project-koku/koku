@@ -40,7 +40,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, invoice_month):
         """Populate the daily tables for reporting.
 
         Args:
@@ -56,7 +56,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, invoice_month):
         """Populate the summary tables for reporting.
 
         Args:
@@ -79,9 +79,17 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-                bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id if bills else None
+                if invoice_month:
+                    invoice_month_date, _ = self._get_sql_inputs(
+                        f"{invoice_month[0:4]}-{invoice_month[4:6]}-01", end_date
+                    )
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
+                    bill_ids = [str(bill.id) for bill in bills]
+                    current_bill_id = bills.first().id if bills else None
+                else:
+                    msg = f"No bill was found for invoice month {invoice_month}. Skipping summarization"
+                    LOG.info(msg)
+                    return start_date, end_date
 
             if current_bill_id is None:
                 msg = f"No bill was found for {start_date}. Skipping summarization"
@@ -104,12 +112,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start, end, filters
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
-                    start, end, self._provider.uuid, current_bill_id, markup_value
+                    start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month_date
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date)
+            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:

@@ -206,4 +206,5 @@ class ReportDownloader:
             "create_table": report_context.get("create_table", False),
             "start": date_range.get("start"),
             "end": date_range.get("end"),
+            "invoice": date_range.get("invoice"),
         }
