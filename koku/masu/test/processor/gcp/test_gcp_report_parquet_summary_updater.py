@@ -126,6 +126,35 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)
 
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.update_line_item_daily_summary_with_enabled_tags"  # noqa: E501
+    )
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_tags_summary_table")
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
+    )
+    def test_update_daily_summary_tables_no_invoice_month(
+        self, mock_presto, mock_tag_update, mock_summary_update, mock_delete, mock_topo
+    ):
+        """Test that we run Presto summary."""
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=None)
+        mock_delete.assert_not_called()
+        mock_presto.assert_not_called()
+        mock_tag_update.assert_not_called()
+        mock_summary_update.assert_not_called()
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+
     def test_determine_if_full_summary_update_needed_false(self):
         """
         Test that false is return if the manifest is already present in the db.

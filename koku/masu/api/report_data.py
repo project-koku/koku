@@ -45,6 +45,7 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
+        provider = None
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
         ocp_on_cloud = True if ocp_on_cloud == "true" else False
@@ -70,7 +71,10 @@ def report_data(request):
 
         invoice_month = None
         # For GCP invoice month summary periods
-        if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        if provider in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] or provider_type in [
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
+        ]:
             if end_date:
                 invoice_month = end_date[0:4] + end_date[5:7]
             else:

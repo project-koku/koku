@@ -407,6 +407,8 @@ def get_months_in_date_range(report=None, start=None, end=None, invoice_month=No
             start_date = start_date.strftime("%Y-%m-%d")
             end_date = DateAccessor().today().strftime("%Y-%m-%d")
     elif invoice_month:
+        if not end:
+            end = dh.today.date().strftime("%Y-%m-%d")
         return [(start, end, invoice_month)]  # For report_data masu api
     else:
         start_date = start

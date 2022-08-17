@@ -86,7 +86,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     bill_ids = [str(bill.id) for bill in bills]
                     current_bill_id = bills.first().id if bills else None
                 else:
-                    msg = f"No bill was found for invoice month {invoice_month}. Skipping summarization"
+                    msg = "No invoice month was provided during summarization. Skipping summarization"
                     LOG.info(msg)
                     return start_date, end_date
 
