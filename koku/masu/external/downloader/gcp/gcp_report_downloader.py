@@ -69,7 +69,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             invoice_month_data = data_frame[invoice_filter]
             unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
             days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-            date_range = {"start": min(days), "end": max(days), "invoice": str(invoice_month)}
+            date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
                 partition_date_filter = invoice_month_data["partition_date"] == partition_date

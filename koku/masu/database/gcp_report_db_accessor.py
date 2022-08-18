@@ -599,8 +599,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    # TODO This may also need to take in the invoice_month_date to summarise tag matching correctly.
-    def get_openshift_on_cloud_matched_tags_trino(self, gcp_source_uuid, ocp_source_uuid, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, gcp_source_uuid, ocp_source_uuid, start_date, end_date, invoice_month_date
+    ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
@@ -614,8 +615,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "gcp_source_uuid": gcp_source_uuid,
             "ocp_source_uuid": ocp_source_uuid,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": invoice_month_date.strftime("%Y"),
+            "month": invoice_month_date.strftime("%m"),
             "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)

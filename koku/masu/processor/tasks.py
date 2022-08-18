@@ -208,7 +208,7 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
-            "invoice": report_dict.get("invoice"),
+            "invoice_month": report_dict.get("invoice_month"),
         }
 
         try:

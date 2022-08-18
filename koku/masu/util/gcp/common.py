@@ -252,7 +252,7 @@ def deduplicate_reports_for_gcp(report_list):
     """Deduplicate the reports using the invoice."""
     invoice_dict = {}
     for report in report_list:
-        invoice = report.get("invoice")
+        invoice = report.get("invoice_month")
         start_key = invoice + "_start"
         end_key = invoice + "_end"
         if not invoice_dict.get(start_key) or not invoice_dict.get(end_key):

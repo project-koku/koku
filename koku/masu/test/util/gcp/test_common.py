@@ -322,7 +322,7 @@ class TestGCPUtils(MasuTestCase):
                 "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
                 "start": "2022-07-01",
                 "end": "2022-07-04",
-                "invoice": "202207",
+                "invoice_month": "202207",
             },
             {
                 "schema_name": "org1234567",
@@ -332,7 +332,7 @@ class TestGCPUtils(MasuTestCase):
                 "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
                 "start": "2022-07-19",
                 "end": "2022-07-20",
-                "invoice": "202207",
+                "invoice_month": "202207",
             },
             {
                 "schema_name": "org1234567",
@@ -342,7 +342,7 @@ class TestGCPUtils(MasuTestCase):
                 "tracing_id": "2022-07-20|2022-07-21 02:40:55.848000+00:00",
                 "start": "2022-07-19",
                 "end": "2022-07-21",
-                "invoice": "202207",
+                "invoice_month": "202207",
             },
             {
                 "schema_name": "org1234567",
@@ -352,7 +352,7 @@ class TestGCPUtils(MasuTestCase):
                 "tracing_id": "2022-08-01|2022-08-02 01:11:12.066000+00:00",
                 "start": "2022-07-31",
                 "end": "2022-08-01",
-                "invoice": "202208",
+                "invoice_month": "202208",
             },
             {
                 "schema_name": "org1234567",
@@ -362,7 +362,7 @@ class TestGCPUtils(MasuTestCase):
                 "tracing_id": "2022-08-03|2022-08-04 01:43:05.921000+00:00",
                 "start": "2022-08-23",
                 "end": "2022-08-30",
-                "invoice": "202208",
+                "invoice_month": "202208",
             },
         ]
         results = utils.deduplicate_reports_for_gcp(mocked_reports)

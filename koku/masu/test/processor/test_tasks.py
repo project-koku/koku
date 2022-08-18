@@ -364,7 +364,7 @@ class ProcessReportFileTests(MasuTestCase):
                 report_meta["start"] = str(DateHelper().yesterday)
                 report_meta["end"] = str(DateHelper().today)
                 if provider_dict.get("type") == Provider.PROVIDER_GCP:
-                    report_meta["invoice"] = invoice_month
+                    report_meta["invoice_month"] = invoice_month
 
                 # add a report with start/end dates specified
                 report2_meta = {}
@@ -376,7 +376,7 @@ class ProcessReportFileTests(MasuTestCase):
                 report2_meta["start"] = str(DateHelper().yesterday)
                 report2_meta["end"] = str(DateHelper().today)
                 if provider_dict.get("type") == Provider.PROVIDER_GCP:
-                    report_meta["invoice"] = invoice_month
+                    report_meta["invoice_month"] = invoice_month
 
                 reports_to_summarize = [report_meta, report2_meta]
 
