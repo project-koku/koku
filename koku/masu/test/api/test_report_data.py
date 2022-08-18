@@ -575,7 +575,7 @@ class ReportDataTests(TestCase):
             "end_date": end_date,
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
             "ocp_on_cloud": "false",
-            "invoice_month": "",
+            "invoice_month": "202209",
         }
         expected_key = "Report Data Task IDs"
 
@@ -592,5 +592,5 @@ class ReportDataTests(TestCase):
             end_date,
             queue_name=PRIORITY_QUEUE,
             ocp_on_cloud=False,
-            invoice_month=self.invoice,
+            invoice_month="202209",
         )
