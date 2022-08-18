@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.models import Provider
 from api.utils import get_months_in_date_range
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.tasks import PRIORITY_QUEUE
@@ -44,6 +45,7 @@ def report_data(request):
         schema_name = params.get("schema")
         start_date = params.get("start_date")
         end_date = params.get("end_date")
+        provider = None
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
         ocp_on_cloud = True if ocp_on_cloud == "true" else False
@@ -67,7 +69,18 @@ def report_data(request):
             errmsg = "start_date is a required parameter."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        months = get_months_in_date_range(start=start_date, end=end_date)
+        invoice_month = None
+        # For GCP invoice month summary periods
+        if provider in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] or provider_type in [
+            Provider.PROVIDER_GCP,
+            Provider.PROVIDER_GCP_LOCAL,
+        ]:
+            if end_date:
+                invoice_month = end_date[0:4] + end_date[5:7]
+            else:
+                invoice_month = start_date[0:4] + start_date[5:7]
+
+        months = get_months_in_date_range(start=start_date, end=end_date, invoice_month=invoice_month)
 
         if not all_providers:
             if schema_name is None:
@@ -89,6 +102,7 @@ def report_data(request):
                     provider_uuid,
                     month[0],
                     month[1],
+                    invoice_month=month[2],
                     queue_name=queue_name,
                     ocp_on_cloud=ocp_on_cloud,
                 ).apply_async(queue=queue_name or PRIORITY_QUEUE)
@@ -100,7 +114,7 @@ def report_data(request):
                 errmsg = "?provider_uuid=* is invalid query."
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
             for month in months:
-                async_result = update_all_summary_tables.delay(month[0], month[1])
+                async_result = update_all_summary_tables.delay(month[0], month[1], invoice_month=month[2])
                 async_results.append({str(month): str(async_result)})
         return Response({REPORT_DATA_KEY: async_results})
 

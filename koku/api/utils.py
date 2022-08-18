@@ -17,6 +17,7 @@ from django.utils import timezone
 from pint.errors import UndefinedUnitError
 from tenant_schemas.utils import schema_context
 
+from api.provider.models import Provider
 from api.user_settings.settings import USER_SETTINGS
 from koku.settings import KOKU_DEFAULT_COST_TYPE
 from koku.settings import KOKU_DEFAULT_CURRENCY
@@ -389,7 +390,7 @@ def materialized_view_month_start(dh=DateHelper()):
     return dh.this_month_start - relativedelta(months=settings.RETAIN_NUM_MONTHS - 1)
 
 
-def get_months_in_date_range(report=None, start=None, end=None):
+def get_months_in_date_range(report=None, start=None, end=None, invoice_month=None):
     """returns the month periods in a given date range from report"""
     dh = DateHelper()
     if report:
@@ -397,11 +398,18 @@ def get_months_in_date_range(report=None, start=None, end=None):
             LOG.info(f"using start: {report.get('start')} and end: {report.get('end')} dates from manifest")
             start_date = report.get("start")
             end_date = report.get("end")
+            if report.get("invoice_month"):
+                LOG.info(f"using invoice_month: {report.get('invoice_month')}")
+                invoice_month = report.get("invoice_month")
         else:
             LOG.info("generating start and end dates for manifest")
             start_date = DateAccessor().today() - datetime.timedelta(days=2)
             start_date = start_date.strftime("%Y-%m-%d")
             end_date = DateAccessor().today().strftime("%Y-%m-%d")
+    elif invoice_month:
+        if not end:
+            end = dh.today.date().strftime("%Y-%m-%d")
+        return [(start, end, invoice_month)]  # For report_data masu api
     else:
         start_date = start
         end_date = end
@@ -410,6 +418,9 @@ def get_months_in_date_range(report=None, start=None, end=None):
     summary_month = dh.today + relativedelta(months=-Config.INITIAL_INGEST_NUM_MONTHS)
     if start_date < summary_month.strftime("%Y-%m-01"):
         start_date = summary_month.strftime("%Y-%m-01")
+
+    if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+        return [(start_date, end_date, invoice_month)]
 
     start_date = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
     end_date = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC) if end_date else dh.today
@@ -427,7 +438,7 @@ def get_months_in_date_range(report=None, start=None, end=None):
         start, end = month
         start_date = start.date().strftime("%Y-%m-%d")
         end_date = end.date().strftime("%Y-%m-%d")
-        months[i] = (start_date, end_date)
+        months[i] = (start_date, end_date, invoice_month)  # Invoice month is really only for GCP
 
     return months
 
