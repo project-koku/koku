@@ -307,8 +307,8 @@ class QueryHandler:
     def _get_gcp_filter(self, delta=False):
         """Create dictionary for filter parameters for GCP.
 
-        For the gcp filters when the time scope is -1 or -2 we remove
-        the usage_start & usage_end filters and only use the invoice month.
+        GCP filtering is a little different because we need the invoice
+        month filter, and pad the time range to include cross over data.
 
         Args:
             delta (Boolean): Construct timeframe for delta
@@ -316,7 +316,6 @@ class QueryHandler:
             (Dict): query filter dictionary
         """
         filters = QueryFilterCollection()
-        LOG.info(delta)
         if delta:
             date_delta = self._get_date_delta()
             start = self.start_datetime - date_delta
