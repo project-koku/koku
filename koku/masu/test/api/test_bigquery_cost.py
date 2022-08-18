@@ -17,11 +17,11 @@ LOG = logging.getLogger(__name__)
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
-class GcpInvoiceMonthlyCostTest(MasuTestCase):
+class BigQueryCostTest(MasuTestCase):
     """Test Cases for the gcp invoice monthly cost endpoint."""
 
     @patch("koku.middleware.MASU", return_value=True)
-    def test_success_gcp_invoice_monthly(self, _):
+    def test_success_gcp_monthly_return(self, _):
         """Test successful endpoint return"""
         expected_value = 308.45
         dict = OrderedDict()
@@ -30,8 +30,8 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
         mocked_value = [dict]
         params = {"provider_uuid": self.gcp_provider_uuid}
         query_string = urlencode(params)
-        url = reverse("gcp_invoice_monthly_cost") + "?" + query_string
-        with patch("masu.api.gcp_invoice_monthly_cost.bigquery") as bigquery:
+        url = reverse("bigquery_cost") + "?" + query_string
+        with patch("masu.api.bigquery_cost.bigquery") as bigquery:
             bigquery.Client.return_value.query.return_value.result.return_value = mocked_value
             response = self.client.get(url)
         body = response.json()
@@ -39,9 +39,26 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
         self.assertEqual(mapping["previous"], expected_value)
 
     @patch("koku.middleware.MASU", return_value=True)
+    def test_success_gcp_daily_return(self, _):
+        """Test successful endpoint return"""
+        expected_value = 308.45
+        dict = OrderedDict()
+        dict["cost"] = expected_value
+        dict[0] = expected_value
+        mocked_value = [dict]
+        params = {"provider_uuid": self.gcp_provider_uuid}
+        query_string = urlencode(params)
+        url = reverse("bigquery_cost") + "?" + query_string
+        with patch("masu.api.bigquery_cost.bigquery") as bigquery:
+            bigquery.Client.return_value.query.return_value.result.return_value = mocked_value
+            response = self.client.get(url)
+        body = response.json()
+        self.assertIsNotNone(body)
+
+    @patch("koku.middleware.MASU", return_value=True)
     def test_require_provider_uuid(self, _):
-        """Test the GET gcp_invoice_monthly_cost endpoint with no provider uuid."""
-        response = self.client.get(reverse("gcp_invoice_monthly_cost"))
+        """Test the GET bigquery_cost endpoint with no provider uuid."""
+        response = self.client.get(reverse("bigquery_cost"))
         body = response.json()
         errmsg = body.get("Error")
         expected_errmsg = "provider_uuid is a required parameter."
@@ -50,10 +67,10 @@ class GcpInvoiceMonthlyCostTest(MasuTestCase):
 
     @patch("koku.middleware.MASU", return_value=True)
     def test_unable_to_build_gcp_table_name(self, _):
-        """Test the GET gcp_invoice_monthly_cost endpoint with no provider uuid."""
+        """Test the GET bigquery_cost endpoint with no provider uuid."""
         params = {"provider_uuid": self.aws_provider_uuid}
         query_string = urlencode(params)
-        url = reverse("gcp_invoice_monthly_cost") + "?" + query_string
+        url = reverse("bigquery_cost") + "?" + query_string
         response = self.client.get(url)
         body = response.json()
         errmsg = body.get("Error")
