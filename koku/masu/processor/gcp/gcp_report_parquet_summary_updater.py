@@ -98,11 +98,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating GCP report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
+                    "\n\tProvider: %s \n\tDates: %s - %s \n\tInvoice Month: %s",
                     self._schema,
                     self._provider.uuid,
                     start,
                     end,
+                    invoice_month,
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id

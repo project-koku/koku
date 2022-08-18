@@ -472,6 +472,17 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "invoice_month",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "201912"
+            }
           }
         ],
         "responses": {
