@@ -21,16 +21,18 @@ from masu.database.provider_collector import ProviderCollector
 
 LOG = logging.getLogger(__name__)
 
+
 def get_total(cost, credit):
     if cost and credit:
         return cost + credit
     return None
 
+
 @never_cache
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def bigquery_cost(request):
+def bigquery_cost(request):  # noqa: C901
     """Returns the invoice monthly cost."""
     params = request.query_params
     provider_uuid = params.get("provider_uuid")
@@ -84,10 +86,10 @@ def bigquery_cost(request):
                 daily_dict = {}
                 for row in rows:
                     daily_dict[str(row["usage_date"])] = {
-                            "cost": row.get("cost"),
-                            "credit": row.get("credit_amount"),
-                            "total": get_total(row["cost"], row["credit_amount"])
-                        }
+                        "cost": row.get("cost"),
+                        "credit": row.get("credit_amount"),
+                        "total": get_total(row["cost"], row["credit_amount"]),
+                    }
                 results[invoice_month] = daily_dict
                 resp_key = "daily_invoice_cost_mapping"
             else:
@@ -101,7 +103,7 @@ def bigquery_cost(request):
                 """
                 rows = client.query(monthly_query).result()
                 for row in rows:
-                    results[key] = row[0] # TODO: Remove once bigquery is updated.
+                    results[key] = row[0]  # TODO: Remove once bigquery is updated.
                     metadata = {"invoice_month": invoice_month}
                     metadata["cost"] = row.get("cost")
                     metadata["credit_amount"] = row.get("credit_amount")
@@ -109,7 +111,6 @@ def bigquery_cost(request):
                         metadata["total"] = row.get("cost") + row.get("credit_amount")
                     results[key + "_metadata"] = metadata
                 resp_key = "monthly_invoice_cost_mapping"
-
 
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
