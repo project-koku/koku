@@ -528,3 +528,35 @@ class ReportDataTests(TestCase):
             ocp_on_cloud=False,
             invoice_month=self.invoice,
         )
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
+    @patch("masu.api.report_data.update_summary_tables")
+    def test_get_report_data_gcp_end_date(self, mock_update, mock_accessor, _):
+        """Test the GET report_data endpoint."""
+        provider_type = Provider.PROVIDER_GCP
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        params = {
+            "schema": "org1234567",
+            "start_date": self.start_date,
+            "end_date": self.start_date,
+            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
+            "ocp_on_cloud": "false",
+        }
+        expected_key = "Report Data Task IDs"
+
+        response = self.client.get(reverse("report_data"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_update.s.assert_called_with(
+            params["schema"],
+            provider_type,
+            params["provider_uuid"],
+            params["end_date"],
+            DateHelper().today.date().strftime("%Y-%m-%d"),
+            queue_name=PRIORITY_QUEUE,
+            ocp_on_cloud=False,
+            invoice_month=self.invoice,
+        )
