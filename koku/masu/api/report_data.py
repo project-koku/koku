@@ -49,7 +49,7 @@ def report_data(request):
         provider = None
 
         ocp_on_cloud = params.get("ocp_on_cloud", "true").lower()
-        ocp_on_cloud = True if ocp_on_cloud == "true" else False
+        ocp_on_cloud = ocp_on_cloud == "true"
         queue_name = params.get("queue") or PRIORITY_QUEUE
         if provider_uuid is None and provider_type is None:
             errmsg = "provider_uuid or provider_type must be supplied as a parameter."
@@ -63,6 +63,10 @@ def report_data(request):
         elif provider_uuid:
             with ProviderDBAccessor(provider_uuid) as provider_accessor:
                 provider = provider_accessor.get_type()
+                provider_schema = provider_accessor.get_schema()
+            if provider_schema != schema_name:
+                errmsg = f"provider_uuid {provider_uuid} is not associated with schema {schema_name}."
+                return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
         else:
             provider = provider_type
 
@@ -143,11 +147,7 @@ def report_data(request):
             errmsg = "simulate must be a boolean."
             return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-        if simulate is not None and simulate.lower() == "true":
-            simulate = True
-        else:
-            simulate = False
-
+        simulate = simulate is not None and simulate.lower() == "true"
         LOG.info("Calling remove_expired_data async task.")
 
         async_result = remove_expired_data.delay(schema_name, provider, simulate, provider_uuid)

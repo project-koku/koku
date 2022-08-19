@@ -38,6 +38,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
@@ -68,6 +69,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_OCP
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
@@ -124,9 +126,12 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_provider_invalid_uuid_(self, mock_update, _):
+    def test_get_report_data_provider_invalid_uuid_(self, mock_update, mock_accessor, _):
         """Test GET report_data endpoint returns a 400 for invalid provider_uuid."""
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = None
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "start_date": self.start_date,
             "schema": "org1234567",
@@ -134,6 +139,31 @@ class ReportDataTests(TestCase):
         }
         expected_key = "Error"
         expected_message = "Unable to determine provider type."
+
+        response = self.client.get(reverse("report_data"), params)
+        body = response.json()
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn(expected_key, body)
+        self.assertEqual(body[expected_key], expected_message)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
+    @patch("masu.api.report_data.update_summary_tables")
+    def test_get_report_data_provider_invalid_uuid_and_schema(self, mock_update, mock_accessor, _):
+        """Test GET report_data endpoint returns a 400 for invalid provider_uuid and schema."""
+        provider_type = Provider.PROVIDER_OCP
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "a-different-schema"
+        params = {
+            "start_date": self.start_date,
+            "schema": "not-the-right-schema",
+            "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132ddd",
+        }
+        expected_key = "Error"
+        expected_message = (
+            "provider_uuid 6e212746-484a-40cd-bba0-09a19d132ddd is not associated with schema not-the-right-schema."
+        )
 
         response = self.client.get(reverse("report_data"), params)
         body = response.json()
@@ -163,9 +193,13 @@ class ReportDataTests(TestCase):
         self.assertEqual(body[expected_key], expected_message)
 
     @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.report_data.ProviderDBAccessor")
     @patch("masu.api.report_data.update_summary_tables")
-    def test_get_report_data_date_missing(self, mock_update, _):
+    def test_get_report_data_date_missing(self, mock_update, mock_accessor, _):
         """Test GET report_data endpoint returns a 400 for missing date."""
+        provider_type = Provider.PROVIDER_AWS
+        mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {"schema": "org1234567", "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64"}
         expected_key = "Error"
         expected_message = "start_date is a required parameter."
@@ -184,6 +218,7 @@ class ReportDataTests(TestCase):
         """Test GET report_data endpoint returns a 400 for mismatched type and uuid."""
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
@@ -211,6 +246,7 @@ class ReportDataTests(TestCase):
 
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
@@ -474,6 +510,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_AWS
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
@@ -505,6 +542,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_GCP
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
@@ -536,6 +574,7 @@ class ReportDataTests(TestCase):
         """Test the GET report_data endpoint."""
         provider_type = Provider.PROVIDER_GCP
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
@@ -569,6 +608,7 @@ class ReportDataTests(TestCase):
         end_date = DateHelper().this_month_end.date().strftime("%Y-%m-%d")
         provider_type = Provider.PROVIDER_GCP
         mock_accessor.return_value.__enter__.return_value.get_type.return_value = provider_type
+        mock_accessor.return_value.__enter__.return_value.get_schema.return_value = "org1234567"
         params = {
             "schema": "org1234567",
             "start_date": self.start_date,
