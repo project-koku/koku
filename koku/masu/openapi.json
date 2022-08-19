@@ -1371,6 +1371,50 @@
         ]
       }
     },
+    "/bigquery_cost/": {
+      "get": {
+        "summary": "Returns dictionary with cost mappings for continuity checks",
+        "operationId": "BigQueryCost",
+        "description": "Returns a dictionary with cost mappings for continuity checks",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "daily",
+            "in": "query",
+            "description": "boolean flag to return daily breakdown",
+            "required": false,
+            "schema": {
+
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bigquery Cost"
+        ]
+      }
+    },
     "/update_exchange_rates/": {
       "get": {
         "summary": "Update exchange rates",
