@@ -232,6 +232,20 @@ class DateHelper:
         n_days = midnight - datetime.timedelta(days=n_days)
         return n_days
 
+    def n_days_ahead(self, in_date, n_days):
+        """Return midnight of the n days from the in_date in future.
+
+        Args:
+            in_date    (DateTime) input datetime
+            n_days     (integer) number of days in the past
+        Returns:
+            (DateTime): A day n days in the past
+
+        """
+        midnight = in_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        n_days = midnight + datetime.timedelta(days=n_days)
+        return n_days
+
     def list_days(self, start_date, end_date):
         """Return a list of days from the start date til the end date.
 
