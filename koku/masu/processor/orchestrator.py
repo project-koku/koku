@@ -91,7 +91,8 @@ class Orchestrator:
 
         for account in all_accounts:
             if disable_cloud_source_processing(account.get("schema_name")):
-                LOG.info("Cloud source processing disabled for {account}")
+                LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
+                continue
             else:
                 if AccountsAccessor().is_polling_account(account):
                     polling_accounts.append(account)
