@@ -397,6 +397,7 @@ def update_summary_tables(  # noqa: C901
                 invoice_month=invoice_month,
                 queue_name=queue_name,
                 tracing_id=tracing_id,
+                ocp_on_cloud=ocp_on_cloud,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
