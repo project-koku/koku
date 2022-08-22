@@ -65,7 +65,9 @@ def purge_trino_files(request):
         errmsg = "Parameter missing. Required: bill_date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
-    context = {"start_date": bill_date}
+    start_date = params.get("start_date")
+    end_date = params.get("end_date")
+
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
         schema_name=schema,
@@ -73,7 +75,7 @@ def purge_trino_files(request):
         provider_uuid=provider_uuid,
         provider_type=provider_type,
         manifest_id=None,
-        context=context,
+        context={"start_date": bill_date},
     )
     path_info = {
         "s3_csv_path": pq_processor_object.csv_path_s3,
@@ -101,9 +103,12 @@ def purge_trino_files(request):
         async_results[str(async_purge_result)] = file_prefix
 
     with ReportManifestDBAccessor() as manifest_accessor:
-        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-            provider_uuid=provider_uuid, bill_date=bill_date
-        )
+        if start_date and end_date:
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(provider_uuid, start_date, end_date)
+        else:
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                provider_uuid=provider_uuid, bill_date=bill_date
+            )
         manifest_id_list = [manifest.id for manifest in manifest_list]
         manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
     provider = Provider.objects.filter(uuid=provider_uuid).first()
