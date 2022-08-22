@@ -259,9 +259,9 @@ class DateHelper:
         end_midnight = end_date
         start_midnight = start_date
         if isinstance(start_date, str):
-            start_midnight = ciso8601.parse_datetime(start_date).replace(tzinfo=pytz.UTC)
+            start_midnight = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(end_date, str):
-            end_midnight = ciso8601.parse_datetime(end_date).replace(tzinfo=pytz.UTC)
+            end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(end_date, datetime.datetime):
             end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(start_date, datetime.datetime):
