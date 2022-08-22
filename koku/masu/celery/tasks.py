@@ -108,17 +108,19 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     return remaining_objects
 
 
-def deleted_archived_with_prefix(s3_bucket_name, prefix):
+def deleted_archived_with_prefix(s3_bucket_name, prefix, date_list=None):
     """
     Delete data from archive with given prefix.
 
     Args:
         s3_bucket_name (str): The s3 bucket name
         prefix (str): The prefix for deletion
+        include (list):
     """
     s3_resource = get_s3_resource()
     s3_bucket = s3_resource.Bucket(s3_bucket_name)
     object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
+    LOG.info(f"Starting objects: {object_keys}")
     batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
     for batch_number in range(math.ceil(len(object_keys) / batch_size)):
         batch_start = batch_size * batch_number
