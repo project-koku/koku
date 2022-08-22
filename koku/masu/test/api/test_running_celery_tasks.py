@@ -55,3 +55,12 @@ class RunningCeleryTasksTests(TestCase):
         mock_collect.return_value = {}
         response = self.client.get(reverse("celery_queue_lengths"))
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.app")
+    def test_clear_celery_queues(self, mock_celery, _):
+        """Test the GET of clear_celery_queues endpoint."""
+        mock_celery.control.purge.return_value = 0
+        response = self.client.get(reverse("clear_celery_queues"))
+        self.assertEqual(response.status_code, 200)
+        mock_celery.control.purge.assert_called_once()
