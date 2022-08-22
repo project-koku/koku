@@ -379,6 +379,23 @@ class DateHelper:
         month_start = self.month_start(date_obj)
         return month_start
 
+    def invoice_month_from_bill_date(self, bill_date):
+        """Find the beginning of the month for invoice month.
+
+        Invoice month format is {year}{month}.
+        Ex. 202011
+
+        Args:
+            bill_date: Start of the month for the bill.
+
+        Returns:
+            (datetime.datetime)
+        """
+        if isinstance(bill_date, str):
+            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=pytz.UTC)
+        date_obj = bill_date.strftime("%Y%m")
+        return date_obj
+
     def gcp_find_invoice_months_in_date_range(self, start, end):
         """Finds all the invoice months in a given date range.
 

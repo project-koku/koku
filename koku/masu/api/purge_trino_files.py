@@ -78,7 +78,7 @@ def purge_trino_files(request):  # noqa: C901
         manifest_id=None,
         context={"start_date": bill_date},
     )
-    invoice_month = "202208"
+    invoice_month = str(DateHelper().invoice_month_from_bill_date(bill_date))
     if start_date and end_date:
         dates = DateHelper().list_days(start_date, end_date)
         s3_csv_path = []
