@@ -90,7 +90,7 @@ class Orchestrator:
                     all_accounts = [account]
 
         for account in all_accounts:
-            if disable_cloud_source_processing(account.get("schema_name")):
+            if disable_cloud_source_processing(account.get("schema_name")) and not provider_uuid:
                 LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
                 continue
             else:
