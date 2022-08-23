@@ -40,3 +40,15 @@ def enable_purge_trino_files(account):
     context = {"schema": account}
     LOG.info(f"enable_purge_trino_files context: {context}")
     return bool(UNLEASH_CLIENT.is_enabled("enable-purge-turnpike", context))
+
+
+def disable_cloud_source_processing(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Processing UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("disable_cloud_source_processing", context))
+    LOG.info(f"    Processing {'disabled' if res else 'enabled'}")
+
+    return res
