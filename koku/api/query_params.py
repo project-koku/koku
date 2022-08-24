@@ -278,7 +278,12 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
-            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+            elif (
+                "org_unit_id" in filters
+                and not access_list
+                and self.parameters.get("ou_or_operator", False)
+                and not self.user.admin
+            ):
                 org_unit_filter = filters.get("org_unit_id")
                 allowed_ous = (
                     AWSOrganizationalUnit.objects.filter(
@@ -289,13 +294,20 @@ class QueryParameters:
                     .distinct("org_unit_id")
                 ).values_list("org_unit_id", flat=True)
                 access_list = list(allowed_ous)
+            elif (
+                "org_unit_id" in filters
+                and not access_list
+                and self.parameters.get("ou_or_operator", False)
+                and self.user.admin
+            ):
+                access_list = self.parameters.get("access").get(filter_key)
 
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
             org_unit_access_list = self.access.get("aws.organizational_unit", {}).get("read", [])
             org_unit_filter = filters.get("org_unit_id", [])
             if "org_unit_id" in filters and access_key == "aws.account" and self.user.admin:
-                access_list = self.parameters.get("access").get(access_key)
+                access_list = self.parameters.get("access").get(filter_key)
 
             if (
                 "org_unit_id" in filters
