@@ -68,6 +68,9 @@ def purge_trino_files(request):  # noqa: C901
 
     start_date = params.get("start_date")
     end_date = params.get("end_date") if params.get("end_date") else start_date
+    delete_manifest = True
+    if "ignore_manifest" in params.keys():
+        delete_manifest = False
 
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
@@ -128,20 +131,23 @@ def purge_trino_files(request):  # noqa: C901
             )
             async_results[str(async_purge_result)] = file_prefix
 
-    with ReportManifestDBAccessor() as manifest_accessor:
-        if start_date and end_date:
-            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
-                provider_uuid, start_date, end_date
-            )
-        else:
-            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                provider_uuid=provider_uuid, bill_date=bill_date
-            )
-        manifest_id_list = [manifest.id for manifest in manifest_list]
-        manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
-    provider = Provider.objects.filter(uuid=provider_uuid).first()
-    provider.setup_complete = False
-    provider.save()
-    LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
+    if delete_manifest:
+
+        with ReportManifestDBAccessor() as manifest_accessor:
+            if start_date and end_date:
+                manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                    provider_uuid, start_date, end_date
+                )
+            else:
+                manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                    provider_uuid=provider_uuid, bill_date=bill_date
+                )
+            manifest_id_list = [manifest.id for manifest in manifest_list]
+            LOG.info(f"Attempting to delete the following manifests: {manifest_id_list}")
+            manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+        provider = Provider.objects.filter(uuid=provider_uuid).first()
+        provider.setup_complete = False
+        provider.save()
+        LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
 
     return Response(async_results)
