@@ -172,7 +172,7 @@ class Provider(models.Model):
             else:
                 should_ingest = False
             if provider.setup_complete != self.setup_complete:
-                should_ingest=False
+                should_ingest = False
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)

@@ -60,7 +60,7 @@ class CURAccountsDB(CURAccountsInterface):
                     )
                     continue
                 accounts.append(self.get_account_information(provider))
-        msg=f"""Looping through all providers to for polling:
+        msg = f"""Looping through all providers to for polling:
                 provider_uuid: {provider_uuid},
                 provider: {provider}
             """
