@@ -30,6 +30,10 @@ class ResourceTypesViewTestGcpAccounts(MasuTestCase):
     def setUp(self):
         """Set up a test with database objects."""
         super().setUp()
+        self.dh = DateHelper()
+        self.start_date = self.dh.this_month_start
+        self.end_date = self.dh.this_month_end
+        self.invoice_month = self.dh.gcp_find_invoice_months_in_date_range(self.start_date, self.end_date)
 
     @RbacPermissions({"gcp.project": {"read": ["example-project-id"]}, "gcp.account": {"read": ["*"]}})
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.get_gcp_topology_trino")
@@ -57,10 +61,9 @@ class ResourceTypesViewTestGcpAccounts(MasuTestCase):
             ),
         ]
         mock_get_topo.return_value = mock_topo_record
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
-        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
+        self.accessor.populate_gcp_topology_information_tables(
+            self.gcp_provider, self.start_date, self.end_date, self.invoice_month
+        )
         with schema_context(self.schema_name):
             expected = (
                 GCPTopology.objects.annotate(**{"value": F("project_id")})
@@ -105,10 +108,9 @@ class ResourceTypesViewTestGcpAccounts(MasuTestCase):
             ),
         ]
         mock_get_topo.return_value = mock_topo_record
-        dh = DateHelper()
-        start_date = dh.this_month_start
-        end_date = dh.this_month_end
-        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
+        self.accessor.populate_gcp_topology_information_tables(
+            self.gcp_provider, self.start_date, self.end_date, self.invoice_month
+        )
         with schema_context(self.schema_name):
             expected = (
                 GCPTopology.objects.annotate(**{"value": F("account_id")})

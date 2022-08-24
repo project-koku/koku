@@ -26,8 +26,6 @@ from masu.external import UNCOMPRESSED
 from masu.external.downloader.downloader_interface import DownloaderInterface
 from masu.external.downloader.report_downloader_base import ReportDownloaderBase
 from masu.processor import enable_trino_processing
-from masu.processor.parquet.parquet_report_processor import OPENSHIFT_REPORT_TYPE
-from masu.util.aws import common as utils
 from masu.util.aws.common import copy_local_report_file_to_s3_bucket
 from masu.util.common import get_path_prefix
 from providers.gcp.provider import GCPProvider
@@ -38,10 +36,6 @@ LOG = logging.getLogger(__name__)
 
 
 class GCPReportDownloaderError(Exception):
-    """GCP Report Downloader error."""
-
-
-class GCPSelfHealingComplete(Exception):
     """GCP Report Downloader error."""
 
 
@@ -73,9 +67,9 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         for invoice_month in data_frame["invoice.month"].unique():
             invoice_filter = data_frame["invoice.month"] == invoice_month
             invoice_month_data = data_frame[invoice_filter]
-            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
+            unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
             days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-            date_range = {"start": min(days), "end": max(days)}
+            date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
             partition_dates = invoice_month_data.partition_date.unique()
             for partition_date in partition_dates:
                 partition_date_filter = invoice_month_data["partition_date"] == partition_date
@@ -179,80 +173,6 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         """The end partition date we check for data in BigQuery."""
         return DateHelper().today.date()
 
-    def activate_self_healing(self):
-        """Removes old manifest entry and csv/parquet files in trino."""
-        with ReportManifestDBAccessor() as manifest_accessor:
-            old_manifests = manifest_accessor.gcp_self_healing_get_outdated_manifests(self._provider_uuid)
-            manifest_id_list = []
-            manifest_id_list_strings = []
-            if not old_manifests:
-                # If no old manifests were found then we should raise the DataError.
-                return False
-            for manifest in old_manifests:
-                # this month & the previous month
-                invoice_month = manifest.billing_period_start_datetime
-                dh = DateHelper()
-                # Catch the cross over data.
-                for start_of_invoice in [manifest.billing_period_start_datetime, dh.previous_month(invoice_month)]:
-                    context = {
-                        "provider_uuid": self._provider_uuid,
-                        "provider_type": self._provider_type,
-                        "account": self.account,
-                    }
-                    # Build all of the s3 paths that may contain files for
-                    # the outdated manifest so that they can be deleted.
-                    s3_csv_path = get_path_prefix(
-                        self.account,
-                        Provider.PROVIDER_GCP,
-                        self._provider_uuid,
-                        start_of_invoice,
-                        Config.CSV_DATA_TYPE,
-                    )
-                    s3_csv_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
-                        self.tracing_id, s3_csv_path, manifest_id_list_strings, context=context
-                    )
-                    s3_parquet_path = get_path_prefix(
-                        self.account,
-                        Provider.PROVIDER_GCP,
-                        self._provider_uuid,
-                        start_of_invoice,
-                        Config.PARQUET_DATA_TYPE,
-                    )
-                    s3_parquet_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
-                        self.tracing_id, s3_parquet_path, manifest_id_list_strings, context=context
-                    )
-                    s3_daily_parquet_path = get_path_prefix(
-                        self.account,
-                        Provider.PROVIDER_GCP,
-                        self._provider_uuid,
-                        start_of_invoice,
-                        Config.PARQUET_DATA_TYPE,
-                        daily=True,
-                        report_type="raw",
-                    )
-                    s3_daily_parquet_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
-                        self.tracing_id, s3_daily_parquet_path, manifest_id_list_strings, context=context
-                    )
-                    s3_daily_openshift_path = get_path_prefix(
-                        self.account,
-                        Provider.PROVIDER_GCP,
-                        self._provider_uuid,
-                        start_of_invoice,
-                        Config.PARQUET_DATA_TYPE,
-                        daily=True,
-                        report_type=OPENSHIFT_REPORT_TYPE,
-                    )
-                    s3_daily_openshift_removed = utils.gcp_self_healing_remove_files_for_manifest_from_s3_bucket(
-                        self.tracing_id, s3_daily_openshift_path, manifest_id_list_strings, context=context
-                    )
-                    manifest_id_list.append(manifest.id)
-                    manifest_id_list_strings.append(str(manifest.id))
-
-            if s3_csv_removed and s3_parquet_removed and s3_daily_parquet_removed and s3_daily_openshift_removed:
-                LOG.info("Attempting to delete old manifests")
-                manifest_accessor.gcp_self_healing_bulk_delete_old_manifests(self._provider_uuid, manifest_id_list)
-        return True
-
     def _get_dataset_name(self):
         """Helper to get dataset ID when format is project:datasetName."""
         if ":" in self.data_source.get("dataset"):
@@ -285,19 +205,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 if not last_export_time or manifest.previous_export_time > last_export_time:
                     manifests_dict[manifest.partition_date] = manifest.previous_export_time
         except DataError as err:
-            # This DataError bubbles up from the old manifest assembly_id not
-            # containing the expected delimiter "|" for the new manifests
-            result = self.activate_self_healing()
-            if result:
-                # Since the start_date is a cached properity, but we have removed
-                # the manifest causing the scan start to be -10 days ago, we
-                # need a new class instance to retrigger an initial download.
-                # So we raise this error and retrigger the manifest processing
-                # on the Orchestrator side of things.
-                msg = f"Completed GCP self healing for provider {self._provider_uuid}"
-                raise GCPSelfHealingComplete(msg)
-            else:
-                raise GCPReportDownloaderError(err)
+            raise GCPReportDownloaderError(err)
 
         return manifests_dict
 
