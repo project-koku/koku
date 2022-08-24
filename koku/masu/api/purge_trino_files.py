@@ -67,7 +67,7 @@ def purge_trino_files(request):  # noqa: C901
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     start_date = params.get("start_date")
-    end_date = params.get("end_date")
+    end_date = params.get("end_date") if params.get("end_date") else start_date
 
     # Use ParquetReportProcessor to build s3 paths
     pq_processor_object = ParquetReportProcessor(
