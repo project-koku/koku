@@ -1771,6 +1771,37 @@
               "format": "date",
               "example": "2019-01-01"
             }
+          },
+          {
+            "name": "ignore_manifest",
+            "in": "query",
+            "description": "will not delete manifests if param is present",
+            "required": false,
+            "schema": {
+              "type": "string",
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "start of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "end of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
           }
         ],
         "responses": {
