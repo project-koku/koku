@@ -67,6 +67,10 @@
       "description": "Returns a list of celery queues with their lengths."
     },
     {
+      "name": "Clear Celery Queue",
+      "description": "Returns number of tasks cleared from the queue"
+    },
+    {
       "name": "Update exchange rates",
       "description": "Updates and returns the list of exchange rates"
     }
@@ -1043,6 +1047,28 @@
         },
         "tags": [
           "Celery Queue Lengths"
+        ]
+      }
+    },
+    "/clear_celery_queue/":{
+      "get":{
+        "summary": "Returns the number of tasks cleared the celery queue.",
+        "operationId":"clearCeleryQueue",
+        "description": "Returns the number of tasks cleared the celery queue.",
+        "responses":{
+          "200":{
+            "description": "Returns the number of tasks cleared the celery queue.",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/clearCeleryQueue"
+                }
+              }
+            }
+          }
+        },
+        "tags":[
+          "Clearing Celery Tasks"
         ]
       }
     },

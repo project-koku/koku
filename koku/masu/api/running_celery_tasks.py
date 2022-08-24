@@ -51,8 +51,8 @@ def celery_queue_lengths(request):
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def clear_celery_queues(request):
-    """Clear the celery queues."""
+def clear_celery_queue(request):
+    """Clear the celery queue."""
     purged_tasks = app.control.purge()
     LOG.info(f"Celery purged tasks: {purged_tasks}")
     return Response({"purged_tasks": purged_tasks})
