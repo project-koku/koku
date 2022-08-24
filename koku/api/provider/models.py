@@ -174,6 +174,7 @@ class Provider(models.Model):
             if provider.setup_complete != self.setup_complete:
                 should_ingest=False
 
+        # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:

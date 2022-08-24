@@ -90,7 +90,7 @@ class Orchestrator:
                     all_accounts = [account]
 
         for account in all_accounts:
-            if disable_cloud_source_processing(account.get("schema_name")) or not provider_uuid:
+            if disable_cloud_source_processing(account.get("schema_name")) and not provider_uuid:
                 LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
                 continue
             else:
@@ -344,7 +344,7 @@ class Orchestrator:
         account["report_month"] = start_date
         try:
             _, reports_tasks_queued = self.start_manifest_processing(**account)
-            LOG.info("Completed: %s", provider_uuid)
+            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
         except ReportDownloaderError as err:
             LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
         except Exception as err:
