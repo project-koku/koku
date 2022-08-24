@@ -153,7 +153,7 @@ class Provider(models.Model):
     infrastructure = models.ForeignKey("ProviderInfrastructureMap", null=True, on_delete=models.SET_NULL)
     additional_context = JSONField(null=True, default=dict)
 
-    def save(self, *args, **kwargs):
+    def save(self, disable_ingest=False, *args, **kwargs):
         """Save instance and start data ingest task for active Provider."""
 
         should_ingest = False
@@ -172,8 +172,16 @@ class Provider(models.Model):
             else:
                 should_ingest = False
 
+        if disable_ingest:
+            should_ingest = False
+
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
+
+        LOG.info("\n\n\n\n")
+        LOG.info(f" settings.AUTO_DATA_INGEST: {settings.AUTO_DATA_INGEST}")
+        LOG.info(f" should_ingest: {should_ingest}")
+        LOG.info(f" self.active: {self.active}")
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
             # Local import of task function to avoid potential import cycle.

@@ -147,7 +147,7 @@ def purge_trino_files(request):  # noqa: C901
             manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
         provider = Provider.objects.filter(uuid=provider_uuid).first()
         provider.setup_complete = False
-        provider.save()
+        provider.save(disable_ingest=True)
         LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
 
     return Response(async_results)

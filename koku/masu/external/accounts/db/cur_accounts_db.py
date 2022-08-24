@@ -43,6 +43,7 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
+            # This does not trigger
             if provider_uuid and provider:
                 if provider.active and not provider.paused:
                     return [self.get_account_information(provider)]
@@ -52,7 +53,10 @@ class CURAccountsDB(CURAccountsInterface):
                 )
                 return []
 
+            # Causing all the providers to run
+
             for _, provider in all_providers.items():
+                # Not hit
                 if provider.active is False or provider.paused:
                     LOG.info(
                         f"Provider {provider.uuid} is active={provider.active} "
@@ -60,4 +64,10 @@ class CURAccountsDB(CURAccountsInterface):
                     )
                     continue
                 accounts.append(self.get_account_information(provider))
+        # Return all accounts
+        msg=f"""Looping through all providers to for polling:
+                provider_uuid: {provider_uuid},
+                provider: {provider}
+            """
+        LOG.info(msg)
         return accounts
