@@ -216,7 +216,7 @@ class PurgeTrinoFilesTest(MasuTestCase):
         "masu.api.purge_trino_files.purge_s3_files.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_unleash_delete_request_with_date_range(self, mock_purge, _):
+    def test_unleash_delete_request_with_ignore_manifest(self, mock_purge, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.gcp_provider_uuid,
