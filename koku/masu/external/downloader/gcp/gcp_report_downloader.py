@@ -97,7 +97,7 @@ def create_daily_archives(
                         tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
                     )
                     daily_file_names.append(day_filepath)
-        return daily_file_names, date_range
+    return daily_file_names, date_range
 
 
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -403,7 +403,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             # We should make this an environment variable.
             # LOG.info(f"Initial number o rows: {len(query_job)}")
             local_paths_list = []
-            for i, rows in enumerate(batch(query_job, 200)):
+            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                 full_local_path = self._get_local_file_path(directory_path, partition_date, i)
                 msg = f"Downloading subset of {key} to {full_local_path}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
