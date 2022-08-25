@@ -287,7 +287,8 @@ class QueryParameters:
                     .filter(account_alias__isnull=True)
                     .order_by("org_unit_id", "-created_timestamp")
                     .distinct("org_unit_id")
-                ).values_list("org_unit_id", flat=True)
+                    .values_list("org_unit_id", flat=True)
+                )
                 if self.user.admin:
                     access_list.update(self.parameters.get("access").get(filter_key))
             items = set(self.get_filter(filter_key))
