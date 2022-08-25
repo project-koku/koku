@@ -405,7 +405,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             local_paths_list = []
             for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                 full_local_path = self._get_local_file_path(directory_path, partition_date, i)
-                msg = f"Downloading subset of {key} to {full_local_path}"
+                msg = f"Downloading subset of {partition_date} to {full_local_path}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
                 with open(full_local_path, "w") as f:
                     writer = csv.writer(f)
