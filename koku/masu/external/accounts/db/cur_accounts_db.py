@@ -44,7 +44,7 @@ class CURAccountsDB(CURAccountsInterface):
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
             if provider_uuid and not provider:
-                LOG.info(f"Provider for uuid {provider.uuid} does not exist its likely it has been deleted.")
+                LOG.info(f"Provider for uuid {provider_uuid} does not exist its likely it has been deleted.")
                 return []
             elif provider_uuid and provider:
                 if provider.active and not provider.paused:
