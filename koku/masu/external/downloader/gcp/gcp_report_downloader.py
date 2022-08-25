@@ -8,6 +8,7 @@ import datetime
 import logging
 import os
 from functools import cached_property
+from itertools import islice
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -34,6 +35,11 @@ from providers.gcp.provider import RESOURCE_LEVEL_EXPORT_NAME
 DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
+def batch(iterable, n):
+    """Yields successive n-sized chunks from iterable"""
+    it = iter(iterable)
+    while chunk := tuple(islice(it, n)):
+        yield chunk
 
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
@@ -262,7 +268,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # for that partition time and new manifest should be created.
                 bill_date = bigquery_pd.replace(day=1)
                 invoice_month = bill_date.strftime("%Y%m")
-                file_name = f"{invoice_month}_{bigquery_pd}.csv"
+                file_name = f"{invoice_month}_{bigquery_pd}"
                 manifest_metadata = {
                     "assembly_id": f"{bigquery_pd}|{bigquery_et}",
                     "bill_date": bill_date,
@@ -368,7 +374,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 """
             client = bigquery.Client()
             LOG.info(f"{query}")
-            query_job = client.query(query)
+            query_job = client.query(query).result()
 
         except GoogleCloudError as err:
             err_msg = (
@@ -385,17 +391,22 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = self._get_local_directory_path()
         full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
-        msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
         try:
-            with open(full_local_path, "w") as f:
-                writer = csv.writer(f)
-                column_list = self.gcp_big_query_columns.copy()
-                column_list.append("partition_date")
-                LOG.info(f"writing columns: {column_list}")
-                writer.writerow(column_list)
-                for row in query_job:
-                    writer.writerow(row)
+            column_list = self.gcp_big_query_columns.copy()
+            column_list.append("partition_date")
+            header_written = False
+            # We should make this an environment variable.
+            for i, rows in enumerate(batch(query_job, 4000)):
+                full_local_path = self._get_local_file_path(directory_path, key, i)
+                msg = f"Downloading {key} to {full_local_path}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                with open(full_local_path, "w") as f:
+                    writer = csv.writer(f)
+                    if not header_written:
+                        LOG.info(f"writing columns: {column_list}")
+                        writer.writerow(column_list)
+                        header_written = True
+                    writer.writerows(rows)
         except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
@@ -434,7 +445,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp")
         return directory_path
 
-    def _get_local_file_path(self, directory_path, key):
+    def _get_local_file_path(self, directory_path, key, iterable_num):
         """
         Get the local file path destination for a downloaded file.
 
@@ -446,7 +457,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        local_file_name = key.replace("/", "_")
+        local_file_name = key.replace("/", "_") + iterable_num + ".csv"
         msg = f"Local filename: {local_file_name}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
