@@ -278,14 +278,9 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
-            elif (
-                "org_unit_id" in filters
-                and not access_list
-                and self.parameters.get("ou_or_operator", False)
-                and not self.user.admin
-            ):
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
                 org_unit_filter = filters.get("org_unit_id")
-                allowed_ous = (
+                access_list = set(
                     AWSOrganizationalUnit.objects.filter(
                         reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in org_unit_filter))
                     )
@@ -293,14 +288,13 @@ class QueryParameters:
                     .order_by("org_unit_id", "-created_timestamp")
                     .distinct("org_unit_id")
                 ).values_list("org_unit_id", flat=True)
-                access_list = list(allowed_ous)
-            elif (
-                "org_unit_id" in filters
-                and not access_list
-                and self.parameters.get("ou_or_operator", False)
-                and self.user.admin
-            ):
-                access_list = self.parameters.get("access").get(filter_key)
+                if self.user.admin:
+                    access_list.update(self.parameters.get("access").get(filter_key))
+            items = set(self.get_filter(filter_key))
+            result = get_replacement_result(items, access_list, raise_exception, return_access=True)
+            if result:
+                self.parameters["access"][filter_key] = result
+                access_filter_applied = True
 
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
