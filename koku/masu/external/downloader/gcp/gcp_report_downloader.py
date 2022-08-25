@@ -389,14 +389,15 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             err_msg = f"Error recovering start and end date from csv key ({key})."
             raise GCPReportDownloaderError(err_msg)
         directory_path = self._get_local_directory_path()
-        full_local_path = self._get_local_file_path(directory_path, key)
+        # full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
         try:
             column_list = self.gcp_big_query_columns.copy()
             column_list.append("partition_date")
             header_written = False
             # We should make this an environment variable.
-            for i, rows in enumerate(batch(query_job, 4000)):
+            # LOG.info(f"Initial number o rows: {len(query_job)}")
+            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
                 full_local_path = self._get_local_file_path(directory_path, key, i)
                 msg = f"Downloading {key} to {full_local_path}"
                 LOG.info(log_json(self.tracing_id, msg, self.context))
@@ -457,7 +458,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        local_file_name = key.replace("/", "_") + iterable_num + ".csv"
+        local_file_name = key.replace("/", "_") + "_" + str(iterable_num) + ".csv"
         msg = f"Local filename: {local_file_name}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)
