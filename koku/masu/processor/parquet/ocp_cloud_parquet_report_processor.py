@@ -133,7 +133,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             if infra_provider_uuid != self.provider_uuid:
                 continue
             msg = (
-                f"Processing OpenShift on {self.provider_type} to parquet."
+                f"Processing OpenShift on {self.provider_type} to parquet for Openshift source {ocp_provider_uuid}"
                 f"\n\tStart date: {str(self.start_date)}\n\tFile: {str(self.report_file)}"
             )
             LOG.info(msg)

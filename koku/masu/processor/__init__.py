@@ -49,6 +49,6 @@ def disable_cloud_source_processing(account):
     context = {"schema": account}
     LOG.info(f"Processing UNLEASH check: {context}")
     res = bool(UNLEASH_CLIENT.is_enabled("disable_cloud_source_processing", context))
-    LOG.info(f"    Processing {'disabled' if res else 'enabled'}")
+    LOG.info(f"    Processing {'disabled' if res else 'enabled'} {account}")
 
     return res
