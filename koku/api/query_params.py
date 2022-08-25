@@ -291,7 +291,7 @@ class QueryParameters:
                 )
                 if self.user.admin:
                     access_list.update(self.parameters.get("access").get(filter_key))
-            items = set(self.get_filter(filter_key))
+            items = set(self.get_filter(filter_key) or [])
             result = get_replacement_result(items, access_list, raise_exception, return_access=True)
             if result:
                 self.parameters["access"][filter_key] = result
