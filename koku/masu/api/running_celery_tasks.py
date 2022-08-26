@@ -5,6 +5,8 @@
 """View for running_celery_tasks endpoint."""
 import logging
 
+import redis
+from django.conf import settings
 from django.views.decorators.cache import never_cache
 from rest_framework.decorators import api_view
 from rest_framework.decorators import permission_classes
@@ -51,8 +53,14 @@ def celery_queue_lengths(request):
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def clear_celery_queue(request):
-    """Clear the celery queue."""
+def clear_celery_queues(request):
+    """Clear celery queues."""
+    purged_tasks = 0
     purged_tasks = app.control.purge()
+    queue_lengths = list(collect_queue_metrics().values())
+    if not all(q_len == 0 for q_len in queue_lengths):
+        purged_tasks += sum(queue_lengths)
+        r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+        r.flushall()
     LOG.info(f"Celery purged tasks: {purged_tasks}")
     return Response({"purged_tasks": purged_tasks})

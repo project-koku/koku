@@ -1063,7 +1063,7 @@
         ]
       }
     },
-    "/clear_celery_queue/":{
+    "/clear_celery_queues/":{
       "get":{
         "summary": "Returns the number of tasks cleared the celery queue.",
         "operationId":"clearCeleryQueue",
