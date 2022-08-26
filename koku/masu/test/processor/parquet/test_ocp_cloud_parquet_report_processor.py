@@ -228,6 +228,28 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_data_processor.assert_called()
         mock_create_parquet.assert_called()
 
+    @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
+    @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags")
+    @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
+    @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
+    @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
+    def process_enabled_ocp_labels_no_matches_with_gcp(
+        self, mock_data_processor, mock_create_parquet, mock_has_labels, mock_topology, mock_cluster_info, gcp_tags, gcp_trino
+    ):
+        """Test that process succeeds without OCP enabled labels"""
+        gcp_tags.return_value = None
+        mock_cluster_info.return_value = True
+        mock_has_labels.return_value = True
+        mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
+        self.report_processor.process("", [pd.DataFrame()])
+
+        mock_topology.assert_called()
+        mock_data_processor.assert_called()
+        mock_create_parquet.assert_called()
+        gcp_trino.assert_not_called()
+
     @patch.object(OCPReportDBAccessor, "get_openshift_on_cloud_matched_tags")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
     @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
