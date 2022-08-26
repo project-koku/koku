@@ -308,13 +308,13 @@ class GCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             GCPEnabledTagKeys.objects.all().delete()
         value = self.accessor.get_openshift_on_cloud_matched_tags(1, 1)
-        self.assertIsNone(value)
+        self.assertEqual(value, "skip")
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_enabled(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         value = self.accessor.get_openshift_on_cloud_matched_tags(1, 1)
-        self.assertIsNotNone(value)
+        self.assertNotEqual(value, "skip")
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
     def test_back_populate_ocp_on_gcp_daily_summary_trino(self, mock_presto):

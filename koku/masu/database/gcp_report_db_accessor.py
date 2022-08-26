@@ -599,7 +599,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             results = cursor.fetchall()
             if results[0][0] < 1:
                 LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
-                return None
+                return "skip"
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": gcp_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
