@@ -589,7 +589,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
         # do an initial check to see if there are any matching enabled keys between OCP & GCP
-        match_sql= f"""
+        match_sql = f"""
             SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
                 INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
         """

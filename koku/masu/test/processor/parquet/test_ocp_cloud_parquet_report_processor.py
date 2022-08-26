@@ -236,7 +236,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     def process_enabled_ocp_labels_no_matches_with_gcp(
-        self, mock_data_processor, mock_create_parquet, mock_has_labels, mock_topology, mock_cluster_info, gcp_tags, gcp_trino
+        self,
+        mock_data_processor,
+        mock_create_parquet,
+        mock_has_labels,
+        mock_topology,
+        mock_cluster_info,
+        gcp_tags,
+        gcp_trino,
     ):
         """Test that process succeeds without OCP enabled labels"""
         gcp_tags.return_value = None
