@@ -181,6 +181,8 @@ class IamTestCase(TestCase):
 
     def mocked_query_params(self, url, view, path=None, access=None):
         """Create QueryParameters using a mocked Request."""
+        if access is None:
+            access = {}
         m_request = self.factory.get(url)
         user = Mock()
         user.access = access

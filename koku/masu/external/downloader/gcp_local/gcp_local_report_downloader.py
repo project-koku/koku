@@ -192,7 +192,7 @@ class GCPLocalReportDownloader(ReportDownloaderBase, DownloaderInterface):
             self.account,
             self._provider_uuid,
             key,
-            full_local_path,
+            [full_local_path],
             manifest_id,
             start_date,
             self.context,

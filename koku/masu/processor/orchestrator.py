@@ -344,6 +344,7 @@ class Orchestrator:
         account["report_month"] = start_date
         try:
             _, reports_tasks_queued = self.start_manifest_processing(**account)
+            LOG.info("Completed latest report files for account (provider uuid): %s", provider_uuid)
         except ReportDownloaderError as err:
             LOG.warning(f"Unable to download manifest for provider: {provider_uuid}. Error: {str(err)}.")
         except Exception as err:
