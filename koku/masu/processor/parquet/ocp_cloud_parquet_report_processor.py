@@ -152,7 +152,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             if self.has_enabled_ocp_labels:
                 LOG.info("Getting matching tags from Postgres.")
                 matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
-                if not matched_tags or matched_tags != "skip":
+                if not matched_tags:
                     LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
                     if self._provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                         matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
@@ -166,6 +166,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                         matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                             self.provider_uuid, ocp_provider_uuid, self.start_date, self.end_date
                         )
+            if matched_tags == "skip":
+                # Turn it back to an empty list now
+                # we don't have to worry about calling
+                # trino matching COST-2914
+                matched_tags = []
             for i, daily_data_frame in enumerate(daily_data_frames):
                 openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
                     daily_data_frame, cluster_topology, matched_tags

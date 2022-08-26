@@ -246,7 +246,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         gcp_trino,
     ):
         """Test that process succeeds without OCP enabled labels"""
-        gcp_tags.return_value = None
+        gcp_tags.return_value = 'skip'
         mock_cluster_info.return_value = True
         mock_has_labels.return_value = True
         mock_topology.return_value = {"cluster_id": self.ocp_cluster_id}
