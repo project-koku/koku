@@ -147,6 +147,19 @@ class OrchestratorTest(MasuTestCase):
         mock_account_labler.assert_not_called()
 
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch(
+        "masu.processor.orchestrator.disable_cloud_source_processing",
+        return_value=True,
+    )
+    def test_unleash_disable_cloud_source_processing(self, mock_processing, mock_inspect):
+        """Test the disable_cloud_source_processing."""
+        expected_result = "Cloud source processing disabled for "
+        orchestrator = Orchestrator()
+        with self.assertLogs("masu.processor.orchestrator", level="INFO") as captured_logs:
+            orchestrator.get_accounts()
+            self.assertIn(expected_result, captured_logs.output[0])
+
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
     @patch.object(AccountsAccessor, "get_accounts")
     def test_init_all_accounts(self, mock_accessor, mock_inspect):
         """Test initializing orchestrator with forced billing source."""

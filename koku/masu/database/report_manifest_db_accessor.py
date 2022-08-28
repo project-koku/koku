@@ -253,3 +253,27 @@ class ReportManifestDBAccessor(KokuDBAccess):
             .filter(partition_date__gte=start_date, partition_date__lte=end_date)
         )
         return manifests
+
+    def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
+        """
+        Deletes a specific manifest given manifest_id & provider_uuid
+        Args:
+            provider_uuid (uuid): The provider uuid to use to delete associated manifests
+            manifest_id_list (list): list of manifest ids to delete.
+        """
+        if not manifest_id_list:
+            return
+        msg = f"""
+        Attempting to delete the following manifests:
+           manifest_list: {manifest_id_list}
+           manifest_count: {len(manifest_id_list)}
+        """
+        LOG.info(msg)
+        delete_count = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, id__in=manifest_id_list
+        ).delete()
+        LOG.info(
+            "Removed %s manifests for provider_uuid %s",
+            delete_count,
+            provider_uuid,
+        )

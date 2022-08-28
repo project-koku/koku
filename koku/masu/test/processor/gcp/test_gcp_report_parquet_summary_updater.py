@@ -65,6 +65,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         expected_start, expected_end = self.updater._get_sql_inputs(start_str, end_str)
+        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(expected_start, expected_end)
 
         expected_log = (
             "INFO:masu.processor.gcp.gcp_report_parquet_summary_updater:"
@@ -72,7 +73,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         )
 
         with self.assertLogs("masu.processor.gcp.gcp_report_parquet_summary_updater", level="INFO") as logger:
-            start, end = self.updater.update_daily_tables(start_str, end_str)
+            start, end = self.updater.update_daily_tables(start_str, end_str, invoice_month)
             self.assertIn(expected_log, logger.output)
         self.assertEqual(start, expected_start)
         self.assertEqual(end, expected_end)
@@ -97,6 +98,7 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
         start_str = self.dh.this_month_start.isoformat()
         end_str = self.dh.this_month_end.isoformat()
         start, end = self.updater._get_sql_inputs(start_str, end_str)
+        invoice_month = self.dh.gcp_find_invoice_months_in_date_range(start, end)
 
         for s, e in date_range_pair(start, end, step=settings.TRINO_DATE_STEP):
             expected_start, expected_end = s, e
@@ -111,15 +113,44 @@ class GCPReportParquetSummaryUpdaterTest(MasuTestCase):
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
 
-        start_return, end_return = self.updater.update_summary_tables(start, end)
+        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month[0])
         mock_delete.assert_called_with(
             self.gcp_provider.uuid, expected_start, expected_end, {"cost_entry_bill_id": current_bill_id}
         )
         mock_presto.assert_called_with(
-            expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value
+            expected_start, expected_end, self.gcp_provider.uuid, current_bill_id, markup_value, start
         )
         mock_tag_update.assert_called_with(bill_ids, start, end)
         mock_summary_update.assert_called_with(start, end, bill_ids)
+
+        self.assertEqual(start_return, start)
+        self.assertEqual(end_return, end)
+
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_gcp_topology_information_tables"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+    )
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.update_line_item_daily_summary_with_enabled_tags"  # noqa: E501
+    )
+    @patch("masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_tags_summary_table")
+    @patch(
+        "masu.processor.gcp.gcp_report_parquet_summary_updater.GCPReportDBAccessor.populate_line_item_daily_summary_table_presto"  # noqa: E501
+    )
+    def test_update_daily_summary_tables_no_invoice_month(
+        self, mock_presto, mock_tag_update, mock_summary_update, mock_delete, mock_topo
+    ):
+        """Test that we run Presto summary."""
+        start_str = self.dh.this_month_start.isoformat()
+        end_str = self.dh.this_month_end.isoformat()
+        start, end = self.updater._get_sql_inputs(start_str, end_str)
+        start_return, end_return = self.updater.update_summary_tables(start, end, invoice_month=None)
+        mock_delete.assert_not_called()
+        mock_presto.assert_not_called()
+        mock_tag_update.assert_not_called()
+        mock_summary_update.assert_not_called()
 
         self.assertEqual(start_return, start)
         self.assertEqual(end_return, end)

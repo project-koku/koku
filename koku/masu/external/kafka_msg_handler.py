@@ -434,7 +434,7 @@ def handle_message(kmsg):
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()
         msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
-        LOG.error(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg, context))
         raise KafkaMsgHandlerError(msg) from error
     except Exception as error:  # noqa
         traceback.print_exc()

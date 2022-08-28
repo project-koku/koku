@@ -85,6 +85,9 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.start_date = self._context.get("start_date")
+        self.invoice_month = self._context.get("invoice_month")
+        if self.invoice_month:
+            self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
         self.presto_table_exists = {}
         self.files_to_remove = []
 

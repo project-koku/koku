@@ -42,12 +42,12 @@ def check_schema_name(schema_name: str) -> str:
     return schema_name
 
 
-def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover #noqa
+def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover
     """Helper to determine if source is enabled for HCS."""
     schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
+    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG)
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data_from_manifest", queue=HCS_QUEUE)

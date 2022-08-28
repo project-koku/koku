@@ -8,6 +8,7 @@ from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
+from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
 from masu.api.views import crawl_account_hierarchy
@@ -17,13 +18,13 @@ from masu.api.views import download_report
 from masu.api.views import enabled_tags
 from masu.api.views import expired_data
 from masu.api.views import explain_query
-from masu.api.views import gcp_invoice_monthly_cost
 from masu.api.views import get_status
 from masu.api.views import hcs_report_data
 from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
+from masu.api.views import purge_trino_files
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
 from masu.api.views import stat_activity
@@ -74,7 +75,11 @@ urlpatterns = [
         ManifestView.as_view({"get": "get_one_manifest_file"}),
         name="get_one_manifest_file",
     ),
-    path("gcp_invoice_monthly_cost/", gcp_invoice_monthly_cost, name="gcp_invoice_monthly_cost"),
+    path(
+        "gcp_invoice_monthly_cost/", bigquery_cost, name="gcp_invoice_monthly_cost"
+    ),  # TODO: Remove once iqe is updated
+    path("bigquery_cost/", bigquery_cost, name="bigquery_cost"),
+    path("purge_trino_files/", purge_trino_files, name="purge_trino_files"),
     path("db-performance", db_performance_redirect, name="db_perf_no_slash_redirect"),
     path("db-performance/", db_performance_redirect, name="db_perf_slash_redirect"),
     path("db-performance/db-settings/", dbsettings, name="db_settings"),

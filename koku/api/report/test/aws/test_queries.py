@@ -2487,14 +2487,10 @@ class AWSReportQueryTest(IamTestCase):
         # get all accounts
         all_accts = list(self.account_alias_mapping.keys())
         self.account_alias = all_accts[0]
-        self.test_read_access = {
-            "aws.account": {"read": [self.account_alias]},
-            "aws.organizational_unit": {"read": [self.organizational_unit]},
-        }
 
         with tenant_context(self.tenant):
             org_group_by_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&cost_type=unblended_cost&filter[org_unit_id]=OU_001&group_by[account]={self.account_alias}"  # noqa: E501
-            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, access=self.test_read_access)
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
             handler = AWSReportQueryHandler(query_params)
             org_data = handler.execute_query()
             # query filter to use

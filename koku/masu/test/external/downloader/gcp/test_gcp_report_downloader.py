@@ -19,7 +19,6 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
-from masu.external.date_accessor import DateAccessor
 from masu.external.downloader.gcp.gcp_report_downloader import create_daily_archives
 from masu.external.downloader.gcp.gcp_report_downloader import DATA_DIR
 from masu.external.downloader.gcp.gcp_report_downloader import GCPReportDownloader
@@ -96,7 +95,7 @@ class GCPReportDownloaderTest(MasuTestCase):
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
     def test_download_file_failure_on_file_open(self, mock_bigquery, mock_makedirs):
         """Assert download_file successful scenario"""
-        mock_bigquery.client.return_value.query.return_value = ["This", "test"]
+        mock_bigquery.Client.return_value.query.return_value.result.return_value = ["a", "b", "c", "d"]
         key = "202011_1234_2020-12-05:2020-12-08.csv"
         downloader = self.create_gcp_downloader_with_mocked_values()
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open") as mock_open:
@@ -104,6 +103,8 @@ class GCPReportDownloaderTest(MasuTestCase):
             mock_open.side_effect = IOError(err_msg)
             with self.assertRaisesRegex(GCPReportDownloaderError, err_msg):
                 downloader.download_file(key)
+                mock_bigquery.assert_called()
+                mock_open.assert_called()
 
     def test_get_local_file_for_report(self):
         """Assert that get_local_file_for_report is a simple pass-through."""
@@ -119,7 +120,6 @@ class GCPReportDownloaderTest(MasuTestCase):
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
         key = "202011_1234_2020-12-05:2020-12-08.csv"
         mock_name = "mock-test-customer-success"
-        expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch(
@@ -129,17 +129,17 @@ class GCPReportDownloaderTest(MasuTestCase):
                 full_path, _, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
-                self.assertEqual(full_path, expected_full_path)
+                self.assertEqual(full_path, key)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.os.makedirs")
     @patch("masu.external.downloader.gcp.gcp_report_downloader.bigquery")
     def test_download_file_success_end_date_today(self, mock_bigquery, mock_makedirs):
         """Assert download_file successful scenario"""
         mock_bigquery.client.return_value.query.return_value = ["This", "test"]
-        end_date = DateAccessor().today().date()
-        key = f"202011_1234_2020-12-05:{end_date}.csv"
+        partition_date = self.today.date()
+        export_time = self.today
+        key = f"202011_{partition_date}_{export_time}.csv"
         mock_name = "mock-test-customer-end-date"
-        expected_full_path = f"{DATA_DIR}/{mock_name}/gcp/{key}"
         downloader = self.create_gcp_downloader_with_mocked_values(customer_name=mock_name)
         with patch("masu.external.downloader.gcp.gcp_report_downloader.open"):
             with patch(
@@ -149,7 +149,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 full_path, _, date, _, __ = downloader.download_file(key)
                 mock_makedirs.assert_called()
                 self.assertEqual(date, self.today)
-                self.assertEqual(full_path, expected_full_path)
+                self.assertEqual(full_path, key)
 
     @patch("masu.external.downloader.gcp.gcp_report_downloader.open")
     def test_download_file_query_client_error(self, mock_open):
@@ -182,7 +182,7 @@ class GCPReportDownloaderTest(MasuTestCase):
         start_date = dh.this_month_start
         invoice_month = start_date.strftime("%Y%m")
         downloader = self.create_gcp_downloader_with_mocked_values()
-        mocked_mapping = {datetime.date.today(): DateHelper().today}
+        mocked_mapping = {datetime.date.today(): self.today}
         with patch(
             "masu.external.downloader.gcp.gcp_report_downloader.GCPReportDownloader._process_manifest_db_record",
             return_value=2,
@@ -193,7 +193,7 @@ class GCPReportDownloaderTest(MasuTestCase):
                 return_value=mocked_mapping,
             ):
                 report_list = downloader.get_manifest_context_for_date(start_date)
-        expected_file = f"{invoice_month}_{DateHelper().today.date()}.csv"
+        expected_file = f"{invoice_month}_{self.today.date()}"
         expected_files = [{"key": expected_file, "local_file": expected_file}]
         for report_dict in report_list:
             self.assertEqual(report_dict.get("manifest_id"), 2)
@@ -205,24 +205,22 @@ class GCPReportDownloaderTest(MasuTestCase):
     def test_create_daily_archives(self, mock_s3):
         """Test that we load daily files to S3."""
         # Use the processor example for data:
-        file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
-        file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        file_name = "2022-08-01_5.csv"
+        file_path = f"./koku/masu/test/data/gcp/{file_name}"
+
         temp_dir = tempfile.gettempdir()
         temp_path = os.path.join(temp_dir, file_name)
         shutil.copy2(file_path, temp_path)
 
         expected_daily_files = [
-            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
-            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
+            f"{temp_dir}/202208_{file_name}",
         ]
 
         start_date = DateHelper().this_month_start
         daily_file_names, date_range = create_daily_archives(
-            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+            "request_id", "account", self.gcp_provider_uuid, file_name, [temp_path], None, start_date, None
         )
-        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11"}
+        expected_date_range = {"start": "2022-08-01", "end": "2022-08-01", "invoice_month": "202208"}
         self.assertEqual(date_range, expected_date_range)
         self.assertIsInstance(daily_file_names, list)
 
@@ -344,7 +342,7 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         expected_bill_date = partition_date.replace(day=1)
         expected_assembly_id = f"{partition_date}|{export_time}"
-        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}"
 
         downloader = self.create_gcp_downloader_with_mocked_values()
         new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
@@ -364,7 +362,7 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         expected_bill_date = partition_date.replace(day=1)
         expected_assembly_id = f"{partition_date}|{new_export_time}"
-        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}"
 
         downloader = self.create_gcp_downloader_with_mocked_values()
         new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
@@ -383,7 +381,7 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         expected_bill_date = partition_date.replace(day=1)
         expected_assembly_id = f"{partition_date}|{export_time}"
-        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}.csv"
+        expected_filename = f"{expected_bill_date.strftime('%Y%m')}_{partition_date}"
 
         downloader = self.create_gcp_downloader_with_mocked_values()
         new_manifests = downloader.collect_new_manifests(current_manifests, bigquery_mapping)
