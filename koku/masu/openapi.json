@@ -1065,9 +1065,19 @@
     },
     "/clear_celery_queues/":{
       "get":{
-        "summary": "Returns the number of tasks cleared the celery queue.",
-        "operationId":"clearCeleryQueue",
-        "description": "Returns the number of tasks cleared the celery queue.",
+        "summary": "Returns the number of tasks cleared the celery queues.",
+        "operationId":"clearCeleryQueues",
+        "description": "Returns the number of tasks cleared the celery queues.",
+        "parameters":[
+          {
+            "name": "clear_all",
+            "description":"whether to clear all celery queues.",
+            "in":"query",
+            "schema":{
+              "type":"boolean"
+            }
+          }
+        ],
         "responses":{
           "200":{
             "description": "Returns the number of tasks cleared the celery queue.",

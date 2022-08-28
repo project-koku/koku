@@ -54,13 +54,31 @@ def celery_queue_lengths(request):
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def clear_celery_queues(request):
-    """Clear celery queues."""
+    """
+    Clear celery queues.
+
+    Args:
+        clear_all (bool): optional boolean to all clearing all queues with redis
+    Returns:
+        purged_tasks (int): number of tasks deleted
+    """
+
+    clear_all = False
     purged_tasks = 0
-    purged_tasks = app.control.purge()
-    queue_lengths = list(collect_queue_metrics().values())
-    if not all(q_len == 0 for q_len in queue_lengths):
-        purged_tasks += sum(queue_lengths)
-        r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
-        r.flushall()
-    LOG.info(f"Celery purged tasks: {purged_tasks}")
-    return Response({"purged_tasks": purged_tasks})
+    if request.method == "GET":
+        params = request.query_params
+        clear_all = params.get("clear_all")
+        LOG.info(f"Clearing all queues parameter: {clear_all}")
+
+        # clear default_celery queue
+        purged_tasks = app.control.purge()
+
+        # clear all queues
+        if clear_all:
+            queue_lengths = list(collect_queue_metrics().values())
+            purged_tasks += sum(queue_lengths)
+            r = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+            r.flushall()
+
+        LOG.info(f"Celery purged tasks: {purged_tasks}")
+        return Response({"purged_tasks": purged_tasks})
