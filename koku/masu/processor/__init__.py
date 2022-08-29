@@ -53,6 +53,7 @@ def disable_cloud_source_processing(account):
 
     return res
 
+
 def disable_summary_processing(account):
     if account and not account.startswith("acct") and not account.startswith("org"):
         account = f"acct{account}"
