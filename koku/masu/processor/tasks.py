@@ -24,6 +24,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import get_months_in_date_range
 from koku import celery_app
+from masu.processor import disable_cloud_source_processing
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -317,6 +318,10 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
             )
 
     for report in reports_deduplicated:
+        if disable_cloud_source_processing(report.get("schema_name")):
+            msg = f"Summary diabled for {report.get('schema_name')}"
+            LOG.info(msg)
+            continue
         # For day-to-day summarization we choose a small window to
         # cover new data from a window of days.
         # This saves us from re-summarizing unchanged data and cuts down
