@@ -24,6 +24,7 @@ from api.iam.models import Tenant
 from api.provider.models import Provider
 from api.utils import get_months_in_date_range
 from koku import celery_app
+from masu.processor import disable_summary_processing
 from koku.middleware import KokuTenantMiddleware
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
@@ -373,6 +374,10 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
+    if disable_summary_processing(schema_name):
+        msg = f"Summary diabled for {schema_name}."
+        LOG.info(msg)
+        return
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     if isinstance(start_date, str):
