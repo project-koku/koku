@@ -625,7 +625,7 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         Checks the enabled tag keys for matching keys.
         """
         match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as aws
+            SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
                 INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key;
         """
         with connection.cursor() as cursor:

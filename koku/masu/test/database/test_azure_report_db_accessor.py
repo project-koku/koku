@@ -496,3 +496,17 @@ class AzureReportDBAccessorTest(MasuTestCase):
         # Confirms that the error log would be logged on last attempt
         self.assertEqual(mock_trino.call_args_list[-1].kwargs.get("attempts_left"), 0)
         self.assertEqual(mock_trino.call_count, settings.HIVE_PARTITION_DELETE_RETRIES)
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        with schema_context(self.schema):
+            AzureEnabledTagKeys.objects.all().delete()
+        value = self.accessor.get_openshift_on_cloud_matched_tags(1, 1)
+        self.assertFalse(value)
+
+    @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        value = self.accessor.get_openshift_on_cloud_matched_tags(1, 1)
+        self.assertTrue(value)
