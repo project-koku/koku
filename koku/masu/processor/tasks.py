@@ -375,7 +375,7 @@ def update_summary_tables(  # noqa: C901
 
     """
     if disable_summary_processing(schema_name):
-        msg = f"Summary diabled for {schema_name}."
+        msg = f"Summary disabled for {schema_name}."
         LOG.info(msg)
         return
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
