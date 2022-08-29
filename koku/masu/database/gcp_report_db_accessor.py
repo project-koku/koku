@@ -589,17 +589,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
         # do an initial check to see if there are any matching enabled keys between OCP & GCP
-        match_sql = f"""
-            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
-                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
-        """
-        with connection.cursor() as cursor:
-            cursor.db.set_schema(self.schema)
-            cursor.execute(match_sql)
-            results = cursor.fetchall()
-            if results[0][0] < 1:
-                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
-                return "skip"
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": gcp_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
@@ -669,3 +658,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_presto_multipart_sql_query(self.schema, sql, bind_params=sql_params)
+
+    def check_for_matching_enabled_keys(self):
+        """
+        Checks the enabled tag keys for matching keys.
+        """
+        match_sql = f"""
+            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
+        """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(match_sql)
+            results = cursor.fetchall()
+            if results[0][0] < 1:
+                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                return False
+        return True
