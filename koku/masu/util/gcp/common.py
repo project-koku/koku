@@ -155,7 +155,6 @@ def gcp_generate_daily_data(data_frame):
             "billing_account_id",
             "project_id",
             pd.Grouper(key="usage_start_time", freq="D"),
-            pd.Grouper(key="usage_end_time", freq="D"),
             "service_id",
             "sku_id",
             "system_labels",
