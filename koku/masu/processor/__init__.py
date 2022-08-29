@@ -59,7 +59,7 @@ def disable_summary_processing(account):
 
     context = {"schema": account}
     LOG.info(f"Processing UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("disable_summary_processing", context))
+    res = bool(UNLEASH_CLIENT.is_enabled("disable-summary-processing", context))
     LOG.info(f"    Processing {'disabled' if res else 'enabled'} {account}")
 
     return res
