@@ -588,7 +588,6 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                             raise err
 
     def get_openshift_on_cloud_matched_tags(self, gcp_bill_id, ocp_report_period_id):
-        # do an initial check to see if there are any matching enabled keys between OCP & GCP
         sql = pkgutil.get_data("masu.database", "sql/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
         sql_params = {"bill_id": gcp_bill_id, "report_period_id": ocp_report_period_id, "schema": self.schema}
