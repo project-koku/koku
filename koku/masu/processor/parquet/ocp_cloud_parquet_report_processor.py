@@ -151,7 +151,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             matched_tags = []
             if self.has_enabled_ocp_labels:
                 enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
-                if not enabled_tags:
+                if enabled_tags:
                     LOG.info("Getting matching tags from Postgres.")
                     matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
                 if not matched_tags and enabled_tags:
