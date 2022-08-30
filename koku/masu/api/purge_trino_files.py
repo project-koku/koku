@@ -13,18 +13,19 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
-from masu.processor import enable_purge_trino_files
-from koku.feature_flags import UNLEASH_CLIENT
 
 from api.models import Provider
 from api.utils import DateHelper
+from koku.feature_flags import UNLEASH_CLIENT
 from masu.celery.tasks import purge_s3_files
 from masu.database.provider_collector import ProviderCollector
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.processor import enable_purge_trino_files
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
 
 LOG = logging.getLogger(__name__)
+
 
 def check_if_schema_is_enabled(schema):
     """
@@ -34,6 +35,7 @@ def check_if_schema_is_enabled(schema):
     result = enable_purge_trino_files(schema)
     UNLEASH_CLIENT.destroy()
     return result
+
 
 # WARNING ONLY MANUALLY TESTED FOR GCP AT THE MOMENT
 @never_cache
