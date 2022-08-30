@@ -52,9 +52,8 @@ class PurgeTrinoFilesTest(MasuTestCase):
         self.schema = "org1234"
         self.bill_date = "2022-08-01"
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
-    def test_require_parameters(self, _, __):
+    def test_require_parameters(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         url = reverse("purge_trino_files")
         response_types = ["GET", "DELETE"]
@@ -70,9 +69,8 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(errmsg, expected_errmsg)
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
-    def test_provider_uuid_does_not_exist(self, _, __):
+    def test_provider_uuid_does_not_exist(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         fake_uuid = "12345"
         params = {"provider_uuid": fake_uuid}
@@ -91,9 +89,8 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(errmsg, expected_errmsg)
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
-    def test_require_schema(self, _, __):
+    def test_require_schema(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {"provider_uuid": self.aws_provider_uuid, "bill_date": "08-01-2022"}
         query_string = urlencode(params)
@@ -111,9 +108,8 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(errmsg, expected_errmsg)
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
-    def test_require_bill_date(self, _, __):
+    def test_require_bill_date(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {"provider_uuid": self.aws_provider_uuid, "schema": "org1234567"}
         query_string = urlencode(params)
@@ -131,9 +127,8 @@ class PurgeTrinoFilesTest(MasuTestCase):
                 self.assertEqual(response.status_code, 400)
                 self.assertEqual(errmsg, expected_errmsg)
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
-    def test_successful_get_request(self, _, __):
+    def test_successful_get_request(self, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.aws_provider_uuid,
@@ -145,13 +140,16 @@ class PurgeTrinoFilesTest(MasuTestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
+    @patch(
+        "masu.api.purge_trino_files.purge_manifest_records.delay",
+        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
+    )
     @patch(
         "masu.api.purge_trino_files.purge_s3_files",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_unleash_get_request(self, mock_purge, _, __):
+    def test_unleash_get_request(self, mock_purge, mock_manifest, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.aws_provider_uuid,
@@ -164,14 +162,18 @@ class PurgeTrinoFilesTest(MasuTestCase):
         # body = response.json()
         self.assertEqual(response.status_code, 200)
         mock_purge.assert_not_called()
+        mock_manifest.assert_not_called()
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
+    @patch(
+        "masu.api.purge_trino_files.purge_manifest_records.delay",
+        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
+    )
     @patch(
         "masu.api.purge_trino_files.purge_s3_files.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_unleash_delete_request(self, mock_purge, _, __):
+    def test_unleash_delete_request(self, mock_purge, mock_manifest, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.aws_provider_uuid,
@@ -180,24 +182,25 @@ class PurgeTrinoFilesTest(MasuTestCase):
         }
         query_string = urlencode(params)
         url = reverse("purge_trino_files") + "?" + query_string
-        with patch("masu.api.purge_trino_files.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = FakeManifest()
-            response = self.client.delete(url)
-            body = response.json()
-            self.assertEqual(response.status_code, 200)
-            mock_purge.assert_called_with(
-                provider_uuid=self.aws_provider_uuid, provider_type="AWS-local", schema_name=self.schema, prefix=ANY
-            )
-            for key in body.keys():
-                self.assertEqual(key, "dc350f15-ffc7-4fcb-92d7-2a9f1275568e")
+        response = self.client.delete(url)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        mock_purge.assert_called_with(
+            provider_uuid=self.aws_provider_uuid, provider_type="AWS-local", schema_name=self.schema, prefix=ANY
+        )
+        mock_manifest.assert_called()
+        self.assertIn("dc350f15-ffc7-4fcb-92d7-2a9f1275568e", body.keys())
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
+    @patch(
+        "masu.api.purge_trino_files.purge_manifest_records.delay",
+        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
+    )
     @patch(
         "masu.api.purge_trino_files.purge_s3_files.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_unleash_delete_request_with_date_range(self, mock_purge, _, __):
+    def test_unleash_delete_request_with_date_range(self, mock_purge, mock_manifest, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.gcp_provider_uuid,
@@ -208,24 +211,25 @@ class PurgeTrinoFilesTest(MasuTestCase):
         }
         query_string = urlencode(params)
         url = reverse("purge_trino_files") + "?" + query_string
-        with patch("masu.api.purge_trino_files.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = FakeManifest()
-            response = self.client.delete(url)
-            body = response.json()
-            self.assertEqual(response.status_code, 200)
-            mock_purge.assert_called_with(
-                provider_uuid=self.gcp_provider_uuid, provider_type="GCP-local", schema_name=self.schema, prefix=ANY
-            )
-            for key in body.keys():
-                self.assertEqual(key, "dc350f15-ffc7-4fcb-92d7-2a9f1275568e")
+        response = self.client.delete(url)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        mock_purge.assert_called_with(
+            provider_uuid=self.gcp_provider_uuid, provider_type="GCP-local", schema_name=self.schema, prefix=ANY
+        )
+        mock_manifest.assert_called()
+        self.assertIn("dc350f15-ffc7-4fcb-92d7-2a9f1275568e", body.keys())
 
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=True)
     @patch("koku.middleware.MASU", return_value=True)
+    @patch(
+        "masu.api.purge_trino_files.purge_manifest_records.delay",
+        return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
+    )
     @patch(
         "masu.api.purge_trino_files.purge_s3_files.delay",
         return_value=AsyncResult("dc350f15-ffc7-4fcb-92d7-2a9f1275568e"),
     )
-    def test_unleash_delete_request_with_ignore_manifest(self, mock_purge, _, __):
+    def test_unleash_delete_request_with_ignore_manifest(self, mock_purge, mock_manfiest, _):
         """Test the purge_trino_files endpoint with no parameters."""
         params = {
             "provider_uuid": self.gcp_provider_uuid,
@@ -236,27 +240,11 @@ class PurgeTrinoFilesTest(MasuTestCase):
         }
         query_string = urlencode(params)
         url = reverse("purge_trino_files") + "?" + query_string
-        with patch("masu.api.purge_trino_files.ReportManifestDBAccessor") as mock_accessor:
-            mock_accessor.return_value.__enter__.return_value = FakeManifest()
-            response = self.client.delete(url)
-            body = response.json()
-            self.assertEqual(response.status_code, 200)
-            mock_purge.assert_called_with(
-                provider_uuid=self.gcp_provider_uuid, provider_type="GCP-local", schema_name=self.schema, prefix=ANY
-            )
-            for key in body.keys():
-                self.assertEqual(key, "dc350f15-ffc7-4fcb-92d7-2a9f1275568e")
-
-    @patch("masu.api.purge_trino_files.enable_purge_trino_files", return_value=False)
-    @patch("koku.middleware.MASU", return_value=True)
-    def test_failure_if_not_enabled_request(self, _, __):
-        """Test the purge_trino_files endpoint with no parameters."""
-        params = {
-            "provider_uuid": self.aws_provider_uuid,
-            "schema": self.schema,
-            "bill_date": self.bill_date,
-        }
-        query_string = urlencode(params)
-        url = reverse("purge_trino_files") + "?" + query_string
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 400)
+        response = self.client.delete(url)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        mock_purge.assert_called_with(
+            provider_uuid=self.gcp_provider_uuid, provider_type="GCP-local", schema_name=self.schema, prefix=ANY
+        )
+        mock_manfiest.assert_not_called()
+        self.assertIn("dc350f15-ffc7-4fcb-92d7-2a9f1275568e", body.keys())
