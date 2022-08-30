@@ -13,6 +13,8 @@ from rest_framework.decorators import renderer_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
+from masu.processor import enable_purge_trino_files
+from koku.feature_flags import UNLEASH_CLIENT
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -24,6 +26,14 @@ from masu.processor.parquet.parquet_report_processor import ParquetReportProcess
 
 LOG = logging.getLogger(__name__)
 
+def check_if_schema_is_enabled(schema):
+    """
+    Checks to see if the schema is enabled in unleash.
+    """
+    UNLEASH_CLIENT.initialize_client()
+    result = enable_purge_trino_files(schema)
+    UNLEASH_CLIENT.destroy()
+    return result
 
 # WARNING ONLY MANUALLY TESTED FOR GCP AT THE MOMENT
 @never_cache
@@ -41,8 +51,10 @@ def purge_trino_files(request):  # noqa: C901
     # Parameter Validation
     params = request.query_params
     simulate = True
+    delete_manifest = False
     if request.method == "DELETE":
         simulate = False
+        delete_manifest = True
     if not params:
         errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -60,6 +72,10 @@ def purge_trino_files(request):  # noqa: C901
         errmsg = "Parameter missing. Required: schema"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
+    if not check_if_schema_is_enabled(schema):
+        errmsg = f"Schema {schema} not enabled in unleash."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
+
     # TODO: make sure the bill date comes in the yyyy-mm-dd format
     bill_date = params.get("bill_date")
     if not bill_date:
@@ -68,7 +84,6 @@ def purge_trino_files(request):  # noqa: C901
 
     start_date = params.get("start_date")
     end_date = params.get("end_date") if params.get("end_date") else start_date
-    delete_manifest = True
     if "ignore_manifest" in params.keys():
         delete_manifest = False
 
