@@ -40,7 +40,7 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     """
     cache = caches["default"]
     if isinstance(cache, RedisCache):
-        all_keys = cache.client.keys("*")
+        all_keys = cache.client.keys("*")  # pragma: no cover
     elif isinstance(cache, LocMemCache):
         all_keys = cache._cache.keys()
         all_keys = list(all_keys)
