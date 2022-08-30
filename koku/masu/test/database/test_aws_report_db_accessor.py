@@ -834,11 +834,11 @@ class AWSReportDBAccessorTest(MasuTestCase):
         """Test that Trino is used to find matched tags."""
         with schema_context(self.schema):
             AWSEnabledTagKeys.objects.all().delete()
-        value = self.accessor.check_for_matching_enabled_keys(1, 1)
+        value = self.accessor.check_for_matching_enabled_keys()
         self.assertFalse(value)
 
     @patch("masu.database.aws_report_db_accessor.AWSReportDBAccessor._execute_presto_raw_sql_query")
     def test_check_for_matching_enabled_keys(self, mock_presto):
         """Test that Trino is used to find matched tags."""
-        value = self.accessor.check_for_matching_enabled_keys(1, 1)
+        value = self.accessor.check_for_matching_enabled_keys()
         self.assertTrue(value)
