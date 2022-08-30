@@ -21,6 +21,7 @@ from json import JSONDecodeError
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from . import database
 from . import sentry
@@ -199,6 +200,13 @@ REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_HEALTH_CHECK_INTERVAL = 5
+REDIS_RETRY_ON_TIMEOUT = True
+REDIS_CONNECTION_POOL_KWARGS = {
+    "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+    "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
+    "retry_on_error": [RedisConnectionError],
+}
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
@@ -226,6 +234,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1000,
+                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "rbac": {
@@ -236,6 +245,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1000,
+                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "worker": {
@@ -525,8 +535,8 @@ CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 CELERY_RESULTS_URL = REDIS_URL
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
-CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 5
-CELERY_REDIS_RETRY_ON_TIMEOUT = True
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
+CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
 
 # HCS debugging
 ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)

@@ -12,10 +12,6 @@ from django_redis.cache import RedisCache
 
 from api.provider.models import Provider
 
-# from django.conf import settings
-# from redis import Redis
-# from redis.exceptions import ConnectionError
-
 
 class KokuCacheError(Exception):
     """KokuCacheError Error."""
@@ -44,18 +40,7 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     """
     cache = caches["default"]
     if isinstance(cache, RedisCache):
-        # cache = Redis(
-        #     host=settings.REDIS_HOST,
-        #     port=settings.REDIS_PORT,
-        #     db=settings.REDIS_DB,
-        #     health_check_interval=settings.REDIS_HEALTH_CHECK_INTERVAL,
-        #     retry_on_timeout=settings.REDIS_RETRY_ON_TIMEOUT,
-        #     retry_on_error=[
-        #         ConnectionError,
-        #     ],
-        # )
-        all_keys = cache.keys("*")
-        all_keys = [key.decode("utf-8") for key in all_keys]
+        all_keys = cache._client.keys("*") if cache._client else []
     elif isinstance(cache, LocMemCache):
         all_keys = cache._cache.keys()
         all_keys = list(all_keys)
