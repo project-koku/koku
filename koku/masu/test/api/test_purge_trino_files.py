@@ -11,35 +11,7 @@ from celery.result import AsyncResult
 from django.test.utils import override_settings
 from django.urls import reverse
 
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
-
-
-class FakeManifest:
-    def get_manifest_list_for_provider_and_bill_date(self, provider_uuid, bill_date):
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": "2020-02-01",
-            "num_total_files": 2,
-            "provider_uuid": provider_uuid,
-        }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
-        return [manifest]
-
-    def get_manifest_list_for_provider_and_date_range(self, provider_uuid, start_date, end_date):
-        manifest_dict = {
-            "assembly_id": "1234",
-            "billing_period_start_datetime": "2020-02-01",
-            "num_total_files": 2,
-            "provider_uuid": provider_uuid,
-        }
-        manifest_accessor = ReportManifestDBAccessor()
-        manifest = manifest_accessor.add(**manifest_dict)
-        return [manifest]
-
-    def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
-        return True
 
 
 @override_settings(ROOT_URLCONF="masu.urls")
