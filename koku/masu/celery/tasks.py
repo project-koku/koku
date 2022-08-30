@@ -108,6 +108,36 @@ def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
     return remaining_objects
 
 
+@celery_app.task(name="masu.celery.tasks.purge_manifest_records", queue=DEFAULT)
+def purge_manifest_records(schema_name, provider_uuid, dates):
+    """Remove files in a particular path prefix."""
+    LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
+    if not enable_purge_trino_files(schema_name):
+        msg = f"Schema {schema_name} not enabled in unleash."
+        LOG.info(msg)
+        return msg
+    with ReportManifestDBAccessor() as manifest_accessor:
+        if dates.get("start_date") and dates.get("start_date"):
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                provider_uuid, dates.get("start_date"), dates.get("start_date")
+            )
+        elif dates.get("bill_date"):
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                provider_uuid=provider_uuid, bill_date=dates.get("bill_date")
+            )
+        else:
+            msg = f"Dates requirements not met no manifest deleted, received: {dates}"
+            LOG.info(msg)
+            return msg
+        manifest_id_list = [manifest.id for manifest in manifest_list]
+        LOG.info(f"Attempting to delete the following manifests: {manifest_id_list}")
+        manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    provider.setup_complete = False
+    provider.save()
+    LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
+
+
 def deleted_archived_with_prefix(s3_bucket_name, prefix):
     """
     Delete data from archive with given prefix.
