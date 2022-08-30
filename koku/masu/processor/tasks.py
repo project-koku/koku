@@ -35,6 +35,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import disable_summary_processing
 from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -373,6 +374,10 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
+    if disable_summary_processing(schema_name):
+        msg = f"Summary disabled for {schema_name}."
+        LOG.info(msg)
+        return
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     if isinstance(start_date, str):
