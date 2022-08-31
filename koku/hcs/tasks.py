@@ -89,13 +89,13 @@ def should_finalize(start_date, end_date):
         return False
     dh = DateHelper()
     # if the date is before last month, finalize
-    if start_date < dh.last_month_start.date() and end_date < dh.last_month_start.date():
+    if end_date < dh.last_month_start.date():
         return True
     # if we are not past the 15th of this month, don't finalize
     elif dh.now < dh.today.replace(day=15):
         return False
     # if we are past the 15th and the end date is before this month, finalize
-    elif start_date < dh.this_month_start.date() and end_date < dh.this_month_start.date():
+    elif end_date < dh.this_month_start.date():
         return True
     return False
 
