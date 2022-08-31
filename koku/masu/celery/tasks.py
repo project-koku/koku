@@ -117,9 +117,9 @@ def purge_manifest_records(schema_name, provider_uuid, dates):
         LOG.info(msg)
         return msg
     with ReportManifestDBAccessor() as manifest_accessor:
-        if dates.get("start_date") and dates.get("start_date"):
+        if dates.get("start_date") and dates.get("end_date"):
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
-                provider_uuid, dates.get("start_date"), dates.get("start_date")
+                provider_uuid, dates.get("start_date"), dates.get("end_date")
             )
         elif dates.get("bill_date"):
             manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
