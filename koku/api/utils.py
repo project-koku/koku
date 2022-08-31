@@ -258,6 +258,10 @@ class DateHelper:
         """
         end_midnight = end_date
         start_midnight = start_date
+        if isinstance(start_date, str):
+            start_midnight = ciso8601.parse_datetime(start_date).replace(hour=0, minute=0, second=0, microsecond=0)
+        if isinstance(end_date, str):
+            end_midnight = ciso8601.parse_datetime(end_date).replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(end_date, datetime.datetime):
             end_midnight = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
         if isinstance(start_date, datetime.datetime):
@@ -374,6 +378,23 @@ class DateHelper:
         date_obj = datetime.datetime.strptime(date_str, "%Y%m")
         month_start = self.month_start(date_obj)
         return month_start
+
+    def invoice_month_from_bill_date(self, bill_date):
+        """Find the beginning of the month for invoice month.
+
+        Invoice month format is {year}{month}.
+        Ex. 202011
+
+        Args:
+            bill_date: Start of the month for the bill.
+
+        Returns:
+            (datetime.datetime)
+        """
+        if isinstance(bill_date, str):
+            bill_date = ciso8601.parse_datetime(bill_date).replace(tzinfo=pytz.UTC)
+        date_obj = bill_date.strftime("%Y%m")
+        return date_obj
 
     def gcp_find_invoice_months_in_date_range(self, start, end):
         """Finds all the invoice months in a given date range.
