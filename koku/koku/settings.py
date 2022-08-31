@@ -21,7 +21,6 @@ from json import JSONDecodeError
 from boto3.session import Session
 from botocore.exceptions import ClientError
 from corsheaders.defaults import default_headers
-from redis.exceptions import ConnectionError as RedisConnectionError
 
 from . import database
 from . import sentry
@@ -205,7 +204,6 @@ REDIS_RETRY_ON_TIMEOUT = True
 REDIS_CONNECTION_POOL_KWARGS = {
     "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
     "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
-    "retry_on_error": [RedisConnectionError],
 }
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
