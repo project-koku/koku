@@ -44,25 +44,13 @@ class BigQueryHelper:
     def daily_sql(self, invoice_month, results):
         self.set_dates_from_invoice_month(invoice_month)
         daily_query = f"""
-<<<<<<< Updated upstream
-                SELECT DATE(usage_start_time) as usage_date,
-=======
                 SELECT DATE(_PARTITIONTIME) as partition_date,
->>>>>>> Stashed changes
                     sum(cost) as cost,
                     sum(c.amount) as credit_amount
                     FROM {self.table_name}
                     LEFT JOIN unnest(credits) as c
                     WHERE invoice.month = '{invoice_month}'
                     AND DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
-<<<<<<< Updated upstream
-                    GROUP BY usage_date ORDER BY usage_date;
-                """
-        rows = self.client.query(daily_query).result()
-        daily_dict = {}
-        for row in rows:
-            daily_dict[str(row["usage_date"])] = {
-=======
                     GROUP BY partition_date ORDER BY partition_date;
                 """
 
@@ -71,7 +59,6 @@ class BigQueryHelper:
         daily_dict = {}
         for row in rows:
             daily_dict[str(row["partition_date"])] = {
->>>>>>> Stashed changes
                 "cost": row.get("cost"),
                 "credit": row.get("credit_amount"),
                 "total": self.get_total(row["cost"], row["credit_amount"]),
