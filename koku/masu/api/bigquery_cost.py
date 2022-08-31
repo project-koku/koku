@@ -84,15 +84,13 @@ class BigQueryHelper:
                 "total": self.get_total(row["cost"], row["credit_amount"]),
             }
             results[key + "_metadata"] = metadata
+        return results
 
     def custom_sql(self, query, results):
         """Takes a custom query and replaces the table_name."""
         query = query.replace("table_name", self.table_name)
         rows = self.client.query(query).result()
-        for x in range(len(rows)):
-            results[str(x)] = rows[x]
-        return results
-
+        return rows
 
 
 @never_cache
@@ -133,11 +131,11 @@ def bigquery_cost(request):  # noqa: C901
 
     results = {}
     try:
-        bq_helper = BigQueryHelper
+        bq_helper = BigQueryHelper(table_name)
         if request.method == "POST":
             data = request.data
             query = data.get("query")
-            results = bq_helper.custom_sql(query)
+            results = bq_helper.custom_sql(query, results)
             resp_key = "custom_query_results"
         else:
             for key, invoice_month in mapping.items():
