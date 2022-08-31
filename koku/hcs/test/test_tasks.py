@@ -456,6 +456,27 @@ class TestHCSTasks(HCSTestCase):
                 "now": self.dh.this_month_end,
                 "expected": True,
             },
+            {
+                "name": "on-the-15th-and-last-month",
+                "start": self.dh.last_month_start.date(),
+                "end": self.dh.last_month_end.date(),
+                "now": self.dh.this_month_end.replace(day=15),
+                "expected": True,
+            },
+            {
+                "name": "on-the-14th-and-last-month",
+                "start": self.dh.last_month_start.date(),
+                "end": self.dh.last_month_end.date(),
+                "now": self.dh.this_month_end.replace(day=14),
+                "expected": False,
+            },
+            {
+                "name": "on-the-16th-and-last-month",
+                "start": self.dh.last_month_start.date(),
+                "end": self.dh.last_month_end.date(),
+                "now": self.dh.this_month_end.replace(day=16),
+                "expected": True,
+            },
         ]
 
         for test in table:
