@@ -44,24 +44,20 @@ class BigQueryHelper:
     def daily_sql(self, invoice_month, results):
         self.set_dates_from_invoice_month(invoice_month)
         daily_query = f"""
-                SELECT DATE(_PARTITIONTIME) as partition_date,
+                SELECT DATE(usage_start_time) as usage_date,
                     sum(cost) as cost,
-                    sum(c.amount) as credit_amount
                     FROM {self.table_name}
-                    LEFT JOIN unnest(credits) as c
                     WHERE invoice.month = '{invoice_month}'
                     AND DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
-                    GROUP BY partition_date ORDER BY partition_date;
+                    GROUP BY usage_date ORDER BY usage_date;
                 """
 
         LOG.info(daily_query)
         rows = self.client.query(daily_query).result()
         daily_dict = {}
         for row in rows:
-            daily_dict[str(row["partition_date"])] = {
-                "cost": row.get("cost"),
-                "credit": row.get("credit_amount"),
-                "total": self.get_total(row["cost"], row["credit_amount"]),
+            daily_dict[str(row["usage_date"])] = {
+                "cost": row.get("cost")
             }
         results[invoice_month] = daily_dict
         return results
@@ -70,9 +66,7 @@ class BigQueryHelper:
         self.set_dates_from_invoice_month(invoice_month)
         monthly_query = f"""
                 SELECT sum(cost) as cost,
-                    sum(c.amount) as credit_amount
                     FROM {self.table_name}
-                    LEFT JOIN unnest(credits) as c
                     WHERE DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
                     AND invoice.month = '{invoice_month}'
                 """
@@ -82,13 +76,11 @@ class BigQueryHelper:
             metadata = {
                 "invoice_month": invoice_month,
                 "cost": row.get("cost"),
-                "credit_amount": row.get("credit_amount"),
-                "total": self.get_total(row["cost"], row["credit_amount"]),
             }
             results[key + "_metadata"] = metadata
         return results
 
-    def custom_sql(self, query, results):
+    def custom_sql(self, query):
         """Takes a custom query and replaces the table_name."""
         query = query.replace("table_name", self.table_name)
         rows = self.client.query(query).result()
@@ -137,7 +129,7 @@ def bigquery_cost(request):  # noqa: C901
         if request.method == "POST":
             data = request.data
             query = data.get("query")
-            results = bq_helper.custom_sql(query, results)
+            results = bq_helper.custom_sql(query)
             resp_key = "custom_query_results"
         else:
             for key, invoice_month in mapping.items():
