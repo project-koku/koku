@@ -75,6 +75,25 @@
             "createdAt": "2022-08-20T19:50:00.756Z"
         },
         {
+            "name": "disable-summary-processing",
+            "description": "Toggle to disable summary for a particular source.",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-08-29T11:50:00.756Z"
+        },
+        {
             "name": "hcs-data-processor",
             "description": "any account listed in this strategy will be allowed to generate HCS report data",
             "type": "permission",
