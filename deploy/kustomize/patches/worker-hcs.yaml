@@ -83,16 +83,6 @@
           value: ${WORKER_HCS_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: SCHEDULE_CHECK_INTERVAL
-          value: ${SCHEDULE_CHECK_INTERVAL}
-        - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
-          value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
-        - name: REMOVE_EXPIRED_REPORT_UTC_TIME
-          value: ${REMOVE_EXPIRED_REPORT_UTC_TIME}
-        - name: VACUUM_DATA_DAY_OF_WEEK
-          value: ${VACUUM_DATA_DAY_OF_WEEK}
-        - name: VACUUM_DATA_UTC_TIME
-          value: ${VACUUM_DATA_UTC_TIME}
         - name: VOLUME_FILE_RETENTION
           value: ${VOLUME_FILE_RETENTION}
         - name: CLEAN_VOLUME_DAY_OF_WEEK

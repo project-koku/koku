@@ -11,6 +11,7 @@ from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
+from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -106,12 +107,19 @@ LOG.info(f"Celery worker alive timeout = {app.conf.worker_proc_alive_timeout}")
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
-    # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
+    # The schedule to scan for new reports.
+    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value(
+        "REPORT_DOWNLOAD_SCHEDULE", default="0 4,16 * * *"
+    )  # default: “At minute 0 past hour 4 and 16.”
+    if not croniter.is_valid(REPORT_DOWNLOAD_SCHEDULE):
+        print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
+        REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
+    report_schedule = REPORT_DOWNLOAD_SCHEDULE.split(" ", 5)
+    print(f"report-download-schedule: {report_schedule}")
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
-        "schedule": REPORT_CHECK_INTERVAL.seconds,
+        "schedule": crontab(*report_schedule),
         "args": [],
     }
     app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
