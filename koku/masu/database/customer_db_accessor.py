@@ -57,7 +57,7 @@ class CustomerDBAccessor(KokuDBAccess):
             None
         Returns:
             (String): "Schema Name based on customer name",
-                    example: "acct10001"
+                    example: "org1234567"
 
         """
         obj = self._get_db_obj_query().first()

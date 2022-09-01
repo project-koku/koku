@@ -193,7 +193,7 @@ enable_ocp_tags() {
   log-info "Enabling OCP tags..."
   RESPONSE=$(curl -s -w "%{http_code}\n" --header "Content-Type: application/json" \
   --request POST \
-  --data '{"schema": "acct10001","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application"]}' \
+  --data '{"schema": "org1234567","action": "create","tag_keys": ["environment", "app", "version", "storageclass", "application"]}' \
   ${MASU_URL_PREFIX}/v1/enabled_tags/)
   STATUS_CODE=${RESPONSE: -3}
   DATA=${RESPONSE:: -3}
@@ -289,8 +289,8 @@ build_gcp_data() {
   render_yaml_files "${_yaml_files[@]}"
 
   log-info "Building OpenShift on ${_source_name} report data..."
-  nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
   nise_report ocp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_ocp_static_data.yml" --ocp-cluster-id test-ocp-gcp-cluster --insights-upload "$NISE_DATA_PATH/pvc_dir/insights_local"
+  nise_report gcp --static-report-file "$YAML_PATH/gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local"
   nise_report gcp --static-report-file "$YAML_PATH/ocp_on_gcp/rendered_gcp_static_data.yml" --gcp-bucket-name "$NISE_DATA_PATH/local_providers/gcp_local_0"
 
   log-info "Cleanup ${_source_name} rendered YAML files..."

@@ -195,7 +195,7 @@ class GCPProviderTestCase(TestCase):
             "authentication": {"credentials": credentials},
             "billing_source": {"data_source": data_source},
             "auth_header": "fakeauthheader",
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 12,
             "koku_uuid": provider_uuid,
         }
@@ -222,7 +222,7 @@ class GCPProviderTestCase(TestCase):
             "authentication": {"credentials": credentials},
             "billing_source": {"data_source": data_source_2},
             "auth_header": "fakeauthheader",
-            "account_id": "acct10001",
+            "account_id": "org1234567",
             "offset": 12,
         }
         Sources(**gcp_source2).save()

@@ -18,7 +18,7 @@ class CeleryTest(IamTestCase):
                 {
                     "id": "26256b1d-b0d8-4822-ba70-73da82af9542",
                     "name": "masu.processor.tasks.update_summary_tables",
-                    "args": ["acct10001", "AWS-local", "2878097c-7693-4a4a-9726-e75124457805", "2020-08-01", None],
+                    "args": ["org1234567", "AWS-local", "2878097c-7693-4a4a-9726-e75124457805", "2020-08-01", None],
                     "kwargs": {},
                     "type": "masu.processor.tasks.update_summary_tables",
                     "hostname": "celery@koku-worker-1",
@@ -32,14 +32,14 @@ class CeleryTest(IamTestCase):
 
         # No task ID
         self.assertTrue(
-            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["acct10001"])
+            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["org1234567"])
         )
         # Different task ID running the check than the listed currently running task
         self.assertTrue(
             is_task_currently_running(
                 "masu.processor.tasks.update_summary_tables",
                 "26256b1d-b0d8-4822-ba70-73da82af9543",
-                check_args=["acct10001"],
+                check_args=["org1234567"],
             )
         )
         # No check args
@@ -50,15 +50,15 @@ class CeleryTest(IamTestCase):
             is_task_currently_running(
                 "masu.processor.tasks.update_summary_tables",
                 "26256b1d-b0d8-4822-ba70-73da82af9542",
-                check_args=["acct10001"],
+                check_args=["org1234567"],
             )
         )
 
         # An incomplete task name
-        self.assertFalse(is_task_currently_running("update_summary_tables", None, check_args=["acct10001"]))
+        self.assertFalse(is_task_currently_running("update_summary_tables", None, check_args=["org1234567"]))
         # A different check arg
         self.assertFalse(
-            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["acct10002"])
+            is_task_currently_running("masu.processor.tasks.update_summary_tables", None, check_args=["org2222222"])
         )
         # A different task
         self.assertFalse(is_task_currently_running("masu.processor.tasks.update_cost_model_costs", None))

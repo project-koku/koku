@@ -142,7 +142,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Assert that an error is raised for an invalid compression."""
         with self.assertRaises(MasuProcessingError):
             OCPReportProcessor(
-                schema_name="acct10001",
+                schema_name="org1234567",
                 report_path=self.test_report,
                 compression="unsupported",
                 provider_uuid=self.ocp_provider_uuid,
@@ -151,7 +151,7 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_detect_report_type(self):
         """Test report type detection."""
         usage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -159,7 +159,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertEqual(usage_processor.report_type, OCPReportTypes.CPU_MEM_USAGE)
 
         storage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -167,7 +167,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertEqual(storage_processor.report_type, OCPReportTypes.STORAGE)
 
         node_label_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.node_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -175,7 +175,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertEqual(node_label_processor.report_type, OCPReportTypes.NODE_LABELS)
 
         namespace_label_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.namespace_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -184,7 +184,7 @@ class OCPReportProcessorTest(MasuTestCase):
 
         with self.assertRaises(OCPReportProcessorError):
             OCPReportProcessor(
-                schema_name="acct10001",
+                schema_name="org1234567",
                 report_path=self.unknown_report,
                 compression=UNCOMPRESSED,
                 provider_uuid=self.ocp_provider_uuid,
@@ -194,7 +194,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test the processing of an uncompressed file."""
         counts = {}
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -221,7 +221,7 @@ class OCPReportProcessorTest(MasuTestCase):
         with patch.object(Config, "REPORT_PROCESSING_BATCH_SIZE", 5):
             counts = {}
             processor = OCPReportProcessor(
-                schema_name="acct10001",
+                schema_name="org1234567",
                 report_path=self.test_report,
                 compression=UNCOMPRESSED,
                 provider_uuid=self.ocp_provider_uuid,
@@ -246,7 +246,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that row duplicates are not inserted into the DB."""
         counts = {}
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -267,7 +267,7 @@ class OCPReportProcessorTest(MasuTestCase):
         shutil.copy2(self.test_report_path, self.test_report)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -307,7 +307,7 @@ class OCPReportProcessorTest(MasuTestCase):
             writer.writerows(data)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=tmp_file,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -476,7 +476,7 @@ class OCPReportProcessorTest(MasuTestCase):
         row["persistentvolume_labels"] = ""
         row["persistentvolumeclaim_labels"] = ""
         storage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -499,7 +499,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that line item data is returned properly."""
         cluster_id = "12345"
         storage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -583,7 +583,7 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_process_storage_default(self):
         """Test the processing of an uncompressed storagefile."""
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -606,7 +606,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that row duplicate storage rows are not inserted into the DB."""
         counts = {}
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -627,7 +627,7 @@ class OCPReportProcessorTest(MasuTestCase):
         shutil.copy2(self.storage_report_path, self.storage_report)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -644,7 +644,7 @@ class OCPReportProcessorTest(MasuTestCase):
         """Test that row duplicate node label rows are not inserted into the DB."""
         counts = {}
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.node_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -665,7 +665,7 @@ class OCPReportProcessorTest(MasuTestCase):
         shutil.copy2(self.node_report_path, self.node_report)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.node_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -681,7 +681,7 @@ class OCPReportProcessorTest(MasuTestCase):
     def test_process_usage_and_storage_default(self):
         """Test the processing of an uncompressed storage and usage files."""
         storage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -701,7 +701,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertGreater(storage_after_count, storage_before_count)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.test_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -721,7 +721,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertGreater(after_count, before_count)
 
         node_label_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=self.node_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -772,7 +772,7 @@ class OCPReportProcessorTest(MasuTestCase):
             writer.writerows(storage_data)
 
         storage_processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=storage_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,
@@ -792,7 +792,7 @@ class OCPReportProcessorTest(MasuTestCase):
         self.assertEqual(storage_after_count, storage_before_count)
 
         processor = OCPReportProcessor(
-            schema_name="acct10001",
+            schema_name="org1234567",
             report_path=pod_report,
             compression=UNCOMPRESSED,
             provider_uuid=self.ocp_provider_uuid,

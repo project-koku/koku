@@ -39,12 +39,20 @@
       "description": "Operations about updating cost model costs"
     },
     {
+      "name": "OCP on Cloud Report Data",
+      "description": "Summarize an OpenShift on Cloud source's summary data"
+    },
+    {
       "name": "Status",
       "description": "Operations about status"
     },
     {
       "name": "Sources",
       "description": "Information on all cost management sources"
+    },
+    {
+      "name": "Notification",
+      "description": "Start task to check and send cost management notifications"
     },
     {
       "name": "Crawl Account Hierarchy",
@@ -61,6 +69,10 @@
     {
       "name": "Update exchange rates",
       "description": "Updates and returns the list of exchange rates"
+    },
+    {
+      "name": "Trino",
+      "description": "An endpoint to interact with Trino."
     }
   ],
   "paths": {
@@ -107,6 +119,16 @@
             "type": "string",
             "format": "date",
             "example": "2019-01-01"
+          }
+        },
+        {
+          "name": "summarize_reports",
+          "in": "query",
+          "description": "Whether to trigger summarization after the download and process.",
+          "required": false,
+          "schema": {
+            "type": "boolean",
+            "example": true
           }
         }
       ]
@@ -246,9 +268,9 @@
             }
           },
           {
-            "name": "schema",
+            "name": "schema_name",
             "in": "query",
-            "description": "The database schema",
+            "description": "The database schema_name",
             "required": true,
             "schema": {
               "type": "string",
@@ -315,7 +337,7 @@
           {
             "name": "year",
             "in": "query",
-            "description": "The year you want to finalize, If no month is given then the previous month from today's date will be used",
+            "description": "The year you want to finalize, you must provide month when using this option",
             "required": false,
             "schema": {
               "type": "integer",
@@ -373,7 +395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HCSDataGetResponse"
+                  "$ref": "#/components/schemas/HCSFinalizationDataGetResponse"
                 }
               }
             }
@@ -440,6 +462,26 @@
               "type": "string",
               "format": "date",
               "example": "2019-12-31"
+            }
+          },
+          {
+            "name": "ocp_on_cloud",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "invoice_month",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "201912"
             }
           }
         ],
@@ -782,6 +824,118 @@
       },
       "parameters": []
     },
+    "/update_openshift_on_cloud/": {
+      "get": {
+        "operationId": "getOCPOnCloudReportData",
+        "description": "Update report summary tables in the database.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The OpenShift provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "The database schema",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "org1234567"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "The date to begin summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "The date to end summarizing",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-12-31"
+            }
+          },
+          {
+            "name": "queue",
+            "in": "query",
+            "description": "The celery queue to use",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "summary"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data summary task has been queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDataGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "OCP on Cloud Report Data"
+        ]
+      },
+      "parameters": []
+    },
+    "/notification/": {
+      "get": {
+        "summary": "check and send notifications",
+        "operationId": "getNotifications",
+        "description": "Return notification file async task ID.",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The celery task ID of the notification task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationGetResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Notification"
+        ]
+      }
+    },
     "/crawl_account_hierarchy/": {
       "get": {
         "summary": "Start the crawler for account hierarchy.",
@@ -1036,9 +1190,7 @@
               "schema": {
                 "type": "array",
                 "items": {
-                    "type": "string",
-                    "minlength": 4,
-                    "maxlength": 100
+                    "type": "string"
                 }
               }
             },
@@ -1146,7 +1298,7 @@
           "parameters": [
             {
               "name": "sql_statement",
-              "in": "body",
+              "in": "query",
               "description": "The text of the SQL statement to explain.",
               "required": true,
               "schema": {
@@ -1216,6 +1368,50 @@
         },
         "tags": [
           "GCP Invoice Monthly Cost"
+        ]
+      }
+    },
+    "/bigquery_cost/": {
+      "get": {
+        "summary": "Returns dictionary with cost mappings for continuity checks",
+        "operationId": "BigQueryCost",
+        "description": "Returns a dictionary with cost mappings for continuity checks",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "daily",
+            "in": "query",
+            "description": "boolean flag to return daily breakdown",
+            "required": false,
+            "schema": {
+
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bigquery Cost"
         ]
       }
     },
@@ -1497,6 +1693,188 @@
           }
         }
       }
+    },
+    "/trino/query/": {
+      "post": {
+        "summary": "Returns JSON or CSV with query output.",
+        "operationId": "TrinoQuery",
+        "description": "Returns JSON or CSV with query output.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrinoQueryPost"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Query result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrinoQueryPostResponse"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string",
+                  "example": "column_one,column_two,column_three"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Trino"
+        ]
+      }
+    },
+    "/purge_trino_files/": {
+      "get": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFiles",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "ignore_manifest",
+            "in": "query",
+            "description": "will not delete manifests if param is present",
+            "required": false,
+            "schema": {
+              "type": "string",
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "start of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "end of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      },
+      "delete": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFilesDelete",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      }
     }
   },
   "components": {
@@ -1598,6 +1976,30 @@
           "type": "object",
           "properties": {
             "query_plan": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TrinoQueryPost":{
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "example": "SELECT * FROM aws_openshift_daily"
+          },
+          "schema": {
+            "type": "string",
+            "example": "org1234567"
+          }
+        }
+      },
+      "TrinoQueryPostResponse":{
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "column_name": {
               "type": "string"
             }
           }
@@ -1759,6 +2161,34 @@
               "current": {
                 "type": "number",
                 "example": 204.51
+              }
+            }
+          }
+        }
+      },
+      "purgeTrinoFiles": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "1234-3234-2342-2343": {
+                "type": "string",
+                "example": "/path/in/s3"
+              }
+            }
+          }
+        }
+      },
+      "NotificationGetResponse": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "1234-3234-2342-2343": {
+                "type": "string",
+                "example": "/path/in/s3"
               }
             }
           }
@@ -2037,6 +2467,16 @@
           }
         }
       },
+      "HCSFinalizationDataGetResponse": {
+        "type": "object",
+        "properties": {
+          "Report Data Task ID": {
+            "type": "string",
+            "format": "uuid",
+            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+          }
+        }
+      },
       "UpdateCostModelCostGetResponse": {
         "type": "object",
         "properties": {
@@ -2067,7 +2507,7 @@
           },
           "schema_name": {
             "type": "string",
-            "example": "acct10001"
+            "example": "org1234567"
           }
         }
       },

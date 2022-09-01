@@ -35,6 +35,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import disable_summary_processing
 from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
@@ -46,6 +47,7 @@ from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
+from masu.util.gcp.common import deduplicate_reports_for_gcp
 
 
 LOG = logging.getLogger(__name__)
@@ -151,7 +153,14 @@ def get_report_files(  # noqa: C901
         None
 
     """
-    context = {"account": customer_name[4:], "provider_uuid": provider_uuid}
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    context = {}
+    if customer_name.startswith("acct"):
+        context["account"] = customer_name[4:]
+    else:
+        context["org_id"] = customer_name[3:]
+    context["provider_uuid"] = provider_uuid
     try:
         worker_stats.GET_REPORT_ATTEMPTS_COUNTER.labels(provider_type=provider_type).inc()
         month = report_month
@@ -200,6 +209,7 @@ def get_report_files(  # noqa: C901
             "tracing_id": tracing_id,
             "start": report_dict.get("start"),
             "end": report_dict.get("end"),
+            "invoice_month": report_dict.get("invoice_month"),
         }
 
         try:
@@ -265,7 +275,7 @@ def remove_expired_data(schema_name, provider, simulate, provider_uuid=None, que
 
 
 @celery_app.task(name="masu.processor.tasks.summarize_reports", queue=SUMMARIZE_REPORTS_QUEUE)
-def summarize_reports(reports_to_summarize, queue_name=None):
+def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None):
     """
     Summarize reports returned from line summary task.
 
@@ -285,24 +295,27 @@ def summarize_reports(reports_to_summarize, queue_name=None):
     for source, report_list in reports_by_source.items():
         starts = []
         ends = []
-        for report in report_list:
-            if report.get("start") and report.get("end"):
-                starts.append(report.get("start"))
-                ends.append(report.get("end"))
-            start = min(starts) if starts != [] else None
-            end = max(ends) if ends != [] else None
+        if report and report.get("provider_type") in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
+            reports_deduplicated += deduplicate_reports_for_gcp(report_list)
+        else:
+            for report in report_list:
+                if report.get("start") and report.get("end"):
+                    starts.append(report.get("start"))
+                    ends.append(report.get("end"))
+                start = min(starts) if starts != [] else None
+                end = max(ends) if ends != [] else None
 
-        reports_deduplicated.append(
-            {
-                "manifest_id": report.get("manifest_id"),
-                "tracing_id": report.get("tracing_id"),
-                "schema_name": report.get("schema_name"),
-                "provider_type": report.get("provider_type"),
-                "provider_uuid": report.get("provider_uuid"),
-                "start": start,
-                "end": end,
-            }
-        )
+            reports_deduplicated.append(
+                {
+                    "manifest_id": report.get("manifest_id"),
+                    "tracing_id": report.get("tracing_id"),
+                    "schema_name": report.get("schema_name"),
+                    "provider_type": report.get("provider_type"),
+                    "provider_uuid": report.get("provider_uuid"),
+                    "start": start,
+                    "end": end,
+                }
+            )
 
     for report in reports_deduplicated:
         # For day-to-day summarization we choose a small window to
@@ -327,6 +340,8 @@ def summarize_reports(reports_to_summarize, queue_name=None):
                         manifest_id=report.get("manifest_id"),
                         queue_name=queue_name,
                         tracing_id=tracing_id,
+                        manifest_list=manifest_list,
+                        invoice_month=month[2],
                     ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
 
 
@@ -341,6 +356,9 @@ def update_summary_tables(  # noqa: C901
     queue_name=None,
     synchronous=False,
     tracing_id=None,
+    ocp_on_cloud=True,
+    manifest_list=None,
+    invoice_month=None,
 ):
     """Populate the summary tables for reporting.
 
@@ -356,9 +374,17 @@ def update_summary_tables(  # noqa: C901
         None
 
     """
+    if disable_summary_processing(schema_name):
+        msg = f"Summary disabled for {schema_name}."
+        LOG.info(msg)
+        return
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
-    cache_args = [schema_name, provider, provider_uuid]
+    if isinstance(start_date, str):
+        cache_arg_date = start_date[:-3]  # Strip days from string
+    else:
+        cache_arg_date = start_date.strftime("%Y-%m")
+    cache_args = [schema_name, provider, provider_uuid, cache_arg_date]
     ocp_on_cloud_infra_map = {}
 
     if not synchronous:
@@ -373,8 +399,10 @@ def update_summary_tables(  # noqa: C901
                 start_date,
                 end_date=end_date,
                 manifest_id=manifest_id,
+                invoice_month=invoice_month,
                 queue_name=queue_name,
                 tracing_id=tracing_id,
+                ocp_on_cloud=ocp_on_cloud,
             ).apply_async(queue=queue_name or UPDATE_SUMMARY_TABLES_QUEUE)
             return
         worker_cache.lock_single_task(task_name, cache_args, timeout=settings.WORKER_CACHE_TIMEOUT)
@@ -385,6 +413,7 @@ def update_summary_tables(  # noqa: C901
         f" provider: {provider}, "
         f" start_date: {start_date}, "
         f" end_date: {end_date}, "
+        f" invoice_month: {invoice_month}, "
         f" manifest_id: {manifest_id}, "
         f" tracing_id: {tracing_id}"
     )
@@ -392,9 +421,14 @@ def update_summary_tables(  # noqa: C901
 
     try:
         updater = ReportSummaryUpdater(schema_name, provider_uuid, manifest_id, tracing_id)
-        start_date, end_date = updater.update_daily_tables(start_date, end_date)
-        updater.update_summary_tables(start_date, end_date, tracing_id)
-        ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
+        if provider in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
+            start_date, end_date = updater.update_daily_tables(start_date, end_date, invoice_month)
+            updater.update_summary_tables(start_date, end_date, tracing_id, invoice_month)
+        else:
+            start_date, end_date = updater.update_daily_tables(start_date, end_date)
+            updater.update_summary_tables(start_date, end_date, tracing_id)
+        if ocp_on_cloud:
+            ocp_on_cloud_infra_map = updater.get_openshift_on_cloud_infra_map(start_date, end_date, tracing_id)
     except ReportSummaryUpdaterCloudError as ex:
         LOG.info(
             log_json(tracing_id, f"Failed to correlate OpenShift metrics for provider: {provider_uuid}. Error: {ex}")
@@ -462,11 +496,14 @@ def update_summary_tables(  # noqa: C901
         else:
             group(signature_list).apply_async()
 
+    if not manifest_list and manifest_id:
+        manifest_list = [manifest_id]
+
     if cost_model is not None:
         linked_tasks = update_cost_model_costs.s(
             schema_name, provider_uuid, start_date, end_date, tracing_id=tracing_id
         ).set(queue=queue_name or UPDATE_COST_MODEL_COSTS_QUEUE) | mark_manifest_complete.si(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(
             queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE
         )
@@ -474,7 +511,7 @@ def update_summary_tables(  # noqa: C901
         stmt = f"update_cost_model_costs skipped. schema_name: {schema_name}, provider_uuid: {provider_uuid}"
         LOG.info(log_json(tracing_id, stmt))
         linked_tasks = mark_manifest_complete.s(
-            schema_name, provider, provider_uuid=provider_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+            schema_name, provider, provider_uuid=provider_uuid, manifest_list=manifest_list, tracing_id=tracing_id
         ).set(queue=queue_name or MARK_MANIFEST_COMPLETE_QUEUE)
 
     chain(linked_tasks).apply_async()
@@ -505,7 +542,11 @@ def update_openshift_on_cloud(
 ):
     """Update OpenShift on Cloud for a specific OpenShift and cloud source."""
     task_name = "masu.processor.tasks.update_openshift_on_cloud"
-    cache_args = [schema_name, infrastructure_provider_uuid]
+    if isinstance(start_date, str):
+        cache_arg_date = start_date[:-3]  # Strip days from string
+    else:
+        cache_arg_date = start_date.strftime("%Y-%m")
+    cache_args = [schema_name, infrastructure_provider_uuid, cache_arg_date]
     if not synchronous:
         worker_cache = WorkerCache()
         if worker_cache.single_task_is_running(task_name, cache_args):
@@ -672,11 +713,11 @@ def update_cost_model_costs(
 def mark_manifest_complete(  # noqa: C901
     schema_name,
     provider_type,
-    manifest_id=None,
     provider_uuid="",
     synchronous=False,
     queue_name=None,
     tracing_id=None,
+    manifest_list=None,
 ):
     """Mark a manifest and provider as complete"""
     stmt = (
@@ -684,19 +725,16 @@ def mark_manifest_complete(  # noqa: C901
         f" schema_name: {schema_name}, "
         f" provider_type: {provider_type}, "
         f" provider_uuid: {provider_uuid}, "
-        f" manifest_id: {manifest_id}, "
         f" synchronous: {synchronous}, "
         f" queue_name: {queue_name}, "
         f" tracing_id: {tracing_id}"
+        f" manifest_list: {manifest_list}"
     )
     LOG.info(log_json(tracing_id, stmt))
     if provider_uuid:
         ProviderDBAccessor(provider_uuid).set_data_updated_timestamp()
-    if manifest_id:
-        # Processing for this monifest should be complete after this step
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-            manifest_accessor.mark_manifest_as_completed(manifest)
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest_accessor.mark_manifests_as_completed(manifest_list)
 
 
 @celery_app.task(name="masu.processor.tasks.vacuum_schema", queue=DEFAULT)
