@@ -307,8 +307,8 @@ class QueryHandler:
     def _get_gcp_filter(self, delta=False):
         """Create dictionary for filter parameters for GCP.
 
-        For the gcp filters when the time scope is -1 or -2 we remove
-        the usage_start & usage_end filters and only use the invoice month.
+        GCP filtering is a little different because we need the invoice
+        month filter, and pad the time range to include cross over data.
 
         Args:
             delta (Boolean): Construct timeframe for delta
@@ -320,23 +320,24 @@ class QueryHandler:
             date_delta = self._get_date_delta()
             start = self.start_datetime - date_delta
             end = self.end_datetime - date_delta
+            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
         else:
             start = self.start_datetime
             end = self.end_datetime
-        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
-        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
+            invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
+            # We add a 5 day buffer to the start & end here
+            # to handle cross over data. We may want to change
+            # this to an env in the future
+            if self.parameters.get_filter("time_scope_value") and self.time_scope_value in [-1, -2, -3]:
+                start = self.dh.n_days_ago(start, 5)
+                end = self.dh.n_days_ahead(end, 5)
 
-        invoice_months = self.dh.gcp_find_invoice_months_in_date_range(start.date(), end.date())
         invoice_filter = QueryFilter(field="invoice_month", operation="in", parameter=invoice_months)
         filters.add(invoice_filter)
-        if self.parameters.get_filter("time_scope_value") and self.time_scope_value in [-1, -2]:
-            # we don't add the time filters to time scopes -1 or -2 unless they are using delta.
-            if delta:
-                filters.add(query_filter=start_filter)
-                filters.add(query_filter=end_filter)
-        else:
-            filters.add(query_filter=start_filter)
-            filters.add(query_filter=end_filter)
+        start_filter = QueryFilter(field="usage_start", operation="gte", parameter=start.date())
+        end_filter = QueryFilter(field="usage_start", operation="lte", parameter=end.date())
+        filters.add(query_filter=start_filter)
+        filters.add(query_filter=end_filter)
         return filters
 
     def filter_to_order_by(self, parameters):  # noqa: C901
