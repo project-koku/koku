@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime
 from datetime import timedelta
+from pprint import pprint
 
 from celery import Celery
 from celery import Task
@@ -223,7 +224,15 @@ app.autodiscover_tasks()
 
 CELERY_INSPECT = app.control.inspect()
 
-print(f"celery config: {app.conf}")
+
+# Print the configuration only in the celery workers
+hostname = ENVIRONMENT.get_value("HOSTNAME", default="no-hostname-set")
+if "koku-clowder-worker" in hostname:
+    print("celery config:")
+    pprint(app.conf.changes)
+# Print the beat schedules only in the scheduler
+if "scheduler" in hostname:
+    pprint(app.conf.beat_schedule)
 
 
 @celeryd_after_setup.connect
