@@ -226,6 +226,8 @@ app.autodiscover_tasks()
 
 CELERY_INSPECT = app.control.inspect()
 
+print(f"celery config: {app.conf}")
+
 
 @celeryd_after_setup.connect
 def wait_for_migrations(sender, instance, **kwargs):  # pragma: no cover
