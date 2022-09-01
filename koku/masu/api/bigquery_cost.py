@@ -22,6 +22,12 @@ from masu.database.provider_collector import ProviderCollector
 LOG = logging.getLogger(__name__)
 
 
+def get_total(cost, credit):
+    if cost and credit:
+        return cost + credit
+    return None
+
+
 class BigQueryHelper:
     def __init__(self, table_name):
         self.table_name = table_name
@@ -29,11 +35,6 @@ class BigQueryHelper:
         self.dh = DateHelper()
         self.start_date = None
         self.end_date = None
-
-    def get_total(self, cost, credit):
-        if cost and credit:
-            return cost + credit
-        return None
 
     def set_dates_from_invoice_month(self, invoice_month):
         """Calculates start & end dates from invoice month."""
@@ -56,9 +57,7 @@ class BigQueryHelper:
         rows = self.client.query(daily_query).result()
         daily_dict = {}
         for row in rows:
-            daily_dict[str(row["usage_date"])] = {
-                "cost": row.get("cost")
-            }
+            daily_dict[str(row["usage_date"])] = {"cost": row.get("cost")}
         results[invoice_month] = daily_dict
         return results
 
