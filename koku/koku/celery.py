@@ -114,12 +114,12 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
     if not croniter.is_valid(REPORT_DOWNLOAD_SCHEDULE):
         print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
         REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
-    report_schedule = REPORT_DOWNLOAD_SCHEDULE.split(" ", 5)
+    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
     print(f"report-download-schedule: {report_schedule}")
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
-        "schedule": crontab(*report_schedule),
+        "schedule": report_schedule,
         "args": [],
     }
     app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
