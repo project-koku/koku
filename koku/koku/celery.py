@@ -82,11 +82,7 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
-LOG.info("Starting celery.")
-# Setup the database for use in Celery
-# django.setup()
-# LOG.info("Database configured.")
-
+print("starting celery")
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
 app = LoggingCelery(
@@ -94,7 +90,7 @@ app = LoggingCelery(
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-LOG.info("Celery autodiscover tasks.")
+print("celery autodiscover tasks")
 
 # Specify the number of celery tasks to run before recycling the celery worker.
 MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
@@ -103,7 +99,7 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 # Timeout threshold for a worker process to startup
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
-LOG.info(f"Celery worker alive timeout = {app.conf.worker_proc_alive_timeout}")
+print(f"celery-worker-proc-alive-timeout = {app.conf.worker_proc_alive_timeout}")
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
@@ -175,7 +171,7 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-print(f"Source status schedule: {source_status_schedule}")
+print(f"source-status-schedule: {source_status_schedule}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
@@ -185,12 +181,6 @@ app.conf.beat_schedule["source_status_beat"] = {
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
-
-# Collect queue metrics.
-# app.conf.beat_schedule["queue_metrics"] = {
-#     "task": "masu.celery.tasks.collect_queue_metrics",
-#     "schedule": crontab(hour="*/1", minute=0),
-# }
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
