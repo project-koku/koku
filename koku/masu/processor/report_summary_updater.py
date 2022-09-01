@@ -138,7 +138,7 @@ class ReportSummaryUpdater:
             end_date = end_date.strftime("%Y-%m-%d")
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, invoice_month=None):
         """
         Update report daily rollup tables.
 
@@ -154,14 +154,17 @@ class ReportSummaryUpdater:
         LOG.info(log_json(self._tracing_id, msg))
         start_date, end_date = self._format_dates(start_date, end_date)
 
-        start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
+        if invoice_month:
+            start_date, end_date = self._updater.update_daily_tables(start_date, end_date, invoice_month)
+        else:
+            start_date, end_date = self._updater.update_daily_tables(start_date, end_date)
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)
         msg = f"Daily summary completed for source {self._provider_uuid}"
         LOG.info(log_json(self._tracing_id, msg))
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date, tracing_id):
+    def update_summary_tables(self, start_date, end_date, tracing_id, invoice_month=None):
         """
         Update report summary tables.
 
@@ -179,10 +182,14 @@ class ReportSummaryUpdater:
         start_date, end_date = self._format_dates(start_date, end_date)
         LOG.info(log_json(tracing_id, f"Using start date: {start_date}"))
         LOG.info(log_json(tracing_id, f"Using end date: {end_date}"))
+        LOG.info(log_json(tracing_id, f"Using invoice month: {invoice_month}"))
 
-        start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
+        if invoice_month:
+            start_date, end_date = self._updater.update_summary_tables(start_date, end_date, invoice_month)
+        else:
+            start_date, end_date = self._updater.update_summary_tables(start_date, end_date)
 
-        msg = f"Summary processing completed for source {self._provider_uuid}"
+        msg = f"Summary processing completed for source {self._provider_uuid} start: {start_date} - end: {end_date}"
         LOG.info(log_json(self._tracing_id, msg))
 
         invalidate_view_cache_for_tenant_and_source_type(self._schema, self._provider.type)

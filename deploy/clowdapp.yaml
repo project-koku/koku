@@ -206,6 +206,7 @@ objects:
         private:
           enabled: false
         public:
+          apiPath: cost-management
           enabled: true
     - minReplicas: ${{LISTENER_MIN_REPLICAS}}
       name: clowder-listener
@@ -491,6 +492,10 @@ objects:
           value: "true"
         - name: ENHANCED_ORG_ADMIN
           value: ${ENHANCED_ORG_ADMIN}
+        - name: PRESTO_HOST
+          value: ${PRESTO_HOST}
+        - name: PRESTO_PORT
+          value: ${PRESTO_PORT}
         image: ${IMAGE}:${IMAGE_TAG}
         livenessProbe:
           failureThreshold: 5
@@ -2507,6 +2512,8 @@ objects:
               fieldPath: metadata.name
         - name: DEVELOPMENT
           value: ${DEVELOPMENT}
+        - name: ENABLE_HCS_DEBUG
+          value: ${ENABLE_HCS_DEBUG}
         - name: CELERY_LOG_LEVEL
           value: ${CELERY_LOG_LEVEL}
         - name: KOKU_LOG_LEVEL
@@ -2712,38 +2719,6 @@ objects:
           requests:
             cpu: ${KOKU_CPU_REQUEST}
             memory: ${KOKU_MEMORY_REQUEST}
-    - name: org-id-populator-${POPULATOR_RUN_NUMBER}
-      podSpec:
-        command:
-        - ./org-id-column-populator
-        - -C
-        - -a
-        - account_id
-        - -o
-        - org_id
-        - -t
-        - ${ORG_ID_TRANSLATE_TARGET}
-        - --batch-size
-        - ${ORG_ID_BATCH_SIZE}
-        - --ean-translator-timeout
-        - ${ORG_ID_TRANSLATE_TIMEOUT}
-        - --ean-translator-addr
-        - http://${TENANT_TRANSLATOR_HOST}:${TENANT_TRANSLATOR_PORT}
-        - --prometheus-push-addr
-        - ${PROMETHEUS_PUSHGATEWAY}
-        env:
-        - name: LOG_FORMAT
-          value: ${POPULATOR_LOG_FORMAT}
-        - name: LOG_BATCH_FREQUENCY
-          value: 1s
-        image: ${POPULATOR_IMAGE}:${POPULATOR_IMAGE_TAG}
-        resources:
-          limits:
-            cpu: 300m
-            memory: 1Gi
-          requests:
-            cpu: 50m
-            memory: 512Mi
     kafkaTopics:
     - topicName: platform.sources.event-stream
     - topicName: platform.upload.announce
@@ -2763,14 +2738,6 @@ objects:
     appName: koku
     jobs:
     - db-migrate-cji-${DBM_IMAGE_TAG}-${DBM_INVOCATION}
-- apiVersion: cloud.redhat.com/v1alpha1
-  kind: ClowdJobInvocation
-  metadata:
-    name: populate-org-id-column-${POPULATOR_RUN_NUMBER}
-  spec:
-    appName: koku
-    jobs:
-    - org-id-populator-${POPULATOR_RUN_NUMBER}
 - apiVersion: v1
   data:
     django-secret-key: ${SECRET_KEY}
@@ -3093,24 +3060,6 @@ parameters:
 - displayName: RBAC_CACHE_TIMEOUT
   name: RBAC_CACHE_TIMEOUT
   value: "300"
-- name: ORG_ID_BATCH_SIZE
-  value: "50"
-- name: ORG_ID_TRANSLATE_TIMEOUT
-  value: "20"
-- name: ORG_ID_TRANSLATE_TARGET
-  value: api_customer
-- name: TENANT_TRANSLATOR_HOST
-  required: true
-- name: TENANT_TRANSLATOR_PORT
-  value: "8892"
-- name: POPULATOR_LOG_FORMAT
-  value: text
-- name: POPULATOR_IMAGE
-  value: quay.io/cloudservices/tenant-utils
-- name: POPULATOR_IMAGE_TAG
-  value: latest
-- name: POPULATOR_RUN_NUMBER
-  value: "1"
 - displayName: Minimum replicas
   name: KOKU_MIN_REPLICAS
   required: true
@@ -3453,3 +3402,6 @@ parameters:
   name: WORKER_HCS_WORKER_QUEUE
   required: true
   value: hcs
+- displayName: HCS debug
+  name: ENABLE_HCS_DEBUG
+  value: "False"

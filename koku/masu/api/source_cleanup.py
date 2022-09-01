@@ -148,7 +148,7 @@ def _sources_out_of_order_deletes():
     return sources_out_of_order_delete
 
 
-def _missing_sources(source_uuid):
+def _missing_sources(source_uuid=None):
     if source_uuid:
         sources = Sources.objects.filter(source_uuid=source_uuid)
     else:

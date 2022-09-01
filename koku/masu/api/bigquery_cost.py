@@ -22,14 +22,21 @@ from masu.database.provider_collector import ProviderCollector
 LOG = logging.getLogger(__name__)
 
 
+def get_total(cost, credit):
+    if cost and credit:
+        return cost + credit
+    return None
+
+
 @never_cache
 @api_view(http_method_names=["GET"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
-def gcp_invoice_monthly_cost(request):
+def bigquery_cost(request):  # noqa: C901
     """Returns the invoice monthly cost."""
     params = request.query_params
     provider_uuid = params.get("provider_uuid")
+    return_daily = True if "daily" in params.keys() else False
 
     if provider_uuid is None:
         errmsg = "provider_uuid is a required parameter."
@@ -61,13 +68,52 @@ def gcp_invoice_monthly_cost(request):
     client = bigquery.Client()
     try:
         for key, invoice_month in mapping.items():
-            query = f"SELECT sum(cost) FROM {table_name} WHERE invoice.month = '{invoice_month}'"
-            rows = client.query(query).result()
-            for row in rows:
-                results[key] = row[0]
-                break
+            start_date = dh.invoice_month_start(invoice_month)
+            start_date = dh.n_days_ago(start_date, 5).date()
+            end_date = end_date = dh.tomorrow.date()
+            if return_daily:
+                daily_query = f"""
+                SELECT DATE(usage_start_time) as usage_date,
+                    sum(cost) as cost,
+                    sum(c.amount) as credit_amount
+                    FROM {table_name}
+                    LEFT JOIN unnest(credits) as c
+                    WHERE invoice.month = '{invoice_month}'
+                    AND DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
+                    GROUP BY usage_date ORDER BY usage_date;
+                """
+                rows = client.query(daily_query).result()
+                daily_dict = {}
+                for row in rows:
+                    daily_dict[str(row["usage_date"])] = {
+                        "cost": row.get("cost"),
+                        "credit": row.get("credit_amount"),
+                        "total": get_total(row["cost"], row["credit_amount"]),
+                    }
+                results[invoice_month] = daily_dict
+                resp_key = "daily_invoice_cost_mapping"
+            else:
+                monthly_query = f"""
+                SELECT sum(cost) as cost,
+                    sum(c.amount) as credit_amount
+                    FROM {table_name}
+                    LEFT JOIN unnest(credits) as c
+                    WHERE DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
+                    AND invoice.month = '{invoice_month}'
+                """
+                rows = client.query(monthly_query).result()
+                for row in rows:
+                    results[key] = row[0]  # TODO: Remove once bigquery is updated.
+                    metadata = {"invoice_month": invoice_month}
+                    metadata["cost"] = row.get("cost")
+                    metadata["credit_amount"] = row.get("credit_amount")
+                    if row.get("cost") and row.get("credit_amount"):
+                        metadata["total"] = row.get("cost") + row.get("credit_amount")
+                    results[key + "_metadata"] = metadata
+                resp_key = "monthly_invoice_cost_mapping"
+
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
-    resp = {"monthly_invoice_cost_mapping": results}
+    resp = {resp_key: results}
     return Response(resp)
