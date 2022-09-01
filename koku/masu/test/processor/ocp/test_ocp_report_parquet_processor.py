@@ -24,7 +24,7 @@ class OCPReportProcessorParquetTest(MasuTestCase):
         super().setUp()
 
         self.manifest_id = 1
-        self.account = 10001
+        self.account = "org1234567"
         self.s3_path = "/s3/path"
         self.provider_uuid = self.ocp_provider_uuid
         self.local_parquet = "/local/path"

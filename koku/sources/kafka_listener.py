@@ -11,7 +11,6 @@ import sys
 import threading
 import time
 
-from confluent_kafka import Consumer
 from confluent_kafka import TopicPartition
 from django.db import connections
 from django.db import DEFAULT_DB_ALIAS
@@ -25,6 +24,7 @@ from kafka.errors import KafkaError
 from rest_framework.exceptions import ValidationError
 
 from api.provider.models import Sources
+from kafka_utils.utils import get_consumer
 from masu.prometheus_stats import KAFKA_CONNECTION_ERRORS_COUNTER
 from masu.prometheus_stats import SOURCES_HTTP_CLIENT_ERROR_COUNTER
 from masu.prometheus_stats import SOURCES_KAFKA_LOOP_RETRY
@@ -237,7 +237,13 @@ def _requeue_provider_sync_message(priority, msg, queue):
 
 def listen_for_messages_loop(application_source_id):  # pragma: no cover
     """Wrap listen_for_messages in while true."""
-    consumer = get_consumer()
+    kafka_conf = {
+        "group.id": "hccm-sources",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+    }
+    consumer = get_consumer(kafka_conf)
+    consumer.subscribe([Config.SOURCES_TOPIC])
     LOG.info("Listener started.  Waiting for messages...")
     while True:
         msg_list = consumer.consume()
@@ -248,21 +254,6 @@ def listen_for_messages_loop(application_source_id):  # pragma: no cover
             continue
         listen_for_messages(msg, consumer, application_source_id)
         execute_process_queue()
-
-
-def get_consumer():
-    """Create a Kafka consumer."""
-    consumer = Consumer(
-        {
-            "bootstrap.servers": Config.SOURCES_KAFKA_ADDRESS,
-            "group.id": "hccm-sources",
-            "queued.max.messages.kbytes": 1024,
-            "enable.auto.commit": False,
-        },
-        logger=LOG,
-    )
-    consumer.subscribe([Config.SOURCES_TOPIC])
-    return consumer
 
 
 @KAFKA_CONNECTION_ERRORS_COUNTER.count_exceptions()  # noqa: C901
@@ -401,4 +392,5 @@ def initialize_sources_integration():  # pragma: no cover
     """Start Sources integration thread."""
     event_loop_thread = threading.Thread(target=sources_integration_thread)
     event_loop_thread.start()
+    event_loop_thread.join()
     LOG.info("Listening for kafka events")

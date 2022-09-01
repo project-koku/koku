@@ -41,7 +41,7 @@ select c.relkind,
 
 class TestPartitionManager(IamTestCase):
     PARTITIONED_TABLE_NAME = "__pg_partition_test2"
-    SCHEMA_NAME = "acct10001"
+    SCHEMA_NAME = "org1234567"
 
     @classmethod
     def setUpClass(cls):
@@ -160,7 +160,7 @@ select oid
 
 class TestGoCPartition(IamTestCase):
     PARTITIONED_TABLE_NAME = "__pg_partition_test2"
-    SCHEMA_NAME = "acct10001"
+    SCHEMA_NAME = "org1234567"
 
     @classmethod
     def setUpClass(cls):

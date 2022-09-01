@@ -13,10 +13,12 @@ from dateutil.relativedelta import relativedelta
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from hcs.daily_report import ReportHCS
 from koku import celery_app
 from koku import settings
 from koku.feature_flags import UNLEASH_CLIENT
+from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
 
 LOG = logging.getLogger(__name__)
@@ -27,20 +29,75 @@ HCS_EXCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
     Provider.PROVIDER_AZURE_LOCAL,
+    Provider.PROVIDER_GCP,
+    Provider.PROVIDER_GCP_LOCAL,
 )
 
 # any additional queues should be added to this list
 QUEUE_LIST = [HCS_QUEUE]
 
 
-def enable_hcs_processing(schema_name):  # pragma: no cover #noqa
-    """Helper to determine if source is enabled for HCS."""
-    if schema_name and not schema_name.startswith("acct"):
+def check_schema_name(schema_name: str) -> str:
+    if schema_name and not schema_name.startswith(("acct", "org")):
         schema_name = f"acct{schema_name}"
 
+    return schema_name
+
+
+def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover
+    """Helper to determine if source is enabled for HCS."""
+    schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context))
+    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG)
+
+
+def get_start_and_end_from_manifest_id(manifest_id):
+    """
+    Helper to determine if it is initial ingestion of a report window, if so we should process
+    the whole time period, if not it will return None for start/end and
+    process the last 3 days as normal
+    Params:
+        manifest_id: the manifest id to check
+    Return:
+        start_date/end_date: The start and end to use for HCS processing or None if this is not initial ingestion
+    """
+    start_date = None
+    end_date = None
+    with ReportManifestDBAccessor() as manifest_accessor:
+        manifest = manifest_accessor.get_manifest_by_id(manifest_id)
+        bill_date = manifest.billing_period_start_datetime.date()
+        provider_uuid = manifest.provider_id
+        manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(provider_uuid, bill_date)
+        # should be the case on initial ingest
+        if len(manifest_list) == 1:
+            start_date = bill_date
+            end_date = DateHelper().month_end(bill_date)
+    return start_date, end_date
+
+
+def should_finalize(start_date, end_date):
+    """
+    Helper to determine if we should finalize a time period during initial ingestion
+    params:
+        start_date(str): beginning of the summarization window
+        end_date(str): end of the summarization window
+    Returns:
+        boolean: True if it is beyond the 15th of month following the start and end dates
+    """
+    if not start_date or not end_date:
+        return False
+    dh = DateHelper()
+    # if the date is before last month, finalize
+    if end_date < dh.last_month_start.date():
+        return True
+    # if we are not past the 15th of this month, don't finalize
+    elif dh.now < dh.today.replace(day=15):
+        return False
+    # if we are past the 15th and the end date is before this month, finalize
+    elif end_date < dh.this_month_start.date():
+        return True
+    return False
 
 
 @celery_app.task(name="hcs.tasks.collect_hcs_report_data_from_manifest", queue=HCS_QUEUE)
@@ -62,14 +119,21 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
         end_date = None
         if report.get("start") and report.get("end"):
             LOG.info("using start and end dates from the manifest for HCS processing")
-            start_date = parser.parse(report.get("start")).strftime("%Y-%m-%d")
-            end_date = parser.parse(report.get("end")).strftime("%Y-%m-%d")
+            start_date = parser.parse(report.get("start")).date()
+            end_date = parser.parse(report.get("end")).date()
+        else:
+            # GCP and OCI set report start and report end, AWS/Azure do not
+            start_date, end_date = get_start_and_end_from_manifest_id(report.get("manifest_id"))
 
         schema_name = report.get("schema_name")
         provider_type = report.get("provider_type")
         provider_uuid = report.get("provider_uuid")
         tracing_id = report.get("tracing_id", report.get("manifest_uuid", str(uuid.uuid4())))
-
+        finalize = False
+        if start_date:
+            finalize = should_finalize(start_date, end_date)
+            start_date = start_date.strftime("%Y-%m-%d")
+            end_date = end_date.strftime("%Y-%m-%d")
         stmt = (
             f"[collect_hcs_report_data_from_manifest]:"
             f" schema_name: {schema_name},"
@@ -77,11 +141,12 @@ def collect_hcs_report_data_from_manifest(reports_to_hcs_summarize):
             f"provider_uuid: {provider_uuid},"
             f"start: {start_date},"
             f"end: {end_date}"
+            f"finalization: {finalize}"
         )
         LOG.info(log_json(tracing_id, stmt))
 
         collect_hcs_report_data.s(
-            schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id
+            schema_name, provider_type, provider_uuid, start_date, end_date, tracing_id, finalize
         ).apply_async()
 
 
@@ -108,8 +173,7 @@ def collect_hcs_report_data(
     Returns:
         None
     """
-    if schema_name and not schema_name.startswith("acct"):
-        schema_name = f"acct{schema_name}"
+    schema_name = check_schema_name(schema_name)
 
     if start_date is None:
         start_date = DateAccessor().today() - datetime.timedelta(days=2)
@@ -143,7 +207,7 @@ def collect_hcs_report_data(
         LOG.info(log_json(tracing_id, stmt))
 
 
-@celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)
+@celery_app.task(name="hcs.tasks.collect_hcs_report_finalization", queue=HCS_QUEUE)  # noqa: C901
 def collect_hcs_report_finalization(  # noqa: C901
     month=None, year=None, provider_type=None, provider_uuid=None, schema_name=None, tracing_id=None
 ):
@@ -162,8 +226,7 @@ def collect_hcs_report_finalization(  # noqa: C901
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if schema_name and not schema_name.startswith("acct"):
-        schema_name = f"acct{schema_name}"
+    schema_name = check_schema_name(schema_name)
 
     if provider_type is not None and provider_uuid is not None:
         LOG.warning(log_json(tracing_id, "'provider_type' and 'provider_uuid' are not supported in the same request"))

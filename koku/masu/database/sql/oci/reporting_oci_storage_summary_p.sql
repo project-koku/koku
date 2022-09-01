@@ -25,7 +25,7 @@ SELECT uuid_generate_v4() as id,
 FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
 -- Get data for this month or last month
 WHERE product_service LIKE '%%STORAGE%%'
-    AND unit = 'GB-Mo'
+    AND unit in ('GB_MS', 'BYTES_MS', 'BYTES')
     AND usage_start >= {{start_date}}::date
     AND usage_end <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}

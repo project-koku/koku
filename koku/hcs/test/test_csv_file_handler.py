@@ -29,7 +29,7 @@ class TestHCSCSVFileHandler(HCSTestCase):
     def test_init(self):
         """Test the initializer."""
         fh = CSVFileHandler(self.schema, self.provider, self.provider_uuid)
-        self.assertEqual(fh._schema_name, "10001")
+        self.assertEqual(fh._schema_name, "org1234567")
         self.assertEqual(fh._provider, "AWS")
         self.assertEqual(fh._provider_uuid, "cabfdddb-4ed5-421e-a041-311b75daf235")
 

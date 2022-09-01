@@ -69,7 +69,7 @@ class AWSOrgUnitCrawlerTest(MasuTestCase):
     def setUp(self):
         """Set up test case."""
         super().setUp()
-        self.schema = "acct12345"
+        self.schema = "org3333333"
         self.paginator_dict = {
             "r-0": {
                 "OrganizationalUnits": [

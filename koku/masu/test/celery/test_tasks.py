@@ -22,7 +22,6 @@ from api.models import Provider
 from api.utils import DateHelper
 from masu.celery import tasks
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
-from masu.external.accounts_accessor import AccountsAccessor
 from masu.processor.orchestrator import Orchestrator
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ManifestCreationHelper
@@ -207,7 +206,7 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.deleted_archived_with_prefix")
     def test_delete_archived_data_success(self, mock_delete):
         """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "acct10001"
+        schema_name = "org1234567"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = "00000000-0000-0000-0000-000000000001"
 
@@ -217,7 +216,7 @@ class TestCeleryTasks(MasuTestCase):
     @override_settings(ENABLE_S3_ARCHIVING=False)
     def test_delete_archived_data_archiving_false(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "acct10001"
+        schema_name = "org1234567"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = "00000000-0000-0000-0000-000000000001"
 
@@ -228,7 +227,7 @@ class TestCeleryTasks(MasuTestCase):
     @override_settings(ENABLE_S3_ARCHIVING=True, SKIP_MINIO_DATA_DELETION=True)
     def test_delete_archived_data_minio(self):
         """Test that delete_archived_data correctly interacts with AWS S3."""
-        schema_name = "acct10001"
+        schema_name = "org1234567"
         provider_type = Provider.PROVIDER_AWS
         provider_uuid = "00000000-0000-0000-0000-000000000001"
 
@@ -323,17 +322,41 @@ class TestCeleryTasks(MasuTestCase):
         mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status(self.ocp_test_provider_uuid)
-            expected_log_msg = "Cost model status check found %s accounts to scan" % ("1")
+            expected_log_msg = "Cost model status check found %s providers to scan" % ("1")
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.CostModelDBAccessor")
+    def test_cost_model_status_check_with_incompatible_provider_uuid(self, mock_cost_check):
+        """Test that only accounts associated with the provider_uuid are polled."""
+        mock_cost_check.cost_model_notification.return_value = True
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_cost_model_status(self.gcp_test_provider_uuid)
+            expected_log_msg = f"Source {self.gcp_test_provider_uuid} is not an openshift source."
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.CostModelDBAccessor")
     def test_cost_model_status_check_without_provider_uuid(self, mock_cost_check):
         """Test that all polling accounts are used when no provider_uuid is provided."""
-        polling_accounts = AccountsAccessor().get_accounts()
+        providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
         mock_cost_check.cost_model_notification.return_value = True
         with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
             tasks.check_cost_model_status()
-            expected_log_msg = "Cost model status check found %s accounts to scan" % (len(polling_accounts))
+            expected_log_msg = "Cost model status check found %s providers to scan" % (len(providers))
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    def test_stale_ocp_source_check_with_provider_uuid(self):
+        """Test that only accounts associated with the provider_uuid are polled."""
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_for_stale_ocp_source(self.ocp_test_provider_uuid)
+            expected_log_msg = "Openshfit stale cluster check found 1 clusters to scan"
+            self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    def test_stale_ocp_source_check_without_provider_uuid(self):
+        """Test that all polling accounts are used when no provider_uuid is provided."""
+        manifests = ReportManifestDBAccessor().get_last_manifest_upload_datetime()
+        with self.assertLogs("masu.celery.tasks", "INFO") as captured_logs:
+            tasks.check_for_stale_ocp_source()
+            expected_log_msg = "Openshfit stale cluster check found %s clusters to scan" % (len(manifests))
             self.assertIn(expected_log_msg, captured_logs.output[0])
 
     @patch("masu.celery.tasks.celery_app")
@@ -371,3 +394,42 @@ class TestCeleryTasks(MasuTestCase):
             tasks.missing_source_delete_async(source_id)
             expected_log_msg = "does not exist"
             self.assertIn(expected_log_msg, captured_logs.output[0])
+
+    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=False)
+    def test_purge_s3_files_failed_unleash(self, _):
+        """Test that the scheduled task calls the orchestrator."""
+        msg = tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
+        expected_msg = "Schema act1111 not enabled in unleash."
+        self.assertEqual(msg, expected_msg)
+
+    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    def test_purge_s3_files_missing_params(self, _):
+        """Test that the scheduled task calls the orchestrator."""
+        with self.assertRaises(TypeError):
+            tasks.purge_s3_files(None, None, None, None)
+
+    @patch("masu.celery.tasks.enable_trino_processing", return_value=False)
+    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    def test_purge_s3_files_failed_enable_trino(self, delete_call, _, __):
+        """Test that the scheduled task calls the orchestrator."""
+        tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
+        delete_call.assert_not_called()
+
+    @patch("masu.celery.tasks.enable_trino_processing", return_value=True)
+    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    @override_settings(SKIP_MINIO_DATA_DELETION=True)
+    def test_purge_s3_files_skipped_minio_true(self, delete_call, _, __):
+        """Test that the scheduled task calls the orchestrator."""
+        tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
+        delete_call.assert_not_called()
+
+    @patch("masu.celery.tasks.enable_trino_processing", return_value=True)
+    @patch("masu.celery.tasks.enable_purge_trino_files", return_value=True)
+    @patch("masu.celery.tasks.deleted_archived_with_prefix")
+    @override_settings(SKIP_MINIO_DATA_DELETION=False)
+    def test_purge_s3_files_success(self, delete_call, _, __):
+        """Test that the scheduled task calls the orchestrator."""
+        tasks.purge_s3_files("/fake/path/", "act1111", "GCP", "123456")
+        delete_call.assert_called()

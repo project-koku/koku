@@ -167,3 +167,19 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         result = Provider.objects.get(uuid=new_ocp_provider.uuid).infrastructure.infrastructure_provider_id
         self.assertEqual(result, self.aws_provider.uuid)
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
+    )
+    def test_update_summary_tables_no_report_period(self, mock_date_check):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        mock_date_check.return_value = (start_date, end_date)
+        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="WARNING") as _logger:
+            self.updater.update_summary_tables(start_date, end_date)
+            found_it = False
+            for log_line in _logger.output:
+                found_it = "No report period for" in log_line
+                if found_it:
+                    break
+            self.assertTrue(found_it)

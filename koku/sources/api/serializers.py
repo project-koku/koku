@@ -15,8 +15,8 @@ from api.provider.models import Sources
 from api.provider.provider_builder import ProviderBuilder
 from api.provider.serializers import LCASE_PROVIDER_CHOICE_LIST
 from providers.provider_errors import SkipStatusPush
-from sources.api import get_account_from_header
 from sources.api import get_auth_header
+from sources.api import get_param_from_header
 
 
 LOG = logging.getLogger(__name__)
@@ -101,12 +101,16 @@ class AdminSourcesSerializer(SourcesSerializer):
         return ordered_offset + 1
 
     def _validate_account_id(self, account_id):
-        return get_account_from_header(self.context.get("request"))
+        return get_param_from_header(self.context.get("request"), "account_number")
+
+    def _validate_org_id(self, account_id):
+        return get_param_from_header(self.context.get("request"), "org_id")
 
     def validate(self, data):
         data["source_id"] = self._validate_source_id(data.get("id"))
         data["offset"] = self._validate_offset(data.get("offset"))
         data["account_id"] = self._validate_account_id(data.get("account_id"))
+        data["org_id"] = self._validate_org_id(data.get("org_id"))
         data["source_uuid"] = uuid4()
         return data
 

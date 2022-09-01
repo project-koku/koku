@@ -136,6 +136,7 @@ if DEVELOPMENT:
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
+            "org_id": "1234567",
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },
@@ -532,3 +533,8 @@ CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 CELERY_RESULTS_URL = REDIS_URL
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 5
+CELERY_REDIS_RETRY_ON_TIMEOUT = True
+
+# HCS debugging
+ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)
