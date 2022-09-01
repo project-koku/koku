@@ -99,7 +99,6 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 # Timeout threshold for a worker process to startup
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
-print(f"celery-worker-proc-alive-timeout = {app.conf.worker_proc_alive_timeout}")
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
@@ -111,7 +110,6 @@ if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
         print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
         REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
     report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
-    print(f"report-download-schedule: {report_schedule}")
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
@@ -171,7 +169,6 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-print(f"source-status-schedule: {source_status_schedule}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
