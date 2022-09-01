@@ -1084,7 +1084,7 @@
             "content":{
               "application/json":{
                 "schema":{
-                  "$ref":"#/components/schemas/clearCeleryQueue"
+                  "$ref":"#/components/schemas/clearCeleryQueues"
                 }
               }
             }
@@ -2181,6 +2181,15 @@
           "hcs": {
             "type": "integer",
             "example": 1
+          }
+        }
+      },
+      "clearCeleryQueues": {
+        "type": "object",
+        "properties": {
+          "purged_tasks": {
+            "type": "integer",
+            "example": 8
           }
         }
       },
