@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
+from api.utils import DateHelper
 from hcs.tasks import collect_hcs_report_finalization
 from hcs.tasks import HCS_QUEUE
 
@@ -61,6 +62,10 @@ def hcs_report_finalization(request):
                 return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
             finalization_month = finalization_month.replace(year=int(year))
+
+        if finalization_month >= DateHelper().this_month_start.date():
+            errmsg = "finalization can only be run on past months"
+            return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
         if provider_type is not None and provider_uuid is not None:
             errmsg = "'provider_type' and 'provider_uuid' are not supported in the same request"

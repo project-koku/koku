@@ -14,11 +14,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.settings import api_settings
 
-from api.models import Provider
 from api.utils import DateHelper
+from masu.celery.tasks import purge_manifest_records
 from masu.celery.tasks import purge_s3_files
 from masu.database.provider_collector import ProviderCollector
-from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 
 
@@ -41,8 +40,10 @@ def purge_trino_files(request):  # noqa: C901
     # Parameter Validation
     params = request.query_params
     simulate = True
+    delete_manifest = False
     if request.method == "DELETE":
         simulate = False
+        delete_manifest = True
     if not params:
         errmsg = "Parameter missing. Required: provider_uuid, schema, bill date"
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
@@ -68,7 +69,6 @@ def purge_trino_files(request):  # noqa: C901
 
     start_date = params.get("start_date")
     end_date = params.get("end_date") if params.get("end_date") else start_date
-    delete_manifest = True
     if "ignore_manifest" in params.keys():
         delete_manifest = False
 
@@ -132,22 +132,8 @@ def purge_trino_files(request):  # noqa: C901
             async_results[str(async_purge_result)] = file_prefix
 
     if delete_manifest:
-
-        with ReportManifestDBAccessor() as manifest_accessor:
-            if start_date and end_date:
-                manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
-                    provider_uuid, start_date, end_date
-                )
-            else:
-                manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
-                    provider_uuid=provider_uuid, bill_date=bill_date
-                )
-            manifest_id_list = [manifest.id for manifest in manifest_list]
-            LOG.info(f"Attempting to delete the following manifests: {manifest_id_list}")
-            manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
-        provider = Provider.objects.filter(uuid=provider_uuid).first()
-        provider.setup_complete = False
-        provider.save()
-        LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
+        dates = {"start_date": start_date, "end_date": end_date, "bill_date": bill_date}
+        purge_manifest_result = purge_manifest_records.delay(schema, provider_uuid, dates)
+        async_results["manifest_delete"] = str(purge_manifest_result)
 
     return Response(async_results)
