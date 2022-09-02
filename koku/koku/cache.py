@@ -61,8 +61,8 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
         # Invalidate all cached views for the tenant
         keys_to_invalidate = [key for key in all_keys if schema_name in key]
 
-    print(all_keys)
-    print(keys_to_invalidate)
+    LOG.warning(f"all keys: {all_keys}")
+    LOG.warning(f"keys to invalidate: {keys_to_invalidate}")
 
     for key in keys_to_invalidate:
         cache.delete(key)
