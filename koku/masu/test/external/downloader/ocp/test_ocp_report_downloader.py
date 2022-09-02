@@ -179,7 +179,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files = divide_csv_daily(file_path, filename)
+                    daily_files, date_range = divide_csv_daily(file_path, filename)
                     self.assertNotEqual([], daily_files)
                     self.assertEqual(len(daily_files), 2)
                     gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
