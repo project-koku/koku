@@ -28,8 +28,66 @@ def get_total(cost, credit):
     return None
 
 
+class BigQueryHelper:
+    def __init__(self, table_name):
+        self.table_name = table_name
+        self.client = bigquery.Client()
+        self.dh = DateHelper()
+        self.start_date = None
+        self.end_date = None
+
+    def set_dates_from_invoice_month(self, invoice_month):
+        """Calculates start & end dates from invoice month."""
+        start_date = self.dh.invoice_month_start(invoice_month)
+        self.start_date = self.dh.n_days_ago(start_date, 5).date()
+        self.end_date = self.dh.tomorrow.date()
+
+    def daily_sql(self, invoice_month, results):
+        self.set_dates_from_invoice_month(invoice_month)
+        daily_query = f"""
+                SELECT DATE(usage_start_time) as usage_date,
+                    sum(cost) as cost,
+                    FROM {self.table_name}
+                    WHERE invoice.month = '{invoice_month}'
+                    AND DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
+                    GROUP BY usage_date ORDER BY usage_date;
+                """
+
+        LOG.info(daily_query)
+        rows = self.client.query(daily_query).result()
+        daily_dict = {}
+        for row in rows:
+            daily_dict[str(row["usage_date"])] = {"cost": row.get("cost")}
+        results[invoice_month] = daily_dict
+        return results
+
+    def monthly_sql(self, invoice_month, results, key):
+        self.set_dates_from_invoice_month(invoice_month)
+        monthly_query = f"""
+                SELECT sum(cost) as cost,
+                    FROM {self.table_name}
+                    WHERE DATE(_PARTITIONTIME) BETWEEN "{str(self.start_date)}" AND "{str(self.end_date)}"
+                    AND invoice.month = '{invoice_month}'
+                """
+        rows = self.client.query(monthly_query).result()
+        for row in rows:
+            results[key] = row[0]  # TODO: Remove once bigquery is updated.
+            metadata = {
+                "invoice_month": invoice_month,
+                "cost": row.get("cost"),
+            }
+            results[key + "_metadata"] = metadata
+        return results
+
+    def custom_sql(self, query):
+        """Takes a custom query and replaces the table_name."""
+        query = query.replace("table_name", self.table_name)
+        rows = self.client.query(query).result()
+        return rows
+
+
 @never_cache
-@api_view(http_method_names=["GET"])
+@api_view(http_method_names=["GET", "POST"])
 @permission_classes((AllowAny,))
 @renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
 def bigquery_cost(request):  # noqa: C901
@@ -65,53 +123,21 @@ def bigquery_cost(request):  # noqa: C901
     mapping = {"previous": invoice_months[0], "current": invoice_months[1]}
 
     results = {}
-    client = bigquery.Client()
     try:
-        for key, invoice_month in mapping.items():
-            start_date = dh.invoice_month_start(invoice_month)
-            start_date = dh.n_days_ago(start_date, 5).date()
-            end_date = end_date = dh.tomorrow.date()
-            if return_daily:
-                daily_query = f"""
-                SELECT DATE(usage_start_time) as usage_date,
-                    sum(cost) as cost,
-                    sum(c.amount) as credit_amount
-                    FROM {table_name}
-                    LEFT JOIN unnest(credits) as c
-                    WHERE invoice.month = '{invoice_month}'
-                    AND DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
-                    GROUP BY usage_date ORDER BY usage_date;
-                """
-                rows = client.query(daily_query).result()
-                daily_dict = {}
-                for row in rows:
-                    daily_dict[str(row["usage_date"])] = {
-                        "cost": row.get("cost"),
-                        "credit": row.get("credit_amount"),
-                        "total": get_total(row["cost"], row["credit_amount"]),
-                    }
-                results[invoice_month] = daily_dict
-                resp_key = "daily_invoice_cost_mapping"
-            else:
-                monthly_query = f"""
-                SELECT sum(cost) as cost,
-                    sum(c.amount) as credit_amount
-                    FROM {table_name}
-                    LEFT JOIN unnest(credits) as c
-                    WHERE DATE(_PARTITIONTIME) BETWEEN "{str(start_date)}" AND "{str(end_date)}"
-                    AND invoice.month = '{invoice_month}'
-                """
-                rows = client.query(monthly_query).result()
-                for row in rows:
-                    results[key] = row[0]  # TODO: Remove once bigquery is updated.
-                    metadata = {"invoice_month": invoice_month}
-                    metadata["cost"] = row.get("cost")
-                    metadata["credit_amount"] = row.get("credit_amount")
-                    if row.get("cost") and row.get("credit_amount"):
-                        metadata["total"] = row.get("cost") + row.get("credit_amount")
-                    results[key + "_metadata"] = metadata
-                resp_key = "monthly_invoice_cost_mapping"
-
+        bq_helper = BigQueryHelper(table_name)
+        if request.method == "POST":
+            data = request.data
+            query = data.get("query")
+            results = bq_helper.custom_sql(query)
+            resp_key = "custom_query_results"
+        else:
+            for key, invoice_month in mapping.items():
+                if return_daily:
+                    results = bq_helper.daily_sql(invoice_month, results)
+                    resp_key = "daily_invoice_cost_mapping"
+                else:
+                    results = bq_helper.monthly_sql(invoice_month, results, key)
+                    resp_key = "monthly_invoice_cost_mapping"
     except GoogleCloudError as err:
         return Response({"Error": err.message}, status=status.HTTP_400_BAD_REQUEST)
 
