@@ -16,6 +16,7 @@ from django.db.models.signals import post_delete
 from tenant_schemas.utils import schema_context
 
 from api.model_utils import RunTextFieldValidators
+from koku.cache import invalidate_view_cache_for_tenant_and_cache_key
 from koku.database import get_model
 
 LOG = logging.getLogger(__name__)
@@ -176,6 +177,7 @@ class Provider(models.Model):
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
+        invalidate_view_cache_for_tenant_and_cache_key("public")
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
             # Local import of task function to avoid potential import cycle.
