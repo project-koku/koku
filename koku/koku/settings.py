@@ -522,9 +522,6 @@ CELERY_BROKER_URL = REDIS_URL
 USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
 if USE_RABBIT:
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
-    print(f"celery broker using rabbit url: {CELERY_BROKER_URL}")
-else:
-    print(f"celery broker using redis url: {CELERY_BROKER_URL}")
 
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 400
 CELERY_BROKER_CONNECTION_RETRY = True
