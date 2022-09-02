@@ -14,7 +14,6 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
-from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -47,6 +46,7 @@ def divide_csv_daily(file_path, filename):
     report_type, _ = utils.detect_type(file_path)
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
+    date_range = {"start": min(days), "end": max(days)}
     daily_data_frames = [
         {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
         for cur_day in days
@@ -59,7 +59,7 @@ def divide_csv_daily(file_path, filename):
         day_filepath = f"{directory}/{day_file}"
         df.to_csv(day_filepath, index=False, header=True)
         daily_files.append({"filename": day_file, "filepath": day_filepath})
-    return daily_files
+    return daily_files, date_range
 
 
 def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
@@ -79,10 +79,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     daily_file_names = []
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
-        if context.get("version"):
-            daily_files = [{"filepath": filepath, "filename": filename}]
-        else:
-            daily_files = divide_csv_daily(filepath, filename)
+        daily_files, date_range = divide_csv_daily(filepath, filename)
         for daily_file in daily_files:
             # Push to S3
             s3_csv_path = get_path_prefix(
@@ -98,7 +95,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
                 context,
             )
             daily_file_names.append(daily_file.get("filepath"))
-    return daily_file_names
+    return daily_file_names, date_range
 
 
 def process_cr(report_meta):
@@ -312,7 +309,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names = create_daily_archives(
+        file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
@@ -322,7 +319,6 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
         )
-        date_range = {"start": start_date, "end": DateHelper().today.date()}
 
         return full_file_path, ocp_etag, file_creation_date, file_names, date_range
 
