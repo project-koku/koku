@@ -77,6 +77,7 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         context (Dict): Logging context dictionary
     """
     daily_file_names = []
+    date_range = {}
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
         daily_files, date_range = divide_csv_daily(filepath, filename)

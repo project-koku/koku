@@ -295,22 +295,19 @@ class OCPReportDownloaderTest(MasuTestCase):
             {"filename": "file_one", "filepath": "path/to/file_one"},
             {"filename": "file_two", "filepath": "path/to/file_two"},
         ]
+        expect_date_range = {"start": start_date, "end": start_date}
         expected_filenames = ["path/to/file_one", "path/to/file_two"]
 
-        mock_divide.return_value = daily_files
+        mock_divide.return_value = daily_files, expect_date_range
 
         file_name = "file"
         file_path = "path"
-        result = create_daily_archives(1, "10001", self.ocp_provider_uuid, file_name, file_path, 1, start_date)
-
-        self.assertEqual(result, expected_filenames)
-
-        context = {"version": "1"}
-        expected = [file_path]
-        result = create_daily_archives(
-            1, "10001", self.ocp_provider_uuid, "file", "path", 1, start_date, context=context
+        daily_file_names, date_range = create_daily_archives(
+            1, "10001", self.ocp_provider_uuid, file_name, file_path, 1, start_date
         )
-        self.assertEqual(result, expected)
+
+        self.assertEqual(daily_file_names, expected_filenames)
+        self.assertEqual(expect_date_range, date_range)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.LOG")
     def test_get_report_for_verify_tracing_id(self, log_mock):
