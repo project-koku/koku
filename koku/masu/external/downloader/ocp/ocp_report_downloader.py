@@ -8,8 +8,10 @@ import hashlib
 import logging
 import os
 import shutil
+import uuid
 
 import pandas as pd
+from dateutil import parser
 from django.conf import settings
 
 from api.common import log_json
@@ -30,11 +32,11 @@ REPORTS_DIR = Config.INSIGHTS_LOCAL_REPORT_DIR
 LOG = logging.getLogger(__name__)
 
 
-def divide_csv_daily(file_path, filename):
+def divide_csv_monthly(file_path, filename):
     """
-    Split local file into daily content.
+    Split local file into monthly content.
     """
-    daily_files = []
+    monthly_files = []
     directory = os.path.dirname(file_path)
 
     try:
@@ -47,24 +49,27 @@ def divide_csv_daily(file_path, filename):
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
     date_range = {"start": min(days), "end": max(days)}
-    daily_data_frames = [
-        {"data_frame": data_frame[data_frame.interval_start.str.contains(cur_day)], "date": cur_day}
-        for cur_day in days
+    months = list({day.strftime("%Y-%m") for day in unique_times})
+    monthly_data_frames = [
+        {"data_frame": data_frame[data_frame.interval_start.str.contains(month)], "date": month} for month in months
     ]
 
-    for daily_data in daily_data_frames:
+    for daily_data in monthly_data_frames:
         day = daily_data.get("date")
+        start_date = parser.parse(day + "-01")
         df = daily_data.get("data_frame")
-        day_file = f"{report_type}.{day}.csv"
-        day_filepath = f"{directory}/{day_file}"
-        df.to_csv(day_filepath, index=False, header=True)
-        daily_files.append({"filename": day_file, "filepath": day_filepath})
-    return daily_files, date_range
+        month_file = f"{report_type}_{uuid.uuid4()}.{day}.csv"
+        month_filepath = f"{directory}/{month_file}"
+        df.to_csv(month_filepath, index=False, header=True)
+        monthly_files.append({"filename": month_file, "filepath": month_filepath, "start_date": start_date})
+    return monthly_files, date_range
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_monthly_archives(
+    tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}
+):
     """
-    Create daily CSVs from incoming report and archive to S3.
+    Create monthly CSVs from incoming report and archive to S3.
 
     Args:
         tracing_id (str): The tracing id
@@ -76,12 +81,12 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
         start_date (Datetime): The start datetime of incoming report
         context (Dict): Logging context dictionary
     """
-    daily_file_names = []
+    monthly_file_names = []
     date_range = {}
 
     if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_OCP, account):
-        daily_files, date_range = divide_csv_daily(filepath, filename)
-        for daily_file in daily_files:
+        monthly_files, date_range = divide_csv_monthly(filepath, filename)
+        for monthly_file in monthly_files:
             # Push to S3
             s3_csv_path = get_path_prefix(
                 account, Provider.PROVIDER_OCP, provider_uuid, start_date, Config.CSV_DATA_TYPE
@@ -89,14 +94,14 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
             copy_local_report_file_to_s3_bucket(
                 tracing_id,
                 s3_csv_path,
-                daily_file.get("filepath"),
-                daily_file.get("filename"),
+                monthly_file.get("filepath"),
+                monthly_file.get("filename"),
                 manifest_id,
-                start_date,
+                monthly_file.get("start_date"),
                 context,
             )
-            daily_file_names.append(daily_file.get("filepath"))
-    return daily_file_names, date_range
+            monthly_file_names.append(monthly_file.get("filepath"))
+    return monthly_file_names, date_range
 
 
 def process_cr(report_meta):
@@ -310,7 +315,7 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             shutil.move(key, full_file_path)
             file_creation_date = datetime.datetime.fromtimestamp(os.path.getmtime(full_file_path))
 
-        file_names, date_range = create_daily_archives(
+        file_names, date_range = create_monthly_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,

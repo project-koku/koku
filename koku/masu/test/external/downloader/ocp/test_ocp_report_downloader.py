@@ -19,8 +19,8 @@ from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.date_accessor import DateAccessor
-from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
-from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_daily
+from masu.external.downloader.ocp.ocp_report_downloader import create_monthly_archives
+from masu.external.downloader.ocp.ocp_report_downloader import divide_csv_monthly
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -162,8 +162,8 @@ class OCPReportDownloaderTest(MasuTestCase):
             # Re-enable log suppression
             logging.disable(logging.CRITICAL)
 
-    def test_divide_csv_daily(self):
-        """Test the divide_csv_daily method."""
+    def test_divide_csv_monthly(self):
+        """Test the divide_csv_monthly method."""
 
         with tempfile.TemporaryDirectory() as td:
             filename = "storage_data.csv"
@@ -179,16 +179,16 @@ class OCPReportDownloaderTest(MasuTestCase):
                     }
                     df = pd.DataFrame(data=mock_report)
                     mock_pd.read_csv.return_value = df
-                    daily_files, date_range = divide_csv_daily(file_path, filename)
-                    self.assertNotEqual([], daily_files)
-                    self.assertEqual(len(daily_files), 2)
+                    monthly_files, date_range = divide_csv_monthly(file_path, filename)
+                    self.assertNotEqual([], monthly_files)
+                    self.assertEqual(len(monthly_files), 2)
                     gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
                     expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
                     for expected_item in expected:
-                        self.assertIn(expected_item, daily_files)
+                        self.assertIn(expected_item, monthly_files)
 
-    def test_divide_csv_daily_failure(self):
-        """Test the divide_csv_daily method throw error on reading CSV."""
+    def test_divide_csv_monthly_failure(self):
+        """Test the divide_csv_monthly method throw error on reading CSV."""
 
         with tempfile.TemporaryDirectory() as td:
             filename = "storage_data.csv"
@@ -202,7 +202,7 @@ class OCPReportDownloaderTest(MasuTestCase):
                     mock_pd.read_csv.side_effect = Exception(errorMsg)
                     with patch("masu.external.downloader.ocp.ocp_report_downloader.LOG.error") as mock_debug:
                         with self.assertRaises(Exception):
-                            divide_csv_daily(file_path, filename)
+                            divide_csv_monthly(file_path, filename)
                         mock_debug.assert_called_once_with(f"File {file_path} could not be parsed. Reason: {errorMsg}")
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.OCPReportDownloader._remove_manifest_file")
@@ -287,26 +287,26 @@ class OCPReportDownloaderTest(MasuTestCase):
     @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
-    @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")
-    def test_create_daily_archives(self, mock_divide, mock_s3_copy, mock_os):
+    @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_monthly")
+    def test_create_monthly_archives(self, mock_divide, mock_s3_copy, mock_os):
         """Test that this method returns a file list."""
         start_date = DateHelper().this_month_start
-        daily_files = [
+        monthly_files = [
             {"filename": "file_one", "filepath": "path/to/file_one"},
             {"filename": "file_two", "filepath": "path/to/file_two"},
         ]
         expect_date_range = {"start": start_date, "end": start_date}
         expected_filenames = ["path/to/file_one", "path/to/file_two"]
 
-        mock_divide.return_value = daily_files, expect_date_range
+        mock_divide.return_value = monthly_files, expect_date_range
 
         file_name = "file"
         file_path = "path"
-        daily_file_names, date_range = create_daily_archives(
+        monthly_file_names, date_range = create_monthly_archives(
             1, "10001", self.ocp_provider_uuid, file_name, file_path, 1, start_date
         )
 
-        self.assertEqual(daily_file_names, expected_filenames)
+        self.assertEqual(monthly_file_names, expected_filenames)
         self.assertEqual(expect_date_range, date_range)
 
     @patch("masu.external.downloader.ocp.ocp_report_downloader.LOG")
