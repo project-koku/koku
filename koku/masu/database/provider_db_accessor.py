@@ -181,7 +181,7 @@ class ProviderDBAccessor(KokuDBAccess):
         """
         self.provider.setup_complete = True
         self.provider.save()
-        invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, SOURCES_CACHE_PREFIX)
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema, SOURCES_CACHE_PREFIX)
 
     def get_customer_uuid(self):
         """
@@ -278,7 +278,7 @@ class ProviderDBAccessor(KokuDBAccess):
 
         self.provider.infrastructure = mapping
         self.provider.save()
-        invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, SOURCES_CACHE_PREFIX)
+        invalidate_view_cache_for_tenant_and_cache_key(self.schema, SOURCES_CACHE_PREFIX)
 
     def get_associated_openshift_providers(self):
         """Return a list of OpenShift clusters associated with the cloud provider."""
@@ -299,11 +299,11 @@ class ProviderDBAccessor(KokuDBAccess):
             LOG.info(msg)
             self.provider.data_updated_timestamp = updated_datetime
             self.provider.save()
-            invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, SOURCES_CACHE_PREFIX)
+            invalidate_view_cache_for_tenant_and_cache_key(self.schema, SOURCES_CACHE_PREFIX)
 
     def set_additional_context(self, new_value):
         """Sets the additional context value."""
         if self.provider:
             self.provider.additional_context = new_value
             self.provider.save()
-            invalidate_view_cache_for_tenant_and_cache_key(self.schema_name, SOURCES_CACHE_PREFIX)
+            invalidate_view_cache_for_tenant_and_cache_key(self.schema, SOURCES_CACHE_PREFIX)
