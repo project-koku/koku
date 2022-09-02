@@ -14,6 +14,7 @@ from django.conf import settings
 
 from api.common import log_json
 from api.provider.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
@@ -321,8 +322,9 @@ class OCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             start_date,
             self.context,
         )
+        date_range = {"start": start_date, "end": DateHelper().today.date()}
 
-        return full_file_path, ocp_etag, file_creation_date, file_names, {}
+        return full_file_path, ocp_etag, file_creation_date, file_names, date_range
 
     def get_local_file_for_report(self, report):
         """Get full path for local report file."""
