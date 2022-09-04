@@ -96,12 +96,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         read_yaml = UploadAwsTree(None, None, None, None)
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="dev/scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
-                        # Load data
-                        # TODO: COST-444: This NiseDataLoader to be removed and replaced with the commented baker_data_loaders below.
-                        # data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
-                        # data_loader.load_openshift_data(customer, "ocp_azure_static_data.yml", "OCP-on-Azure")
-                        # data_loader.load_azure_data(customer, "azure_static_data.yml")
-
+                        # Load data NiseDataLoader removed, replaced with baker_data_loaders below.
                         bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
                         ocp_on_aws_cluster_id = "OCP-on-AWS"
                         ocp_on_azure_cluster_id = "OCP-on-Azure"
@@ -111,7 +106,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         ocp_on_aws_ocp_provider, ocp_on_aws_report_periods = bakery_data_loader.load_openshift_data(
                             ocp_on_aws_cluster_id, on_cloud=True
                         )
-                        # TODO: COST-444: uncomment these when the above NISE data_loader is removed
+
                         (
                             ocp_on_azure_ocp_provider,
                             ocp_on_azure_report_periods,
@@ -125,7 +120,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                         aws_bills = bakery_data_loader.load_aws_data(
                             linked_openshift_provider=ocp_on_aws_ocp_provider, day_list=day_list
                         )
-                        # TODO: COST-444: uncomment these when the above NISE data_loader is removed
+
                         azure_bills = bakery_data_loader.load_azure_data(
                             linked_openshift_provider=ocp_on_azure_ocp_provider
                         )

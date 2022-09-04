@@ -25,6 +25,7 @@ from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
+from api.report.test.util.constants import AZURE_SERVICE_NAMES
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AzureCostEntryBill
@@ -179,7 +180,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        valid_services = list(AZURE_SERVICES.keys())
+        valid_services = list(AZURE_SERVICE_NAMES)
         url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
@@ -1383,9 +1384,10 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             )
         correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            lst = [service.get("service_name") for service in element.get("service_names", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+            if element.get("date") == str(yesterday):
+                lst = [service.get("service_name") for service in element.get("service_names", [])]
+                if lst and correctlst:
+                    self.assertEqual(correctlst, lst)
 
     def test_ocp_azure_date_incorrect_date(self):
         wrong_date = "200BC"

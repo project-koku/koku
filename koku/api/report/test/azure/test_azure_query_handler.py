@@ -527,15 +527,12 @@ class AzureReportQueryHandlerTest(IamTestCase):
         filters = {**self.this_month_filter}
         filters["resource_location__icontains"] = location
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
-
-        # TODO: why using raw and not total cost => total.get("cost", {}).get("raw", {}).get("value")
         # check total cost
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
-
         # check raw cost
         expected_cost_raw = current_totals.get("cost_raw")
         self.assertIsNotNone(expected_cost_raw)
@@ -640,9 +637,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-
-        # TODO: why raw instead of total?
-        # result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
@@ -678,9 +672,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-
-        # TODO: why are we comparing cost.raw with cost_total??
-        # result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
         result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
@@ -1631,13 +1622,6 @@ class AzureReportQueryHandlerTest(IamTestCase):
 
         expected_lst = [service.get("service_name") for service in expected]
         self.assertEqual(correctlst, expected_lst)
-        # breakpoint()
-        # TODO: what is this for loop for??
-        # correctlst = [service.get("service_name") for service in expected]
-        # for element in data:
-        #     lst = [service.get("service_name") for service in element.get("service_names", [])]
-        #     if lst and correctlst:
-        #         self.assertEqual(correctlst, lst)
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
