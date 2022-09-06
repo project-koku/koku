@@ -639,6 +639,28 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_not_called()
 
+    @patch(
+        "masu.processor.tasks.disable_cloud_source_summary",
+        return_value=True,
+    )
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    @patch
+    def test_update_summary_tables_ocp_disable_cloud_source_summary(
+        self, mock_cost_model, mock_charge_info, mock_chain, mock_task_cost_model, mock_cache, mock_unleash
+    ):
+        """Test that the summary table task runs."""
+        provider = Provider.PROVIDER_OCP
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        mock_chain.return_value.apply_async.assert_called()
+
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
