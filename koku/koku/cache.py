@@ -12,7 +12,7 @@ from django.core.cache.backends.locmem import LocMemCache
 from django_redis.cache import RedisCache
 from redis import Redis
 
-import api.provider.models as models
+from api.provider.models import Provider
 
 
 class KokuCacheError(Exception):
@@ -83,9 +83,9 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
 def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
     """ "Invalidate our view cache for a specific tenant and source type."""
     cache_key_prefixes = ()
-    if source_type in (models.Provider.PROVIDER_AWS, models.Provider.PROVIDER_AWS_LOCAL):
+    if source_type in (Provider.PROVIDER_AWS, Provider.PROVIDER_AWS_LOCAL):
         cache_key_prefixes = (AWS_CACHE_PREFIX, OPENSHIFT_AWS_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
-    elif source_type in (models.Provider.PROVIDER_OCP):
+    elif source_type in (Provider.PROVIDER_OCP):
         cache_key_prefixes = (
             OPENSHIFT_CACHE_PREFIX,
             OPENSHIFT_AWS_CACHE_PREFIX,
@@ -93,9 +93,9 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
             OPENSHIFT_ALL_CACHE_PREFIX,
             OPENSHIFT_GCP_CACHE_PREFIX,
         )
-    elif source_type in (models.Provider.PROVIDER_AZURE, models.Provider.PROVIDER_AZURE_LOCAL):
+    elif source_type in (Provider.PROVIDER_AZURE, Provider.PROVIDER_AZURE_LOCAL):
         cache_key_prefixes = (AZURE_CACHE_PREFIX, OPENSHIFT_AZURE_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
-    elif source_type in (models.Provider.PROVIDER_GCP, models.Provider.PROVIDER_GCP_LOCAL):
+    elif source_type in (Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL):
         cache_key_prefixes = (GCP_CACHE_PREFIX, OPENSHIFT_GCP_CACHE_PREFIX, OPENSHIFT_ALL_CACHE_PREFIX)
 
     for cache_key_prefix in cache_key_prefixes:
@@ -105,7 +105,7 @@ def invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type):
 def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types):
     """ "Invalidate our view cache for a specific tenant and a list source types."""
     for source_type in source_types:
-        if source_type in models.Provider.PROVIDER_LIST:
+        if source_type in Provider.PROVIDER_LIST:
             invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
         else:
             LOG.warning("unable to invalidate cache, %s is not a valid source type", source_type)
@@ -113,7 +113,7 @@ def invalidate_view_cache_for_tenant_and_source_types(schema_name, source_types)
 
 def invalidate_view_cache_for_tenant_and_all_source_types(schema_name):
     """ "Invalidate our view cache for a specific tenant and all (non local) source types."""
-    non_local_providers = [provider for provider in models.Provider.PROVIDER_LIST if "-local" not in provider]
+    non_local_providers = [provider for provider in Provider.PROVIDER_LIST if "-local" not in provider]
 
     for source_type in non_local_providers:
         invalidate_view_cache_for_tenant_and_source_type(schema_name, source_type)
