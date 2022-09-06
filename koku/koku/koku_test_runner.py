@@ -91,12 +91,10 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             for tag_key in OCP_ENABLED_TAGS:
                                 OCPEnabledTagKeys.objects.get_or_create(key=tag_key)
                         ##############################################################
-                        # data_loader = NiseDataLoader(KokuTestRunner.schema, customer)
                         # Obtain the day_list from yaml
                         read_yaml = UploadAwsTree(None, None, None, None)
                         tree_yaml = read_yaml.import_yaml(yaml_file_path="dev/scripts/aws_org_tree.yml")
                         day_list = tree_yaml["account_structure"]["days"]
-                        # Load data NiseDataLoader removed, replaced with baker_data_loaders below.
                         bakery_data_loader = ModelBakeryDataLoader(KokuTestRunner.schema, customer)
                         ocp_on_aws_cluster_id = "OCP-on-AWS"
                         ocp_on_azure_cluster_id = "OCP-on-Azure"

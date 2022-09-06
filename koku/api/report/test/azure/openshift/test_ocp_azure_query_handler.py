@@ -41,25 +41,6 @@ from reporting.models import OCPAzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 
-AZURE_SERVICES = {
-    "Bandwidth": ["Bandwidth"],
-    "Log Analytics": ["Log Analytics"],
-    "SQL Database": ["SQL DB Single Std"],
-    "Storage": [
-        "Blob Storage",
-        "Files",
-        "General Block Blob",
-        "Premium SSD Managed Disks",
-        "Queues v2",
-        "Standard Page Blob",
-        "Standard SSD Managed Disks",
-        "Storage - Bandwidth",
-        "Tables",
-    ],
-    "Virtual Machines": ["A Series", "A Series VM", "BS Series VM"],
-    "Virtual Network": ["IP Addresses"],
-}
-
 
 class OCPAzureQueryHandlerTestNoData(IamTestCase):
     """Tests for the OCP report query handler with no data."""
