@@ -280,22 +280,29 @@ class QueryParameters:
 
             elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
                 org_unit_filter = filters.get("org_unit_id")
-                allowed_ous = (
+                access_list = set(
                     AWSOrganizationalUnit.objects.filter(
                         reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in org_unit_filter))
                     )
                     .filter(account_alias__isnull=True)
                     .order_by("org_unit_id", "-created_timestamp")
                     .distinct("org_unit_id")
-                ).values_list("org_unit_id", flat=True)
-                access_list = list(allowed_ous)
+                    .values_list("org_unit_id", flat=True)
+                )
+                if self.user.admin:
+                    access_list.update(self.parameters.get("access").get(filter_key))
+            items = set(self.get_filter(filter_key) or [])
+            result = get_replacement_result(items, access_list, raise_exception, return_access=True)
+            if result:
+                self.parameters["access"][filter_key] = result
+                access_filter_applied = True
 
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
             org_unit_access_list = self.access.get("aws.organizational_unit", {}).get("read", [])
             org_unit_filter = filters.get("org_unit_id", [])
             if "org_unit_id" in filters and access_key == "aws.account" and self.user.admin:
-                access_list = self.parameters.get("access").get(access_key)
+                access_list = self.parameters.get("access").get(filter_key)
 
             if (
                 "org_unit_id" in filters

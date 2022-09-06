@@ -1,4 +1,4 @@
-#! /usr/bin/env python3.8
+#! /usr/bin/env python3
 import logging
 import os
 
@@ -86,7 +86,7 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    tables_to_drop = ["azure_line_items_daily", "azure_line_items"]
+    tables_to_drop = ["gcp_line_items", "gcp_line_items_daily"]
     # columns_to_add = []
     # columns_to_drop = []
 
