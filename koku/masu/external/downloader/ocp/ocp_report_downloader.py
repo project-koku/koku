@@ -54,11 +54,11 @@ def divide_csv_monthly(file_path, filename):
         {"data_frame": data_frame[data_frame.interval_start.str.contains(month)], "date": month} for month in months
     ]
 
-    for daily_data in monthly_data_frames:
-        day = daily_data.get("date")
-        start_date = parser.parse(day + "-01")
-        df = daily_data.get("data_frame")
-        month_file = f"{report_type}_{uuid.uuid4()}.{day}.csv"
+    for monthly_data in monthly_data_frames:
+        month = monthly_data.get("date")
+        start_date = parser.parse(month + "-01")
+        df = monthly_data.get("data_frame")
+        month_file = f"{report_type}_{uuid.uuid4()}.{month}.csv"
         month_filepath = f"{directory}/{month_file}"
         df.to_csv(month_filepath, index=False, header=True)
         monthly_files.append({"filename": month_file, "filepath": month_filepath, "start_date": start_date})
