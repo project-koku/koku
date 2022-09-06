@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime
 from datetime import timedelta
+from pprint import pprint
 
 from celery import Celery
 from celery import Task
@@ -11,6 +12,7 @@ from celery.schedules import crontab
 from celery.signals import celeryd_after_setup
 from celery.signals import worker_process_init
 from celery.signals import worker_process_shutdown
+from croniter import croniter
 from django.conf import settings
 from kombu.exceptions import OperationalError
 
@@ -81,11 +83,7 @@ class WorkerProbeServer(ProbeServer):  # pragma: no cover
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "koku.settings")
 
-LOG.info("Starting celery.")
-# Setup the database for use in Celery
-# django.setup()
-# LOG.info("Database configured.")
-
+print("starting celery")
 # 'app' is the recommended convention from celery docs
 # following this for ease of comparison to reference implementation
 app = LoggingCelery(
@@ -93,7 +91,7 @@ app = LoggingCelery(
 )
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-LOG.info("Celery autodiscover tasks.")
+print("celery autodiscover tasks")
 
 # Specify the number of celery tasks to run before recycling the celery worker.
 MAX_CELERY_TASKS_PER_WORKER = ENVIRONMENT.int("MAX_CELERY_TASKS_PER_WORKER", default=10)
@@ -102,16 +100,21 @@ app.conf.worker_max_tasks_per_child = MAX_CELERY_TASKS_PER_WORKER
 # Timeout threshold for a worker process to startup
 WORKER_PROC_ALIVE_TIMEOUT = ENVIRONMENT.int("WORKER_PROC_ALIVE_TIMEOUT", default=4)
 app.conf.worker_proc_alive_timeout = WORKER_PROC_ALIVE_TIMEOUT
-LOG.info(f"Celery worker alive timeout = {app.conf.worker_proc_alive_timeout}")
 
 # Toggle to enable/disable scheduled checks for new reports.
 if ENVIRONMENT.bool("SCHEDULE_REPORT_CHECKS", default=False):
-    # The interval to scan for new reports.
-    REPORT_CHECK_INTERVAL = timedelta(minutes=ENVIRONMENT.int("SCHEDULE_CHECK_INTERVAL", default=60))
+    # The schedule to scan for new reports.
+    REPORT_DOWNLOAD_SCHEDULE = ENVIRONMENT.get_value(
+        "REPORT_DOWNLOAD_SCHEDULE", default="0 4,16 * * *"
+    )  # default: “At minute 0 past hour 4 and 16.”
+    if not croniter.is_valid(REPORT_DOWNLOAD_SCHEDULE):
+        print(f"Invalid report-download-schedule {REPORT_DOWNLOAD_SCHEDULE}. Falling back to default `0 4,16 * * *`")
+        REPORT_DOWNLOAD_SCHEDULE = "0 4,16 * * *"
+    report_schedule = crontab(*REPORT_DOWNLOAD_SCHEDULE.split(" ", 5))
 
     CHECK_REPORT_UPDATES_DEF = {
         "task": "masu.celery.tasks.check_report_updates",
-        "schedule": REPORT_CHECK_INTERVAL.seconds,
+        "schedule": report_schedule,
         "args": [],
     }
     app.conf.beat_schedule["check-report-updates"] = CHECK_REPORT_UPDATES_DEF
@@ -167,7 +170,6 @@ app.conf.beat_schedule["delete_source_beat"] = {
 # Specify the frequency for pushing source status.
 SOURCE_STATUS_FREQUENCY_MINUTES = ENVIRONMENT.get_value("SOURCE_STATUS_FREQUENCY_MINUTES", default="30")
 source_status_schedule = crontab(minute=f"*/{SOURCE_STATUS_FREQUENCY_MINUTES}")
-print(f"Source status schedule: {source_status_schedule}")
 
 # task to push source status`
 app.conf.beat_schedule["source_status_beat"] = {
@@ -177,12 +179,6 @@ app.conf.beat_schedule["source_status_beat"] = {
 
 # Collect prometheus metrics.
 app.conf.beat_schedule["db_metrics"] = {"task": "koku.metrics.collect_metrics", "schedule": crontab(hour=1, minute=0)}
-
-# Collect queue metrics.
-# app.conf.beat_schedule["queue_metrics"] = {
-#     "task": "masu.celery.tasks.collect_queue_metrics",
-#     "schedule": crontab(hour="*/1", minute=0),
-# }
 
 
 # optionally specify the weekday and time you would like the clean volume task to run
@@ -227,6 +223,16 @@ app.conf.broker_transport_options = {"max_retries": 4, "interval_start": 0, "int
 app.autodiscover_tasks()
 
 CELERY_INSPECT = app.control.inspect()
+
+
+# Print the configuration only in the celery workers
+hostname = ENVIRONMENT.get_value("HOSTNAME", default="no-hostname-set")
+if "koku-clowder-worker" in hostname:
+    print("celery config:")
+    pprint(app.conf.changes)
+# Print the beat schedules only in the scheduler
+if "scheduler" in hostname:
+    pprint(app.conf.beat_schedule)
 
 
 @celeryd_after_setup.connect
