@@ -177,7 +177,7 @@ class Provider(models.Model):
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
-        invalidate_view_cache_for_tenant_and_cache_key("public")
+        invalidate_view_cache_for_tenant_and_cache_key("sources")
 
         if settings.AUTO_DATA_INGEST and should_ingest and self.active:
             # Local import of task function to avoid potential import cycle.
