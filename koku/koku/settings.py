@@ -208,6 +208,7 @@ REDIS_CONNECTION_POOL_KWARGS = {
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
+REVERSE_KEY_FUNCTION = lambda x: x
 if "test" in sys.argv:
     TEST_RUNNER = "koku.koku_test_runner.KokuTestRunner"
     CACHES = {
@@ -215,7 +216,7 @@ if "test" in sys.argv:
             "BACKEND": "django.core.cache.backends.dummy.DummyCache",
             "LOCATION": TEST_CACHE_LOCATION,
             "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "REVERSE_KEY_FUNCTION": REVERSE_KEY_FUNCTION,
         },
         "rbac": {"BACKEND": "django.core.cache.backends.dummy.DummyCache", "LOCATION": TEST_CACHE_LOCATION},
         "worker": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": TEST_CACHE_LOCATION},
@@ -226,7 +227,7 @@ else:
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
             "KEY_FUNCTION": "tenant_schemas.cache.make_key",
-            "REVERSE_KEY_FUNCTION": "tenant_schemas.cache.reverse_key",
+            "REVERSE_KEY_FUNCTION": REVERSE_KEY_FUNCTION,
             "TIMEOUT": 3600,  # 1 hour default
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
