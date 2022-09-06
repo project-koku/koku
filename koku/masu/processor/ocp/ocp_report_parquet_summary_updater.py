@@ -113,7 +113,7 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                 # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
                 # the cost rows generated through the OCPCloudParquetReportSummaryUpdater
                 accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
-                    self._provider.uuid, start, end, report_period_id
+                    self._provider.uuid, report_period_id, start, end
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid
