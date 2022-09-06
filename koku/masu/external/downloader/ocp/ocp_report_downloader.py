@@ -49,7 +49,7 @@ def divide_csv_monthly(file_path, filename):
     unique_times = data_frame.interval_start.unique()
     days = list({cur_dt[:10] for cur_dt in unique_times})
     date_range = {"start": min(days), "end": max(days)}
-    months = list({day.strftime("%Y-%m") for day in unique_times})
+    months = list({datetime.datetime.fromisoformat(day[0:10]).strftime("%Y-%m") for day in unique_times})
     monthly_data_frames = [
         {"data_frame": data_frame[data_frame.interval_start.str.contains(month)], "date": month} for month in months
     ]

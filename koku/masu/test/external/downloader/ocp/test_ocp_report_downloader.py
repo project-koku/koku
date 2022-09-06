@@ -7,10 +7,12 @@ import logging
 import os.path
 import shutil
 import tempfile
+import uuid
 from datetime import datetime
 from unittest.mock import patch
 
 import pandas as pd
+from dateutil import parser
 from django.test.utils import override_settings
 from faker import Faker
 
@@ -168,24 +170,32 @@ class OCPReportDownloaderTest(MasuTestCase):
         with tempfile.TemporaryDirectory() as td:
             filename = "storage_data.csv"
             file_path = f"{td}/{filename}"
+            test_uuid = uuid.uuid4()
             with patch("masu.external.downloader.ocp.ocp_report_downloader.pd") as mock_pd:
                 with patch(
                     "masu.external.downloader.ocp.ocp_report_downloader.utils.detect_type",
                     return_value=("storage_usage", None),
                 ):
-                    mock_report = {
-                        "interval_start": ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"],
-                        "persistentvolumeclaim_labels": ["label1", "label2"],
-                    }
-                    df = pd.DataFrame(data=mock_report)
-                    mock_pd.read_csv.return_value = df
-                    monthly_files, date_range = divide_csv_monthly(file_path, filename)
-                    self.assertNotEqual([], monthly_files)
-                    self.assertEqual(len(monthly_files), 2)
-                    gen_files = ["storage_usage.2020-01-01.csv", "storage_usage.2020-01-02.csv"]
-                    expected = [{"filename": gen_file, "filepath": f"{td}/{gen_file}"} for gen_file in gen_files]
-                    for expected_item in expected:
-                        self.assertIn(expected_item, monthly_files)
+                    with patch(
+                        "masu.external.downloader.ocp.ocp_report_downloader.uuid.uuid4",
+                        return_value=test_uuid,
+                    ):
+                        mock_report = {
+                            "interval_start": ["2020-01-01 00:00:00 +UTC", "2020-01-02 00:00:00 +UTC"],
+                            "persistentvolumeclaim_labels": ["label1", "label2"],
+                        }
+                        df = pd.DataFrame(data=mock_report)
+                        mock_pd.read_csv.return_value = df
+                        monthly_files, date_range = divide_csv_monthly(file_path, filename)
+                        self.assertNotEqual([], monthly_files)
+                        self.assertEqual(len(monthly_files), 1)
+                        gen_file = f"storage_usage_{test_uuid}.2020-01.csv"
+                        expected = {
+                            "filename": gen_file,
+                            "filepath": f"{td}/{gen_file}",
+                            "start_date": parser.parse("2020-01-01"),
+                        }
+                        self.assertIn(expected, monthly_files)
 
     def test_divide_csv_monthly_failure(self):
         """Test the divide_csv_monthly method throw error on reading CSV."""
