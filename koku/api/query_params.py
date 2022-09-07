@@ -289,8 +289,7 @@ class QueryParameters:
                     .distinct("org_unit_id")
                     .values_list("org_unit_id", flat=True)
                 )
-                if self.user.admin:
-                    access_list.update(self.parameters.get("access").get(filter_key))
+                access_list.update(self.parameters.get("access").get(filter_key))
             items = set(self.get_filter(filter_key) or [])
             result = get_replacement_result(items, access_list, raise_exception, return_access=True)
             if result:
@@ -301,7 +300,7 @@ class QueryParameters:
             items = set(group_by.get(filter_key))
             org_unit_access_list = self.access.get("aws.organizational_unit", {}).get("read", [])
             org_unit_filter = filters.get("org_unit_id", [])
-            if "org_unit_id" in filters and access_key == "aws.account" and self.user.admin:
+            if "org_unit_id" in filters and access_key == "aws.account":
                 access_list = self.parameters.get("access").get(filter_key)
 
             if (
