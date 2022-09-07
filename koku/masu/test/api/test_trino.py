@@ -79,8 +79,6 @@ class TrinoUITest(MasuTestCase):
             url = f"{reverse('trino_ui')}?{urlencode(params)}"
             response = self.client.get(url)
             self.assertEqual(response.status_code, mock_response.status_code)
-            mock_requests.assert_called_once
-            mock_response.assert_called_once
 
     @patch("koku.middleware.MASU", return_value=True)
     @patch("masu.api.trino.requests")
