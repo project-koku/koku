@@ -34,7 +34,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external import UNCOMPRESSED
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
-from masu.external.downloader.ocp.ocp_report_downloader import create_daily_archives
+from masu.external.downloader.ocp.ocp_report_downloader import create_monthly_archives
 from masu.external.downloader.ocp.ocp_report_downloader import OCPReportDownloader
 from masu.processor._tasks.process import _process_report_file
 from masu.processor.report_processor import ReportProcessorDBError
@@ -212,7 +212,7 @@ def extract_payload_contents(request_id, out_dir, tarball_path, tarball, context
 
 def construct_parquet_reports(request_id, context, report_meta, payload_destination_path, report_file):
     """Build, upload and convert parquet reports."""
-    daily_parquet_files = create_daily_archives(
+    daily_parquet_files = create_monthly_archives(
         request_id,
         report_meta["account"],
         report_meta["provider_uuid"],
@@ -434,7 +434,7 @@ def handle_message(kmsg):
     except (OperationalError, InterfaceError) as error:
         close_and_set_db_connection()
         msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
-        LOG.error(log_json(request_id, msg, context))
+        LOG.warning(log_json(request_id, msg, context))
         raise KafkaMsgHandlerError(msg) from error
     except Exception as error:  # noqa
         traceback.print_exc()

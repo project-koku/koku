@@ -219,7 +219,7 @@ class ProviderDBAccessor(KokuDBAccess):
             (String): "Name of the database schema",
 
         """
-        return self.provider.customer.schema_name
+        return self.provider.customer.schema_name if self.provider else None
 
     def get_account_id(self):
         """

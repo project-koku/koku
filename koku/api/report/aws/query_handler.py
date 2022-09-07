@@ -236,8 +236,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             acc_group_by_key = "account"
             acc_group_by_data = group_by_param.get(acc_group_by_key)
             org_unit_list = filters.get("org_unit_id")
-            self.parameters.parameters["access"]["aws.organizational_unit"] = org_unit_list
-            self.parameters.parameters["access"]["aws.account"] = acc_group_by_data
+            self.parameters.parameters["access"]["org_unit_id"] = org_unit_list
+            self.parameters.parameters["access"]["account"] = acc_group_by_data
 
             # add a key to parameters used in query filter composition in queries.py
             self.parameters.set("ou_or_operator", True)

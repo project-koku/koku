@@ -54,6 +54,7 @@ markupsafe = "<2.1"
 unleashclient = "<5"
 trino = "*"
 oci = "*"
+croniter = "*"
 
 [dev-packages]
 astroid = ">=2.3"

@@ -47,7 +47,7 @@ class ManifestInvalidFilterException(APIException):
 class ManifestView(viewsets.ModelViewSet):
     """Manifest View class."""
 
-    queryset = CostUsageReportManifest.objects.all()
+    queryset = CostUsageReportManifest.objects.all().order_by("-manifest_creation_datetime")
     serializer_class = ManifestSerializer
     permission_classes = [ManifestPermission]
     http_method_names = ["get"]
@@ -62,8 +62,9 @@ class ManifestView(viewsets.ModelViewSet):
     @staticmethod
     def check_filters(dict_):
         """Check if filter parameters are valid"""
-        valid_query_params = ["name", "limit", "offset"]
+        valid_query_params = ["name", "limit", "offset", "timestamp"]
         params = {k: dict_.get(k) for k in dict_.keys() if k not in valid_query_params}
+
         if params:
             raise ManifestInvalidFilterException("Invalid Filter Parameter")
 
@@ -78,15 +79,26 @@ class ManifestView(viewsets.ModelViewSet):
         """API list all Manifests, filter by: provider name"""
         param = self.request.query_params
         self.check_filters(param.dict())
+        response = None
         if request.GET.get("name"):
             providers = self.get_provider_UUID(param["name"])
-            queryset = self.queryset.filter(provider_id=providers["uuid"])
-            pagination = self.set_pagination(self, queryset, ManifestSerializer)
-            if pagination is not None:
-                return self.get_paginated_response(pagination)
-            return Response(ManifestSerializer(queryset).data, many=True)
+            self.queryset = self.queryset.filter(provider_id=providers["uuid"])
+            pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
+            response = self.check_pagnation(pagination)
+        if request.GET.get("timestamp") == "asc":
+            self.queryset = self.queryset.order_by("manifest_creation_datetime")
+            pagination = self.set_pagination(self, self.queryset, ManifestSerializer)
+            response = self.check_pagnation(pagination)
+        if response is not None:
+            return response
         else:
             return super().list(request)
+
+    def check_pagnation(self, pagination):
+        if pagination is not None:
+            return self.get_paginated_response(pagination)
+        else:
+            return Response(ManifestSerializer(self.queryset).data, many=True)
 
     def get_manifests_by_source(self, request, *args, **kwargs):
         """Get Manifests by source UUID"""

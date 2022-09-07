@@ -10,7 +10,7 @@ export $(grep -v -e "^#" -e "^DEVELOPMENT_IDENTITY" $CFG_FILE | xargs)
 # import common functions
 source $DEV_SCRIPTS_PATH/common/logging.sh
 
-KOKU_CONTAINERS=("koku_server" "masu_server" "koku-worker" "koku_listener")
+KOKU_CONTAINERS=("koku-worker", "koku_worker_1", "koku_worker_2", "koku_worker_3", "koku_worker_4")
 RUNNING_SERVICES=()
 
 get_running_containers() {
@@ -23,10 +23,11 @@ get_running_containers() {
   done
 }
 
+# docker-compose -f $COMPOSE_FILE up -d --force-recreate --no-deps --build $service
 restart_services() {
   for service in ${RUNNING_SERVICES[@]}; do
     log-info "restarting: $service"
-    docker-compose -f $COMPOSE_FILE up -d --force-recreate --no-deps --build $service
+    docker-compose -f $COMPOSE_FILE up -d --force-recreate --no-deps $service
   done
 }
 
