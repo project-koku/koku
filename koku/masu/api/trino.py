@@ -81,5 +81,5 @@ def trino_ui(request):
             LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
             response = requests.get(api_str)
             return Response({"api_service_name": api_service, "trino_response": response.json()})
-        errmsg = "Must provide a valid  trino-ui api service."
+        errmsg = "Must provide a valid trino-ui api service."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
