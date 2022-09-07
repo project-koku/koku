@@ -688,6 +688,8 @@ class ReportQueryHandler(QueryHandler):
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
+            if "count" in aggs:
+                aggs["count"] = ["max"]
 
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
@@ -742,25 +744,12 @@ class ReportQueryHandler(QueryHandler):
             if units and "usage" in df.columns:
                 df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            grouped_df = df.groupby([self._mapper.cost_units_key]).agg(aggs, axis=1)
+            if "count" in aggs:
+                aggs["count"] = ["max"]
+            grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            total_query_data = grouped_df.to_dict("records")
-            total_query = defaultdict(Decimal)
-
-            for element in total_query_data:
-                for key, value in element.items():
-                    if type(value) != str and key != "count":
-                        total_query[key] += value
-                    elif key == "count":
-                        if isinstance(value, list):
-                            total_query[key] = len(set(value))
-                        else:
-                            total_query[key] += value
-                    else:
-                        total_query[key] = value
-            total_query.pop(self._mapper.cost_units_key)
+            total_query = grouped_df.to_dict("records")[0]
         else:
             total_query = query_data.aggregate(**aggregates)
         return total_query
