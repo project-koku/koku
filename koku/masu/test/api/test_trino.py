@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the trino_query endpoint view."""
+from unittest.mock import MagicMock
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -56,4 +58,43 @@ class TrinoQueryTest(MasuTestCase):
             expected = {"Error": f"This endpoint does not allow a {keyword} operation to be performed."}
             response = self.client.post(reverse("trino_query"), data=data)
             self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json(), expected)
+
+
+@override_settings(ROOT_URLCONF="masu.urls")
+class TrinoUITest(MasuTestCase):
+    """Test Cases for the trino_ui endpoint."""
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.trino.requests")
+    def test_trino_ui_with_api_service(self, mock_requests, _):
+        """Test the GET trino_ui endpoint."""
+        valid_api_services = ["query", "stats", "cluster"]
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}
+        mock_requests.get.return_value = mock_response
+        for service in valid_api_services:
+            params = {"api_service": service}
+            url = f"{reverse('trino_ui')}?{urlencode(params)}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, mock_response.status_code)
+            mock_requests.assert_called_once
+            mock_response.assert_called_once
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.trino.requests")
+    def test_trino_ui_invalid_or_no_api_service(self, mock_requests, _):
+        """Test the GET trino_ui endpoint with no api service parameter."""
+        invalid_api_services = ["invalid", "", "random", "test"]
+        expected = {"Error": "Must provide a valid  trino-ui api service."}
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = {}
+        mock_requests.get.return_value = mock_response
+        for service in invalid_api_services:
+            params = {"api_service": service}
+            url = f"{reverse('trino_ui')}?{urlencode(params)}"
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, mock_response.status_code)
             self.assertEqual(response.json(), expected)
