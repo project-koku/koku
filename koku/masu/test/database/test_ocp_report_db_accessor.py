@@ -2813,7 +2813,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_populate_openshift_cluster_information_tables(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that we populate cluster info."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2851,7 +2851,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that OpenShift topology is populated."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2866,8 +2866,10 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
+        # Using the aws_provider to short cut this test instead of creating a brand
+        # new provider. The OCP providers already have data, and can't be used here
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -2875,7 +2877,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_provider(self.ocp_provider_uuid)
+            topology = self.accessor.get_openshift_topology_for_provider(self.aws_provider_uuid)
 
             self.assertEqual(topology.get("cluster_id"), cluster_id)
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
