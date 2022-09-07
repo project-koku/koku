@@ -640,7 +640,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_chain.return_value.apply_async.assert_not_called()
 
     @patch(
-        "masu.processor.tasks.disable_cloud_source_summary",
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
         return_value=True,
     )
     @patch("masu.processor.worker_cache.CELERY_INSPECT")

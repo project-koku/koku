@@ -94,8 +94,8 @@
             "createdAt": "2022-08-29T11:50:00.756Z"
         },
         {
-            "name": "disable-cloud-source-summary",
-            "description": "Toggle to disable cloud source summary for account.",
+            "name": "disable-ocp-on-cloud-summary",
+            "description": "Toggle to disable ocp on cloud summary for account.",
             "type": "permission",
             "project": "default",
             "enabled": true,
