@@ -77,8 +77,8 @@ def trino_ui(request):
         params = request.query_params
         api_service = params.get("api_service", "")
         if api_service in trino_ui_api_services:
-            LOG.info(f"Running Trino UI API service for {api_service} endpoint")
             api_str = f"http://{settings.PRESTO_HOST}:{settings.PRESTO_PORT}/ui/api/{api_service}"
+            LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
             response = requests.get(api_str)
             return Response({"api_service_name": api_service, "trino_response": response.json()})
         errmsg = "Must provide a valid  trino-ui api service."

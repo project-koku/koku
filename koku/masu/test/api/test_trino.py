@@ -87,7 +87,7 @@ class TrinoUITest(MasuTestCase):
     def test_trino_ui_invalid_or_no_api_service(self, mock_requests, _):
         """Test the GET trino_ui endpoint with no api service parameter."""
         invalid_api_services = ["invalid", "", "random", "test"]
-        expected = {"Error": "Must provide a valid  trino-ui api service."}
+        expected = {"Error": "Must provide a valid trino-ui api service."}
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.json.return_value = {}
