@@ -169,3 +169,9 @@ class ProviderDBAccessorTest(MasuTestCase):
         now = DateAccessor().today_with_timezone("UTC")
         ProviderDBAccessor(self.aws_provider_uuid).set_data_updated_timestamp()
         self.assertGreater(ProviderDBAccessor(self.aws_provider_uuid).provider.data_updated_timestamp, now)
+
+    def test_set_additional_context(self):
+        """Test that the additional context is updated."""
+        context = {"new": "context"}
+        ProviderDBAccessor(self.aws_provider_uuid).set_additional_context(context)
+        self.assertDictEqual(ProviderDBAccessor(self.aws_provider_uuid).provider.additional_context, context)
