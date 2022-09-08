@@ -2421,6 +2421,24 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         self._execute_raw_sql_query(table_name, sql, start_date, end_date)
 
+    def delete_all_except_infrastructure_raw_cost_from_daily_summary(
+        self, provider_uuid, report_period_id, start_date, end_date
+    ):
+        table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        msg = (
+            f"Removing all cost excluding infrastructure_raw_cost for {provider_uuid} from {start_date} to {end_date}."
+        )
+        LOG.info(msg)
+        sql = f"""
+            DELETE FROM {self.schema}.reporting_ocpusagelineitem_daily_summary
+            WHERE usage_start >= '{start_date}'::date
+                AND usage_start <= '{end_date}'::date
+                AND report_period_id = {report_period_id}
+                AND (infrastructure_raw_cost IS NULL OR infrastructure_raw_cost = 0)
+        """
+
+        self._execute_raw_sql_query(table_name, sql, start_date, end_date)
+
     def populate_ocp_on_all_project_daily_summary(self, platform, sql_params):
         LOG.info(f"Populating {platform.upper()} records for ocpallcostlineitem_project_daily_summary")
         script_file_name = f"reporting_ocpallcostlineitem_project_daily_summary_{platform.lower()}.sql"

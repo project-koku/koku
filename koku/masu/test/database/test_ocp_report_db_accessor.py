@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
@@ -2949,3 +2950,75 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.assertEqual(result, test["expected"])
                 self.assertTrue(hasattr(result[0], "date"))
                 self.assertTrue(hasattr(result[1], "date"))
+
+    def test_delete_all_except_infrastructure_raw_cost_from_daily_summary(self):
+        """Test that deleting saves OCP on Cloud data."""
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        # First test an OCP on Cloud source to make sure we don't delete that data
+        provider_uuid = self.ocp_on_aws_ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertEqual(initial_non_raw_count, 0)
+        self.assertEqual(new_non_raw_count, 0)
+        self.assertEqual(initial_raw_count, new_raw_count)
+
+        # Now test an on prem OCP cluster to make sure we still remove non raw costs
+        provider_uuid = self.ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
+        self.assertEqual(initial_raw_count, 0)
+        self.assertEqual(new_raw_count, 0)
