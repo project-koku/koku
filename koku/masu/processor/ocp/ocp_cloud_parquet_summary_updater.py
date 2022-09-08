@@ -15,6 +15,7 @@ from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
+from masu.processor import summarize_ocp_on_gcp_by_node
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.util.aws.common import get_bills_from_provider as aws_get_bills_from_provider
 from masu.util.azure.common import get_bills_from_provider as azure_get_bills_from_provider
@@ -287,6 +288,16 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
             accessor.delete_infrastructure_raw_cost_from_daily_summary(
                 openshift_provider_uuid, report_period.id, start_date, end_date
             )
+
+            if summarize_ocp_on_gcp_by_node(self._schema):
+                msg = f"Summarizing OCP on GCP by node enabled for {self._schema}."
+                LOG.info(msg)
+                # vars that are only needed if processing by node instead of cluster
+                cluster_uuid = accessor.get_cluster_for_provider(openshift_provider_uuid)
+                nodes = accessor.get_nodes_for_cluster(cluster_uuid)
+                nodes = [node[0] for node in nodes]
+                node_count = len(nodes)
+
         gcp_bills = gcp_get_bills_from_provider(gcp_provider_uuid, self._schema, start_date, end_date)
         with schema_context(self._schema):
             self._handle_partitions(
@@ -345,17 +356,35 @@ class OCPCloudParquetReportSummaryUpdater(OCPCloudReportSummaryUpdater):
                 accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
                     self._provider.uuid, start, end, filters, table=OCPGCPCostLineItemProjectDailySummaryP
                 )
-                accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
-                    start,
-                    end,
-                    openshift_provider_uuid,
-                    cluster_id,
-                    gcp_provider_uuid,
-                    current_ocp_report_period_id,
-                    current_gcp_bill_id,
-                    markup_value,
-                    distribution,
-                )
+                if summarize_ocp_on_gcp_by_node(self._schema):
+                    for node in nodes:
+                        LOG.info(f"Summarizing ocp on gcp daily for node: {node}")
+                        accessor.populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
+                            start,
+                            end,
+                            openshift_provider_uuid,
+                            cluster_id,
+                            gcp_provider_uuid,
+                            current_ocp_report_period_id,
+                            current_gcp_bill_id,
+                            markup_value,
+                            distribution,
+                            node,
+                            node_count,
+                        )
+                else:
+                    accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
+                        start,
+                        end,
+                        openshift_provider_uuid,
+                        cluster_id,
+                        gcp_provider_uuid,
+                        current_ocp_report_period_id,
+                        current_gcp_bill_id,
+                        markup_value,
+                        distribution,
+                    )
+
             accessor.back_populate_ocp_on_gcp_daily_summary_trino(start_date, end_date, current_ocp_report_period_id)
             accessor.populate_ocp_on_gcp_ui_summary_tables(sql_params)
             accessor.populate_ocp_on_gcp_tags_summary_table(gcp_bill_ids, start_date, end_date)
