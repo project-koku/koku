@@ -22,13 +22,25 @@ from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
 from api.tags.serializers import month_list
+from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
+
 
 LOG = logging.getLogger(__name__)
 TAG_PREFIX = "tag:"
 AND_TAG_PREFIX = "and:tag:"
 OR_TAG_PREFIX = "or:tag:"
+
+
+def enable_negative_filtering(org_id):
+    """Helper to determine if account is enabled for negative filtering."""
+    if org_id and not org_id.startswith("org"):
+        org_id = f"acct{org_id}"
+
+    context = {"schema": org_id}
+    LOG.info(f"enable_negative_filtering context: {context}")
+    return bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
 
 
 class QueryParameters:
@@ -91,7 +103,14 @@ class QueryParameters:
         self._set_tag_keys()  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
-        for item in ["filter", "group_by", "order_by", "access"]:
+        parameter_set_list = ["filter", "group_by", "order_by", "access"]
+        org_id = self.request.user.customer.org_id
+        if enable_negative_filtering(org_id):
+            parameter_set_list.append("exclude")
+        elif self.parameters.get("exclude"):
+            del self.parameters["exclude"]
+
+        for item in parameter_set_list:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
