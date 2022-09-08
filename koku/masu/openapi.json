@@ -1769,7 +1769,7 @@
         ]
       }
     },
-    "/trino_ui/": {
+    "/trino/api/": {
       "get": {
         "summary": "Returns JSON with query output.",
         "operationId": "TrinoUI",
@@ -1782,8 +1782,7 @@
             "required": true,
             "schema":{
               "type":"string",
-              "format":"string",
-              "example":"query"
+              "enum":["query", "stats", "cluster"]
             }
           }
         ],
