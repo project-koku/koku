@@ -1156,7 +1156,7 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
-        previous_query.annotate(exchange_rate=self.get_exchange_rate_expression())
+        previous_query = previous_query.annotate(exchange_rate=self.get_exchange_rate_expression)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
