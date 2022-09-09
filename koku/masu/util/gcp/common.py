@@ -161,6 +161,7 @@ def gcp_generate_daily_data(data_frame):
             "labels",
             "cost_type",
             "location_region",
+            "resource_name",
         ],
         dropna=False,
     ).agg(
@@ -173,6 +174,7 @@ def gcp_generate_daily_data(data_frame):
             "currency": ["max"],
             "cost": ["sum"],
             "daily_credits": ["sum"],
+            "resource_global_name": ["max"],
         }
     )
     columns = daily_data_frame.columns.droplevel(1)
