@@ -134,9 +134,12 @@ class OCPGCPProviderMap(ProviderMap):
                             # cost goes to cost_total
                             "cost_total": Sum(
                                 ExpressionWrapper(
-                                    F("unblended_cost")
-                                    + F("markup_cost")
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField())),
+                                    (
+                                        F("unblended_cost")
+                                        + F("markup_cost")
+                                        + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    )
+                                    * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
                             )

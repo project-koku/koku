@@ -22,8 +22,12 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
@@ -1130,6 +1134,13 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
+    def add_currency_annotation(self, query):
+        when_conditions = [
+            When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
+            for k, v in self.exchange_rates.items()
+        ]
+        return query.annotate(exchange_rate=Case(*when_conditions, default=1.0, output_field=DecimalField()))
+
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
 
@@ -1144,6 +1155,7 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
+        previous_query = self.add_currency_annotation(previous_query)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

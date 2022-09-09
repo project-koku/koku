@@ -123,8 +123,11 @@ class OCPAzureProviderMap(ProviderMap):
                         "count": None,
                         "delta_key": {
                             "cost_total": Sum(
-                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
-                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                (
+                                    Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                                )
+                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField()))
                             )
                         },
                         "filter": [{}],
