@@ -1134,12 +1134,13 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
-    def add_currency_annotation(self, query):
+    @cached_property
+    def get_exchange_rate_expression(self):
         when_conditions = [
             When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
             for k, v in self.exchange_rates.items()
         ]
-        return query.annotate(exchange_rate=Case(*when_conditions, default=1.0, output_field=DecimalField()))
+        return Case(*when_conditions, default=1.0, output_field=DecimalField())
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
@@ -1155,7 +1156,7 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
-        previous_query = self.add_currency_annotation(previous_query)
+        previous_query.annotate(exchange_rate=self.get_exchange_rate_expression())
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)
