@@ -22,8 +22,12 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
@@ -31,6 +35,7 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 
 from api.currency.models import ExchangeRateDictionary
+from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -169,6 +174,30 @@ class ReportQueryHandler(QueryHandler):
         except AttributeError as err:
             LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
             return {}
+
+    @property
+    def exchange_rates_2(self):
+        """Look up the exchange rate for the target currency."""
+        try:
+            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
+        except ExchangeRates.DoesNotExist:
+            LOG.warning("Invalid exchange rate. Using default of 1.")
+            exchange_rate = 1
+
+        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
+
+    def get_exchange_rate_annotation(self, query=None):
+        """Get the exchange rate annotation based on the curriences found in the query."""
+        if self.is_csv_output:
+            return Value(1, output_field=DecimalField())
+        # currencies = query.values_list(self._mapper.cost_units_key, flat=True).distinct()
+        # lowered_currencies = [currency.lower() for currency in currencies]
+        currency_key = f"{self._mapper.cost_units_key}__iexact"
+        whens = [
+            When(**{currency_key: k, "then": v})
+            for k, v in self.exchange_rates_2.items()  # if k in lowered_currencies
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
 
     @property
     def is_openshift(self):
@@ -880,7 +909,7 @@ class ReportQueryHandler(QueryHandler):
     def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
-        gb = group_by_value if group_by_value else ["date"]
+        gb = copy.copy(group_by_value) if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
         rank_orders = []
 
@@ -910,11 +939,16 @@ class ReportQueryHandler(QueryHandler):
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
 
+        if "cost_total" in rank_annotations:
+            group_by_value.append(self._mapper._report_type_map.get("cost_units_key"))
+            rank_annotations["cost_total"] = self._mapper._report_type_map.get("cost_total_exchange")
+
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
-            query.annotate(**self.annotations)
+            query.annotate(exchange_rate=self.get_exchange_rate_annotation(), **self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
+            .values(*gb)
             .annotate(rank=rank_by_total)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )

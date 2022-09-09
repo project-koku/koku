@@ -133,6 +133,13 @@ class AWSProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "cost_total_exchange": Sum(
+                            (
+                                Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },

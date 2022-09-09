@@ -73,6 +73,11 @@ class ProviderMap:
         return self._report_type_map.get("count")
 
     @property
+    def cost_total_exchange(self):
+        """Return the count property."""
+        return self._report_type_map.get("cost_total_exchange")
+
+    @property
     def provider_map(self):
         """Return the provider map property."""
         return self._provider_map
