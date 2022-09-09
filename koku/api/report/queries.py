@@ -925,7 +925,7 @@ class ReportQueryHandler(QueryHandler):
 
         if "cost_total" in rank_annotations:
             group_by_value.append(self._mapper._report_type_map.get("cost_units_key"))
-            rank_annotations["cost_total"] = self._mapper._report_type_map.get("ranking_cost_total_exchanged")
+            rank_annotations["cost_total"] = self._mapper.ranking_cost_total_exchanged
 
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
