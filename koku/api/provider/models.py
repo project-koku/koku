@@ -35,7 +35,7 @@ class ProviderAuthentication(models.Model):
 class ProviderBillingSource(models.Model):
     """A Koku Provider Billing Source.
 
-    Used for accessing cost providers billing sourece like AWS Account S3.
+    Used for accessing cost providers billing source like AWS Account S3.
     """
 
     uuid = models.UUIDField(default=uuid4, editable=False, unique=True, null=False)
@@ -170,6 +170,8 @@ class Provider(models.Model):
             if provider.authentication != self.authentication or provider.billing_source != self.billing_source:
                 should_ingest = True
             else:
+                should_ingest = False
+            if provider.setup_complete != self.setup_complete:
                 should_ingest = False
 
         # Commit the new/updated Provider to the DB
@@ -370,7 +372,7 @@ delete
 """
         with transaction.get_connection().cursor() as cur:
             cur.execute(_sql, (target_values,))
-            LOG.info(f"Deleted {cur.rowcount} recurds from {qual_table_name}")
+            LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
 
 class Sources(RunTextFieldValidators, models.Model):

@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Summary Updater for GCP Parquet files."""
-import calendar
 import logging
 
 import ciso8601
 from django.conf import settings
 from tenant_schemas.utils import schema_context
 
+from api.utils import DateHelper
 from koku.pg_partition import PartitionHandlerMixin
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
@@ -33,23 +33,6 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
-        with GCPReportDBAccessor(self._schema) as accessor:
-            # This is the normal processing route
-            if self._manifest:
-                # Override the bill date to correspond with the manifest
-                bill_date = self._manifest.billing_period_start_datetime.date()
-                bills = accessor.get_cost_entry_bills_query_by_provider(self._provider.uuid)
-                bills = bills.filter(billing_period_start=bill_date).all()
-                first_bill = bills.filter(billing_period_start=bill_date).first()
-                do_month_update = False
-                with schema_context(self._schema):
-                    if first_bill:
-                        do_month_update = self._determine_if_full_summary_update_needed(first_bill)
-                if do_month_update:
-                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
-                    start_date = bill_date
-                    end_date = bill_date.replace(day=last_day_of_month)
-                    LOG.info("Overriding start and end date to process full month.")
 
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
@@ -58,7 +41,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_daily_tables(self, start_date, end_date):
+    def update_daily_tables(self, start_date, end_date, invoice_month):
         """Populate the daily tables for reporting.
 
         Args:
@@ -74,7 +57,7 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
         return start_date, end_date
 
-    def update_summary_tables(self, start_date, end_date):
+    def update_summary_tables(self, start_date, end_date, invoice_month):
         """Populate the summary tables for reporting.
 
         Args:
@@ -97,9 +80,15 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         with GCPReportDBAccessor(self._schema) as accessor:
             # Need these bills on the session to update dates after processing
             with schema_context(self._schema):
-                bills = accessor.bills_for_provider_uuid(self._provider.uuid, start_date)
-                bill_ids = [str(bill.id) for bill in bills]
-                current_bill_id = bills.first().id if bills else None
+                if invoice_month:
+                    invoice_month_date = DateHelper().invoice_month_start(invoice_month).date()
+                    bills = accessor.bills_for_provider_uuid(self._provider.uuid, invoice_month_date)
+                    bill_ids = [str(bill.id) for bill in bills]
+                    current_bill_id = bills.first().id if bills else None
+                else:
+                    msg = "No invoice month was provided during summarization. Skipping summarization"
+                    LOG.info(msg)
+                    return start_date, end_date
 
             if current_bill_id is None:
                 msg = f"No bill was found for {start_date}. Skipping summarization"
@@ -109,11 +98,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
                 LOG.info(
                     "Updating GCP report summary tables from parquet: \n\tSchema: %s"
-                    "\n\tProvider: %s \n\tDates: %s - %s",
+                    "\n\tProvider: %s \n\tDates: %s - %s \n\tInvoice Month: %s",
                     self._schema,
                     self._provider.uuid,
                     start,
                     end,
+                    invoice_month,
                 )
                 filters = {
                     "cost_entry_bill_id": current_bill_id
@@ -122,12 +112,12 @@ class GCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     self._provider.uuid, start, end, filters
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
-                    start, end, self._provider.uuid, current_bill_id, markup_value
+                    start, end, self._provider.uuid, current_bill_id, markup_value, invoice_month_date
                 )
                 accessor.populate_enabled_tag_keys(start, end, bill_ids)
                 accessor.populate_ui_summary_tables(start, end, self._provider.uuid)
             accessor.populate_tags_summary_table(bill_ids, start_date, end_date)
-            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date)
+            accessor.populate_gcp_topology_information_tables(self._provider, start_date, end_date, invoice_month_date)
             accessor.update_line_item_daily_summary_with_enabled_tags(start_date, end_date, bill_ids)
             for bill in bills:
                 if bill.summary_data_creation_datetime is None:

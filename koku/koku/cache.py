@@ -41,8 +41,13 @@ def invalidate_view_cache_for_tenant_and_cache_key(schema_name, cache_key_prefix
     If cache_key_prefix is None, all views will be invalidated.
     """
     cache = caches["default"]
-    if isinstance(cache, RedisCache):
-        cache = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=settings.REDIS_DB)
+    if isinstance(cache, RedisCache):  # pragma: no cover
+        cache = Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=settings.REDIS_DB,
+            **settings.REDIS_CONNECTION_POOL_KWARGS,
+        )
         all_keys = cache.keys("*")
         all_keys = [key.decode("utf-8") for key in all_keys]
     elif isinstance(cache, LocMemCache):

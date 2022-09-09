@@ -44,7 +44,7 @@ class OCILocalReportDownloaderTest(MasuTestCase):
         """Set up each test."""
         super().setUp()
         dh = DateHelper()
-        self.start_date = dh.today
+        self.start_date = dh.this_month_start
         self.etag = "reports_cost-csv_0001000000603747.csv"
         test_report = "./koku/masu/test/data/oci/reports_cost-csv_0001000000603747.csv"
         self.local_storage = tempfile.mkdtemp()

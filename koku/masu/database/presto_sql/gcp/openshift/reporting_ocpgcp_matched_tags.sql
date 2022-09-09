@@ -7,7 +7,7 @@ WITH cte_unnested_gcp_tags AS (
         AND year = '{{year | sqlsafe}}'
         AND month = '{{month | sqlsafe}}'
         AND usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
-        AND usage_end_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+        AND usage_start_time < date_add('day', 1, TIMESTAMP '{{start_date | sqlsafe}}')
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT pod_key,

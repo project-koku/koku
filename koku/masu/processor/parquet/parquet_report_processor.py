@@ -85,6 +85,9 @@ class ParquetReportProcessor:
         self._manifest_id = manifest_id
         self._context = context
         self.start_date = self._context.get("start_date")
+        self.invoice_month = self._context.get("invoice_month")
+        if self.invoice_month:
+            self.invoice_month_date = DateHelper().invoice_month_start(self.invoice_month).date()
         self.presto_table_exists = {}
         self.files_to_remove = []
 
@@ -96,7 +99,11 @@ class ParquetReportProcessor:
     @property
     def account(self):
         """The tenant account number as a string."""
-        return self._schema_name[4:]
+        # Existing schema will start with acct and we strip that prefix for use later
+        # new customers include the org prefix in case an org-id and an account number might overlap
+        if self._schema_name.startswith("acct"):
+            return self._schema_name[4:]
+        return self._schema_name
 
     @property
     def provider_uuid(self):

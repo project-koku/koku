@@ -348,6 +348,8 @@ class OCPUsageLineItemDailySummary(models.Model):
 
     source_uuid = models.UUIDField(unique=False, null=True)
 
+    raw_currency = models.TextField(null=True)
+
 
 class OCPTagsValues(models.Model):
     class Meta:
@@ -579,9 +581,11 @@ class OCPEnabledTagKeys(models.Model):
         """Meta for OCPEnabledTagKeys."""
 
         db_table = "reporting_ocpenabledtagkeys"
+        indexes = [models.Index(name="ocp_enabled_covering_ix", fields=["key", "enabled"])]
 
     id = models.BigAutoField(primary_key=True)
     key = models.CharField(max_length=253, unique=True)
+    enabled = models.BooleanField(null=False, default=True)
 
 
 class OCPCluster(models.Model):
@@ -688,6 +692,8 @@ class OCPCostSummaryP(models.Model):
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
+    raw_currency = models.TextField(null=True)
+
 
 class OCPCostSummaryByProjectP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -738,6 +744,8 @@ class OCPCostSummaryByProjectP(models.Model):
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
+    raw_currency = models.TextField(null=True)
+
 
 class OCPCostSummaryByNodeP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -786,6 +794,8 @@ class OCPCostSummaryByNodeP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    raw_currency = models.TextField(null=True)
 
 
 class OCPPodSummaryP(models.Model):
@@ -856,6 +866,8 @@ class OCPPodSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    raw_currency = models.TextField(null=True)
 
 
 class OCPPodSummaryByProjectP(models.Model):
@@ -932,6 +944,8 @@ class OCPPodSummaryByProjectP(models.Model):
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
 
+    raw_currency = models.TextField(null=True)
+
 
 class OCPVolumeSummaryP(models.Model):
     """A summarized partitioned table specifically for UI API queries.
@@ -987,6 +1001,8 @@ class OCPVolumeSummaryP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    raw_currency = models.TextField(null=True)
 
 
 class OCPVolumeSummaryByProjectP(models.Model):
@@ -1048,3 +1064,5 @@ class OCPVolumeSummaryByProjectP(models.Model):
     source_uuid = models.ForeignKey(
         "api.Provider", on_delete=models.CASCADE, unique=False, null=True, db_column="source_uuid"
     )
+
+    raw_currency = models.TextField(null=True)

@@ -66,7 +66,11 @@ class DevelopmentIdentityHeaderMiddleware(MiddlewareMixin):
                 username=user_dict.get("username", "user_dev"),
                 email=user_dict.get("email", "user_dev@foo.com"),
                 admin=user_dict.get("is_org_admin", False),
-                customer=Mock(account_id=identity_header.get("account_number", "10001")),
+                customer=Mock(
+                    account_id=identity_header.get("account_number", "10001"),
+                    org_id=identity_header.get("org_id", "1234567"),
+                    schema_name=f'org{identity_header.get("org_id", "1234567")}',
+                ),
                 req_id="DEVELOPMENT",
             )
 

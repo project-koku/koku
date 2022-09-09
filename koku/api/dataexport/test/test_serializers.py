@@ -32,6 +32,7 @@ class DataExportRequestSerializerTest(MasuTestCase):
         identity = {
             "identity": {
                 "account_number": "10001",
+                "org_id": "1234567",
                 "type": "User",
                 "user": {"username": username, "email": email, "is_org_admin": False},
             },

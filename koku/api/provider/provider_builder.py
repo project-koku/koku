@@ -84,6 +84,7 @@ class ProviderBuilder:
         if encoded_auth_header:
             identity = json.loads(b64decode(encoded_auth_header))
             account = identity.get("identity", {}).get("account_number")
+            org_id = identity.get("identity", {}).get("org_id")
             username = identity.get("identity", {}).get("user", {}).get("username")
             email = identity.get("identity", {}).get("user", {}).get("email")
             identity_type = identity.get("identity", {}).get("type", "User")
@@ -94,9 +95,9 @@ class ProviderBuilder:
                 email = ""
 
             try:
-                customer = Customer.objects.filter(account_id=account).get()
+                customer = Customer.objects.filter(org_id=org_id).get()
             except Customer.DoesNotExist:
-                customer = IdentityHeaderMiddleware.create_customer(account)
+                customer = IdentityHeaderMiddleware.create_customer(account, org_id)
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
@@ -134,11 +135,9 @@ class ProviderBuilder:
         try:
             if serializer.is_valid(raise_exception=True):
                 instance = serializer.save()
-        except ValidationError as error:
+        finally:
+            invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
             connection.set_schema_to_public()
-            raise error
-        connection.set_schema_to_public()
-        invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         return instance
 
     def update_provider_from_source(self, source):
@@ -175,5 +174,6 @@ class ProviderBuilder:
             LOG.info("Provider does not exist, skipping Provider delete.")
         else:
             manager.remove(user=user, from_sources=True, retry_count=retry_count)
+        finally:
             invalidate_view_cache_for_tenant_and_cache_key(customer.schema_name, SOURCES_CACHE_PREFIX)
         connection.set_schema_to_public()

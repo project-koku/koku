@@ -32,7 +32,7 @@ class HCSDataTests(TestCase):
         start_date = end_date - timedelta(days=1)
 
         params = {
-            "schema": "acct10001",
+            "schema": "org1234567",
             "start_date": start_date.date().strftime("%Y-%m-%d"),
             "end_date": end_date.date().strftime("%Y-%m-%d"),
             "provider_uuid": "6e212746-484a-40cd-bba0-09a19d132d64",
@@ -66,7 +66,7 @@ class HCSDataTests(TestCase):
     def test_get_hcs_report_data_provider_uuid_missing(self, _):
         """Test GET hcs_report_data endpoint returns a 400 for missing provider_uuid & provider_type."""
         start_date = DateHelper().today.date().strftime("%Y-%m-%d")
-        params = {"start_date": start_date, "schema": "acct10001"}
+        params = {"start_date": start_date, "schema": "org1234567"}
 
         expected_key = "Error"
         expected_message = "provider_uuid must be supplied as a parameter"

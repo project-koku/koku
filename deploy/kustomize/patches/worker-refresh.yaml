@@ -81,16 +81,6 @@
           value: ${WORKER_REFRESH_WORKER_QUEUE}
         - name: WORKER_PROC_ALIVE_TIMEOUT
           value: ${WORKER_PROC_ALIVE_TIMEOUT}
-        - name: SCHEDULE_CHECK_INTERVAL
-          value: ${SCHEDULE_CHECK_INTERVAL}
-        - name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY
-          value: ${REMOVE_EXPIRED_REPORT_DATA_ON_DAY}
-        - name: REMOVE_EXPIRED_REPORT_UTC_TIME
-          value: ${REMOVE_EXPIRED_REPORT_UTC_TIME}
-        - name: VACUUM_DATA_DAY_OF_WEEK
-          value: ${VACUUM_DATA_DAY_OF_WEEK}
-        - name: VACUUM_DATA_UTC_TIME
-          value: ${VACUUM_DATA_UTC_TIME}
         - name: VOLUME_FILE_RETENTION
           value: ${VOLUME_FILE_RETENTION}
         - name: CLEAN_VOLUME_DAY_OF_WEEK
@@ -129,6 +119,23 @@
           value: ${WORKER_CACHE_TIMEOUT}
         - name: QE_SCHEMA
           value: ${QE_SCHEMA}
+        - name: OCI_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-user
+              name: koku-oci
+        - name: OCI_CLI_FINGERPRINT
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-fingerprint
+              name: koku-oci
+        - name: OCI_CLI_TENANCY
+          valueFrom:
+            secretKeyRef:
+              key: oci-cli-tenancy
+              name: koku-oci
+        - name: OCI_CLI_KEY_FILE
+          value: ${OCI_CLI_KEY_FILE}
         - name: OCI_PYTHON_SDK_NO_SERVICE_IMPORTS
           value: 'true'
         - name: ENHANCED_ORG_ADMIN
@@ -166,6 +173,9 @@
       - name: gcp-credentials
         mountPath: /etc/gcp
         readOnly: true
+      - name: oci-credentials
+        mountPath: /etc/oci
+        readOnly: true
       - name: tmp-data
         mountPath: ${TMP_DIR}
       volumes:
@@ -179,6 +189,12 @@
           items:
             - key: gcp-credentials
               path: gcp-credentials.json
+      - name: oci-credentials
+        secret:
+          secretName: koku-oci
+          items:
+            - key: oci-credentials
+              path: oci-credentials.pem
 
 - op: add
   path: /parameters/-

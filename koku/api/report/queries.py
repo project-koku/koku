@@ -163,12 +163,12 @@ class ReportQueryHandler(QueryHandler):
     @property
     def is_openshift(self):
         """Determine if we are working with an OpenShift API."""
-        return "openshift" in self.parameters.request.get_full_path()
+        return "openshift" in self.parameters.request.path
 
     @property
     def is_aws(self):
         """Determine if we are working with an OpenShift API."""
-        return "aws" in self.parameters.request.get_full_path()
+        return "aws" in self.parameters.request.path
 
     def initialize_totals(self):
         """Initialize the total response column values."""
@@ -207,7 +207,7 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
-    def _get_search_filter(self, filters):
+    def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
 
         Args:
@@ -219,6 +219,12 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
+        # TODO: find a better name for ou_or_operator and ou_or_filter
+        ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
+        if ou_or_operator:
+            ou_or_filters = filters.compose()
+            filters = QueryFilterCollection()
+
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
@@ -249,10 +255,19 @@ class ReportQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
-        composed_filters = composed_filters & and_composed_filters & or_composed_filters
+
+        if ou_or_operator and ou_or_filters:
+            composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
+        else:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+
         if access_filters:
-            composed_access_filters = access_filters.compose()
-            composed_filters = composed_filters & composed_access_filters
+            if ou_or_operator:
+                composed_access_filters = access_filters.compose(logical_operator="or")
+                composed_filters = ou_or_filters & composed_access_filters
+            else:
+                composed_access_filters = access_filters.compose()
+                composed_filters = composed_filters & composed_access_filters
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
@@ -819,7 +834,7 @@ class ReportQueryHandler(QueryHandler):
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.append("usage_units")
-        if self._report_type == "instance_type" and "count" in data_frame.columns:
+        if "instance_type" in self._report_type and "count" in data_frame.columns:
             agg_fields.update({"count_units": ["max"]})
             drop_columns.append("count_units")
 
@@ -859,6 +874,9 @@ class ReportQueryHandler(QueryHandler):
         numeric_columns = [col for col in self.report_annotations if "unit" not in col]
         fill_values = {column: 0 for column in numeric_columns}
         data_frame.fillna(value=fill_values, inplace=True)
+
+        # Finally replace any remaining NaN with None for JSON compatibility
+        data_frame = data_frame.replace({np.nan: None})
 
         return data_frame.to_dict("records")
 
