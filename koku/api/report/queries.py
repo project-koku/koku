@@ -35,7 +35,6 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 
 from api.currency.models import ExchangeRateDictionary
-from api.currency.models import ExchangeRates
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -175,27 +174,12 @@ class ReportQueryHandler(QueryHandler):
             LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
             return {}
 
-    @property
-    def exchange_rates_2(self):
-        """Look up the exchange rate for the target currency."""
-        try:
-            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
-        except ExchangeRates.DoesNotExist:
-            LOG.warning("Invalid exchange rate. Using default of 1.")
-            exchange_rate = 1
-
-        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
-
-    def get_exchange_rate_annotation(self, query=None):
+    @cached_property
+    def exchange_rate_expression(self):
         """Get the exchange rate annotation based on the curriences found in the query."""
-        if self.is_csv_output:
-            return Value(1, output_field=DecimalField())
-        # currencies = query.values_list(self._mapper.cost_units_key, flat=True).distinct()
-        # lowered_currencies = [currency.lower() for currency in currencies]
-        currency_key = f"{self._mapper.cost_units_key}__iexact"
         whens = [
-            When(**{currency_key: k, "then": v})
-            for k, v in self.exchange_rates_2.items()  # if k in lowered_currencies
+            When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
+            for k, v in self.exchange_rates.items()
         ]
         return Case(*whens, default=1, output_field=DecimalField())
 
@@ -941,11 +925,11 @@ class ReportQueryHandler(QueryHandler):
 
         if "cost_total" in rank_annotations:
             group_by_value.append(self._mapper._report_type_map.get("cost_units_key"))
-            rank_annotations["cost_total"] = self._mapper._report_type_map.get("cost_total_exchange")
+            rank_annotations["cost_total"] = self._mapper._report_type_map.get("ranking_cost_total_exchanged")
 
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
-            query.annotate(exchange_rate=self.get_exchange_rate_annotation(), **self.annotations)
+            query.annotate(exchange_rate=self.exchange_rate_expression, **self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
             .values(*gb)

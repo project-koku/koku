@@ -109,7 +109,7 @@ class OCIProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
-                        "cost_total_exchange": Sum(
+                        "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(F("cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))

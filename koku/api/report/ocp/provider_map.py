@@ -581,7 +581,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "filter": [{}],
                         "cost_units_key": "USD",
-                        "cost_total_exchange": Sum(
+                        "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_usage_cost"),
@@ -1185,7 +1185,7 @@ class OCPProviderMap(ProviderMap):
                         },
                         "filter": [{}],
                         "cost_units_key": "USD",
-                        "cost_total_exchange": Sum(
+                        "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(
                                     KeyDecimalTransform("cpu", "supplementary_usage_cost"),

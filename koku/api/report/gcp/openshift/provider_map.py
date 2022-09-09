@@ -144,7 +144,7 @@ class OCPGCPProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
-                        "cost_total_exchange": Sum(
+                        "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
@@ -234,7 +234,7 @@ class OCPGCPProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
-                        "cost_total_exchange": Sum(
+                        "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                 + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
