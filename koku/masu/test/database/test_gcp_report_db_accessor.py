@@ -302,6 +302,20 @@ class GCPReportDBAccessorTest(MasuTestCase):
         )
         mock_presto.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        with schema_context(self.schema):
+            GCPEnabledTagKeys.objects.all().delete()
+        value = self.accessor.check_for_matching_enabled_keys()
+        self.assertFalse(value)
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        value = self.accessor.check_for_matching_enabled_keys()
+        self.assertTrue(value)
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
     def test_back_populate_ocp_on_gcp_daily_summary_trino(self, mock_presto):
         """Test that ocp on gcp back populate runs"""

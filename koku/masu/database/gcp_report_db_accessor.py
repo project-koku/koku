@@ -730,3 +730,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_presto_multipart_sql_query(self.schema, sql, bind_params=sql_params)
+
+    def check_for_matching_enabled_keys(self):
+        """
+        Checks the enabled tag keys for matching keys.
+        """
+        match_sql = f"""
+            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
+        """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(match_sql)
+            results = cursor.fetchall()
+            if results[0][0] < 1:
+                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                return False
+        return True
