@@ -491,6 +491,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        resource_level = True
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
@@ -509,9 +510,12 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary.sql"
-        )
+        if resource_level:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+        else:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
+
+        summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
