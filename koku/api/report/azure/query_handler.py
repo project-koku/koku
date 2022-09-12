@@ -160,9 +160,10 @@ class AzureReportQueryHandler(ReportQueryHandler):
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
+            remove_columns = ["count", "usage"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
-                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data
+                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
             )
 
             if self._limit and query_data:

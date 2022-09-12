@@ -87,7 +87,7 @@ class OCPAzureReportQueryHandler(AzureReportQueryHandler):
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             aggregates = self._mapper.report_type_map.get("aggregates")
             query_sum_data = query_data.annotate(**aggregates)
-            remove_columns = ["cost_units", "usage_units", "count"]
+            remove_columns = ["usage", "cost_units", "usage_units", "count"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
