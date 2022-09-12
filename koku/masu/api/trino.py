@@ -6,6 +6,7 @@
 # flake8: noqa
 import logging
 
+import requests
 import trino
 from django.conf import settings
 from django.views.decorators.cache import never_cache
@@ -63,3 +64,22 @@ def trino_query(request):
                 results.append(result)
 
         return Response(results)
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+@renderer_classes(tuple(api_settings.DEFAULT_RENDERER_CLASSES))
+def trino_ui(request):
+    """Get trino ui api responses."""
+    trino_ui_api_services = ["query", "stats", "cluster"]
+    if request.method == "GET":
+        params = request.query_params
+        api_service = params.get("api_service", "")
+        if api_service in trino_ui_api_services:
+            api_str = f"http://{settings.PRESTO_HOST}:{settings.PRESTO_PORT}/ui/api/{api_service}"
+            LOG.info(f"Running Trino UI API service for endpoint: {api_str}")
+            response = requests.get(api_str)
+            return Response({"api_service_name": api_service, "trino_response": response.json()})
+        errmsg = "Must provide a valid parameter and trino-ui api service."
+        return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)

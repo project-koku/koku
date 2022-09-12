@@ -244,6 +244,8 @@ class TestGCPUtils(MasuTestCase):
                 "currency": "USD",
                 "cost": cost,
                 "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
             },
             {
                 "billing_account_id": "fact",
@@ -265,6 +267,8 @@ class TestGCPUtils(MasuTestCase):
                 "currency": "USD",
                 "cost": cost,
                 "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
             },
             {
                 "billing_account_id": "fact",
@@ -286,6 +290,8 @@ class TestGCPUtils(MasuTestCase):
                 "currency": "USD",
                 "cost": cost,
                 "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
             },
         ]
         df = pd.DataFrame(data)
