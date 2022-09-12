@@ -35,7 +35,11 @@ OR_TAG_PREFIX = "or:tag:"
 
 def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
-    if org_id and not org_id.startswith("org"):
+    if not org_id:
+        return False
+    if isinstance(org_id, str) and not org_id.startswith("org"):
+        org_id = f"acct{org_id}"
+    elif not isinstance(org_id, str):
         org_id = f"acct{org_id}"
 
     context = {"schema": org_id}
@@ -503,6 +507,10 @@ class QueryParameters:
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
+
+    def get_exclusions(self, filt, default=None):
+        """Get a filter parameter."""
+        return self.get("exclude", OrderedDict())
 
     def get_start_date(self):
         """Get a start_date parameter."""
