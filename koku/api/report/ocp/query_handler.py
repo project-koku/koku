@@ -162,8 +162,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             for column in columns:
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * self.exchange_rates.get(row["raw_currency"], {}).get(self.currency, Decimal(1.0))
-                    if row["raw_currency"]
+                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
+                    if row[self._mapper.cost_units_key]
                     else row[column]
                     * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                         self.currency, Decimal(1.0)
@@ -209,8 +209,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for column in columns:
             df[column] = df.apply(
                 lambda row: row[column]
-                * self.exchange_rates.get(row["raw_currency"], {}).get(self.currency, Decimal(1.0))
-                if row["raw_currency"]
+                * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
+                if row[self._mapper.cost_units_key]
                 else row[column]
                 * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                     self.currency, Decimal(1.0)
@@ -261,8 +261,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             source_column = "source_uuid" if self.query_table == OCPUsageLineItemDailySummary else "source_uuid_id"
             if self.query_table == OCPUsageLineItemDailySummary:
                 self.report_annotations.pop("source_uuid")
-            initial_group_by.append(source_column)
-            initial_group_by.append("raw_currency")
+            initial_group_by.extend([source_column, self._mapper.cost_units_key])
             annotations = self._mapper.report_type_map.get("annotations")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
