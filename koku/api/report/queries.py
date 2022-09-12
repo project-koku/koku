@@ -176,7 +176,7 @@ class ReportQueryHandler(QueryHandler):
 
     @cached_property
     def exchange_rate_expression(self):
-        """Get the exchange rate annotation based on the curriences found in the query."""
+        """Get the exchange rate annotation based on the exchange_rates property."""
         whens = [
             When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
             for k, v in self.exchange_rates.items()
