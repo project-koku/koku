@@ -5,6 +5,7 @@
 """Provider Mapper for OCP on AWS Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
+from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -131,6 +132,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
@@ -203,6 +211,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
@@ -359,7 +374,7 @@ class OCPAWSProviderMap(ProviderMap):
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -384,7 +399,7 @@ class OCPAWSProviderMap(ProviderMap):
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),

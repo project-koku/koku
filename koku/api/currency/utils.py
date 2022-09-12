@@ -35,7 +35,7 @@ def build_exchange_dictionary(rates, index=0, exchange_rates={}):
 def exchange_dictionary(rates):
     """Posts exchange rates dictionary to DB"""
     exchange_data = build_exchange_dictionary(rates)
-    current_data = ExchangeRateDictionary.objects.all().first()
+    current_data = ExchangeRateDictionary.objects.first()
     if not current_data:
         ExchangeRateDictionary.objects.create(currency_exchange_dictionary=exchange_data)
     else:

@@ -1477,7 +1477,7 @@ class OCPAzureReportQueryTestCurrency(IamTestCase):
             with self.subTest(desired_currency=desired_currency):
                 expected_total = []
                 url = f"?currency={desired_currency}"
-                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                mock_exchange.objects.first().currency_exchange_dictionary = self.exchange_dictionary
                 query_params = self.mocked_query_params(url, OCPAzureCostView)
                 handler = OCPAzureReportQueryHandler(query_params)
                 with tenant_context(self.tenant):

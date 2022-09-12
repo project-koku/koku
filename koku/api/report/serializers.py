@@ -16,8 +16,6 @@ from api.utils import materialized_view_month_start
 
 CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 
-CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
-
 
 def handle_invalid_fields(this, data):
     """Validate incoming data.

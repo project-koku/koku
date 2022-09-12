@@ -122,15 +122,13 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
         query_sum["cost_units"] = self.currency
-        if query_sum.get("count"):
+        if query_sum.get("count") and isinstance(query_sum.get("count"), list):
             query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
         if self._mapper.report_type_map.get("annotations", {}).get("count_units") and count_units_value:
             query_sum["count_units"] = count_units_value
-        if query_sum.get("count") and isinstance(query_sum.get("count"), list):
-            query_sum["count"] = {"value": len(query_sum.get("count")), "units": count_units_value}
         key_order = list(init_order_keys + list(annotations.keys()))
 
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}

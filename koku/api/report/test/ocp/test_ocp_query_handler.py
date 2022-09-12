@@ -754,10 +754,7 @@ class OCPReportQueryTestCurrency(IamTestCase):
         """Set up the currency tests."""
         self.dh = DateHelper()
         super().setUp()
-        self.tables = [
-            OCPUsageLineItemDailySummary,
-            OCPCostSummaryByProjectP,
-        ]
+        self.tables = [OCPUsageLineItemDailySummary, OCPCostSummaryByProjectP]
         self.neg_ten = self.dh.n_days_ago(self.dh.today, 10)
         self.currencies = ["USD", "CAD", "AUD"]
         self.ten_days_ago = self.dh.n_days_ago(self.dh.today, 9)
@@ -769,8 +766,9 @@ class OCPReportQueryTestCurrency(IamTestCase):
                     .values_list("source_uuid", flat=True)
                     .distinct()
                 )
-                for x in range(len(self.source_uuids)):
-                    self.source_mapping[self.source_uuids[x]] = random.choice(["AUD", "USD", "CAD"])
+
+                for source_uuid in self.source_uuids:
+                    self.source_mapping[source_uuid] = random.choice(["AUD", "USD", "CAD"])
         self.exchange_dictionary = {
             "USD": {"USD": Decimal(1.0), "AUD": Decimal(2.0), "CAD": Decimal(3.0)},
             "AUD": {"USD": Decimal(0.5), "AUD": Decimal(1.0), "CAD": Decimal(0.67)},
@@ -778,14 +776,14 @@ class OCPReportQueryTestCurrency(IamTestCase):
         }
 
     @patch("api.report.ocp.query_handler.OCPReportQueryHandler.build_source_to_currency_map")
-    @patch("api.report.ocp.query_handler.ExchangeRateDictionary")
+    @patch("api.report.queries.ExchangeRateDictionary")
     def test_total_cost(self, mock_exchange, mock_map):
         """Test overall cost"""
         for desired_currency in self.currencies:
             with self.subTest(desired_currency=desired_currency):
                 expected_total = []
                 url = f"?currency={desired_currency}"
-                mock_exchange.objects.all().first().currency_exchange_dictionary = self.exchange_dictionary
+                mock_exchange.objects.first().currency_exchange_dictionary = self.exchange_dictionary
                 mock_map.return_value = self.source_mapping
                 query_params = self.mocked_query_params(url, OCPCostView)
                 handler = OCPReportQueryHandler(query_params)

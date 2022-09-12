@@ -27,8 +27,11 @@ class NotificationsTest(TestCase):
         """Test triggering a cost model crud notification."""
         polling_accounts = AccountsAccessor().get_accounts()
         notification = NotificationService()
-        notification.cost_model_crud_notification(polling_accounts[0])
-        mock_send_notification.assert_called()
+        cost_model = {"cost_model_uuid": "1234", "cost_model_name": "My cost model"}
+        cost_model_types = ["create", "update", "remove"]
+        for cmt in cost_model_types:
+            notification.cost_model_crud_notification(polling_accounts[0], cost_model, cmt)
+            mock_send_notification.assert_called()
 
     @patch("koku.notifications.NotificationService.send_notification", return_result=True)
     def test_ocp_stale_cluster_notification(self, mock_send_notification):
@@ -47,8 +50,8 @@ class NotificationsTest(TestCase):
         mock_send_notification.assert_called()
 
     @patch("koku.notifications.NotificationService.send_notification", return_result=True)
-    def test_ocp_data_recieved_notification(self, mock_send_notification):
-        """Test triggering data recieved cluster notification."""
+    def test_ocp_data_received_notification(self, mock_send_notification):
+        """Test triggering data received cluster notification."""
         polling_accounts = AccountsAccessor().get_accounts()
         notification = NotificationService()
         notification.ocp_data_received_notification(polling_accounts[0])

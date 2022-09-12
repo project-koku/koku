@@ -9,6 +9,8 @@ from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 
+from api.utils import DateHelper
+
 
 @override_settings(ROOT_URLCONF="masu.urls")
 @patch("koku.middleware.MASU", return_value=True)
@@ -17,6 +19,7 @@ class HCSFinalizationTests(TestCase):
     """Test Cases for the hcs_report_finalization endpoint."""
 
     ENDPOINT = "hcs_report_finalization"
+    dh = DateHelper()
 
     def test_get_report_finalization_data(self, mock_celery, _):
         """Test the hcs_report_finalization endpoint."""
@@ -109,6 +112,22 @@ class HCSFinalizationTests(TestCase):
             "schema_name": "acct10005",
         }
         expected_errmsg = "'schema_name' and 'provider_uuid' are not supported in the same request"
+        response = self.client.get(reverse(self.ENDPOINT), params)
+        body = response.json()
+        errmsg = body.get("Error")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(errmsg, expected_errmsg)
+
+    def test_get_report_finalization_future_month(self, mock_celery, _):
+        """Test the GET hcs_report_finalization endpoint with a month in the future returns a 404"""
+        params = {
+            "month": self.dh.next_month_start.month,
+            "year": self.dh.next_month_start.year,
+        }
+
+        expected_errmsg = "finalization can only be run on past months"
+
         response = self.client.get(reverse(self.ENDPOINT), params)
         body = response.json()
         errmsg = body.get("Error")
