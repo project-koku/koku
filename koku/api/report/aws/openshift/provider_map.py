@@ -132,6 +132,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
@@ -204,6 +211,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },

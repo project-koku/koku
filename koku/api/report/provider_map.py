@@ -73,6 +73,11 @@ class ProviderMap:
         return self._report_type_map.get("count")
 
     @property
+    def ranking_cost_total_exchanged(self):
+        """Return the count property."""
+        return self._report_type_map.get("ranking_cost_total_exchanged")
+
+    @property
     def provider_map(self):
         """Return the provider map property."""
         return self._provider_map

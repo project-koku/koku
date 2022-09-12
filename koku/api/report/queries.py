@@ -22,8 +22,12 @@ import ciso8601
 import numpy as np
 import pandas as pd
 from django.contrib.postgres.aggregates import ArrayAgg
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
 from django.db.models import Window
 from django.db.models.expressions import OrderBy
 from django.db.models.expressions import RawSQL
@@ -169,6 +173,15 @@ class ReportQueryHandler(QueryHandler):
         except AttributeError as err:
             LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
             return {}
+
+    @cached_property
+    def exchange_rate_expression(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
+            for k, v in self.exchange_rates.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
 
     @property
     def is_openshift(self):
@@ -880,7 +893,7 @@ class ReportQueryHandler(QueryHandler):
     def _group_by_ranks(self, query, data):  # noqa: C901
         """Handle grouping data by filter limit."""
         group_by_value = self._get_group_by()
-        gb = group_by_value if group_by_value else ["date"]
+        gb = copy.copy(group_by_value) if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
         rank_orders = []
 
@@ -910,11 +923,16 @@ class ReportQueryHandler(QueryHandler):
         if tag_column in gb[0]:
             rank_orders.append(self.get_tag_order_by(gb[0]))
 
+        if "cost_total" in rank_annotations:
+            group_by_value.append(self._mapper._report_type_map.get("cost_units_key"))
+            rank_annotations["cost_total"] = self._mapper.ranking_cost_total_exchanged
+
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
-            query.annotate(**self.annotations)
+            query.annotate(exchange_rate=self.exchange_rate_expression, **self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
+            .values(*gb)
             .annotate(rank=rank_by_total)
             .annotate(source_uuid=ArrayAgg(F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True))
         )
