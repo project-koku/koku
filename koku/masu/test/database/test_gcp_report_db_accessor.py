@@ -307,23 +307,24 @@ class GCPReportDBAccessorTest(MasuTestCase):
         with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
             markup = cost_model_accessor.markup
             markup_value = float(markup.get("value", 0)) / 100
-            distribution = cost_model_accessor.distribution
 
-        self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
-            start_date,
-            end_date,
-            self.ocp_provider_uuid,
-            self.ocp_cluster_id,
-            self.gcp_provider_uuid,
-            self.ocp_cluster_id,
-            current_bill_id,
-            markup_value,
-            distribution,
-            "node",
-            12,
-        )
-        mock_presto.assert_called()
-        mock_delete.assert_called()
+        for distribution in ["cpu", "memory"]:
+            with self.subTest(distribution=distribution):
+                self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
+                    start_date,
+                    end_date,
+                    self.ocp_provider_uuid,
+                    self.ocp_cluster_id,
+                    self.gcp_provider_uuid,
+                    self.ocp_cluster_id,
+                    current_bill_id,
+                    markup_value,
+                    distribution,
+                    "node",
+                    12,
+                )
+                mock_presto.assert_called()
+                mock_delete.assert_called()
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
