@@ -194,7 +194,7 @@ SELECT gcp.uuid as gcp_uuid,
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
     ON gcp.usage_start_time = ocp.usage_start
-        AND gcp.resource_name = ocp.resource_id
+        AND strpos(gcp.resource_name, ocp.node) != 0
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'

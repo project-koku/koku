@@ -491,7 +491,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        resource_level = True
+        resource_level = True  # TODO THIS NEEDS TO CHANGE!
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)

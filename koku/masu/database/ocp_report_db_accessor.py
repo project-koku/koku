@@ -483,6 +483,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return {}
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
+            resource_level = True  # TODO THIS NEEDS TO CHANGE!
             if gcp_provider_uuid and not check_gcp:
                 return {}
         if not any([check_aws, check_azure, check_gcp]):
@@ -506,6 +507,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "check_aws": check_aws,
             "check_azure": check_azure,
             "check_gcp": check_gcp,
+            "resource_level": resource_level,
         }
         infra_sql, infra_sql_params = self.jinja_sql.prepare_query(infra_sql, infra_sql_params)
         results = self._execute_presto_raw_sql_query(

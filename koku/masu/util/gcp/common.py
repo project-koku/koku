@@ -194,10 +194,9 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     resource_ids = cluster_topology.get("resource_ids", [])
     resource_id_df = data_frame["resource_name"]
 
-    if resource_id_df:
+    if resource_id_df.any():
         LOG.info("Matching OpenShift on GCP by resource ID.")
-        resource_id_matched = resource_id_df.isin(resource_ids)
-        data_frame["resource_id_matched"] = resource_id_matched
+        ocp_matched = resource_id_df.isin(resource_ids)
     else:
         LOG.info("Matching OpenShift on GCP by labels.")
         ocp_matched = tags.str.contains(f"kubernetes-io-cluster-{cluster_id}|kubernetes-io-cluster-{cluster_alias}")
