@@ -101,7 +101,8 @@ class OCIProviderMap(ProviderMap):
                         "delta_key": {
                             "cost_total": Sum(
                                 ExpressionWrapper(
-                                    Coalesce(F("cost"), Value(0, output_field=DecimalField())) + F("markup_cost"),
+                                    (Coalesce(F("cost"), Value(0, output_field=DecimalField())) + F("markup_cost"))
+                                    * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
                             )

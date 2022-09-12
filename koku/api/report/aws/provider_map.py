@@ -124,8 +124,11 @@ class AWSProviderMap(ProviderMap):
                             # cost goes to cost_total
                             "cost_total": Sum(
                                 ExpressionWrapper(
-                                    Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
-                                    + F(self.markup_cost),
+                                    (
+                                        Coalesce(F(cost_type), Value(0, output_field=DecimalField()))
+                                        + F(self.markup_cost)
+                                    )
+                                    * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
                             )
