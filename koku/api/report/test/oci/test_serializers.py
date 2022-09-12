@@ -9,12 +9,55 @@ from unittest.mock import Mock
 from faker import Faker
 from rest_framework import serializers
 
+from api.report.oci.serializers import OCIExcludeSerializer
 from api.report.oci.serializers import OCIFilterSerializer
 from api.report.oci.serializers import OCIGroupBySerializer
 from api.report.oci.serializers import OCIOrderBySerializer
 from api.report.oci.serializers import OCIQueryParamSerializer
 
 FAKE = Faker()
+
+
+class OCIExcludeSerializerTest(TestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_params_no_time(self):
+        """Test parse of a exclude param no time exclude."""
+        exclude_params = {
+            "region": FAKE.word(),
+            "payer_tenant_id": FAKE.uuid4(),
+            "instance_type": FAKE.word(),
+        }
+        serializer = OCIExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_invalid_fields(self):
+        """Test parse of exclude params for invalid fields."""
+        exclude_params = {"invalid": "param"}
+        serializer = OCIExcludeSerializer(data=exclude_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"bad_tag": "value"}
+        serializer = OCIExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OCIExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCIExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OCIExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCIExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OCIFilterSerializerTest(TestCase):

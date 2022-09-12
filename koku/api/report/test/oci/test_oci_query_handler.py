@@ -1454,6 +1454,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             )
         ranking_map = {}
         count = 1
+        tested = False
         for service in expected:
             ranking_map[service.get("product_service")] = count
             count += 1
