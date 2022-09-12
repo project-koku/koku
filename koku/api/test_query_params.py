@@ -223,7 +223,11 @@ class QueryParametersTests(TestCase):
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(params.tenant, expected)
 
-    def test_parameters_property(self):
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=False,
+    )
+    def test_parameters_property(self, mock_unleash):
         """Test that the parameters property returns expected value."""
         expected = parser.parse(str(self.fake_uri))
         # add access since it is a part of the parameters but not the uri
@@ -677,6 +681,66 @@ class QueryParametersTests(TestCase):
         )
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
+
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=True,
+    )
+    def test_process_exclude_query_params_enabled(self, mock_unleash):
+        """Test that a exclude filter is handled depnedent on unleash settings."""
+        fake_uri = (
+            "filter[resolution]=monthly&"
+            "filter[time_scope_value]=-1&"
+            "filter[time_scope_units]=month&"
+            "exclude[account]=prod&"
+            "group_by[account]=*"
+        )
+
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertIsNotNone(params.parameters.get("exclude"))
+
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=False,
+    )
+    def test_process_exclude_query_params_disabled(self, mock_unleash):
+        """Test that a exclude filter is handled depnedent on unleash settings."""
+        fake_uri = (
+            "filter[resolution]=monthly&"
+            "filter[time_scope_value]=-1&"
+            "filter[time_scope_units]=month&"
+            "exclude[account]=prod&"
+            "group_by[account]=*"
+        )
+
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertIsNone(params.parameters.get("exclude"))
 
     def test_get_providers(self):
         """Test get providers returns the correct access keys."""

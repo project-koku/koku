@@ -113,6 +113,25 @@
             "createdAt": "2022-09-06T11:50:00.756Z"
         },
         {
+            "name": "cost-enable-negative-filtering",
+            "description": "Toggle to enable negative filtering in query",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-09-08T11:50:00.756Z"
+        },
+        {
             "name": "hcs-data-processor",
             "description": "any account listed in this strategy will be allowed to generate HCS report data",
             "type": "permission",
