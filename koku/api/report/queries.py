@@ -1136,11 +1136,11 @@ class ReportQueryHandler(QueryHandler):
 
     @cached_property
     def exchange_rate_expression(self):
-        when_conditions = [
+        whens = [
             When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
             for k, v in self.exchange_rates.items()
         ]
-        return Case(*when_conditions, default=1.0, output_field=DecimalField())
+        return Case(*whens, default=1.0, output_field=DecimalField())
 
     def add_deltas(self, query_data, query_sum):
         """Calculate and add cost deltas to a result set.
