@@ -580,7 +580,7 @@ class OCPProviderMap(ProviderMap):
                             )
                         },
                         "filter": [{}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": "raw_currency",
                         "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(
@@ -1184,7 +1184,7 @@ class OCPProviderMap(ProviderMap):
                             )
                         },
                         "filter": [{}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": "raw_currency",
                         "ranking_cost_total_exchanged": Sum(
                             (
                                 Coalesce(
@@ -1481,7 +1481,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": "raw_currency",
                         "usage_units_key": "Core-Hours",
                         "sum_columns": ["usage", "request", "limit", "sup_total", "cost_total", "infra_total"],
                     },
@@ -1730,7 +1730,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Pod"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Hours",
                         "sum_columns": ["usage", "request", "limit", "cost_total", "sup_total", "infra_total"],
                     },
@@ -1978,7 +1978,7 @@ class OCPProviderMap(ProviderMap):
                             ),
                         },
                         "filter": [{"field": "data_source", "operation": "exact", "parameter": "Storage"}],
-                        "cost_units_key": "USD",
+                        "cost_units_key": "raw_currency",
                         "usage_units_key": "GB-Mo",
                         "sum_columns": ["usage", "request", "cost_total", "sup_total", "infra_total"],
                     },
