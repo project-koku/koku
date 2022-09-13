@@ -103,6 +103,7 @@ class QueryParameters:
         self.serializer = caller.serializer
         self.query_handler = caller.query_handler
         self.tag_handler = caller.tag_handler
+        self.exclusions = OrderedDict()
 
         try:
             query_params = parser.parse(self.url_data)
@@ -118,6 +119,7 @@ class QueryParameters:
         org_id = self.request.user.customer.org_id
         if enable_negative_filtering(org_id):
             parameter_set_list.append("exclude")
+            self.exclusions = self.parameters.get("exclude", OrderedDict())
         elif self.parameters.get("exclude"):
             del self.parameters["exclude"]
 
@@ -535,14 +537,6 @@ class QueryParameters:
         """Set one or more filter paramters."""
         for key, val in kwargs.items():
             self.parameters["filter"][key] = val
-
-    def get_all_exclusions(self):
-        """Get a filter parameter."""
-        return self.parameters.get("exclude", OrderedDict())
-
-    def get_exclude_filter(self, filt, default=None):
-        """Get a filter parameter."""
-        return self.parameters.get("exclude", OrderedDict()).get(filt, default)
 
 
 def get_replacement_result(param_res_list, access_list, raise_exception=True, return_access=False):
