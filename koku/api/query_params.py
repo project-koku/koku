@@ -35,16 +35,14 @@ OR_TAG_PREFIX = "or:tag:"
 
 def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
-    # TODO: The unleash client isn't initialized so this is always
-    # returning false. For now, I am starting and closing the
-    # client, but we don't want to do this with every endpoint call
-    # UNLEASH_CLIENT.initialize_client()
+    # Developing Note: To test this you will have to run gunicorn locally
+    # since the unleash client is initilized in the gunicorn_conf
     if not org_id:
         return False
     if isinstance(org_id, str) and not org_id.startswith("org"):
-        # TODO: So since we only pass in the org_id, it is getting
-        # rewritten here every time, even though our schema starts
-        # with acct, which may be confusing.
+        # TODO: So since we only pass in the org_id, the schema is
+        # showing up as acct1234567, but our actual schema is
+        # org1234567. Which may be a little confusing.
         org_id = f"acct{org_id}"
     elif not isinstance(org_id, str):
         org_id = f"acct{org_id}"
@@ -53,7 +51,6 @@ def enable_negative_filtering(org_id):
     LOG.info(f"enable_negative_filtering context: {context}")
     result = bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
     LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
-    # UNLEASH_CLIENT.destroy()
     return result
 
 
