@@ -35,12 +35,26 @@ OR_TAG_PREFIX = "or:tag:"
 
 def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
-    if org_id and not org_id.startswith("org"):
+    # TODO: The unleash client isn't initialized so this is always
+    # returning false. For now, I am starting and closing the
+    # client, but we don't want to do this with every endpoint call
+    # UNLEASH_CLIENT.initialize_client()
+    if not org_id:
+        return False
+    if isinstance(org_id, str) and not org_id.startswith("org"):
+        # TODO: So since we only pass in the org_id, it is getting
+        # rewritten here every time, even though our schema starts
+        # with acct, which may be confusing.
+        org_id = f"acct{org_id}"
+    elif not isinstance(org_id, str):
         org_id = f"acct{org_id}"
 
     context = {"schema": org_id}
     LOG.info(f"enable_negative_filtering context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
+    result = bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
+    LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
+    # UNLEASH_CLIENT.destroy()
+    return result
 
 
 class QueryParameters:
@@ -524,6 +538,14 @@ class QueryParameters:
         """Set one or more filter paramters."""
         for key, val in kwargs.items():
             self.parameters["filter"][key] = val
+
+    def get_all_exclusions(self):
+        """Get a filter parameter."""
+        return self.parameters.get("exclude", OrderedDict())
+
+    def get_exclude_filter(self, filt, default=None):
+        """Get a filter parameter."""
+        return self.parameters.get("exclude", OrderedDict()).get(filt, default)
 
 
 def get_replacement_result(param_res_list, access_list, raise_exception=True, return_access=False):
