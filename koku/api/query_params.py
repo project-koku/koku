@@ -35,7 +35,11 @@ OR_TAG_PREFIX = "or:tag:"
 
 def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
-    if org_id and not org_id.startswith("org"):
+    if not org_id:
+        return False
+    if isinstance(org_id, str) and not org_id.startswith("org"):
+        org_id = f"acct{org_id}"
+    elif not isinstance(org_id, str):
         org_id = f"acct{org_id}"
 
     context = {"schema": org_id}
