@@ -7,6 +7,7 @@ if __name__ == "__main__":
     token = environ.get("GH_TOKEN")
     if not token:
         print("must set GH_TOKEN environment variable")
+        print("docs: https://docs.github.com/en/rest/actions/cache")
         exit(1)
 
     headers = {"Authorization": f"Bearer {token}"}
