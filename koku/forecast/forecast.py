@@ -136,6 +136,11 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    @property
+    def cost_units_key(self):
+        """Return the cost_units_key property."""
+        return self.provider_map.report_type_map.get("cost_units_key")
+
     @cached_property
     def exchange_rates(self):
         try:
@@ -194,12 +199,10 @@ class Forecast:
                 )
             )
 
-            print("STARTING DATA: ", data)
-
             data = self.convert_currency(data)
 
             for fieldname in COST_FIELD_NAMES:
-                uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
+                uniq_data = self._uniquify_datalist(data, field=fieldname)
                 cost_predictions[fieldname] = self._predict(uniq_data)
 
             cost_predictions = self._key_results_by_date(cost_predictions)
@@ -414,25 +417,21 @@ class Forecast:
         results = model.fit()
         return LinearForecastResult(results, exog=to_predict)
 
-    # TODO: following function is going to need to take a list or dict for new currency conversion method
-    def _uniquify_qset(self, qset, field="total_cost"):
-        """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
+    def _uniquify_datalist(self, datalist, field="total_cost"):
+        """Take a list of datapoints, sum costs within the same day, and arrange it into a list of tuples.
 
         Args:
-            qset (QuerySet)
-            field (str) - field name in the QuerySet to be summed
+            datalist (list)
+            field (str) - field name in the datalist to be summed
 
         Returns:
             [(date, cost), ...]
         """
-        # FIXME: this QuerySet->dict->list conversion probably isn't ideal.
-        # FIXME: there's probably a way to aggregate multiple sources by date using just the ORM.
         result = defaultdict(Decimal)
-        for item in qset:
+        for item in datalist:
             result[item.get("usage_start")] += Decimal(item.get(field, 0.0))
         result = self._remove_outliers(result)
-        out = [(k, v) for k, v in result.items()]
-        return out
+        return list(result.items())
 
     def set_access_filters(self, access, filt, filters):
         """Set access filters to ensure RBAC restrictions adhere to user's access and filters.
