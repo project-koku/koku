@@ -39,5 +39,5 @@ def get_currency(request):
 @renderer_classes([JSONRenderer] + api_settings.DEFAULT_RENDERER_CLASSES)
 def get_exchange_rates(request):
     """Get the currency exchange rates between all currencies"""
-    exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+    exchange_rates = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
     return Response(exchange_rates)

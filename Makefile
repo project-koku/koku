@@ -312,7 +312,8 @@ kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	bash <$(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
+	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash;\
+	mv kustomize $(TESTINGDIR);\
 	}
 KUSTOMIZE=$(TESTINGDIR)/kustomize
 else
@@ -328,8 +329,8 @@ docker-down:
 	$(PREFIX) make clear-testing
 
 docker-down-db:
-	$(DOCKER_COMPOSE) rm -s -v -f db
 	$(DOCKER_COMPOSE) rm -s -v -f unleash
+	$(DOCKER_COMPOSE) rm -s -v -f db
 
 docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server

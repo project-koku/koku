@@ -253,7 +253,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -275,7 +278,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -321,7 +327,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -332,7 +341,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         with self.assertRaises(serializers.ValidationError):
@@ -345,7 +357,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -366,7 +381,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -377,7 +395,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/gcp/storage/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -388,7 +409,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/gcp/storage/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         with self.assertRaises(serializers.ValidationError):
@@ -408,7 +432,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         self.assertTrue(serializer.is_valid())
@@ -434,7 +461,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         with self.assertRaises(serializers.ValidationError):
@@ -453,7 +483,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         serializer = OCPGCPQueryParamSerializer(data=query_params, context=alt_request_context)
         with self.assertRaises(serializers.ValidationError):
@@ -469,7 +502,10 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
         user_data = self._create_user_data()
         alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=path
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            user_data,
+            create_tenant=True,
+            path=path,
         )
         for param in param_failures_list:
             with self.subTest(param=param):

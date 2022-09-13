@@ -275,7 +275,10 @@ class GCPQueryParamSerializerTest(IamTestCase):
         for url, delta_list in valid_delta_map.items():
             user_data = self._create_user_data()
             alt_request_context = self._create_request_context(
-                {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=url
+                {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+                user_data,
+                create_tenant=True,
+                path=url,
             )
             for valid_delta in delta_list:
                 query_params = {"delta": valid_delta}
@@ -292,7 +295,10 @@ class GCPQueryParamSerializerTest(IamTestCase):
         for url, delta_list in bad_delta_map.items():
             user_data = self._create_user_data()
             alt_request_context = self._create_request_context(
-                {"account_id": "10001", "schema_name": self.schema_name}, user_data, create_tenant=True, path=url
+                {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+                user_data,
+                create_tenant=True,
+                path=url,
             )
             for bad_delta in delta_list:
                 query_params = {"delta": bad_delta}

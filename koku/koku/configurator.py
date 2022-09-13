@@ -216,6 +216,21 @@ class EnvConfigurator(Configurator):
         return requestedName
 
     @staticmethod
+    def get_kafka_sasl():
+        """Obtain kafka sasl"""
+        return {}
+
+    @staticmethod
+    def get_kafka_cacert():
+        """Obtain kafka CA Certificate"""
+        return None
+
+    @staticmethod
+    def get_kafka_authtype():
+        """Obtain kafka Authentication Type"""
+        return None
+
+    @staticmethod
     def get_cloudwatch_access_id():
         """Obtain cloudwatch access id."""
         return ENVIRONMENT.get_value("CW_AWS_ACCESS_KEY_ID", default=None)
@@ -379,6 +394,23 @@ class ClowderConfigurator(Configurator):
     def get_kafka_topic(requestedName: str):
         """Obtain kafka topic."""
         return KafkaTopics.get(requestedName).name
+
+    @staticmethod
+    def get_kafka_sasl():
+        """Obtain kafka sasl"""
+        return LoadedConfig.kafka.brokers[0].sasl
+
+    @staticmethod
+    def get_kafka_cacert():
+        """Obtain kafka CA Certificate"""
+        if LoadedConfig.kafka.brokers[0].cacert:
+            return LoadedConfig.kafka_ca()
+        return None
+
+    @staticmethod
+    def get_kafka_authtype():
+        """Obtain kafka Authentication Type"""
+        return LoadedConfig.kafka.brokers[0].authtype
 
     @staticmethod
     def get_cloudwatch_access_id():

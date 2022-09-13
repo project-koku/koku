@@ -101,7 +101,8 @@ class OCIProviderMap(ProviderMap):
                         "delta_key": {
                             "cost_total": Sum(
                                 ExpressionWrapper(
-                                    Coalesce(F("cost"), Value(0, output_field=DecimalField())) + F("markup_cost"),
+                                    (Coalesce(F("cost"), Value(0, output_field=DecimalField())) + F("markup_cost"))
+                                    * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField())),
                                     output_field=DecimalField(),
                                 )
                             )
@@ -109,6 +110,13 @@ class OCIProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"cost_total": "desc"},
                     },
@@ -221,14 +229,14 @@ class OCIProviderMap(ProviderMap):
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
+                            "usage_units": Coalesce(Max("unit"), Value("GB_MS")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
-                            {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},
+                            {"field": "unit", "operation": "in", "parameter": ["GB_MS", "BYTES_MS", "BYTES"]},
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",

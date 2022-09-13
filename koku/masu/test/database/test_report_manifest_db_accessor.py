@@ -104,10 +104,10 @@ class ReportManifestDBAccessorTest(IamTestCase):
         except Exception as err:
             self.fail(f"Test failed with error: {err}")
 
-    def test_mark_manifest_as_completed_none_manifest(self):
+    def test_mark_manifests_as_completed_none_manifest(self):
         """Test that a none manifest doesn't complete failure."""
         try:
-            self.manifest_accessor.mark_manifest_as_completed(None)
+            self.manifest_accessor.mark_manifests_as_completed(None)
         except Exception as err:
             self.fail(f"Test failed with error: {err}")
 
@@ -209,3 +209,26 @@ class ReportManifestDBAccessorTest(IamTestCase):
 
             status = self.manifest_accessor.get_s3_parquet_cleared(manifest)
             self.assertTrue(status)
+
+    def test_bulk_delete_manifests(self):
+        """Test bulk delete of manifests."""
+        with schema_context(self.schema):
+            manifest_list = []
+            for fake_assembly_id in ["1234", "12345", "123456"]:
+                self.manifest_dict["assembly_id"] = fake_assembly_id
+                manifest = self.manifest_accessor.add(**self.manifest_dict)
+                manifest_list.append(manifest.id)
+            self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
+            current_manifests = self.manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                self.provider_uuid, self.billing_start
+            )
+            current_manifests = [manifest.id for manifest in current_manifests]
+        for deleted_manifest in manifest_list:
+            self.assertNotIn(deleted_manifest, current_manifests)
+
+    def test_bulk_delete_manifests_empty_list(self):
+        """Test bulk delete with an empty manifest list."""
+        with schema_context(self.schema):
+            manifest_list = []
+            value = self.manifest_accessor.bulk_delete_manifests(self.provider_uuid, manifest_list)
+            self.assertIsNone(value)

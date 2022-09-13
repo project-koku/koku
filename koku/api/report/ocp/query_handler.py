@@ -16,7 +16,6 @@ import pandas as pd
 from django.db.models import F
 from tenant_schemas.utils import tenant_context
 
-from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import check_if_valid_date_str
@@ -26,7 +25,6 @@ from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.models import OCPUsageLineItemDailySummary
 
-# TODO: remove this import after debugging
 
 LOG = logging.getLogger(__name__)
 
@@ -80,7 +78,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         self._mapper.PACK_DEFINITIONS = ocp_pack_definitions
 
-    # TODO: We most likely want to move this to its own relation table.
     def build_source_to_currency_map(self):
         """
         OCP sources do not have costs associated, so we need to
@@ -158,12 +155,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             (dictionary): A dictionary of query data"""
 
         if query_data:
-            try:
-                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-            except AttributeError as err:
-                msg = f"Exchange rates dictionary is not populated resulting in {err}."
-                LOG.warning(msg)
-                exchange_rates = {}
+
             source_mapping = self.build_source_to_currency_map()
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
@@ -171,7 +163,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 # temp currency version
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
+                    * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                         self.currency, Decimal(1.0)
                     ),
                     axis=1,
@@ -209,19 +201,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
         Returns
             (dictionary): A dictionary of query data"""
 
-        try:
-            exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-        except AttributeError as err:
-            msg = f"Exchange rates dictionary is not populated resulting in {err}."
-            LOG.warning(msg)
-            exchange_rates = {}
         source_mapping = self.build_source_to_currency_map()
         df = pd.DataFrame(query_sum_data)
         columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
         for column in columns:
             df[column] = df.apply(
                 lambda row: row[column]
-                * exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
+                * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                     self.currency, Decimal(1.0)
                 ),
                 axis=1,
@@ -301,8 +287,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
-                    order_date = param
-                    break
+                    # Checks to see if the date is in the query_data
+                    if any(d["date"] == param for d in query_data):
+                        # Set order_date to a valid date
+                        order_date = param
+                        break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
                 sort_term = self._get_group_by()[0]

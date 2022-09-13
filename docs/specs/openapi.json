@@ -924,9 +924,6 @@
                     "basic_auth": []
                 }],
                 "parameters": [{
-                        "$ref": "#/components/parameters/QueryDelta"
-                    },
-                    {
                         "$ref": "#/components/parameters/QueryFilter"
                     },
                     {
@@ -936,7 +933,7 @@
                         "$ref": "#/components/parameters/ReportQueryLimit"
                     },
                     {
-                        "$ref": "#/components/schemas/OrganizationFilter"
+                        "$ref": "#/components/parameters/OrganizationFilter"
                     }
                 ],
                 "responses": {
@@ -5235,6 +5232,15 @@
                   ]
                 }
             },
+            "OrganizationFilter": {
+                "name": "org_unit_id",
+                "required": false,
+                "in": "query",
+                "description": "String to indicate org unit id",
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationFilter"
+                }
+            },
             "QueryComputeCount": {
                 "name": "compute_count",
                 "required": false,
@@ -9213,12 +9219,10 @@
                         "type": "object",
                         "example": {
                             "settings": {
-                                "openshift": {
-                                    "tag-management": {
-                                        "enabled": [
-                                            "tag_key1"
-                                        ]
-                                    }
+                                "tag-management": {
+                                    "enabled": [
+                                        "aws-tag_key1", "aws-tag_key2", "azure-tag_key1", "azure-tag_key2", "azure-tag_key3"
+                                    ]
                                 }
                             }
                         }

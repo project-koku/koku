@@ -321,7 +321,7 @@ def get_source_instance(source_id):
     return get_source(source_id, f"[get_source_instance] source_id: {source_id} does not exist.", LOG.info)
 
 
-def create_source_event(source_id, account_id, auth_header, offset):
+def create_source_event(source_id, account_id, org_id, auth_header, offset):
     """Create a Sources database object."""
     LOG.info(f"[create_source_event] starting for source_id {source_id} ...")
     try:
@@ -332,7 +332,9 @@ def create_source_event(source_id, account_id, auth_header, offset):
                 LOG.info(f"[create_source_event] source_id: {source_id} destroy event already occurred.")
                 source.delete()
         else:
-            new_event = Sources(source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id)
+            new_event = Sources(
+                source_id=source_id, auth_header=auth_header, offset=offset, account_id=account_id, org_id=org_id
+            )
             new_event.save()
             LOG.info(f"[create_source_event] created source_id: {source_id}")
     except (InterfaceError, OperationalError) as error:

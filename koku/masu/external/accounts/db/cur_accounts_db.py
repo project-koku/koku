@@ -43,7 +43,10 @@ class CURAccountsDB(CURAccountsInterface):
         with ProviderCollector() as collector:
             all_providers = collector.get_provider_uuid_map()
             provider = all_providers.get(str(provider_uuid))
-            if provider_uuid and provider:
+            if provider_uuid and not provider:
+                LOG.info(f"Provider for uuid {provider_uuid} does not exist its likely it has been deleted.")
+                return []
+            elif provider_uuid and provider:
                 if provider.active and not provider.paused:
                     return [self.get_account_information(provider)]
                 LOG.info(
@@ -60,4 +63,9 @@ class CURAccountsDB(CURAccountsInterface):
                     )
                     continue
                 accounts.append(self.get_account_information(provider))
+        msg = f"""Looping through all providers to for polling:
+                provider_uuid: {provider_uuid},
+                provider: {provider}
+            """
+        LOG.info(msg)
         return accounts

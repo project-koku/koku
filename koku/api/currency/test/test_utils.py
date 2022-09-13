@@ -31,5 +31,5 @@ class CurrencyUtilsTest(IamTestCase):
     def test_exchange_dictionary(self):
         """Test that the exchange rate dict is sent to the DB."""
         exchange_dictionary(RATE_DICT)
-        exchanged_data = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
+        exchanged_data = ExchangeRateDictionary.objects.first().currency_exchange_dictionary
         self.assertIsNotNone(exchanged_data)
