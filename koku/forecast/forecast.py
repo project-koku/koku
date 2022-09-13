@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from functools import cached_property
 from functools import reduce
 
 import numpy as np
@@ -77,10 +78,7 @@ class Forecast:
             else:
                 self.cost_type = get_cost_type(request)
 
-        if query_params.get("currency"):
-            self.currency = query_params.get("currency")
-        else:
-            self.currency = get_currency(request)
+        self.currency = query_params.get("currency") or get_currency(request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -138,51 +136,48 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
-    @property
-    def cost_units_key(self):
-        """Return the cost_units_key property."""
-        return self.provider_map.report_type_map.get("cost_units_key")
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
 
     def convert_currency(self, query_data):
+        if not query_data:
+            return []
+
         skip_columns = ["usage_start", self.cost_units_key]
-        if query_data:
-            df = pd.DataFrame(query_data)
-            currencies = df[self.cost_units_key].unique()
 
-            if len(currencies) == 1 and currencies[0] == self.currency:
-                LOG.info("Bypassing the pandas total function because all currencies are the same.")
-                query_data = df.drop(self.cost_units_key, axis=1)
-                query_data = query_data.replace({np.nan: None})
-                query_data = query_data.to_dict("records")
-                print("QUERY DATA NOW: ", query_data)
-                return query_data
+        df = pd.DataFrame(query_data)
+        currencies = df[self.cost_units_key].unique()
 
-            try:
-                exchange_rates = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
-            except AttributeError as err:
-                msg = f"Exchange rates dictionary is not populated resulting in {err}."
-                LOG.warning(msg)
-                exchange_rates = {}
-
-            columns = list(df.columns)
-            for column in columns:
-                if column not in skip_columns:
-                    df[column] = df.apply(
-                        lambda row: row[column]
-                        * exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
-                        axis=1,
-                    )
-
-            aggs = {col: ["sum"] for col in columns if col not in skip_columns}
-
-            grouped_df = df.groupby("usage_start", dropna=False).agg(aggs, axis=1)
-            columns = grouped_df.columns.droplevel(1)
-            grouped_df.columns = columns
-            grouped_df.reset_index(inplace=True)
-            grouped_df = grouped_df.replace({np.nan: None})
-            query_data = grouped_df.to_dict("records")
-            print("QUERY DATA: ", query_data)
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            LOG.info("Bypassing the pandas total function because all currencies are the same.")
+            query_data = df.drop(self.cost_units_key, axis=1)
+            query_data = query_data.replace({np.nan: None})
+            query_data = query_data.to_dict("records")
             return query_data
+
+        columns = list(df.columns)
+        for column in columns:
+            if column not in skip_columns:
+                df[column] = df.apply(
+                    lambda row: row[column]
+                    * self.exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    axis=1,
+                )
+
+        aggs = {col: ["sum"] for col in columns if col not in skip_columns}
+
+        grouped_df = df.groupby("usage_start", dropna=False).agg(aggs, axis=1)
+        columns = grouped_df.columns.droplevel(1)
+        grouped_df.columns = columns
+        grouped_df.reset_index(inplace=True)
+        grouped_df = grouped_df.replace({np.nan: None})
+        query_data = grouped_df.to_dict("records")
+        return query_data
 
     def predict(self):
         """Define ORM query to run forecast and return prediction."""

@@ -98,21 +98,6 @@ CURRENCIES = [
     },
 ]
 
-VALID_CURRENCIES = [
-    "AUD",
-    "CAD",
-    "CHF",
-    "CNY",
-    "DKK",
-    "EUR",
-    "GBP",
-    "HKD",
-    "JPY",
-    "NOK",
-    "NZD",
-    "SEK",
-    "SGD",
-    "USD",
-    "ZAR"
-]
+VALID_CURRENCIES = [currency["code"] for currency in CURRENCIES]
+CURRENCY_CHOICES = tuple((currency, currency) for currency in VALID_CURRENCIES)
 # fmt: on
