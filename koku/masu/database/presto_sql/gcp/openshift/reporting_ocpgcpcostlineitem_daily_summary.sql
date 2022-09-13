@@ -388,18 +388,7 @@ SELECT pds.gcp_uuid,
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    CASE WHEN pds.pod_labels IS NOT NULL
-        THEN json_format(cast(
-            map_concat(
-                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-        ELSE json_format(cast(
-            map_concat(
-                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-    END as pod_labels,
+    pds.pod_labels,
     resource_id,
     usage_start,
     usage_end,
@@ -437,7 +426,18 @@ SELECT pds.gcp_uuid,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
-    tags,
+    CASE WHEN pds.pod_labels IS NOT NULL
+        THEN json_format(cast(
+            map_concat(
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+        ELSE json_format(cast(
+            map_concat(
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+    END as tags,
     '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
     '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
     cast(year(usage_start) as varchar) as year,

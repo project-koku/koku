@@ -375,6 +375,7 @@ SELECT pds.azure_uuid,
         THEN ({{pod_column | sqlsafe}} / {{node_column | sqlsafe}}) * pretax_cost * cast({{markup}} as decimal(24,9))
         ELSE pretax_cost / r.azure_uuid_count * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
+    pds.pod_labels,
     CASE WHEN pds.pod_labels IS NOT NULL
         THEN json_format(cast(
             map_concat(
@@ -386,8 +387,7 @@ SELECT pds.azure_uuid,
                 cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
                 cast(json_parse(pds.tags) as map(varchar, varchar))
             ) as JSON))
-    END as pod_labels,
-    tags,
+    END as tags,
     '{{azure_source_uuid | sqlsafe}}' as azure_source,
     '{{ocp_source_uuid | sqlsafe}}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
