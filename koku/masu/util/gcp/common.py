@@ -149,6 +149,10 @@ def gcp_generate_daily_data(data_frame):
     rollup_frame["daily_credits"] = 0.0
     for i, credit_dict in enumerate(rollup_frame["credits"]):
         rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
+    resource_df = rollup_frame.get("resource_name")
+    if not resource_df.any():
+        rollup_frame["resource_name"] = ""
+        rollup_frame["resource_global_name"] = ""
     daily_data_frame = rollup_frame.groupby(
         [
             "invoice_month",

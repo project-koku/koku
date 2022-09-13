@@ -487,8 +487,9 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             resource_level = False
             with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
                 source = provider_accessor.get_data_source()
-                if "resource" in source.get("table_id"):
-                    resource_level = True
+                if source:
+                    if "resource" in source.get("table_id"):
+                        resource_level = True
             if gcp_provider_uuid and not check_gcp:
                 return {}
         if not any([check_aws, check_azure, check_gcp]):
