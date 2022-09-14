@@ -50,8 +50,6 @@ class QueryHandler:
 
         """
         LOG.debug(f"Query Params: {parameters}")
-        self.exclusions = parameters.exclusions
-        LOG.debug(f"Exclusions: {self.exclusions}")
         self.dh = DateHelper()
         parameters = self.filter_to_order_by(parameters)
         self.tenant = parameters.tenant

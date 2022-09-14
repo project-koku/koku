@@ -87,7 +87,6 @@ class ReportQueryHandler(QueryHandler):
 
         """
         LOG.debug(f"Query Params: {parameters}")
-        # LOG.info(f"\n\n\n\n\n parameters {parameters} \n\n\n\n")
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
