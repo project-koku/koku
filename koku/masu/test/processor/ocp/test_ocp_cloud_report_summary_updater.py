@@ -279,8 +279,7 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
         summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
         with AzureReportDBAccessor(self.schema) as azure_accessor:
             query = azure_accessor._get_db_obj_query(summary_table_name).filter(
-                # cost_entry_bill__billing_period_start=start_date
-                cost_entry_bill__billing_period_start=self.dh.last_month_end
+                cost_entry_bill__billing_period_start=start_date
             )
             markup_cost = query.aggregate(Sum("markup_cost"))["markup_cost__sum"]
             pretax_cost = query.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
