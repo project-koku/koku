@@ -318,7 +318,7 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
                         customer.account_id = account
                         customer.date_updated = DateHelper().now_utc
                         customer.save()
-                        LOG.info(f"New account_id found for Customer, updating with account_id of: {account}")
+                        LOG.info(f"adding account_id {account} to Customer (org_id {org_id})")
                     IdentityHeaderMiddleware.customer_cache[org_id] = customer
                     LOG.debug(f"Customer added to cache: {org_id}")
                 else:
