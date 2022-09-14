@@ -8,6 +8,7 @@ import string
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -2808,6 +2809,24 @@ select * from eek where val1 in {{report_period_id}} ;
 
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_presto.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = "INFO:masu.database.ocp_report_db_accessor:OCP GCP matching set to resource level"
+        with patch(
+            "masu.database.ocp_report_db_accessor.ProviderDBAccessor.get_data_source",
+            Mock(return_value={"table_id": "resource"}),
+        ):
+            with self.assertLogs("masu.database.ocp_report_db_accessor", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")

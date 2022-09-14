@@ -517,8 +517,10 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         if resource_level:
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+            matching_type = "resource"
         else:
             sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
+            matching_type = "tag"
 
         summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
@@ -538,6 +540,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_column": cluster_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
+            "matching_type": matching_type,
         }
         LOG.info("Running OCP on GCP SQL with params:")
         LOG.info(summary_sql_params)

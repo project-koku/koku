@@ -150,9 +150,14 @@ def gcp_generate_daily_data(data_frame):
     for i, credit_dict in enumerate(rollup_frame["credits"]):
         rollup_frame["daily_credits"][i] = credit_dict.get("amount", 0.0)
     resource_df = rollup_frame.get("resource_name")
-    if not resource_df.any():
-        rollup_frame["resource_name"] = ""
-        rollup_frame["resource_global_name"] = ""
+    try:
+        if not resource_df:
+            rollup_frame["resource_name"] = ""
+            rollup_frame["resource_global_name"] = ""
+    except Exception:
+        if not resource_df.any():
+            rollup_frame["resource_name"] = ""
+            rollup_frame["resource_global_name"] = ""
     daily_data_frame = rollup_frame.groupby(
         [
             "invoice_month",
@@ -198,7 +203,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     resource_ids = cluster_topology.get("resource_ids", [])
     resource_id_df = data_frame.get("resource_name")
 
-    if resource_id_df:
+    if resource_id_df.any():
         LOG.info("Matching OpenShift on GCP by resource ID.")
         ocp_matched = resource_id_df.isin(resource_ids)
     else:

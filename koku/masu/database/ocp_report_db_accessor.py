@@ -490,6 +490,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 if source:
                     if "resource" in source.get("table_id"):
                         resource_level = True
+                        LOG.info("OCP GCP matching set to resource level")
             if gcp_provider_uuid and not check_gcp:
                 return {}
         if not any([check_aws, check_azure, check_gcp]):
