@@ -36,6 +36,12 @@ class OCPAzureFilterSerializer(azureser.AzureFilterSerializer, ocpser.FilterSeri
     pass
 
 
+class OCPAzureExcludeSerializer(azureser.AzureExcludeSerializer, ocpser.ExcludeSerializer):
+    """Serializer for handling query parameter filter."""
+
+    pass
+
+
 class OCPAzureQueryParamSerializer(azureser.AzureQueryParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -43,7 +49,10 @@ class OCPAzureQueryParamSerializer(azureser.AzureQueryParamSerializer):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=OCPAzureFilterSerializer, group_by=OCPAzureGroupBySerializer, order_by=OCPAzureOrderBySerializer
+            filter=OCPAzureFilterSerializer,
+            group_by=OCPAzureGroupBySerializer,
+            order_by=OCPAzureOrderBySerializer,
+            exclude=OCPAzureExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -87,6 +96,20 @@ class OCPAzureQueryParamSerializer(azureser.AzureQueryParamSerializer):
 
         """
         validate_field(self, "filter", OCPAzureFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", OCPAzureExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_delta(self, value):
