@@ -87,6 +87,7 @@ class ReportQueryHandler(QueryHandler):
 
         """
         LOG.debug(f"Query Params: {parameters}")
+        # LOG.info(f"\n\n\n\n\n parameters {parameters} \n\n\n\n")
         super().__init__(parameters)
 
         self._tag_keys = parameters.tag_keys
@@ -97,7 +98,7 @@ class ReportQueryHandler(QueryHandler):
         self.query_delta = {"value": None, "percent": None}
         self.query_exclusions = None
 
-        self.query_filter = self._get_filter() # sets self.query_exclusions
+        self.query_filter = self._get_filter()  # sets self.query_exclusions
         LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
     @cached_property
@@ -248,7 +249,6 @@ class ReportQueryHandler(QueryHandler):
             if exclude_:
                 for _filt in filt:
                     for item in exclude_:
-                        _filt["operation"] = "ne"
                         exclude_filter = QueryFilter(parameter=item, **_filt)
                         exclusions.add(exclude_filter)
             if access:
@@ -266,6 +266,7 @@ class ReportQueryHandler(QueryHandler):
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
         self.query_exclusions = exclusions.compose()
+        LOG.debug(f"Setting self.query_exclusions: {self.query_exclusions}")
 
         if ou_or_operator and ou_or_filters:
             composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
