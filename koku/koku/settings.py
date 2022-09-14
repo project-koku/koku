@@ -136,6 +136,7 @@ if DEVELOPMENT:
     DEFAULT_IDENTITY = {
         "identity": {
             "account_number": "10001",
+            "org_id": "1234567",
             "type": "User",
             "user": {"username": "user_dev", "email": "user_dev@foo.com", "is_org_admin": "True", "access": {}},
         },
@@ -198,6 +199,12 @@ REDIS_HOST = CONFIGURATOR.get_in_memory_db_host()
 REDIS_PORT = CONFIGURATOR.get_in_memory_db_port()
 REDIS_DB = 1
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+REDIS_HEALTH_CHECK_INTERVAL = 5
+REDIS_RETRY_ON_TIMEOUT = True
+REDIS_CONNECTION_POOL_KWARGS = {
+    "health_check_interval": REDIS_HEALTH_CHECK_INTERVAL,
+    "retry_on_timeout": REDIS_RETRY_ON_TIMEOUT,
+}
 
 KEEPDB = ENVIRONMENT.bool("KEEPDB", default=True)
 TEST_CACHE_LOCATION = "unique-snowflake"
@@ -225,6 +232,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1000,
+                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "rbac": {
@@ -235,6 +243,7 @@ else:
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "IGNORE_EXCEPTIONS": True,
                 "MAX_ENTRIES": 1000,
+                "CONNECTION_POOL_CLASS_KWARGS": REDIS_CONNECTION_POOL_KWARGS,
             },
         },
         "worker": {
@@ -513,9 +522,6 @@ CELERY_BROKER_URL = REDIS_URL
 USE_RABBIT = ENVIRONMENT.bool("USE_RABBIT", default=False)
 if USE_RABBIT:
     CELERY_BROKER_URL = f"amqp://{RABBITMQ_HOST}:{RABBITMQ_PORT}"
-    print(f"celery broker using rabbit url: {CELERY_BROKER_URL}")
-else:
-    print(f"celery broker using redis url: {CELERY_BROKER_URL}")
 
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 400
 CELERY_BROKER_CONNECTION_RETRY = True
@@ -524,3 +530,8 @@ CELERY_RESULT_EXPIRES = 28800  # 8 hours (3600 seconds / hour * 8 hours)
 CELERY_RESULTS_URL = REDIS_URL
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_CONCURRENCY = 1
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = REDIS_HEALTH_CHECK_INTERVAL
+CELERY_REDIS_RETRY_ON_TIMEOUT = REDIS_RETRY_ON_TIMEOUT
+
+# HCS debugging
+ENABLE_HCS_DEBUG = ENVIRONMENT.bool("ENABLE_HCS_DEBUG", default=False)

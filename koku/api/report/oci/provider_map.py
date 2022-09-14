@@ -221,14 +221,14 @@ class OCIProviderMap(ProviderMap):
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "usage": Sum("usage_amount"),
-                            "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
+                            "usage_units": Coalesce(Max("unit"), Value("GB_MS")),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
-                            {"field": "unit", "operation": "exact", "parameter": "GB-Mo"},
+                            {"field": "unit", "operation": "in", "parameter": ["GB_MS", "BYTES_MS", "BYTES"]},
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",

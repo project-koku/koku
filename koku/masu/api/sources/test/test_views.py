@@ -71,7 +71,7 @@ class SourcesViewSetTests(MasuTestCase):
             "source_type": "AWS",
             "name": "OCP",
             "account_id": "10002",
-            "schema_name": "acct10002",
+            "schema_name": "org222222",
             "ocp_on_cloud": True,
             "infrastructure_provider_id": self.aws_provider_uuid,
             "cluster_id": "my-ocp",

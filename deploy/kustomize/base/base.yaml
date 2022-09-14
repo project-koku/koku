@@ -30,6 +30,7 @@ objects:
     # Request kafka topics for your application here
     kafkaTopics:
     - topicName: platform.sources.event-stream
+    - topicName: platform.upload.announce
     - topicName: platform.upload.hccm
     - topicName: platform.upload.validation
     - topicName: platform.notifications.ingress
@@ -293,10 +294,10 @@ parameters:
   name: ENABLE_TRINO_SOURCE_TYPE
   value: ""
 
-- description: Scheduler check interval
-  displayName: Scheduler check interval
-  name: SCHEDULE_CHECK_INTERVAL
-  value: "60"
+- description: Report download schedule
+  displayName: Report download schedule
+  name: REPORT_DOWNLOAD_SCHEDULE
+  value: "0 4,16 * * *"
 - description: Remove expired data on day
   displayName: Remove expired data on day
   name: REMOVE_EXPIRED_REPORT_DATA_ON_DAY

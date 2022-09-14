@@ -24,6 +24,7 @@ jobs:
         run: |
           echo .dockerignore >> docker-files.txt;
           echo Dockerfile >> docker-files.txt;
+          echo pr_check.sh >> docker-files.txt;
           echo deploy/clowdapp.yaml >> docker-files.txt;
 
       - run: cat docker-files.txt

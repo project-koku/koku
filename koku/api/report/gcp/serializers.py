@@ -8,6 +8,7 @@ import logging
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
@@ -54,6 +55,17 @@ class GCPFilterSerializer(BaseFilterSerializer):
     gcp_project = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class GCPExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("account", "service", "region", "gcp_project")
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    service = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+    gcp_project = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class GCPQueryParamSerializer(ParamSerializer):
     """Serializer for handling GCP query parameters."""
 
@@ -68,7 +80,10 @@ class GCPQueryParamSerializer(ParamSerializer):
         """Initialize the GCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=GCPFilterSerializer, group_by=GCPGroupBySerializer, order_by=GCPOrderBySerializer
+            filter=GCPFilterSerializer,
+            group_by=GCPGroupBySerializer,
+            order_by=GCPOrderBySerializer,
+            exclude=GCPExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -112,6 +127,20 @@ class GCPQueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "filter", GCPFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", GCPExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):

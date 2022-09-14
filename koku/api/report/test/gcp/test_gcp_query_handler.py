@@ -554,6 +554,19 @@ class GCPReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
+    def test_execute_query_current_month_exclude_service(self):
+        """Test execute_query for current month on monthly excluded by service."""
+        with tenant_context(self.tenant):
+            service = GCPCostEntryLineItemDailySummary.objects.values("service_id")[0].get("service_id")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[service]={service}"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
         """Test execute_query on monthly filtered by region for csv."""
@@ -1522,3 +1535,16 @@ class GCPReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, GCPCostView)
+
+    def test_gcp_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = self.dh.yesterday.date()
+        yesterday_month = self.dh.yesterday - relativedelta(months=2)
+
+        url = f"?group_by[gcp_project]=*&order_by[cost]=desc&order_by[date]={yesterday_month.date()}&end_date={yesterday}&start_date={yesterday_month.date()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)

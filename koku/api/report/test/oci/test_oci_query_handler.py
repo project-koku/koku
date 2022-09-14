@@ -11,6 +11,7 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 from uuid import UUID
 
+from dateutil.relativedelta import relativedelta
 from django.db.models import F
 from django.db.models import Sum
 from rest_framework.exceptions import ValidationError
@@ -608,6 +609,23 @@ class OCIReportQueryHandlerTest(IamTestCase):
             month_data = data_item.get("values")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_exclude_service(self):
+        """Test execute_query for current month on monthly excluded by service."""
+        with tenant_context(self.tenant):
+            service = OCICostEntryLineItemDailySummary.objects.values("product_service")[0].get("product_service")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[product_service]={service}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCICostView)
+        handler = OCIReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+
+        total = query_output.get("total")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
@@ -1453,6 +1471,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             )
         ranking_map = {}
         count = 1
+        tested = False
         for service in expected:
             ranking_map[service.get("product_service")] = count
             count += 1
@@ -1486,3 +1505,16 @@ class OCIReportQueryHandlerTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[product_service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, OCICostView)
+
+    def test_oci_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = DateHelper().today.date()
+        yesterday_month = yesterday - relativedelta(months=2)
+
+        url = f"?group_by[product_service]=*&order_by[cost]=desc&order_by[date]={yesterday_month}&end_date={yesterday}&start_date={yesterday_month}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCICostView)
+        handler = OCIReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)

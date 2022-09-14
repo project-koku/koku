@@ -151,3 +151,16 @@ class ManifestViewTests(IamTestCase):
         )
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    def test_get_all_manifests_ordered(self, _):
+        """Test Get all manifests"""
+        url = "%s?timestamp=asc&limit=100" % reverse("all_manifests")
+        response = self.client.get(url)
+        json_result = response.json()
+        results = json_result.get("data")
+        results_id = json_result.get("data")[0].get("id")
+        self.assertNotEqual(len(results), 0)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # This checks that the first id in the data is the first one created.
+        self.assertEqual(results_id, 1)

@@ -20,6 +20,7 @@ from rest_framework.serializers import ValidationError
 from api.models import Provider
 from api.models import Tenant
 from api.models import User
+from api.query_params import enable_negative_filtering
 from api.query_params import get_tenant
 from api.query_params import QueryParameters
 from api.report.serializers import ParamSerializer
@@ -96,7 +97,7 @@ class QueryParametersTests(TestCase):
         fake_objects.objects.values_list.return_value.distinct.return_value = tag_keys
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
         )
         fake_view = Mock(
@@ -122,6 +123,11 @@ class QueryParametersTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             QueryParameters(fake_request, fake_view)
+
+    def test_enable_negitive_filtering(self):
+        """Test if none is passed in that it returns false."""
+        result = enable_negative_filtering(None)
+        self.assertFalse(result)
 
     def test_constructor_invalid_data(self):
         """Test that ValidationError is raised when serializer data is invalid."""
@@ -170,7 +176,7 @@ class QueryParametersTests(TestCase):
         fake_request = Mock(
             spec=HttpRequest,
             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
         )
         fake_view = Mock(
             spec=ReportView,
@@ -223,7 +229,11 @@ class QueryParametersTests(TestCase):
             params = QueryParameters(fake_request, fake_view)
             self.assertEqual(params.tenant, expected)
 
-    def test_parameters_property(self):
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=False,
+    )
+    def test_parameters_property(self, mock_unleash):
         """Test that the parameters property returns expected value."""
         expected = parser.parse(str(self.fake_uri))
         # add access since it is a part of the parameters but not the uri
@@ -286,7 +296,7 @@ class QueryParametersTests(TestCase):
         """Test that the user property returns expected value."""
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=None, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=None, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=self.fake_uri)),
         )
         fake_view = Mock(
@@ -465,7 +475,7 @@ class QueryParametersTests(TestCase):
         test_access = {f"{provider}.account": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -486,7 +496,7 @@ class QueryParametersTests(TestCase):
         test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -514,7 +524,7 @@ class QueryParametersTests(TestCase):
         test_access = {"azure.subscription_guid": {"read": [str(guid1), str(guid3)]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -534,7 +544,7 @@ class QueryParametersTests(TestCase):
         test_access = {"openshift.cluster": {"read": ["cluster4", "cluster2"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -554,7 +564,7 @@ class QueryParametersTests(TestCase):
         test_access = {"aws.account": {"read": ["account1", "account2"]}, "aws.organizational_unit": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -576,7 +586,7 @@ class QueryParametersTests(TestCase):
         test_access = {"azure.subscription_guid": {"read": [guid1, guid2]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -597,7 +607,7 @@ class QueryParametersTests(TestCase):
         test_access = {"oci.payer_tenant_id": {"read": [guid1, guid2]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -617,7 +627,7 @@ class QueryParametersTests(TestCase):
         test_access = {"openshift.cluster": {"read": ["cluster1", "cluster2"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=test_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=test_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_view = Mock(
@@ -633,7 +643,7 @@ class QueryParametersTests(TestCase):
 
     def test_get_tenant(self):
         """Test that get_tenant() returns a Tenant."""
-        user = Mock(customer=Mock(schema_name="acct10001"))
+        user = Mock(customer=Mock(schema_name="org1234567"))
         self.assertIsInstance(get_tenant(user), Tenant)
 
     def test_get_tenant_invalid(self):
@@ -643,7 +653,7 @@ class QueryParametersTests(TestCase):
 
     def test_get_tenant_no_user(self):
         """Test that get_tenant() raises ValidationError when user is missing."""
-        user = Mock(customer=Mock(schema_name="acct10001"))
+        user = Mock(customer=Mock(schema_name="org1234567"))
         with patch("api.query_params.Tenant.objects.get", side_effect=User.DoesNotExist):
             with self.assertRaises(ValidationError):
                 get_tenant(user)
@@ -662,7 +672,7 @@ class QueryParametersTests(TestCase):
 
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value=fake_uri)),
         )
         fake_objects = Mock()
@@ -678,11 +688,71 @@ class QueryParametersTests(TestCase):
         params = QueryParameters(fake_request, fake_view)
         self.assertEqual(params.tag_keys, expected)
 
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=True,
+    )
+    def test_process_exclude_query_params_enabled(self, mock_unleash):
+        """Test that a exclude filter is handled depnedent on unleash settings."""
+        fake_uri = (
+            "filter[resolution]=monthly&"
+            "filter[time_scope_value]=-1&"
+            "filter[time_scope_units]=month&"
+            "exclude[account]=prod&"
+            "group_by[account]=*"
+        )
+
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertIsNotNone(params.parameters.get("exclude"))
+
+    @patch(
+        "api.query_params.enable_negative_filtering",
+        return_value=False,
+    )
+    def test_process_exclude_query_params_disabled(self, mock_unleash):
+        """Test that a exclude filter is handled depnedent on unleash settings."""
+        fake_uri = (
+            "filter[resolution]=monthly&"
+            "filter[time_scope_value]=-1&"
+            "filter[time_scope_units]=month&"
+            "exclude[account]=prod&"
+            "group_by[account]=*"
+        )
+
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value=fake_uri)),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=self.FAKE.word(),
+            query_handler=Mock(provider=random.choice(PROVIDERS)),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        self.assertIsNone(params.parameters.get("exclude"))
+
     def test_get_providers(self):
         """Test get providers returns the correct access keys."""
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -708,7 +778,7 @@ class QueryParametersTests(TestCase):
         """Test get providers raises validation error with nonsense provider."""
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="acct10001")),
+            user=Mock(access=Mock(get=lambda key, default: default), customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -728,7 +798,7 @@ class QueryParametersTests(TestCase):
         self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -748,7 +818,7 @@ class QueryParametersTests(TestCase):
         self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": []}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -773,7 +843,7 @@ class QueryParametersTests(TestCase):
         }
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -800,7 +870,7 @@ class QueryParametersTests(TestCase):
         }
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -821,7 +891,7 @@ class QueryParametersTests(TestCase):
         self.test_read_access = {"aws.account": {"read": ["999999999"]}, "azure.subscription_guid": {"read": ["*"]}}
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -851,7 +921,7 @@ class QueryParametersTests(TestCase):
         }
         fake_request = Mock(
             spec=HttpRequest,
-            user=Mock(access=self.test_read_access, customer=Mock(schema_name="acct10001")),
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
             GET=Mock(urlencode=Mock(return_value="")),
         )
         fake_view = Mock(
@@ -866,3 +936,31 @@ class QueryParametersTests(TestCase):
         access_list = params._get_providers(Provider.OCP_ALL.lower())
         result = params._check_restrictions(access_list)
         self.assertFalse(result)
+
+    def test_get_org_unit_account_hierarchy(self):
+        """Test aws get org unit account hierarchy returns list of all accounts in org units tree."""
+        self.test_read_access = {
+            "aws.account": {"read": ["*"]},
+            "aws.organizational_unit": {"read": ["OU_001"]},
+        }
+        expected = ["999999991", "999999992", "999999995"]
+        fake_request = Mock(
+            spec=HttpRequest,
+            user=Mock(access=self.test_read_access, customer=Mock(schema_name="org1234567")),
+            GET=Mock(urlencode=Mock(return_value="")),
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider=Provider.PROVIDER_AWS,
+            query_handler=Mock(provider=Provider.PROVIDER_AWS),
+            report=self.FAKE.word(),
+            serializer=Mock,
+            tag_handler=[],
+        )
+        params = QueryParameters(fake_request, fake_view)
+        with patch.object(params, "_get_org_unit_account_hierarchy") as mock_method:
+            org_unit_access_list = self.test_read_access.get("aws.organizational_unit", {}).get("read", [])
+            mock_method.return_value = expected
+            result = params._get_org_unit_account_hierarchy(org_unit_access_list)
+            mock_method.assert_called_once_with(org_unit_access_list)
+            self.assertEqual(result, expected)

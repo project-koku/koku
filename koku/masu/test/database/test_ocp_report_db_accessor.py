@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
@@ -2813,7 +2814,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_populate_openshift_cluster_information_tables(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that we populate cluster info."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2851,7 +2852,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that OpenShift topology is populated."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2866,8 +2867,10 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
+        # Using the aws_provider to short cut this test instead of creating a brand
+        # new provider. The OCP providers already have data, and can't be used here
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -2875,7 +2878,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_provider(self.ocp_provider_uuid)
+            topology = self.accessor.get_openshift_topology_for_provider(self.aws_provider_uuid)
 
             self.assertEqual(topology.get("cluster_id"), cluster_id)
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
@@ -2949,3 +2952,75 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.assertEqual(result, test["expected"])
                 self.assertTrue(hasattr(result[0], "date"))
                 self.assertTrue(hasattr(result[1], "date"))
+
+    def test_delete_all_except_infrastructure_raw_cost_from_daily_summary(self):
+        """Test that deleting saves OCP on Cloud data."""
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        # First test an OCP on Cloud source to make sure we don't delete that data
+        provider_uuid = self.ocp_on_aws_ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertEqual(initial_non_raw_count, 0)
+        self.assertEqual(new_non_raw_count, 0)
+        self.assertEqual(initial_raw_count, new_raw_count)
+
+        # Now test an on prem OCP cluster to make sure we still remove non raw costs
+        provider_uuid = self.ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
+        self.assertEqual(initial_raw_count, 0)
+        self.assertEqual(new_raw_count, 0)

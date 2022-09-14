@@ -25,8 +25,9 @@ from django.db import OperationalError
 from kombu.exceptions import OperationalError as RabbitOperationalError
 
 from api.common import log_json
-from kafka_utils.utils import get_consumer as get_kafka_consumer
-from kafka_utils.utils import get_producer as get_kafka_producer
+from kafka_utils.utils import extract_from_header
+from kafka_utils.utils import get_consumer
+from kafka_utils.utils import get_producer
 from kafka_utils.utils import is_kafka_connected
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -300,12 +301,17 @@ def extract_payload(url, request_id, context={}):  # noqa: C901
         return None, manifest_uuid
     schema_name = account.get("schema_name")
     provider_type = account.get("provider_type")
-    context["account"] = schema_name[4:]
+    if schema_name.startswith("acct"):
+        context["account"] = schema_name[4:]
+    else:
+        context["org_id"] = schema_name[3:]
     context["provider_type"] = provider_type
     report_meta["provider_uuid"] = account.get("provider_uuid")
     report_meta["provider_type"] = provider_type
     report_meta["schema_name"] = schema_name
-    report_meta["account"] = schema_name[4:]
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    report_meta["account"] = schema_name.strip("acct")
     report_meta["request_id"] = request_id
     report_meta["tracing_id"] = manifest_uuid
 
@@ -376,7 +382,7 @@ def send_confirmation(request_id, status):  # pragma: no cover
     producer.flush(1)
 
 
-def handle_message(msg):
+def handle_message(kmsg):
     """
     Handle messages from message pending queue.
 
@@ -399,7 +405,7 @@ def handle_message(msg):
 
 
     Args:
-        msg - Upload Service message containing usage payload information.
+        kmsg - Upload Service message containing usage payload information.
 
     Returns:
         (String, [dict]) - String: Upload Service confirmation status
@@ -415,29 +421,26 @@ def handle_message(msg):
                                  current_file: String
 
     """
-    if msg.topic() == Config.HCCM_TOPIC:
-        value = json.loads(msg.value().decode("utf-8"))
-        request_id = value.get("request_id", "no_request_id")
-        account = value.get("account", "no_account")
-        context = {"account": account}
-        try:
-            msg = f"Extracting Payload for msg: {str(value)}"
-            LOG.info(log_json(request_id, msg, context))
-            report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
-            return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
-        except (OperationalError, InterfaceError) as error:
-            close_and_set_db_connection()
-            msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
-            LOG.error(log_json(request_id, msg, context))
-            raise KafkaMsgHandlerError(msg)
-        except Exception as error:  # noqa
-            traceback.print_exc()
-            msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
-            LOG.warning(log_json(request_id, msg, context))
-            return FAILURE_CONFIRM_STATUS, None, None
-    else:
-        LOG.error("Unexpected Message")
-    return None, None, None
+    value = json.loads(kmsg.value().decode("utf-8"))
+    request_id = value.get("request_id", "no_request_id")
+    account = value.get("account", "no_account")
+    org_id = value.get("org_id", "no_org_id")
+    context = {"account": account, "org_id": org_id}
+    try:
+        msg = f"Extracting Payload for msg: {str(value)}"
+        LOG.info(log_json(request_id, msg, context))
+        report_metas, manifest_uuid = extract_payload(value["url"], request_id, context)
+        return SUCCESS_CONFIRM_STATUS, report_metas, manifest_uuid
+    except (OperationalError, InterfaceError) as error:
+        close_and_set_db_connection()
+        msg = f"Unable to extract payload, db closed. {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg, context))
+        raise KafkaMsgHandlerError(msg) from error
+    except Exception as error:  # noqa
+        traceback.print_exc()
+        msg = f"Unable to extract payload. Error: {type(error).__name__}: {error}"
+        LOG.warning(log_json(request_id, msg, context))
+        return FAILURE_CONFIRM_STATUS, None, None
 
 
 def get_account(provider_uuid, manifest_uuid, context={}):
@@ -662,25 +665,16 @@ def process_messages(msg):
     return process_complete
 
 
-def get_consumer():  # pragma: no cover
-    """Create a Kafka consumer."""
-
-    consumer = get_kafka_consumer(Config.HCCM_TOPIC)
-
-    return consumer
-
-
-def get_producer():  # pragma: no cover
-    """Create a Kafka producer."""
-
-    producer = get_kafka_producer()
-
-    return producer
-
-
 def listen_for_messages_loop():
     """Wrap listen_for_messages in while true."""
-    consumer = get_consumer()
+    kafka_conf = {
+        "group.id": "hccm-group",
+        "queued.max.messages.kbytes": 1024,
+        "enable.auto.commit": False,
+        "max.poll.interval.ms": 1080000,  # 18 minutes
+    }
+    consumer = get_consumer(kafka_conf)
+    consumer.subscribe([Config.UPLOAD_TOPIC])
     LOG.info("Consumer is listening for messages...")
     for _ in itertools.count():  # equivalent to while True, but mockable
         msg = consumer.poll(timeout=1.0)
@@ -732,10 +726,13 @@ def listen_for_messages(msg, consumer):
     """
     offset = msg.offset()
     partition = msg.partition()
-    topic_partition = TopicPartition(topic=Config.HCCM_TOPIC, partition=partition, offset=offset)
+    topic_partition = TopicPartition(topic=Config.UPLOAD_TOPIC, partition=partition, offset=offset)
     try:
         LOG.info(f"Processing message offset: {offset} partition: {partition}")
-        process_messages(msg)
+        service = extract_from_header(msg.headers(), "service")
+        LOG.debug(f"service: {service} | {msg.headers()}")
+        if service == "hccm":
+            process_messages(msg)
         LOG.debug(f"COMMITTING: message offset: {offset} partition: {partition}")
         consumer.commit()
     except (InterfaceError, OperationalError, ReportProcessorDBError) as error:
