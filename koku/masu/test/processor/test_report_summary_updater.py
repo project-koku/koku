@@ -42,6 +42,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables")
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_aws_route(self, mock_daily, mock_update):
         """Test that AWS report updating works as expected."""
         mock_start = 1
@@ -61,6 +62,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables")
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_azure_route(self, mock_daily, mock_update):
         """Test that Azure report updating works as expected."""
         mock_start = 1
@@ -80,6 +82,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AWSReportSummaryUpdater.update_daily_tables")
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_aws_local_route(self, mock_daily, mock_update):
         """Test that AWS Local report updating works as expected."""
         mock_start = 1
@@ -98,6 +101,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.OCPReportSummaryUpdater.update_daily_tables")
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_ocp_route(self, mock_daily, mock_update):
         """Test that OCP report updating works as expected."""
         mock_start = 1
@@ -116,6 +120,7 @@ class ReportSummaryUpdaterTest(MasuTestCase):
 
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_summary_tables")
     @patch("masu.processor.report_summary_updater.AzureReportSummaryUpdater.update_daily_tables")
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_azure_local_route(self, mock_daily, mock_update):
         """Test that AZURE Local report updating works as expected."""
         mock_start = 1
@@ -178,26 +183,22 @@ class ReportSummaryUpdaterTest(MasuTestCase):
         with self.assertRaises(ReportSummaryUpdaterError):
             ReportSummaryUpdater(self.schema, no_provider_uuid, manifest_id)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     def test_aws_parquet_summary_updater(self):
         """Test that the AWSReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.aws_provider_uuid)
 
         self.assertIsInstance(updater._updater, AWSReportParquetSummaryUpdater)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     def test_azure_parquet_summary_updater(self):
         """Test that the AzureReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.azure_provider_uuid)
         self.assertIsInstance(updater._updater, AzureReportParquetSummaryUpdater)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     def test_oci_parquet_summary_updater(self):
         """Test that the OCIReportParquetSummaryUpdater is returned."""
         updater = ReportSummaryUpdater(self.schema, self.oci_provider_uuid)
         self.assertIsInstance(updater._updater, OCIReportParquetSummaryUpdater)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.processor.report_summary_updater.OCPCloudParquetReportSummaryUpdater.update_summary_tables")
     def test_update_openshift_on_cloud_summary_tables(self, mock_update):
         """Test that we run OCP on Cloud summary."""
