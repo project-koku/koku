@@ -39,6 +39,12 @@ class OCPAWSFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     pass
 
 
+class OCPAWSExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer):
+    """Serializer for handling query parameter filter."""
+
+    pass
+
+
 class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -46,7 +52,10 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=OCPAWSFilterSerializer, group_by=OCPAWSGroupBySerializer, order_by=OCPAWSOrderBySerializer
+            filter=OCPAWSFilterSerializer,
+            group_by=OCPAWSGroupBySerializer,
+            order_by=OCPAWSOrderBySerializer,
+            exclude=OCPAWSExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -90,6 +99,20 @@ class OCPAWSQueryParamSerializer(awsser.QueryParamSerializer):
 
         """
         validate_field(self, "filter", OCPAWSFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", OCPAWSExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_delta(self, value):
