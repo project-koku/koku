@@ -129,6 +129,13 @@ class OCPAllProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": [
                             "cost_total",
                             "sup_total",
@@ -208,6 +215,13 @@ class OCPAllProviderMap(ProviderMap):
                         "filter": [{}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": [
                             "infra_raw",
                             "infra_markup",
@@ -278,6 +292,13 @@ class OCPAllProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": [
@@ -364,6 +385,13 @@ class OCPAllProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": [
@@ -438,6 +466,13 @@ class OCPAllProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",
@@ -527,6 +562,13 @@ class OCPAllProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",

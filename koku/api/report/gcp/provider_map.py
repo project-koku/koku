@@ -215,6 +215,14 @@ class GCPProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
@@ -284,6 +292,14 @@ class GCPProviderMap(ProviderMap):
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "gibibyte month",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
