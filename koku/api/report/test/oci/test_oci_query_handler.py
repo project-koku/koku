@@ -610,6 +610,23 @@ class OCIReportQueryHandlerTest(IamTestCase):
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
 
+    def test_execute_query_current_month_exclude_service(self):
+        """Test execute_query for current month on monthly excluded by service."""
+        with tenant_context(self.tenant):
+            service = OCICostEntryLineItemDailySummary.objects.values("product_service")[0].get("product_service")
+        url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[product_service]={service}"  # noqa: E501
+        query_params = self.mocked_query_params(url, OCICostView)
+        handler = OCIReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(query_output.get("total"))
+
+        total = query_output.get("total")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
+        self.assertIsNotNone(result_cost_total)
+
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_region_csv(self, mock_accept):
         """Test execute_query on monthly filtered by region for csv."""
@@ -1454,6 +1471,7 @@ class OCIReportQueryHandlerTest(IamTestCase):
             )
         ranking_map = {}
         count = 1
+        tested = False
         for service in expected:
             ranking_map[service.get("product_service")] = count
             count += 1
