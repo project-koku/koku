@@ -498,7 +498,7 @@ class OCPGCPProviderMap(ProviderMap):
                         "usage_units_key": "unit",
                         "usage_units_fallback": "gibibyte month",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
-                        "default_ordering": {"cost_total": "desc"},
+                        "default_ordering": {"usage": "desc"},
                     },
                     "storage_by_project": {
                         "tables": {
