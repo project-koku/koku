@@ -95,8 +95,10 @@ class ReportQueryHandler(QueryHandler):
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
+        self.query_exclusions = None
 
-        self.query_filter = self._get_filter()
+        self.query_filter = self._get_filter() # sets self.query_exclusions
+        LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
     @cached_property
     def query_table_access_keys(self):
@@ -219,6 +221,7 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
+        exclusions = QueryFilterCollection()
         # TODO: find a better name for ou_or_operator and ou_or_filter
         ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
         if ou_or_operator:
@@ -228,6 +231,7 @@ class ReportQueryHandler(QueryHandler):
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
+            exclude_ = self.parameters.get_exclude(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
@@ -241,6 +245,12 @@ class ReportQueryHandler(QueryHandler):
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
+            if exclude_:
+                for _filt in filt:
+                    for item in exclude_:
+                        _filt["operation"] = "ne"
+                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclusions.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
@@ -255,6 +265,7 @@ class ReportQueryHandler(QueryHandler):
         or_composed_filters = self._set_operator_specified_filters("or")
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
+        self.query_exclusions = exclusions.compose()
 
         if ou_or_operator and ou_or_filters:
             composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
