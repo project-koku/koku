@@ -6,6 +6,7 @@
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
@@ -49,6 +50,17 @@ class AzureFilterSerializer(BaseFilterSerializer):
     service_name = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class AzureExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("subscription_guid", "resource_location", "instance_type", "service_name")
+
+    subscription_guid = StringOrListField(child=serializers.CharField(), required=False)
+    resource_location = StringOrListField(child=serializers.CharField(), required=False)
+    instance_type = StringOrListField(child=serializers.CharField(), required=False)
+    service_name = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class AzureQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -62,7 +74,10 @@ class AzureQueryParamSerializer(ParamSerializer):
         """Initialize the Azure query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=AzureFilterSerializer, group_by=AzureGroupBySerializer, order_by=AzureOrderBySerializer
+            filter=AzureFilterSerializer,
+            group_by=AzureGroupBySerializer,
+            order_by=AzureOrderBySerializer,
+            exclude=AzureExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -106,6 +121,20 @@ class AzureQueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "filter", AzureFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", AzureExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):
