@@ -85,7 +85,7 @@ def summarize_ocp_on_gcp_by_node(account):
 
     context = {"schema": account}
     LOG.info(f"Summary UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("summarize-ocp-on-gcp-by-node", context))
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.summarize-ocp-on-gcp-by-node", context))
     LOG.info(f"    Summarize by Node for OCP on GCP {'enabled' if res else 'disabled'} {account}")
 
     return res
