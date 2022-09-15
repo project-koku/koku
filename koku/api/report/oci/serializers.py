@@ -7,6 +7,7 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
@@ -57,6 +58,17 @@ class OCIFilterSerializer(BaseFilterSerializer):
     region = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class OCIExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("payer_tenant_id", "instance_type", "product_service", "region")
+
+    payer_tenant_id = StringOrListField(child=serializers.CharField(), required=False)
+    instance_type = StringOrListField(child=serializers.CharField(), required=False)
+    product_service = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class OCIQueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -71,7 +83,10 @@ class OCIQueryParamSerializer(ParamSerializer):
         """Initialize the OCI query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=OCIFilterSerializer, group_by=OCIGroupBySerializer, order_by=OCIOrderBySerializer
+            filter=OCIFilterSerializer,
+            group_by=OCIGroupBySerializer,
+            order_by=OCIOrderBySerializer,
+            exclude=OCIExcludeSerializer,
         )
 
     def validate(self, data):
@@ -135,6 +150,20 @@ class OCIQueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "filter", OCIFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", OCIExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):
