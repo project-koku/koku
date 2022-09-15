@@ -200,12 +200,14 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 
     cluster_id = cluster_topology.get("cluster_id")
     cluster_alias = cluster_topology.get("cluster_alias")
-    resource_ids = cluster_topology.get("nodes", [])
+    nodes = cluster_topology.get("nodes", [])
+    volumes = cluster_topology.get("persistent_volumes", [])
+    matchable_resources = nodes + volumes
     resource_id_df = data_frame.get("resource_name")
 
     if resource_id_df.any():
         LOG.info("Matching OpenShift on GCP by resource ID.")
-        ocp_matched = resource_id_df.isin(resource_ids)
+        ocp_matched = resource_id_df.str.contains("|".join(matchable_resources))
     else:
         LOG.info("Matching OpenShift on GCP by labels.")
         ocp_matched = tags.str.contains(f"kubernetes-io-cluster-{cluster_id}|kubernetes-io-cluster-{cluster_alias}")
@@ -305,3 +307,12 @@ def deduplicate_reports_for_gcp(report_list):
             }
         )
     return reports_deduplicated
+
+
+def check_resource_level(gcp_provider_uuid):
+    with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
+        source = provider_accessor.get_data_source()
+        if "resource" in source.get("table_id"):
+            LOG.info("OCP GCP matching set to resource level")
+            return True
+        return False

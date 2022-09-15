@@ -36,9 +36,9 @@ from koku.database import SQLScriptAtomicExecutorMixin
 from masu.config import Config
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
 from reporting.provider.azure.models import PRESTO_LINE_ITEM_DAILY_TABLE as AZURE_PRESTO_LINE_ITEM_DAILY_TABLE
@@ -485,12 +485,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 return {}
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
-            with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-                source = provider_accessor.get_data_source()
-                if source:
-                    if "resource" in source.get("table_id"):
-                        resource_level = True
-                        LOG.info("OCP GCP matching set to resource level")
+            # Check for GCP resource level data
+            resource_level = check_resource_level(gcp_provider_uuid)
             if gcp_provider_uuid and not check_gcp:
                 return {}
         if not any([check_aws, check_azure, check_gcp]):

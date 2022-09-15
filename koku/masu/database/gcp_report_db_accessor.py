@@ -23,9 +23,9 @@ from api.utils import DateHelper
 from koku.database import SQLScriptAtomicExecutorMixin
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.koku_database_access import mini_transaction_delete
-from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
@@ -492,11 +492,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
-        resource_level = False
-        with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
-            source = provider_accessor.get_data_source()
-            if "resource" in source.get("table_id"):
-                resource_level = True
+        # Check for GCP resource level data
+        resource_level = check_resource_level(gcp_provider_uuid)
+
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
