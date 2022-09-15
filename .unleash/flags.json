@@ -56,7 +56,7 @@
             "createdAt": "2022-08-12T21:22:00.756Z"
         },
         {
-            "name": "disable_gcp_resource_matching",
+            "name": "cost-management.backend.disable_gcp_resource_matching",
             "description": "Toggle to disable gcp resource matching defaulting back to tag matching.",
             "type": "permission",
             "project": "default",
