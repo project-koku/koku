@@ -200,7 +200,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 
     cluster_id = cluster_topology.get("cluster_id")
     cluster_alias = cluster_topology.get("cluster_alias")
-    resource_ids = cluster_topology.get("resource_ids", [])
+    resource_ids = cluster_topology.get("nodes", [])
     resource_id_df = data_frame.get("resource_name")
 
     if resource_id_df.any():
