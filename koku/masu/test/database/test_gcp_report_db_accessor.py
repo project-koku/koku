@@ -305,12 +305,12 @@ class GCPReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
             distribution = cost_model_accessor.distribution
 
-        expected_log = "resource"
+        expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
         with patch(
-            "masu.database.gcp_report_db_accessor.ProviderDBAccessor.get_data_source",
+            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
             Mock(return_value={"table_id": "resource"}),
         ):
-            with self.assertLogs("masu.database.gcp_report_db_accessor", level="INFO") as logger:
+            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
                 self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
                     start_date,
                     end_date,
@@ -324,7 +324,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 )
                 mock_presto.assert_called()
                 mock_delete.assert_called()
-                self.assertIn(expected_log, logger.output[1])
+                self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
