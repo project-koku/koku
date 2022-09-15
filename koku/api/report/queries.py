@@ -179,10 +179,10 @@ class ReportQueryHandler(QueryHandler):
             query_sum[value] = 0
         return query_sum
 
-    def get_tag_filter_keys(self):
+    def get_tag_filter_keys(self, parameter_key="filter"):
         """Get tag keys from filter arguments."""
         tag_filters = []
-        filters = self.parameters.get("filter", {})
+        filters = self.parameters.get(parameter_key, {})
         for filt in filters:
             if filt in self._tag_keys:
                 tag_filters.append(filt)
@@ -268,9 +268,9 @@ class ReportQueryHandler(QueryHandler):
         filters = self._set_operator_specified_tag_filters(filters, "or")
 
         # Update excludes with tag excludes
-        exclusions = self._set_tag_filters(exclusions)
-        exclusions = self._set_operator_specified_tag_filters(exclusions, "and")
-        exclusions = self._set_operator_specified_tag_filters(exclusions, "or")
+        exclusions = self._set_tag_filters(exclusions, check_for_exclude=True)
+        exclusions = self._set_operator_specified_tag_filters(exclusions, "and", True)
+        exclusions = self._set_operator_specified_tag_filters(exclusions, "or", True)
 
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
@@ -312,12 +312,15 @@ class ReportQueryHandler(QueryHandler):
 
         return filters.compose(logical_operator="or")
 
-    def _set_tag_filters(self, filters):
+    def _set_tag_filters(self, filters, check_for_exclude=False):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
+        if check_for_exclude:
+            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
+        else:
+            tag_filters = self.get_tag_filter_keys()
+            tag_group_by = self.get_tag_group_by_keys()
+            tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if "and:" not in tag and "or:" not in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
@@ -332,12 +335,15 @@ class ReportQueryHandler(QueryHandler):
                     filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_tag_filters(self, filters, operator):
+    def _set_operator_specified_tag_filters(self, filters, operator, check_for_exclude=False):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
+        if check_for_exclude:
+            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
+        else:
+            tag_filters = self.get_tag_filter_keys()
+            tag_group_by = self.get_tag_group_by_keys()
+            tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if operator + ":" in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
