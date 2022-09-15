@@ -8,7 +8,6 @@ import decimal
 from unittest.mock import patch
 
 from django.conf import settings
-from django.db import connection
 from django.db.models import F
 from django.db.models import Max
 from django.db.models import Min
@@ -25,10 +24,12 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
-from masu.util.azure.common import get_bills_from_provider
 from reporting.provider.azure.models import AzureCostEntryLineItemDailySummary
 from reporting.provider.azure.models import AzureEnabledTagKeys
 from reporting.provider.azure.models import AzureTagsSummary
+
+# from django.db import connection
+# from masu.util.azure.common import get_bills_from_provider
 
 
 class AzureReportDBAccessorTest(MasuTestCase):
@@ -65,6 +66,10 @@ class AzureReportDBAccessorTest(MasuTestCase):
             "num_total_files": 2,
             "provider_uuid": self.azure_provider_uuid,
         }
+        product_id = self.creator.create_azure_cost_entry_product(provider_uuid=self.azure_provider_uuid)
+        bill_id = self.creator.create_azure_cost_entry_bill(provider_uuid=self.azure_provider_uuid)
+        meter_id = self.creator.create_azure_meter(provider_uuid=self.azure_provider_uuid)
+        self.creator.create_azure_cost_entry_line_item(bill_id, product_id, meter_id)
 
     def test_get_cost_entry_bills(self):
         """Test that Azure bills are returned in a dict."""
@@ -227,75 +232,76 @@ class AzureReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    def test_populate_ocp_on_azure_cost_daily_summary(self):
-        """Test the method to run OpenShift on Azure SQL."""
-        summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-        project_summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"]
-        markup_value = decimal.Decimal(0.1)
+    # NOTE: we have parquet enabled, we can get rid of this one: test_populate_ocp_on_azure_cost_daily_summary
+    # def test_populate_ocp_on_azure_cost_daily_summary(self):
+    #     """Test the method to run OpenShift on Azure SQL."""
+    #     summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+    #     project_summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_project_daily_summary"]
+    #     markup_value = decimal.Decimal(0.1)
 
-        summary_table = getattr(self.accessor.report_schema, summary_table_name)
-        project_table = getattr(self.accessor.report_schema, project_summary_table_name)
+    #     summary_table = getattr(self.accessor.report_schema, summary_table_name)
+    #     project_table = getattr(self.accessor.report_schema, project_summary_table_name)
 
-        today = DateHelper().today
-        last_month = DateHelper().last_month_start
-        azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema, last_month, today)
-        with schema_context(self.schema):
-            bill_ids = [str(bill.id) for bill in azure_bills]
-        cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
+    #     today = DateHelper().today
+    #     last_month = DateHelper().last_month_start
+    #     azure_bills = get_bills_from_provider(self.azure_provider_uuid, self.schema, last_month, today)
+    #     with schema_context(self.schema):
+    #         bill_ids = [str(bill.id) for bill in azure_bills]
+    #     cluster_id = self.ocp_on_azure_ocp_provider.authentication.credentials.get("cluster_id")
 
-        self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
+    #     self.accessor.populate_ocp_on_azure_cost_daily_summary(last_month, today, cluster_id, bill_ids, markup_value)
 
-        li_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
-        with schema_context(self.schema):
-            li_table = getattr(self.accessor.report_schema, li_table_name)
-            sum_azure_cost = li_table.objects.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
+    #     li_table_name = AZURE_REPORT_TABLE_MAP["line_item"]
+    #     with schema_context(self.schema):
+    #         li_table = getattr(self.accessor.report_schema, li_table_name)
+    #         sum_azure_cost = li_table.objects.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
 
-        with schema_context(self.schema):
-            # These names are defined in the `azure_static_data.yml` used by Nise to populate the Azure data
-            namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
-            for namespace in namespaces:
-                with self.subTest(namespace=namespace):
-                    with connection.cursor() as cursor:
-                        cursor.execute(
-                            f"""
-                            SELECT sum(pretax_cost / cardinality(namespace)) AS pretax_cost
-                            FROM {summary_table._meta.db_table}
-                            WHERE namespace @> array['{namespace}'::varchar]
-                            """
-                        )
-                        sum_cost = cursor.fetchone()[0]
+    #     with schema_context(self.schema):
+    #         # These names are defined in the `azure_static_data.yml` used by Nise to populate the Azure data
+    #         namespaces = ["kube-system", "openshift", "banking", "mobile", "news-site", "weather"]
+    #         for namespace in namespaces:
+    #             with self.subTest(namespace=namespace):
+    #                 with connection.cursor() as cursor:
+    #                     cursor.execute(
+    #                         f"""
+    #                         SELECT sum(pretax_cost / cardinality(namespace)) AS pretax_cost
+    #                         FROM {summary_table._meta.db_table}
+    #                         WHERE namespace @> array['{namespace}'::varchar]
+    #                         """
+    #                     )
+    #                     sum_cost = cursor.fetchone()[0]
 
-                    sum_project_cost = project_table.objects.filter(namespace=namespace).aggregate(Sum("pretax_cost"))[
-                        "pretax_cost__sum"
-                    ]
-                    self.assertNotEqual(sum_cost, 0)
-                    self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
-                    self.assertLessEqual(sum_cost, sum_azure_cost)
+    #                 sum_project_cost = project_table.objects.filter(namespace=namespace).aggregate(Sum("pretax_cost"))[ # noqa: E501
+    #                     "pretax_cost__sum"
+    #                 ]
+    #                 self.assertNotEqual(sum_cost, 0)
+    #                 self.assertAlmostEqual(sum_cost, sum_project_cost, 4)
+    #                 self.assertLessEqual(sum_cost, sum_azure_cost)
 
-        with schema_context(self.schema):
-            sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
-                "pretax_cost__sum"
-            ]
-            sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
-                "markup_cost__sum"
-            ]
-            sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
-                "pretax_cost__sum"
-            ]
-            sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
-                "pod_cost__sum"
-            ]
-            sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("markup_cost")
-            )["markup_cost__sum"]
-            sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
-                Sum("project_markup_cost")
-            )["project_markup_cost__sum"]
+    #     with schema_context(self.schema):
+    #         sum_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
+    #             "pretax_cost__sum"
+    #         ]
+    #         sum_markup_cost = summary_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("markup_cost"))[
+    #             "markup_cost__sum"
+    #         ]
+    #         sum_project_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pretax_cost"))[
+    #             "pretax_cost__sum"
+    #         ]
+    #         sum_pod_cost = project_table.objects.filter(cluster_id=cluster_id).aggregate(Sum("pod_cost"))[
+    #             "pod_cost__sum"
+    #         ]
+    #         sum_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+    #             Sum("markup_cost")
+    #         )["markup_cost__sum"]
+    #         sum_project_markup_cost_project = project_table.objects.filter(cluster_id=cluster_id).aggregate(
+    #             Sum("project_markup_cost")
+    #         )["project_markup_cost__sum"]
 
-            self.assertLessEqual(sum_cost, sum_azure_cost)
-            self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 4)
-            self.assertAlmostEqual(sum_markup_cost_project, sum_project_cost * markup_value, 4)
-            self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)
+    #         self.assertLessEqual(sum_cost, sum_azure_cost)
+    #         self.assertAlmostEqual(sum_markup_cost, sum_cost * markup_value, 4)
+    #         self.assertAlmostEqual(sum_markup_cost_project, sum_project_cost * markup_value, 4)
+    #         self.assertAlmostEqual(sum_project_markup_cost_project, sum_pod_cost * markup_value, 4)
 
     @patch("masu.database.azure_report_db_accessor.AzureReportDBAccessor._execute_presto_raw_sql_query")
     def test_populate_line_item_daily_summary_table_presto(self, mock_presto):
