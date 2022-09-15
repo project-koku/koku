@@ -234,21 +234,29 @@ class ReportQueryHandler(QueryHandler):
             exclude_ = self.parameters.get_exclude(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
-                if isinstance(filt, list):
-                    for _filt in filt:
-                        for item in list_:
+            # TODO: See if I still need this if condition.
+            # if list_:
+            if isinstance(filt, list):
+                for _filt in filt:
+                    for item in list_:
+                        if not ReportQueryHandler.has_wildcard(list_):
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
-                else:
-                    list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
-                    for item in list_:
+                    if exclude_:
+                        for item in exclude_:
+                            exclude_filter = QueryFilter(parameter=item, **_filt)
+                            LOG.info(f"exclude_filter: {exclude_filter}")
+                            exclusions.add(exclude_filter)
+            else:
+                list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
+                for item in list_:
+                    if not ReportQueryHandler.has_wildcard(list_):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
-            if exclude_:
-                for _filt in filt:
+                if exclude_:
                     for item in exclude_:
-                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclude_filter = QueryFilter(parameter=item, **filt)
+                        LOG.info(f"exclude_filter: {exclude_filter}")
                         exclusions.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
@@ -259,13 +267,18 @@ class ReportQueryHandler(QueryHandler):
         filters = self._set_operator_specified_tag_filters(filters, "and")
         filters = self._set_operator_specified_tag_filters(filters, "or")
 
+        # Update excludes with tag excludes
+        exclusions = self._set_tag_filters(exclusions)
+        exclusions = self._set_operator_specified_tag_filters(exclusions, "and")
+        exclusions = self._set_operator_specified_tag_filters(exclusions, "or")
+
         # Update filters that specifiy and or or in the query parameter
         and_composed_filters = self._set_operator_specified_filters("and")
         or_composed_filters = self._set_operator_specified_filters("or")
         multi_field_or_composed_filters = self._set_or_filters()
         composed_filters = filters.compose()
         self.query_exclusions = exclusions.compose()
-        LOG.debug(f"Setting self.query_exclusions: {self.query_exclusions}")
+        LOG.info(f"Setting self.query_exclusions: {self.query_exclusions}")
 
         if ou_or_operator and ou_or_filters:
             composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
