@@ -15,6 +15,8 @@ from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from masu.database.provider_db_accessor import ProviderDBAccessor
+from masu.external.accounts_accessor import AccountsAccessor
+from masu.processor import disable_gcp_resource_matching
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
@@ -309,6 +311,10 @@ def deduplicate_reports_for_gcp(report_list):
 
 
 def check_resource_level(gcp_provider_uuid):
+    account = AccountsAccessor.get_accounts(gcp_provider_uuid)
+    if disable_gcp_resource_matching(account.get("schema_name")):
+        LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
+        return False
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
         source = provider_accessor.get_data_source()
         if "resource" in source.get("table_id"):

@@ -56,6 +56,25 @@
             "createdAt": "2022-08-12T21:22:00.756Z"
         },
         {
+            "name": "disable_gcp_resource_matching",
+            "description": "Toggle to disable gcp resource matching defaulting back to tag matching.",
+            "type": "permission",
+            "project": "default",
+            "enabled": true,
+            "stale": false,
+            "strategies": [
+                {
+                    "name": "schema-strategy",
+                    "parameters": {
+                        "schema-name": ""
+                    },
+                    "constraints": []
+                }
+            ],
+            "variants": [],
+            "createdAt": "2022-08-20T19:50:00.756Z"
+        },
+        {
             "name": "disable_cloud_source_processing",
             "description": "Toggle to disable source processing for account.",
             "type": "permission",

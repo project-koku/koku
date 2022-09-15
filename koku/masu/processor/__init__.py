@@ -76,3 +76,15 @@ def disable_ocp_on_cloud_summary(account):
     LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
 
     return res
+
+
+def disable_gcp_resource_matching(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("disable-gcp-resource-matching", context))
+    LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
+
+    return res
