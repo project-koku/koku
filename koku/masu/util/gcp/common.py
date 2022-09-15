@@ -14,11 +14,11 @@ import pandas as pd
 from tenant_schemas.utils import schema_context
 
 from api.models import Provider
-from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.util.common import safe_float
 from masu.util.common import strip_characters_from_column_name
 from masu.util.ocp.common import match_openshift_labels
+from reporting.provider.gcp.models import GCPCostEntryBill
 
 LOG = logging.getLogger(__name__)
 pd.options.mode.chained_assignment = None
@@ -58,14 +58,13 @@ def get_bills_from_provider(provider_uuid, schema, start_date=None, end_date=Non
         LOG.warning(err_msg)
         return []
 
-    with GCPReportDBAccessor(schema) as report_accessor:
-        with schema_context(schema):
-            bills = report_accessor.get_cost_entry_bills_query_by_provider(provider.uuid)
-            if start_date:
-                bills = bills.filter(billing_period_start__gte=start_date)
-            if end_date:
-                bills = bills.filter(billing_period_start__lte=end_date)
-            bills = bills.all()
+    with schema_context(schema):
+        bills = GCPCostEntryBill.objects.filter(provider_id=provider.uuid)
+        if start_date:
+            bills = bills.filter(billing_period_start__gte=start_date)
+        if end_date:
+            bills = bills.filter(billing_period_start__lte=end_date)
+        bills = bills.all()
 
     return bills
 
