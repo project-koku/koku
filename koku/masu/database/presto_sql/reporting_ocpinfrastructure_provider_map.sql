@@ -97,7 +97,7 @@
     SELECT DISTINCT ocp.source as ocp_uuid,
         gcp.source as infra_uuid,
         'GCP' as type
-    FROM hive.{{schema | sqlsafe}}.gcp_line_items AS gcp
+    FROM hive.{{schema | sqlsafe}}.gcp_line_items_daily AS gcp
     JOIN hive.{{schema | sqlsafe}}.openshift_pod_usage_line_items_daily AS ocp
         ON gcp.usage_start_time = ocp.interval_start
             AND ocp.node IS NOT NULL
