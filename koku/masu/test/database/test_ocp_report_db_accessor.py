@@ -2828,6 +2828,21 @@ select * from eek where val1 in {{report_period_id}} ;
                 mock_presto.assert_called()
                 self.assertIn(expected_log, logger.output)
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
+        with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
+            with self.assertLogs("masu", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")

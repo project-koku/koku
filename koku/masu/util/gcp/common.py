@@ -311,9 +311,9 @@ def deduplicate_reports_for_gcp(report_list):
 
 
 def check_resource_level(gcp_provider_uuid):
-    account = AccountsAccessor.get_accounts(gcp_provider_uuid)
+    account = AccountsAccessor().get_accounts(gcp_provider_uuid)[0]
     if disable_gcp_resource_matching(account.get("schema_name")):
-        LOG.info(f"Cloud source processing disabled for {account.get('schema_name')}")
+        LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
         return False
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
         source = provider_accessor.get_data_source()
