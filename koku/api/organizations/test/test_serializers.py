@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the organizations serializer."""
-from unittest.mock import Mock
-
 from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 
@@ -98,8 +96,8 @@ class OrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
-        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_params_exclude_with_org_unit_id_success(self):
@@ -110,8 +108,8 @@ class OrgQueryParamSerializerTest(IamTestCase):
             "limit": "5",
             "offset": "3",
         }
-        url = Mock(path="/api/cost-management/v1/organizations/aws/")
-        serializer = OrgQueryParamSerializer(data=query_params, context={"request": url})
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
