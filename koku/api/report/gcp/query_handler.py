@@ -183,8 +183,9 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
             skip_columns = ["clusters"]
+            remove_columns = ["usage_units", "usage"]
             query_data = self.pandas_agg_for_currency(
-                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data
+                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
             )
 
             if self._limit:
