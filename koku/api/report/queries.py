@@ -117,6 +117,13 @@ class ReportQueryHandler(QueryHandler):
         filter_keys = set(self.parameters.get("filter", {}).keys())
         return filter_keys.difference(excluded_filters)
 
+    @cached_property
+    def query_table_exclude_keys(self):
+        """Return the filter keys specific for selecting the query table."""
+        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
+        filter_keys = set(self.parameters.get("exclude", {}).keys())
+        return filter_keys.difference(excluded_filters)
+
     @property
     def report_annotations(self):
         """Return annotations with the correct capacity field."""
@@ -139,7 +146,7 @@ class ReportQueryHandler(QueryHandler):
             return query_table
 
         key_tuple = tuple(
-            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys))
+            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys))
         )
         if key_tuple:
             report_group = key_tuple
@@ -234,30 +241,25 @@ class ReportQueryHandler(QueryHandler):
             exclude_ = self.parameters.get_exclude(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            # TODO: See if I still need this if condition.
-            # if list_:
             if isinstance(filt, list):
                 for _filt in filt:
                     for item in list_:
                         if not ReportQueryHandler.has_wildcard(list_):
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
-                    if exclude_:
-                        for item in exclude_:
-                            exclude_filter = QueryFilter(parameter=item, **_filt)
-                            LOG.info(f"exclude_filter: {exclude_filter}")
-                            exclusions.add(exclude_filter)
+                    for item in exclude_:
+                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclusions.add(exclude_filter)
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
+                exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in list_:
                     if not ReportQueryHandler.has_wildcard(list_):
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
-                if exclude_:
-                    for item in exclude_:
-                        exclude_filter = QueryFilter(parameter=item, **filt)
-                        LOG.info(f"exclude_filter: {exclude_filter}")
-                        exclusions.add(exclude_filter)
+                for item in exclude_:
+                    exclude_filter = QueryFilter(parameter=item, **filt)
+                    exclusions.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
@@ -326,9 +328,12 @@ class ReportQueryHandler(QueryHandler):
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                list_ = self.parameters.get_exclude(tag, list())
+            else:
+                group_by = self.parameters.get_group_by(tag, list())
+                filter_ = self.parameters.get_filter(tag, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
@@ -349,9 +354,13 @@ class ReportQueryHandler(QueryHandler):
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                filter_ = self.parameters.get_exclude(tag, list())
+                list_ = filter_
+            else:
+                group_by = self.parameters.get_group_by(tag, list())
+                filter_ = self.parameters.get_filter(tag, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
