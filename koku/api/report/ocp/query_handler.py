@@ -110,13 +110,13 @@ class OCPReportQueryHandler(ReportQueryHandler):
     @cached_property
     def exchange_rate_expression(self):
         whens = [
-            When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
             for k, v in self.exchange_rates.items()
         ]
         currencies = self.build_source_to_currency_map()
         whens.extend(
             [
-                When(**{"source_uuid": uuid}, then=Value(self.exchange_rates.get(cur, {}).get(self.currency, 1)))
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
                 for uuid, cur in currencies.items()
             ]
         )
