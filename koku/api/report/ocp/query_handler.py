@@ -116,7 +116,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         currencies = self.build_source_to_currency_map()
         whens.extend(
             [
-                When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, {}).get(self.currency, 1)})
+                When(**{"source_uuid": uuid}, then=Value(self.exchange_rates.get(cur, {}).get(self.currency, 1)))
                 for uuid, cur in currencies.items()
             ]
         )
