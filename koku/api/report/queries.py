@@ -178,7 +178,7 @@ class ReportQueryHandler(QueryHandler):
     def exchange_rate_expression(self):
         """Get the exchange rate annotation based on the exchange_rates property."""
         whens = [
-            When(**{self._mapper.cost_units_key: k}, then=Value(v.get(self.currency)))
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
             for k, v in self.exchange_rates.items()
         ]
         return Case(*whens, default=1, output_field=DecimalField())

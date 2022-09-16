@@ -10,10 +10,15 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 
 import numpy as np
 import pandas as pd
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Value
+from django.db.models import When
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -101,6 +106,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
             source_to_currency[row["provider_uuid"]] = cm_to_currency[row["cost_model_id"]]
 
         return source_to_currency
+
+    @cached_property
+    def exchange_rate_expression(self):
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        currencies = self.build_source_to_currency_map()
+        whens.extend(
+            [
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+                for uuid, cur in currencies.items()
+            ]
+        )
+        return Case(*whens, default=1, output_field=DecimalField())
 
     @property
     def annotations(self):
