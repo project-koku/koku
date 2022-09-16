@@ -96,6 +96,10 @@ class QueryFilter(UserDict):
         """Exact comparison."""
         return self.data == other.data and self.logical_operator == other.logical_operator
 
+    def __icontains__(self, other):
+        """LIKE comparison"""
+        return self.data == other.data and self.logical_operator == other.logical_operator
+
     def __lt__(self, other):
         """Decide if self < other."""
         return str(self.data) < str(other.data)
