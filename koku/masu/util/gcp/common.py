@@ -317,7 +317,8 @@ def check_resource_level(gcp_provider_uuid):
         return False
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
         source = provider_accessor.get_data_source()
-        if "resource" in source.get("table_id"):
-            LOG.info("OCP GCP matching set to resource level")
-            return True
+        if source:
+            if "resource" in source.get("table_id"):
+                LOG.info("OCP GCP matching set to resource level")
+                return True
         return False

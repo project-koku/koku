@@ -486,9 +486,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         if gcp_provider_uuid or ocp_provider_uuid:
             check_gcp = self.table_exists_trino(GCP_PRESTO_LINE_ITEM_DAILY_TABLE)
             # Check for GCP resource level data
-            resource_level = check_resource_level(gcp_provider_uuid)
-            if gcp_provider_uuid and not check_gcp:
-                return {}
+            if gcp_provider_uuid:
+                resource_level = check_resource_level(gcp_provider_uuid)
+                if not check_gcp:
+                    return {}
         if not any([check_aws, check_azure, check_gcp]):
             return {}
 
