@@ -146,7 +146,11 @@ class ReportQueryHandler(QueryHandler):
             return query_table
 
         key_tuple = tuple(
-            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys))
+            sorted(
+                self.query_table_filter_keys.union(
+                    self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys
+                )
+            )
         )
         if key_tuple:
             report_group = key_tuple
