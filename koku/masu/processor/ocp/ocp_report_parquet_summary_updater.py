@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Updates report summary tables in the database."""
+import calendar
 import logging
 from datetime import datetime
 
@@ -15,6 +16,7 @@ from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.external.date_accessor import DateAccessor
 from masu.processor.ocp.ocp_cloud_updater_base import OCPCloudUpdaterBase
 from masu.util.common import date_range_pair
+from masu.util.common import determine_if_full_summary_update_needed
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from masu.util.ocp.common import get_cluster_id_from_provider
 from reporting.provider.ocp.models import UI_SUMMARY_TABLES
@@ -41,6 +43,24 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
 
     def _get_sql_inputs(self, start_date, end_date):
         """Get the required inputs for running summary SQL."""
+        with OCPReportDBAccessor(self._schema) as accessor:
+            # This is the normal processing route
+            if self._manifest:
+                # Override the bill date to correspond with the manifest
+                bill_date = self._manifest.billing_period_start_datetime.date()
+                report_periods = accessor.get_usage_period_query_by_provider(self._provider.uuid)
+                report_periods = report_periods.filter(report_period_start=bill_date).all()
+                first_period = report_periods.first()
+                do_month_update = False
+                with schema_context(self._schema):
+                    if first_period:
+                        do_month_update = determine_if_full_summary_update_needed(first_period)
+                if do_month_update:
+                    last_day_of_month = calendar.monthrange(bill_date.year, bill_date.month)[1]
+                    start_date = bill_date
+                    end_date = bill_date.replace(day=last_day_of_month)
+                    LOG.info("Overriding start and end date to process full month.")
+
         if isinstance(start_date, str):
             start_date = ciso8601.parse_datetime(start_date).date()
         if isinstance(end_date, str):
@@ -110,9 +130,10 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     end,
                 )
                 # This will process POD and STORAGE together
-                filters = {"report_period_id": report_period_id}  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters
+                # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
+                # the cost rows generated through the OCPCloudParquetReportSummaryUpdater
+                accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+                    self._provider.uuid, report_period_id, start, end
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid

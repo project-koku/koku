@@ -241,6 +241,26 @@ class FilterSerializer(BaseSerializer):
         return data
 
 
+class ExcludeSerializer(BaseSerializer):
+    """A base serializer for exclude operations."""
+
+    _tagkey_support = True
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+
+        """
+        handle_invalid_fields(self, data)
+        return data
+
+
 class GroupSerializer(BaseSerializer):
     """A base serializer for group-by operations."""
 
@@ -303,6 +323,8 @@ class ParamSerializer(BaseSerializer):
                 data = self.initial_data.get("order_by")
             elif issubclass(val, GroupSerializer):
                 data = self.initial_data.get("group_by")
+            elif issubclass(val, ExcludeSerializer):
+                data = self.initial_data.get("exclude")
 
             inst = val(required=False, tag_keys=self.tag_keys, data=data)
             setattr(self, key, inst)

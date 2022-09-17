@@ -179,16 +179,19 @@ class TestGCPUtils(MasuTestCase):
             {
                 "resourceid": "id1",
                 "pretaxcost": 1,
+                "resource_name": "",
                 "labels": '{"key": "value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
             },
             {
                 "resourceid": "id2",
                 "pretaxcost": 1,
+                "resource_name": "",
                 "labels": '{"key": "other_value", "kubernetes-io-cluster-ocp-gcp-cluster": "owned"}',
             },
             {
                 "resourceid": "id3",
                 "pretaxcost": 1,
+                "resource_name": "",
                 "labels": '{"key": "other_value", "kubernetes-not-io-cluster-ocp-gcp-cluster": "owned"}',
             },
         ]
@@ -219,8 +222,146 @@ class TestGCPUtils(MasuTestCase):
         # tag matching
         self.assertFalse((matched_df["matched_tag"] != "").any())
 
+    def test_match_openshift_resources(self):
+        """Test that OCP on GCP matching occurs."""
+        cluster_topology = {
+            "resource_ids": [],
+            "cluster_id": "ocp-gcp-cluster",
+            "cluster_alias": "my-ocp-cluster",
+            "nodes": ["id1", "id2", "id3"],
+            "projects": [],
+        }
+
+        # in the gcp dataframe, these are labels
+        data = [
+            {
+                "resourceid": "id1",
+                "pretaxcost": 1,
+                "resource_name": "resource_1",
+                "global_resource_name": "global_resource_1",
+                "labels": '{"key": "other_value"}',
+            },
+            {
+                "resourceid": "id2",
+                "pretaxcost": 1,
+                "resource_name": "resource_2",
+                "global_resource_name": "global_resource_2",
+                "labels": '{"key": "other_value"}',
+            },
+            {
+                "resourceid": "id3",
+                "pretaxcost": 1,
+                "resource_name": "resource_2",
+                "global_resource_name": "global_resource_3",
+                "labels": '{"key": "other_value"}',
+            },
+        ]
+
+        df = pd.DataFrame(data)
+        expected_log = "Matching OpenShift on GCP by resource ID."
+
+        # Matched tags, but none that match the dataset
+        matched_tags = [{"something_else": "entirely"}]
+        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+            utils.match_openshift_resources_and_labels(df, cluster_topology, matched_tags)
+            self.assertIn(expected_log, logger.output[0])
+
     def test_gcp_generate_daily_data(self):
         """Test that we aggregate data at a daily level."""
+        usage = random.randint(1, 10)
+        cost = random.randint(1, 10)
+        data = [
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
+                "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": "instance-1",
+                "resource_global_name": "//compute.googleapis.com/projects/1234/zones/us-central1-a/instances/1234",
+            },
+        ]
+        df = pd.DataFrame(data)
+
+        daily_df = utils.gcp_generate_daily_data(df)
+
+        first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
+        second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
+
+        self.assertEqual(first_day.shape[0], 1)
+        self.assertEqual(second_day.shape[0], 1)
+
+        self.assertTrue((first_day["cost"] == cost * 2).bool())
+        self.assertTrue((second_day["cost"] == cost).bool())
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+
+        # if we have an empty data frame, we should get one back
+        empty_df = pd.DataFrame()
+        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
+
+    def test_gcp_generate_daily_wo_resource_data(self):
+        """Test that we aggregate data at a daily level w/o resource names."""
         usage = random.randint(1, 10)
         cost = random.randint(1, 10)
         data = [
@@ -297,6 +438,97 @@ class TestGCPUtils(MasuTestCase):
 
         self.assertEqual(first_day.shape[0], 1)
         self.assertEqual(second_day.shape[0], 1)
+
+        self.assertTrue((first_day["cost"] == cost * 2).bool())
+        self.assertTrue((second_day["cost"] == cost).bool())
+        self.assertTrue((first_day["usage_amount_in_pricing_units"] == usage * 2).bool())
+        self.assertTrue((second_day["usage_amount_in_pricing_units"] == usage).bool())
+
+        # if we have an empty data frame, we should get one back
+        empty_df = pd.DataFrame()
+        self.assertTrue(utils.gcp_generate_daily_data(empty_df).empty)
+
+    def test_gcp_generate_daily_w_resource_data(self):
+        """Test that we aggregate data at a daily level w/o resource names."""
+        usage = random.randint(1, 10)
+        cost = random.randint(1, 10)
+        data = [
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 13, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 14, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 1, 14, 0, 0),
+                "usage_end_time": datetime(2022, 1, 1, 15, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+            {
+                "billing_account_id": "fact",
+                "service_id": "95FF-2EF5-5EA1",
+                "service_description": "Cloud Storage",
+                "sku_id": "E5F0-6A5D-7BAD",
+                "sku_description": "Standard Storage US Regional",
+                "usage_start_time": datetime(2022, 1, 2, 4, 0, 0),
+                "usage_end_time": datetime(2022, 1, 2, 5, 0, 0),
+                "project_id": "trouble-although-mind",
+                "project_name": "trouble-although-mind",
+                "labels": '{"key": "test_storage_key", "value": "test_storage_label"}',
+                "system_labels": "{}",
+                "cost_type": "regular",
+                "credits": "{}",
+                "location_region": "us-central1",
+                "usage_pricing_unit": "byte-seconds",
+                "usage_amount_in_pricing_units": usage,
+                "currency": "USD",
+                "cost": cost,
+                "invoice_month": "202201",
+                "resource_name": None,
+                "resource_global_name": None,
+            },
+        ]
+        df = pd.DataFrame(data)
+
+        daily_df = utils.gcp_generate_daily_data(df)
+
+        first_day = daily_df[daily_df["usage_start_time"] == "2022-01-01"]
+        second_day = daily_df[daily_df["usage_start_time"] == "2022-01-02"]
 
         self.assertTrue((first_day["cost"] == cost * 2).bool())
         self.assertTrue((second_day["cost"] == cost).bool())

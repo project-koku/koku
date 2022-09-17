@@ -7,6 +7,7 @@ from django.utils.translation import ugettext as _
 from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
+from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
@@ -70,6 +71,19 @@ class FilterSerializer(BaseFilterSerializer):
     org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class ExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
+    _opfields = ("account", "service", "region", "az", "product_family", "org_unit_id")
+
+    account = StringOrListField(child=serializers.CharField(), required=False)
+    service = StringOrListField(child=serializers.CharField(), required=False)
+    region = StringOrListField(child=serializers.CharField(), required=False)
+    az = StringOrListField(child=serializers.CharField(), required=False)
+    product_family = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class QueryParamSerializer(ParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -90,7 +104,9 @@ class QueryParamSerializer(ParamSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the AWS query param serializer."""
         super().__init__(*args, **kwargs)
-        self._init_tagged_fields(filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer)
+        self._init_tagged_fields(
+            filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer, exclude=ExcludeSerializer
+        )
 
     def validate(self, data):
         """Validate incoming data.
@@ -186,6 +202,20 @@ class QueryParamSerializer(ParamSerializer):
 
         """
         validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", ExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_units(self, value):

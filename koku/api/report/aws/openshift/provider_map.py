@@ -140,7 +140,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -270,7 +269,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -411,7 +409,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
