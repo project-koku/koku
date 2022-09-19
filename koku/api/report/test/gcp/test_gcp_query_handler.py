@@ -24,6 +24,8 @@ from api.report.gcp.serializers import GCPExcludeSerializer
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
+from api.tags.gcp.queries import GCPTagQueryHandler
+from api.tags.gcp.view import GCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPCostEntryBill
@@ -1588,3 +1590,42 @@ class GCPReportQueryHandlerTest(IamTestCase):
                             self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_tags(self, _):
+        """Test that the exclude works for our tags."""
+        url = "?"
+        query_params = self.mocked_query_params(url, GCPTagView)
+        handler = GCPTagQueryHandler(query_params)
+        tags = handler.get_tags()
+        tag = tags[0]
+        tag_key = tag.get("key")
+        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(base_url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        data = handler.execute_query().get("data")
+        exclude_one = None
+        exclude_two = None
+        for date_dict in data:
+            if exclude_one and exclude_two:
+                continue
+            grouping_list = date_dict.get(f"{tag_key}s", [])
+            for group_dict in grouping_list:
+                if not exclude_one:
+                    exclude_one = group_dict.get(tag_key)
+                elif not exclude_two:
+                    exclude_two = group_dict.get(tag_key)
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        # single_tag_exclude
+        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
+        query_params = self.mocked_query_params(single_exclude, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total1, overall_total)
+        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
+        query_params = self.mocked_query_params(double_exclude, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total, exclude_total1)

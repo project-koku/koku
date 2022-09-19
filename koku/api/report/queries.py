@@ -146,7 +146,11 @@ class ReportQueryHandler(QueryHandler):
             return query_table
 
         key_tuple = tuple(
-            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys))
+            sorted(
+                self.query_table_filter_keys.union(
+                    self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys
+                )
+            )
         )
         if key_tuple:
             report_group = key_tuple
@@ -216,6 +220,32 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
+    def _check_for_operator_specific_filters(self, filter_collection, check_for_exclude=False):
+        """Checks for operator specific fitlers, and adds them to the filter collection"""
+        filter_collection = self._set_tag_filters(filter_collection, check_for_exclude)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and", check_for_exclude)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or", check_for_exclude)
+
+        and_composed_filters = self._set_operator_specified_filters("and", check_for_exclude)
+        or_composed_filters = self._set_operator_specified_filters("or", check_for_exclude)
+
+        composed_filters = filter_collection.compose()
+
+        if check_for_exclude:
+            # When excluding, we can get a combination of None & filters
+            if and_composed_filters and composed_filters:
+                composed_filters = composed_filters | and_composed_filters
+            elif and_composed_filters:
+                composed_filters = and_composed_filters
+
+            if or_composed_filters and composed_filters:
+                composed_filters = composed_filters | or_composed_filters
+            elif or_composed_filters:
+                composed_filters = or_composed_filters
+        else:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        return composed_filters
+
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
 
@@ -264,29 +294,12 @@ class ReportQueryHandler(QueryHandler):
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
 
-        # Update filters with tag filters
-        filters = self._set_tag_filters(filters)
-        filters = self._set_operator_specified_tag_filters(filters, "and")
-        filters = self._set_operator_specified_tag_filters(filters, "or")
-
-        # Update excludes with tag excludes
-        exclusions = self._set_tag_filters(exclusions, check_for_exclude=True)
-        exclusions = self._set_operator_specified_tag_filters(exclusions, "and", True)
-        exclusions = self._set_operator_specified_tag_filters(exclusions, "or", True)
-
-        # Update filters that specifiy and or or in the query parameter
-        and_composed_filters = self._set_operator_specified_filters("and")
-        or_composed_filters = self._set_operator_specified_filters("or")
+        self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
+        composed_filters = self._check_for_operator_specific_filters(filters)
+        # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        composed_filters = filters.compose()
-        self.query_exclusions = exclusions.compose()
-        LOG.info(f"Setting self.query_exclusions: {self.query_exclusions}")
-
         if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
-        else:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
-
+            composed_filters = ou_or_filters & composed_filters
         if access_filters:
             if ou_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
@@ -297,6 +310,7 @@ class ReportQueryHandler(QueryHandler):
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
+        LOG.info(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
 
     def _set_or_filters(self):
@@ -355,8 +369,7 @@ class ReportQueryHandler(QueryHandler):
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
             if check_for_exclude:
-                filter_ = self.parameters.get_exclude(tag, list())
-                list_ = filter_
+                list_ = self.parameters.get_exclude(tag, list())
             else:
                 group_by = self.parameters.get_group_by(tag, list())
                 filter_ = self.parameters.get_filter(tag, list())
@@ -367,7 +380,7 @@ class ReportQueryHandler(QueryHandler):
                     filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_filters(self, operator):
+    def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
         fields = self._mapper._provider_map.get("filters")
         filters = QueryFilterCollection()
@@ -376,8 +389,11 @@ class ReportQueryHandler(QueryHandler):
         for q_param, filt in fields.items():
             q_param = operator + ":" + q_param
             group_by = self.parameters.get_group_by(q_param, list())
-            filter_ = self.parameters.get_filter(q_param, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                list_ = self.parameters.get_exclude(q_param, list())
+            else:
+                filter_ = self.parameters.get_filter(q_param, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             logical_operator = operator
             # This is a flexibilty feature allowing a user to set
             # a single and: value and still get a result instead

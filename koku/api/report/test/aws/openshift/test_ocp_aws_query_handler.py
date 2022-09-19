@@ -19,6 +19,8 @@ from api.report.aws.openshift.view import OCPAWSCostView
 from api.report.aws.openshift.view import OCPAWSInstanceTypeView
 from api.report.aws.openshift.view import OCPAWSStorageView
 from api.report.queries import check_view_filter_and_group_by_criteria
+from api.tags.aws.openshift.queries import OCPAWSTagQueryHandler
+from api.tags.aws.openshift.view import OCPAWSTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import AWSCostEntryBill
@@ -539,7 +541,7 @@ class OCPAWSQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opt = "az"
         for view in [OCPAWSCostView, OCPAWSStorageView, OCPAWSInstanceTypeView]:
-            filters = {"usage_start__gte": str(self.dh.n_days_ago(self.dh.today, 10).date())}
+            filters = {"usage_start__gte": str(self.dh.n_days_ago(self.dh.today, 8).date())}
             with self.subTest(view=view):
                 with tenant_context(self.tenant):
                     if view == OCPAWSStorageView:
@@ -574,3 +576,42 @@ class OCPAWSQueryHandlerTest(IamTestCase):
                 excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 self.assertAlmostEqual(expected_total, excluded_total, 6)
                 self.assertNotEqual(overall_total, excluded_total)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_tags(self, _):
+        """Test that the exclude works for our tags."""
+        url = "?"
+        query_params = self.mocked_query_params(url, OCPAWSTagView)
+        handler = OCPAWSTagQueryHandler(query_params)
+        tags = handler.get_tags()
+        tag = tags[0]
+        tag_key = tag.get("key")
+        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(base_url, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        data = handler.execute_query().get("data")
+        exclude_one = None
+        exclude_two = None
+        for date_dict in data:
+            if exclude_one and exclude_two:
+                continue
+            grouping_list = date_dict.get(f"{tag_key}s", [])
+            for group_dict in grouping_list:
+                if not exclude_one:
+                    exclude_one = group_dict.get(tag_key)
+                elif not exclude_two:
+                    exclude_two = group_dict.get(tag_key)
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        # single_tag_exclude
+        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
+        query_params = self.mocked_query_params(single_exclude, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total1, overall_total)
+        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
+        query_params = self.mocked_query_params(double_exclude, OCPAWSCostView)
+        handler = OCPAWSReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total, exclude_total1)
