@@ -71,7 +71,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_all_except_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
@@ -109,9 +109,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
                 report_period_id = report_period.id
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_delete.assert_called_with(
-            self.ocp_provider.uuid, start_date.date(), end_date.date(), {"report_period_id": report_period_id}
-        )
+        mock_delete.assert_called_with(self.ocp_provider.uuid, report_period_id, start_date.date(), end_date.date())
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()

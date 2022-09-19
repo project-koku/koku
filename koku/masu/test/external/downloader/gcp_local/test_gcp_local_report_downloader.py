@@ -10,11 +10,14 @@ import tempfile
 from datetime import datetime
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.downloader.gcp_local.gcp_local_report_downloader import create_daily_archives
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
@@ -171,3 +174,38 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
             self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
             self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
             self.assertEqual(manifest_metadata["files"], [self.csv_file_name])
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_s3):
+        """Test that we load daily files to S3."""
+        # Use the processor example for data:
+        file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        expected_daily_files = [
+            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
+        ]
+
+        start_date = DateHelper().this_month_start
+        daily_file_names, date_range = create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+        )
+        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11", "invoice_month": "202011"}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+
+        mock_s3.assert_called()
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+
+        os.remove(temp_path)

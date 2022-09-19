@@ -67,6 +67,10 @@
       "description": "Returns a list of celery queues with their lengths."
     },
     {
+      "name": "Clear Celery Queue",
+      "description": "Returns number of tasks cleared from the queue"
+    },
+    {
       "name": "Update exchange rates",
       "description": "Updates and returns the list of exchange rates"
     },
@@ -1059,6 +1063,38 @@
         ]
       }
     },
+    "/clear_celery_queues/":{
+      "get":{
+        "summary": "Returns the number of tasks cleared the celery queues.",
+        "operationId":"clearCeleryQueues",
+        "description": "Returns the number of tasks cleared the celery queues.",
+        "parameters":[
+          {
+            "name": "clear_all",
+            "description":"whether to clear all celery queues.",
+            "in":"query",
+            "schema":{
+              "type":"boolean"
+            }
+          }
+        ],
+        "responses":{
+          "200":{
+            "description": "Returns the number of tasks cleared the celery queue.",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/clearCeleryQueues"
+                }
+              }
+            }
+          }
+        },
+        "tags":[
+          "Clearing Celery Tasks"
+        ]
+      }
+    },
     "/db-performance/db-version/": {
         "get": {
           "summary": "Returns a table showing the PostgreSQL database software version.",
@@ -1733,6 +1769,50 @@
         ]
       }
     },
+    "/trino/api/": {
+      "get": {
+        "summary": "Returns JSON with query output.",
+        "operationId": "TrinoUI",
+        "description": "Returns JSON with query output.",
+        "parameters": [
+          {
+            "name": "api_service",
+            "in": "query",
+            "description":"name of the trino ui api to call",
+            "required": true,
+            "schema":{
+              "type":"string",
+              "enum":["query", "stats", "cluster"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON with query result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrinoUiGetResponse"
+                }
+              }
+            }
+          },
+          "400":{
+            "description":"Invalid trino-ui api service",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/TrinoUiGetErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Trino UI"
+        ]
+      }
+    },
     "/purge_trino_files/": {
       "get": {
         "summary": "Returns dictionary with task ids as keys and paths as values",
@@ -1778,7 +1858,7 @@
             "description": "will not delete manifests if param is present",
             "required": false,
             "schema": {
-              "type": "string",
+              "type": "string"
             }
           },
           {
@@ -2005,6 +2085,26 @@
           }
         }
       },
+      "TrinoUiGetResponse":{
+        "type": "object",
+        "properties":{
+          "api_service_name":{
+            "type": "string"
+          },
+          "trino_response":{
+            "type": "object"
+          }
+        }
+      },
+      "TrinoUiGetErrorResponse":{
+        "type":"object",
+        "properties":{
+          "Error":{
+            "type":"string",
+            "example":"query"
+          }
+        }
+      },
       "CrawlAccountHierarchyPost":{
         "type": "object",
         "properties": {
@@ -2145,6 +2245,15 @@
           "hcs": {
             "type": "integer",
             "example": 1
+          }
+        }
+      },
+      "clearCeleryQueues": {
+        "type": "object",
+        "properties": {
+          "purged_tasks": {
+            "type": "integer",
+            "example": 8
           }
         }
       },

@@ -834,7 +834,7 @@ class ReportQueryHandler(QueryHandler):
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.append("usage_units")
-        if self._report_type == "instance_type" and "count" in data_frame.columns:
+        if "instance_type" in self._report_type and "count" in data_frame.columns:
             agg_fields.update({"count_units": ["max"]})
             drop_columns.append("count_units")
 

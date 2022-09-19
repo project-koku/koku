@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 ;
 
--- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
+-- Direct resource_id matching
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
@@ -193,9 +193,8 @@ SELECT gcp.uuid as gcp_uuid,
     max(json_format(json_parse(gcp.labels))) as tags
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    ON date(gcp.usage_start_time) = ocp.usage_start
-        AND (strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
-            OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
+    ON gcp.usage_start_time = ocp.usage_start
+        AND strpos(gcp.resource_name, ocp.node) != 0
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
@@ -208,6 +207,7 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
     AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
+    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
 GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
 ;
 
@@ -388,7 +388,18 @@ SELECT pds.gcp_uuid,
     persistentvolumeclaim,
     persistentvolume,
     storageclass,
-    pds.pod_labels,
+    CASE WHEN pds.pod_labels IS NOT NULL
+        THEN json_format(cast(
+            map_concat(
+                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+        ELSE json_format(cast(
+            map_concat(
+                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
+                cast(json_parse(pds.tags) as map(varchar, varchar))
+            ) as JSON))
+    END as pod_labels,
     resource_id,
     usage_start,
     usage_end,
@@ -426,18 +437,7 @@ SELECT pds.gcp_uuid,
     cluster_capacity_cpu_core_hours,
     cluster_capacity_memory_gigabyte_hours,
     volume_labels,
-    CASE WHEN pds.pod_labels IS NOT NULL
-        THEN json_format(cast(
-            map_concat(
-                cast(json_parse(pds.pod_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-        ELSE json_format(cast(
-            map_concat(
-                cast(json_parse(pds.volume_labels) as map(varchar, varchar)),
-                cast(json_parse(pds.tags) as map(varchar, varchar))
-            ) as JSON))
-    END as tags,
+    tags,
     '{{gcp_source_uuid | sqlsafe }}' as gcp_source,
     '{{ocp_source_uuid | sqlsafe }}' as ocp_source,
     cast(year(usage_start) as varchar) as year,
