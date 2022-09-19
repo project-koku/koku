@@ -1689,7 +1689,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
                     filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     expected_total = overall_total - filtered_total
                     # Test exclude
-                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"  # noqa: E501
+                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(exclude_url, view)
                     handler = AzureReportQueryHandler(query_params)
                     self.assertIsNotNone(handler.query_exclusions)

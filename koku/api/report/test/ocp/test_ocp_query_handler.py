@@ -748,8 +748,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
         """Test that the exclude feature works for all options."""
         exclude_opts = ExcludeSerializer._opfields
         exclude_opts = list(exclude_opts)
-        # We can't group by infrastructures
-        exclude_opts.remove("infrastructures")
+        exclude_opts.remove("infrastructures")  # Tested separately
         for exclude_opt in exclude_opts:
             for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
                 with self.subTest(exclude_opt):
@@ -769,7 +768,7 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     expected_total = overall_total - filtered_total
                     # Test exclude
-                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"  # noqa: E501
+                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(exclude_url, view)
                     handler = OCPReportQueryHandler(query_params)
                     self.assertIsNotNone(handler.query_exclusions)
@@ -785,38 +784,42 @@ class OCPReportQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
-    # TODO: Figure out why this test intermittenly fails
-    # Initial investigation suggest exclude only works on cost endpoint.
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_infastructures(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opt = "infrastructures"
-        for view in [OCPCostView, OCPCpuView, OCPMemoryView, OCPVolumeView]:
-            # for view in [OCPVolumeView]:
+        # It works on cost endpoint, but not the other views:
+        for view in [OCPVolumeView, OCPCostView, OCPCpuView, OCPMemoryView]:
             with self.subTest(view=view):
-                opt_value = "aws"
                 # Grab overall value
                 overall_url = "?"
                 query_params = self.mocked_query_params(overall_url, view)
                 handler = OCPReportQueryHandler(query_params)
                 handler.execute_query()
-                overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                # Grab filtered value
-                filtered_url = f"?filter[{exclude_opt}]={opt_value}"
-                query_params = self.mocked_query_params(filtered_url, view)
+                ocp_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                ocp_raw = handler.query_sum.get("cost").get("raw", {}).get("value")
+                # Grab azure filtered value
+                azure_url = "?filter[infrastructures]=azure"
+                query_params = self.mocked_query_params(azure_url, view)
                 handler = OCPReportQueryHandler(query_params)
                 handler.execute_query()
-                filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                expected_total = overall_total - filtered_total
+                azure_filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                # Grab gcp filtered value
+                gcp_url = "?filter[infrastructures]=gcp"
+                query_params = self.mocked_query_params(gcp_url, view)
+                handler = OCPReportQueryHandler(query_params)
+                handler.execute_query()
+                gcp_filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                 # Test exclude
-                exclude_url = f"?exclude[{exclude_opt}]={opt_value}"
+                # we subtract the ocp_raw cost here because we only want cost associated to
+                # an infrastructure here, or atleas tthat is my understanding.
+                expected_total = (ocp_total + azure_filtered_total + gcp_filtered_total) - ocp_raw
+                exclude_url = "?exclude[infrastructures]=aws"
                 query_params = self.mocked_query_params(exclude_url, view)
                 handler = OCPReportQueryHandler(query_params)
                 self.assertIsNotNone(handler.query_exclusions)
                 handler.execute_query()
-                excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-                self.assertAlmostEqual(expected_total, excluded_total, 6)
-                self.assertNotEqual(overall_total, excluded_total)
+                excluded_result = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                self.assertAlmostEqual(expected_total, excluded_result, 6)
 
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):

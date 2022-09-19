@@ -223,7 +223,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         daily_capacity_by_cluster = defaultdict(lambda: defaultdict(Decimal))
 
         q_table = self._mapper.query_table
+        LOG.debug(f"Using query table: {q_table}")
         query = q_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_group_by = ["usage_start", "cluster_id"]
 
         with tenant_context(self.tenant):

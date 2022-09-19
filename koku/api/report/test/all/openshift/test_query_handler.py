@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the OCP on All query handler."""
+import logging
 from unittest.mock import patch
 
 from tenant_schemas.utils import tenant_context
@@ -33,6 +34,8 @@ COMPUTE_SUMMARY = OCPAllComputeSummaryPT
 STORAGE_SUMMARY = OCPAllStorageSummaryPT
 NETWORK_SUMMARY = OCPAllNetworkSummaryPT
 DATABASE_SUMMARY = OCPAllDatabaseSummaryPT
+
+LOG = logging.getLogger(__name__)
 
 
 class OCPAllQueryHandlerTest(IamTestCase):
@@ -239,7 +242,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     expected_total = overall_total - filtered_total
                     # Test exclude
-                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"  # noqa: E501
+                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(exclude_url, view)
                     handler = OCPAllReportQueryHandler(query_params)
                     self.assertIsNotNone(handler.query_exclusions)
@@ -262,34 +265,25 @@ class OCPAllQueryHandlerTest(IamTestCase):
         query_params = self.mocked_query_params(url, OCPAllTagView)
         handler = OCPAllTagQueryHandler(query_params)
         tags = handler.get_tags()
-        tag = tags[0]
+        tag = tags[-1]
         tag_key = tag.get("key")
         base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
         query_params = self.mocked_query_params(base_url, OCPAllCostView)
         handler = OCPAllReportQueryHandler(query_params)
         data = handler.execute_query().get("data")
         exclude_one = None
-        exclude_two = None
         for date_dict in data:
-            if exclude_one and exclude_two:
+            if exclude_one:
                 continue
             grouping_list = date_dict.get(f"{tag_key}s", [])
             for group_dict in grouping_list:
-                if not exclude_one:
-                    exclude_one = group_dict.get(tag_key)
-                elif not exclude_two:
-                    exclude_two = group_dict.get(tag_key)
+                if "no-" not in group_dict.get(tag_key):
+                    if not exclude_one:
+                        exclude_one = group_dict.get(tag_key)
         overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        # single_tag_exclude
         single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
         query_params = self.mocked_query_params(single_exclude, OCPAllCostView)
         handler = OCPAllReportQueryHandler(query_params)
         handler.execute_query()
         exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         self.assertLess(exclude_total1, overall_total)
-        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
-        query_params = self.mocked_query_params(double_exclude, OCPAllCostView)
-        handler = OCPAllReportQueryHandler(query_params)
-        handler.execute_query()
-        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
-        self.assertLess(exclude_total, exclude_total1)
