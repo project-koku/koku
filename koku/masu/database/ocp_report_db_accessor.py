@@ -38,6 +38,7 @@ from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.util.common import month_date_range_tuple
+from masu.util.common import trino_table_exists
 from masu.util.gcp.common import check_resource_level
 from reporting.models import OCP_ON_ALL_PERSPECTIVES
 from reporting.provider.aws.models import PRESTO_LINE_ITEM_DAILY_TABLE as AWS_PRESTO_LINE_ITEM_DAILY_TABLE
@@ -733,6 +734,8 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             start_date = start_date.date()
             end_date = end_date.date()
 
+        storage_exists = trino_table_exists(self.schema, "openshift_storage_usage_line_items_daily")
+
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
         days_list = [str(day.day) for day in days]
@@ -753,6 +756,7 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "year": year,
             "month": month,
             "days": days_str,
+            "storage_exists": storage_exists,
         }
 
         LOG.info("TRINO OCP: Connect")
