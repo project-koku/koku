@@ -9,6 +9,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_storage_summary_by_account_p (
     usage_start,
     usage_end,
     product_service,
+    unit,
     payer_tenant_id,
     cost,
     markup_cost,
@@ -19,6 +20,7 @@ SELECT uuid_generate_v4() as id,
     usage_start,
     usage_start as usage_end,
     product_service,
+    unit,
     payer_tenant_id,
     sum(cost) as cost,
     sum(markup_cost) as markup_cost,
@@ -31,5 +33,5 @@ WHERE product_service LIKE '%%STORAGE%%'
     AND usage_start >= {{start_date}}::date
     AND usage_end <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}::uuid
-GROUP BY usage_start, payer_tenant_id, product_service
+GROUP BY usage_start, payer_tenant_id, product_service, unit
 ;
