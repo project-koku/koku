@@ -28,7 +28,7 @@ from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 from trino.exceptions import TrinoExternalError
 
-import koku.presto_database as kpdb
+import koku.trino_database as trino_db
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
 from koku.database import JSONBBuildObject
@@ -756,10 +756,10 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
 
         LOG.info("TRINO OCP: Connect")
-        presto_conn = kpdb.connect(schema=self.schema)
+        presto_conn = trino_db.connect(schema=self.schema)
         try:
             LOG.info("TRINO OCP: executing SQL buffer for OCP usage processing")
-            kpdb.executescript(
+            trino_db.executescript(
                 presto_conn, tmpl_summary_sql, params=summary_sql_params, preprocessor=self.jinja_sql.prepare_query
             )
         except Exception as e:
