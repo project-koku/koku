@@ -44,7 +44,7 @@ def enable_negative_filtering(org_id):
 
     context = {"schema": org_id}
     LOG.info(f"enable_negative_filtering context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
+    return bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-enable-negative-filtering", context))
 
 
 class QueryParameters:
