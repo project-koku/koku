@@ -41,6 +41,7 @@ from api.iam.serializers import create_schema_name
 from api.iam.serializers import extract_header
 from api.iam.serializers import UserSerializer
 from api.settings.utils import generate_doc_link
+from api.utils import DateHelper
 from koku.metrics import DB_CONNECTION_ERRORS_COUNTER
 from koku.rbac import RbacConnectionError
 from koku.rbac import RbacService
@@ -313,6 +314,11 @@ class IdentityHeaderMiddleware(MiddlewareMixin):
             try:
                 if org_id not in IdentityHeaderMiddleware.customer_cache:
                     customer = Customer.objects.filter(org_id=org_id).get()
+                    if not customer.account_id and account:
+                        customer.account_id = account
+                        customer.date_updated = DateHelper().now_utc
+                        customer.save()
+                        LOG.info(f"adding account_id {account} to Customer (org_id {org_id})")
                     IdentityHeaderMiddleware.customer_cache[org_id] = customer
                     LOG.debug(f"Customer added to cache: {org_id}")
                 else:

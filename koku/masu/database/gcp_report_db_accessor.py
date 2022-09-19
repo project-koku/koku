@@ -25,6 +25,7 @@ from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
@@ -491,6 +492,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        # Check for GCP resource level data
+        resource_level = check_resource_level(gcp_provider_uuid)
+
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
@@ -509,9 +513,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary.sql"
-        )
+        if resource_level:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+            matching_type = "resource"
+        else:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
+            matching_type = "tag"
+
+        summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
@@ -529,6 +538,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_column": cluster_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
+            "matching_type": matching_type,
         }
         LOG.info("Running OCP on GCP SQL with params:")
         LOG.info(summary_sql_params)
@@ -657,3 +667,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_presto_multipart_sql_query(self.schema, sql, bind_params=sql_params)
+
+    def check_for_matching_enabled_keys(self):
+        """
+        Checks the enabled tag keys for matching keys.
+        """
+        match_sql = f"""
+            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
+        """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(match_sql)
+            results = cursor.fetchall()
+            if results[0][0] < 1:
+                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                return False
+        return True
