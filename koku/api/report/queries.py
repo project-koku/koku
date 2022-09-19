@@ -273,8 +273,8 @@ class ReportQueryHandler(QueryHandler):
             list_ = list(set(group_by + filter_))  # uniquify the list
             if isinstance(filt, list):
                 for _filt in filt:
-                    for item in list_:
-                        if not ReportQueryHandler.has_wildcard(list_):
+                    if not ReportQueryHandler.has_wildcard(list_):
+                        for item in list_:
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
                     for item in exclude_:
@@ -282,11 +282,12 @@ class ReportQueryHandler(QueryHandler):
                         exclusions.add(exclude_filter)
             else:
                 list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
-                exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
-                for item in list_:
-                    if not ReportQueryHandler.has_wildcard(list_):
+                if not ReportQueryHandler.has_wildcard(list_):
+                    for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
+
+                exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
                 for item in exclude_:
                     exclude_filter = QueryFilter(parameter=item, **filt)
                     exclusions.add(exclude_filter)
