@@ -170,7 +170,7 @@
             "createdAt": "2022-02-22T15:48:54.492Z"
         },
         {
-            "name": "summarize-ocp-on-gcp-by-node",
+            "name": "cost-management.backend.summarize-ocp-on-gcp-by-node",
             "description": "Update the gcp summary tables by node.",
             "type": "permission",
             "project": "default",
