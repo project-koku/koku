@@ -78,6 +78,18 @@ def disable_ocp_on_cloud_summary(account):
     return res
 
 
+def disable_gcp_resource_matching(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable_gcp_resource_matching", context))
+    LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
+
+    return res
+
+
 def summarize_ocp_on_gcp_by_node(account):
     """This flag is a temporary stop gap to summarize large ocp on gcp customers by node."""
     if account and not account.startswith("acct") and not account.startswith("org"):

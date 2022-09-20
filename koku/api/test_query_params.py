@@ -20,6 +20,7 @@ from rest_framework.serializers import ValidationError
 from api.models import Provider
 from api.models import Tenant
 from api.models import User
+from api.query_params import enable_negative_filtering
 from api.query_params import get_tenant
 from api.query_params import QueryParameters
 from api.report.serializers import ParamSerializer
@@ -122,6 +123,11 @@ class QueryParametersTests(TestCase):
         )
         with self.assertRaises(ValidationError):
             QueryParameters(fake_request, fake_view)
+
+    def test_enable_negitive_filtering(self):
+        """Test if none is passed in that it returns false."""
+        result = enable_negative_filtering(None)
+        self.assertFalse(result)
 
     def test_constructor_invalid_data(self):
         """Test that ValidationError is raised when serializer data is invalid."""
