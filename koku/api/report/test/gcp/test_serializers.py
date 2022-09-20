@@ -7,12 +7,58 @@ from faker import Faker
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.gcp.serializers import GCPExcludeSerializer
 from api.report.gcp.serializers import GCPFilterSerializer
 from api.report.gcp.serializers import GCPGroupBySerializer
 from api.report.gcp.serializers import GCPOrderBySerializer
 from api.report.gcp.serializers import GCPQueryParamSerializer
 
 FAKE = Faker()
+
+
+class GCPExcludeSerializerTest(IamTestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_params_no_time(self):
+        """Test parse of a exclude param no time exclude."""
+        exclude_params = {"region": FAKE.word(), "account": FAKE.uuid4(), "service": FAKE.word()}
+        serializer = GCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_invalid_fields(self):
+        """Test parse of exclude params for invalid fields."""
+        exclude_params = {"invalid": "param"}
+        serializer = GCPExcludeSerializer(data=exclude_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_tag_keys_dynamic_field_validation_success(self):
+        """Test that tag keys are validated as fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"valid_tag": "value"}
+        serializer = GCPExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        self.assertTrue(serializer.is_valid())
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"bad_tag": "value"}
+        serializer = GCPExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in GCPExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = GCPExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in GCPExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = GCPExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class GCPFilterSerializerTest(IamTestCase):

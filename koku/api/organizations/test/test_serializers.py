@@ -8,62 +8,12 @@ from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.organizations.serializers import AWSOrgFilterSerializer
-from api.organizations.serializers import FilterSerializer
 from api.organizations.serializers import OrgQueryParamSerializer
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 
 
-class FilterSerializerTest(IamTestCase):
-    """Tests for the filter serializer."""
-
-    def test_parse_filter_params_success(self):
-        """Test parse of a filter param successfully."""
-        filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"}
-        serializer = FilterSerializer(data=filter_params)
-        self.assertTrue(serializer.is_valid())
-
-    def test_parse_filter_no_params_success(self):
-        """Test parse of a filter param successfully."""
-        filter_params = {}
-        serializer = FilterSerializer(data=filter_params)
-        self.assertTrue(serializer.is_valid())
-
-    def test_filter_params_invalid_fields(self):
-        """Test parse of filter params for invalid fields."""
-        filter_params = {
-            "resolution": "daily",
-            "time_scope_value": "-10",
-            "time_scope_units": "day",
-            "invalid": "param",
-        }
-        serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_filter_params_invalid_time_scope_daily(self):
-        """Test parse of filter params for invalid daily time_scope_units."""
-        filter_params = {"resolution": "daily", "time_scope_value": "-1", "time_scope_units": "day"}
-        serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_filter_params_invalid_time_scope_monthly(self):
-        """Test parse of filter params for invalid month time_scope_units."""
-        filter_params = {"resolution": "monthly", "time_scope_value": "-10", "time_scope_units": "month"}
-        serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-    def test_filter_params_invalid_limit_time_scope_resolution(self):
-        """Test parse of filter params for invalid resolution time_scope_units."""
-        filter_params = {"resolution": "monthly", "time_scope_value": "-10", "time_scope_units": "day"}
-        serializer = FilterSerializer(data=filter_params)
-        with self.assertRaises(serializers.ValidationError):
-            serializer.is_valid(raise_exception=True)
-
-
-class AWSFilterSerializerTest(IamTestCase):
+class AWSOrgFilterSerializerTest(IamTestCase):
     """Tests for the AWS filter serializer."""
 
     def test_parse_filter_params_w_project_success(self):
@@ -93,6 +43,33 @@ class AWSFilterSerializerTest(IamTestCase):
             self.assertFalse(serializer.is_valid())
 
 
+class AWSOrgExcludeSerializerTest(IamTestCase):
+    """Tests for the AWS exclude serializer."""
+
+    def test_parse_exclude_params_w_project_success(self):
+        """Test parse of a exclude param with project successfully."""
+        exculde_params = {
+            "org_unit_id": "r-id",
+        }
+        serializer = AWSOrgFilterSerializer(data=exculde_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exculde_params_w_project_failure(self):
+        """Test parse of a exclude param with an invalid project."""
+        exculde_params = {"account": 3}
+        serializer = AWSOrgFilterSerializer(data=exculde_params)
+        self.assertFalse(serializer.is_valid())
+
+    def test_parse_exculde_params_type_fail(self):
+        """Test parse of a filter param with type for invalid type."""
+        types = ["aws_tags", "pod", "storage"]
+        for tag_type in types:
+            exculde_params = {"type": None}
+            exculde_params["type"] = tag_type
+            serializer = AWSOrgFilterSerializer(data=exculde_params)
+            self.assertFalse(serializer.is_valid())
+
+
 class OrgQueryParamSerializerTest(IamTestCase):
     """Tests for the handling query parameter parsing serializer."""
 
@@ -100,6 +77,34 @@ class OrgQueryParamSerializerTest(IamTestCase):
         """Test parse of a query params successfully."""
         query_params = {
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+            "limit": "5",
+            "offset": "3",
+        }
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_query_params_filter_with_org_unit_id_success(self):
+        """Test parse of a query params successfully."""
+        query_params = {
+            "filter": {
+                "resolution": "daily",
+                "time_scope_value": "-10",
+                "time_scope_units": "day",
+                "org_unit_id": "r-id",
+            },
+            "limit": "5",
+            "offset": "3",
+        }
+        self.request_context["request"].path = "/api/cost-management/v1/organizations/aws/"
+        serializer = OrgQueryParamSerializer(data=query_params, context=self.request_context)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_query_params_exclude_with_org_unit_id_success(self):
+        """Test parse of a query params successfully."""
+        query_params = {
+            "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
+            "exclude": {"org_unit_id": "r-id"},
             "limit": "5",
             "offset": "3",
         }

@@ -29,6 +29,7 @@ from masu.api.source_cleanup import cleanup
 from masu.api.sources.views import SourcesViewSet
 from masu.api.status import get_status
 from masu.api.trino import trino_query
+from masu.api.trino import trino_ui
 from masu.api.update_cost_model_costs import update_cost_model_costs
 from masu.api.update_exchange_rates import update_exchange_rates
 from masu.api.update_openshift_on_cloud import update_openshift_on_cloud

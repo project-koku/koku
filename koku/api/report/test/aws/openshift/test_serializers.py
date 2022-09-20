@@ -8,10 +8,46 @@ from unittest import TestCase
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.aws.openshift.serializers import OCPAWSExcludeSerializer
 from api.report.aws.openshift.serializers import OCPAWSFilterSerializer
 from api.report.aws.openshift.serializers import OCPAWSGroupBySerializer
 from api.report.aws.openshift.serializers import OCPAWSOrderBySerializer
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
+
+
+class OCPAWSExcludeSerializerTest(TestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_project(self):
+        """Test exclude by project."""
+        exclude_params = {"project": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_cluster(self):
+        """Test exclude by cluster."""
+        exclude_params = {"cluster": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_node(self):
+        """Test exclude by node."""
+        exclude_params = {"node": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OCPAWSExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPAWSExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OCPAWSExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPAWSExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OCPAWSFilterSerializerTest(TestCase):

@@ -222,6 +222,34 @@ class IdentityHeaderMiddlewareTest(IamTestCase):
         with self.assertRaises(User.DoesNotExist):
             User.objects.get(username=user_data["username"])
 
+    def test_process_customer_new_account_id(self):
+        """Test that a customer that later recieves an account_id is updated appropriately."""
+        org_id = "88888"
+        account_id = "88888888"
+        # create customer initially without an account_id
+        customer = self._create_customer_data(account=None, org_id=org_id)
+        user_data = self._create_user_data()
+        request_context = self._create_request_context(customer, user_data, create_customer=True, create_user=False)
+        mock_request = request_context["request"]
+        mock_request.META["QUERY_STRING"] = ""
+        mock_request.path = "/api/v1/tags/aws/"
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        self.assertTrue(hasattr(mock_request, "user"))
+        customer = Customer.objects.get(org_id=org_id)
+        self.assertIsNone(customer.account_id)
+
+        # send another request with the new account_id and ensure it is updated
+        customer = self._create_customer_data(account=account_id, org_id=org_id)
+        request_context = self._create_request_context(customer, user_data, create_customer=False, create_user=False)
+        mock_request = request_context["request"]
+        mock_request.META["QUERY_STRING"] = ""
+        mock_request.path = "/api/v1/tags/aws/"
+        middleware = IdentityHeaderMiddleware()
+        middleware.process_request(mock_request)
+        customer = Customer.objects.get(org_id=org_id)
+        self.assertEqual(customer.account_id, account_id)
+
     def test_race_condition_customer(self):
         """Test case where another request may create the customer in a race condition."""
         customer = self._create_customer_data()

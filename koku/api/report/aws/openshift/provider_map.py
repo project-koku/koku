@@ -150,7 +150,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -277,6 +276,13 @@ class OCPAWSProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
@@ -287,7 +293,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -351,6 +356,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "filter": [{"field": "product_family", "operation": "icontains", "parameter": "Storage"}],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
@@ -417,6 +429,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",
@@ -428,7 +447,6 @@ class OCPAWSProviderMap(ProviderMap):
                             "query": OCPAWSCostLineItemProjectDailySummaryP,
                             "total": OCPAWSCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -453,7 +471,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
                         },
@@ -482,7 +500,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD")),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
@@ -497,6 +515,13 @@ class OCPAWSProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency_code",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",

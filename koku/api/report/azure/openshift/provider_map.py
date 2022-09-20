@@ -148,7 +148,6 @@ class OCPAzureProviderMap(ProviderMap):
                             "query": OCPAzureCostLineItemProjectDailySummaryP,
                             "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -296,6 +295,13 @@ class OCPAzureProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
@@ -306,7 +312,6 @@ class OCPAzureProviderMap(ProviderMap):
                             "query": OCPAzureCostLineItemProjectDailySummaryP,
                             "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -385,6 +390,13 @@ class OCPAzureProviderMap(ProviderMap):
                         ],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "GB-Mo",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
@@ -414,7 +426,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -466,6 +478,13 @@ class OCPAzureProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pretax_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",
@@ -477,7 +496,6 @@ class OCPAzureProviderMap(ProviderMap):
                             "query": OCPAzureCostLineItemProjectDailySummaryP,
                             "total": OCPAzureCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "pod_labels",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -505,7 +523,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": ArrayAgg("resource_id", distinct=True),
+                            "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -561,6 +579,13 @@ class OCPAzureProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
                         "count_units_fallback": "instances",

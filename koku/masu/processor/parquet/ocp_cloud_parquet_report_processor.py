@@ -150,9 +150,11 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
             report_period_id = self.get_report_period_id(ocp_provider_uuid)
             matched_tags = []
             if self.has_enabled_ocp_labels:
-                LOG.info("Getting matching tags from Postgres.")
-                matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
-                if not matched_tags:
+                enabled_tags = self.db_accessor.check_for_matching_enabled_keys()
+                if enabled_tags:
+                    LOG.info("Getting matching tags from Postgres.")
+                    matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags(self.bill_id, report_period_id)
+                if not matched_tags and enabled_tags:
                     LOG.info("Matched tags not yet available via Postgres. Getting matching tags from Trino.")
                     if self._provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                         matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(

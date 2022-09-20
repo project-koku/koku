@@ -10,10 +10,15 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 
 import numpy as np
 import pandas as pd
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import F
+from django.db.models import Value
+from django.db.models import When
 from tenant_schemas.utils import tenant_context
 
 from api.models import Provider
@@ -102,6 +107,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return source_to_currency
 
+    @cached_property
+    def exchange_rate_expression(self):
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        currencies = self.build_source_to_currency_map()
+        whens.extend(
+            [
+                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+                for uuid, cur in currencies.items()
+            ]
+        )
+        return Case(*whens, default=1, output_field=DecimalField())
+
     @property
     def annotations(self):
         """Create dictionary for query annotations.
@@ -160,9 +180,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
             for column in columns:
-                # temp currency version
                 df[column] = df.apply(
                     lambda row: row[column]
+                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
+                    if row[self._mapper.cost_units_key]
+                    else row[column]
                     * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                         self.currency, Decimal(1.0)
                     ),
@@ -207,6 +229,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         for column in columns:
             df[column] = df.apply(
                 lambda row: row[column]
+                * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
+                if row[self._mapper.cost_units_key]
+                else row[column]
                 * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                     self.currency, Decimal(1.0)
                 ),
@@ -256,7 +281,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             source_column = "source_uuid" if self.query_table == OCPUsageLineItemDailySummary else "source_uuid_id"
             if self.query_table == OCPUsageLineItemDailySummary:
                 self.report_annotations.pop("source_uuid")
-            initial_group_by.append(source_column)
+            initial_group_by.extend([source_column, self._mapper.cost_units_key])
             annotations = self._mapper.report_type_map.get("annotations")
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering

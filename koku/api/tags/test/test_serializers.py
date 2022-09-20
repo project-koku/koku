@@ -7,13 +7,35 @@ from dateutil.relativedelta import relativedelta
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.tags.serializers import AWSExcludeSerializer
 from api.tags.serializers import AWSFilterSerializer
 from api.tags.serializers import AWSTagsQueryParamSerializer
+from api.tags.serializers import ExcludeSerializer
 from api.tags.serializers import FilterSerializer
+from api.tags.serializers import OCPExcludeSerializer
 from api.tags.serializers import OCPFilterSerializer
 from api.tags.serializers import OCPTagsQueryParamSerializer
 from api.tags.serializers import TagsQueryParamSerializer
 from api.utils import DateHelper
+
+
+class ExcludeSerializerTest(IamTestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_no_params_success(self):
+        """Test parse of a exclude param successfully."""
+        exclude_params = {}
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_invalid_fields(self):
+        """Test parse of exclude params for invalid fields."""
+        exclude_params = {
+            "invalid": "param",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
 
 
 class FilterSerializerTest(IamTestCase):
@@ -65,6 +87,24 @@ class FilterSerializerTest(IamTestCase):
             serializer.is_valid(raise_exception=True)
 
 
+class AWSExcludeSerializerTest(IamTestCase):
+    """Tests for the AWS exclude serializer."""
+
+    def test_parse_exclude_params_w_project_success(self):
+        """Test parse of a exclude param with project successfully."""
+        exclude_params = {
+            "account": "myaccount",
+        }
+        serializer = AWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_params_w_account_failure(self):
+        """Test parse of a exclude param with an invalid account."""
+        exclude_params = {"account": 3}
+        serializer = AWSExcludeSerializer(data=exclude_params)
+        self.assertFalse(serializer.is_valid())
+
+
 class AWSFilterSerializerTest(IamTestCase):
     """Tests for the AWS filter serializer."""
 
@@ -92,6 +132,42 @@ class AWSFilterSerializerTest(IamTestCase):
             filter_params = {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day", "type": None}
             filter_params["type"] = tag_type
             serializer = AWSFilterSerializer(data=filter_params)
+            self.assertFalse(serializer.is_valid())
+
+
+class OCPExcludeSerializerTest(IamTestCase):
+    """Tests for the OCP exclude serializer."""
+
+    def test_parse_exclude_params_w_project_success(self):
+        """Test parse of a exclude param with project successfully."""
+        exclude_params = {
+            "project": "myproject",
+        }
+        serializer = OCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_params_w_project_failure(self):
+        """Test parse of a exclude param with an invalid project."""
+        exclude_params = {"project": 3}
+        serializer = OCPExcludeSerializer(data=exclude_params)
+        self.assertFalse(serializer.is_valid())
+
+    def test_parse_exclude_params_type_success(self):
+        """Test parse of a exclude param with type successfully."""
+        types = ["pod", "storage"]
+        for tag_type in types:
+            exclude_params = {"type": None}
+            exclude_params["type"] = tag_type
+            serializer = OCPExcludeSerializer(data=exclude_params)
+            self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_params_type_fail(self):
+        """Test parse of a exclude param with type for invalid type."""
+        types = ["bad1", "aws_tags"]
+        for tag_type in types:
+            exclude_params = {"type": None}
+            exclude_params["type"] = tag_type
+            serializer = OCPExcludeSerializer(data=exclude_params)
             self.assertFalse(serializer.is_valid())
 
 

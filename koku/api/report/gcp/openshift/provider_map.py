@@ -163,7 +163,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "query": OCPGCPCostLineItemProjectDailySummaryP,
                             "total": OCPGCPCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "tags",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -321,6 +320,14 @@ class OCPGCPProviderMap(ProviderMap):
                         "delta_key": {"usage": Sum("usage_amount")},
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
                         "default_ordering": {"usage": "desc"},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
@@ -334,7 +341,6 @@ class OCPGCPProviderMap(ProviderMap):
                             "query": OCPGCPCostLineItemProjectDailySummaryP,
                             "total": OCPGCPCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "tags",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -414,6 +420,14 @@ class OCPGCPProviderMap(ProviderMap):
                         "group_by": ["instance_type"],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
                         "count_units_fallback": "instances",
@@ -495,17 +509,24 @@ class OCPGCPProviderMap(ProviderMap):
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "gibibyte month",
                         "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
-                        "default_ordering": {"cost_total": "desc"},
+                        "default_ordering": {"usage": "desc"},
                     },
                     "storage_by_project": {
                         "tables": {
                             "query": OCPGCPCostLineItemProjectDailySummaryP,
                             "total": OCPGCPCostLineItemProjectDailySummaryP,
                         },
-                        "tag_column": "tags",
                         "aggregates": {
                             "infra_total": Sum(
                                 Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
@@ -581,6 +602,14 @@ class OCPGCPProviderMap(ProviderMap):
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
                         "cost_units_fallback": "USD",
+                        "ranking_cost_total_exchanged": Sum(
+                            (
+                                Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                            )
+                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                        ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "gibibyte month",
                         "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],

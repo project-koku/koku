@@ -3,13 +3,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the GCP Provider serializers."""
-from unittest import TestCase
 from unittest.mock import Mock
 
 from faker import Faker
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.gcp.openshift.serializers import OCPGCPExcludeSerializer
 from api.report.gcp.openshift.serializers import OCPGCPFilterSerializer
 from api.report.gcp.openshift.serializers import OCPGCPGroupBySerializer
 from api.report.gcp.openshift.serializers import OCPGCPOrderBySerializer
@@ -18,7 +18,70 @@ from api.report.gcp.openshift.serializers import OCPGCPQueryParamSerializer
 FAKE = Faker()
 
 
-class OCPGCPFilterSerializerTest(TestCase):
+class OCPGCPExcludeSerializerTest(IamTestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_params_no_time(self):
+        """Test parse of a exclude param no time exclude."""
+        exclude_params = {"account": FAKE.word(), "region": FAKE.uuid4(), "instance_type": FAKE.word()}
+        serializer = OCPGCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_invalid_fields(self):
+        """Test parse of exclude params for invalid fields."""
+        exclude_params = {"invalid": "param"}
+        serializer = OCPGCPExcludeSerializer(data=exclude_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_tag_keys_dynamic_field_validation_success(self):
+        """Test that tag keys are validated as fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"valid_tag": "value"}
+        serializer = OCPGCPExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        self.assertTrue(serializer.is_valid())
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"bad_tag": "value"}
+        serializer = OCPGCPExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_parse_exclude_project(self):
+        """Test exclude by project."""
+        exclude_params = {"project": ["*"]}
+        serializer = OCPGCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_cluster(self):
+        """Test exclude by cluster."""
+        exclude_params = {"cluster": ["*"]}
+        serializer = OCPGCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_node(self):
+        """Test exclude by node."""
+        exclude_params = {"node": ["*"]}
+        serializer = OCPGCPExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OCPGCPExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPGCPExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OCPGCPExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPGCPExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+
+
+class OCPGCPFilterSerializerTest(IamTestCase):
     """Tests for the filter serializer."""
 
     def test_parse_filter_params_success(self):
@@ -128,7 +191,7 @@ class OCPGCPFilterSerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPGCPGroupBySerializerTest(TestCase):
+class OCPGCPGroupBySerializerTest(IamTestCase):
     """Tests for the group_by serializer."""
 
     def test_parse_group_by_params_success(self):
@@ -200,7 +263,7 @@ class OCPGCPGroupBySerializerTest(TestCase):
             self.assertTrue(serializer.is_valid())
 
 
-class OCPGCPOrderBySerializerTest(TestCase):
+class OCPGCPOrderBySerializerTest(IamTestCase):
     """Tests for the order_by serializer."""
 
     def test_order_by_project(self):

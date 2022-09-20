@@ -19,6 +19,7 @@ from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
+from api.report.test.util.common import populate_ocp_topology
 from api.report.test.util.constants import AWS_CONSTANTS
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
@@ -366,6 +367,9 @@ class ModelBakeryDataLoader(DataLoader):
                 synchronous=True,
             )
             accessor.populate_ui_summary_tables(self.dh.last_month_start, self.last_end_date, provider.uuid)
+
+        populate_ocp_topology(self.schema, provider, cluster_id)
+
         return provider, report_periods
 
     def load_openshift_on_cloud_data(self, provider_type, cluster_id, bills, report_periods):

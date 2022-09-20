@@ -130,9 +130,10 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     end,
                 )
                 # This will process POD and STORAGE together
-                filters = {"report_period_id": report_period_id}  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters
+                # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
+                # the cost rows generated through the OCPCloudParquetReportSummaryUpdater
+                accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+                    self._provider.uuid, report_period_id, start, end
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid

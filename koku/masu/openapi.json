@@ -1769,6 +1769,50 @@
         ]
       }
     },
+    "/trino/api/": {
+      "get": {
+        "summary": "Returns JSON with query output.",
+        "operationId": "TrinoUI",
+        "description": "Returns JSON with query output.",
+        "parameters": [
+          {
+            "name": "api_service",
+            "in": "query",
+            "description":"name of the trino ui api to call",
+            "required": true,
+            "schema":{
+              "type":"string",
+              "enum":["query", "stats", "cluster"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON with query result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrinoUiGetResponse"
+                }
+              }
+            }
+          },
+          "400":{
+            "description":"Invalid trino-ui api service",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/TrinoUiGetErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Trino UI"
+        ]
+      }
+    },
     "/purge_trino_files/": {
       "get": {
         "summary": "Returns dictionary with task ids as keys and paths as values",
@@ -1814,7 +1858,7 @@
             "description": "will not delete manifests if param is present",
             "required": false,
             "schema": {
-              "type": "string",
+              "type": "string"
             }
           },
           {
@@ -2038,6 +2082,26 @@
             "column_name": {
               "type": "string"
             }
+          }
+        }
+      },
+      "TrinoUiGetResponse":{
+        "type": "object",
+        "properties":{
+          "api_service_name":{
+            "type": "string"
+          },
+          "trino_response":{
+            "type": "object"
+          }
+        }
+      },
+      "TrinoUiGetErrorResponse":{
+        "type":"object",
+        "properties":{
+          "Error":{
+            "type":"string",
+            "example":"query"
           }
         }
       },
