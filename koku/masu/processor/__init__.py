@@ -48,7 +48,7 @@ def disable_cloud_source_processing(account):
 
     context = {"schema": account}
     LOG.info(f"Processing UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable_cloud_source_processing", context))
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cloud-source-processing", context))
     LOG.info(f"    Processing {'disabled' if res else 'enabled'} {account}")
 
     return res
@@ -84,7 +84,7 @@ def disable_gcp_resource_matching(account):
 
     context = {"schema": account}
     LOG.info(f"Summary UNLEASH check: {context}")
-    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable_gcp_resource_matching", context))
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context))
     LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
 
     return res
