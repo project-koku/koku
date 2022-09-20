@@ -3219,8 +3219,7 @@ class AWSQueryHandlerTest(IamTestCase):
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_functionality(self, _):
         """Test that the exclude feature works for all options."""
-        exclude_opts = ExcludeSerializer._opfields
-        exclude_opts = list(exclude_opts)
+        exclude_opts = list(ExcludeSerializer._opfields)
         # Can't group by org_unit_id, tested separately
         exclude_opts.remove("org_unit_id")
         for exclude_opt in exclude_opts:
@@ -3296,3 +3295,42 @@ class AWSQueryHandlerTest(IamTestCase):
         handler.execute_query()
         exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
         self.assertLess(exclude_total, exclude_total1)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_multi_exclude_functionality(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts.remove("org_unit_id")
+        for ex_opt in exclude_opts:
+            base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
+            for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
+                query_params = self.mocked_query_params(base_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                overall_output = handler.execute_query()
+                opt_dict = overall_output.get("data", [{}])[0]
+                opt_list = opt_dict.get(f"{ex_opt}s")
+                exclude_one = None
+                exclude_two = None
+                for exclude_option in opt_list:
+                    if "no-" not in exclude_option.get(ex_opt):
+                        if not exclude_one:
+                            exclude_one = exclude_option.get(ex_opt)
+                        elif not exclude_two:
+                            exclude_two = exclude_option.get(ex_opt)
+                        else:
+                            continue
+                if not exclude_one or not exclude_two:
+                    continue
+                url = base_url + f"&exclude[or:{ex_opt}]={exclude_one}&exclude[or:{ex_opt}]={exclude_two}"
+                with self.subTest(url=url, view=view, ex_opt=ex_opt):
+                    query_params = self.mocked_query_params(url, view)
+                    handler = AWSReportQueryHandler(query_params)
+                    self.assertIsNotNone(handler.query_exclusions)
+                    excluded_output = handler.execute_query()
+                    excluded_data = excluded_output.get("data")
+                    self.assertIsNotNone(excluded_data)
+                    for date_dict in excluded_data:
+                        grouping_list = date_dict.get(f"{ex_opt}s", [])
+                        self.assertIsNotNone(grouping_list)
+                        for group_dict in grouping_list:
+                            self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
