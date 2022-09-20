@@ -326,7 +326,6 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 mock_delete.assert_called()
                 self.assertIn(expected_log, logger.output)
 
-
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
     def test_populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
