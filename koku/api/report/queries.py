@@ -98,7 +98,8 @@ class ReportQueryHandler(QueryHandler):
         self.query_exclusions = None
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
-        LOG.debug(f"query_exclusions: {self.query_exclusions}")
+        # TODO: Change this to debug before merging.
+        LOG.info(f"query_exclusions: {self.query_exclusions}")
 
     @cached_property
     def query_table_access_keys(self):
@@ -306,7 +307,6 @@ class ReportQueryHandler(QueryHandler):
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
-        LOG.info(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
 
     def _set_or_filters(self):
