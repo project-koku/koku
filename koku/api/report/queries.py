@@ -233,15 +233,10 @@ class ReportQueryHandler(QueryHandler):
 
         if check_for_exclude:
             # When excluding, we can get a combination of None & filters
-            if and_composed_filters and composed_filters:
-                composed_filters = composed_filters | and_composed_filters
-            elif and_composed_filters:
-                composed_filters = and_composed_filters
-
-            if or_composed_filters and composed_filters:
-                composed_filters = composed_filters | or_composed_filters
-            elif or_composed_filters:
-                composed_filters = or_composed_filters
+            if composed_filters:
+                composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            else:
+                composed_filters = and_composed_filters & or_composed_filters
         else:
             composed_filters = composed_filters & and_composed_filters & or_composed_filters
         return composed_filters
