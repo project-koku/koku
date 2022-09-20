@@ -37,7 +37,6 @@ def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
     # Developing Note: To test this you will have to run gunicorn locally
     # since the unleash client is initilized in the gunicorn_conf
-    UNLEASH_CLIENT.initialize_client()
     if not org_id:
         return False
     if isinstance(org_id, str) and not org_id.startswith("org"):
@@ -52,7 +51,6 @@ def enable_negative_filtering(org_id):
     LOG.info(f"enable_negative_filtering context: {context}")
     result = bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
     LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
-    UNLEASH_CLIENT.destroy()
     return result
 
 
