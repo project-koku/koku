@@ -410,6 +410,7 @@ LOGGING = {
         "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
         "cost_models": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "forecast": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
+        "hcs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "kafka_utils": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "koku": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "providers": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
@@ -421,7 +422,6 @@ LOGGING = {
         # Setting to WARNING will prevent the INFO level spam.
         "UnleashClient": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
         "apscheduler": {"handlers": LOGGING_HANDLERS, "level": UNLEASH_LOGGING_LEVEL},
-        "hcs": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
     },
 }
 
