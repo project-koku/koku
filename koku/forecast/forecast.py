@@ -111,8 +111,6 @@ class Forecast:
                 if access:
                     self.set_access_filters(access, filt, self.filters)
 
-    # THOUGHT PROCESS: I believe here is where we are going to want to edit.... we need to make sure that the provider
-    # map returned gives back the proper converted values
     @property
     def provider_map(self):
         """Return the provider map instance."""
