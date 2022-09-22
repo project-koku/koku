@@ -120,7 +120,8 @@ class SourceCleanupTests(IamTestCase):
     def test_delete_providers_without_sources(self, _):
         """Test to remove providers without sources."""
         params = {"providers_without_sources": ""}
-        response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
         body = response.json()
         self.assertEqual(body.get("job_queued"), "providers_without_sources")
         self.assertEqual(len(Provider.objects.all()), 0)
@@ -133,7 +134,8 @@ class SourceCleanupTests(IamTestCase):
         provider_uuid = str(Provider.objects.first().uuid)
 
         url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid={provider_uuid}"
-        response = self.client.delete(url_w_params)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.delete(url_w_params)
         body = response.json()
         self.assertEqual(body.get("job_queued"), "providers_without_sources")
         self.assertEqual(len(Provider.objects.all()), initial_count - 1)
@@ -158,7 +160,8 @@ class SourceCleanupTests(IamTestCase):
         self.assertNotEqual(len(Provider.objects.all()), 0)
 
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
-            response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(Sources.objects.all()), 0)
@@ -166,7 +169,8 @@ class SourceCleanupTests(IamTestCase):
         # Now run again with providers_without_sources parameter to remove providers.
         params = {"providers_without_sources": ""}
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
-            response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
             self.assertEqual(len(Provider.objects.all()), 0)
 
