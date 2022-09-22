@@ -231,7 +231,7 @@ class Orchestrator:
 
                 # add the tracing id to the report context
                 # This defaults to the celery queue
-                report_files = get_report_files.s(
+                report_tasks.append(get_report_files.s(
                     customer_name,
                     credentials,
                     data_source,
@@ -240,9 +240,7 @@ class Orchestrator:
                     provider_uuid,
                     report_month,
                     report_context,
-                ).set(queue=REPORT_QUEUE)
-                if report_files:
-                    report_tasks.append(report_files)
+                ).set(queue=REPORT_QUEUE))
                 LOG.info(log_json(tracing_id, f"Download queued - schema_name: {schema_name}."))
 
         manifest_list = [manifest.get("manifest_id") for manifest in manifest_list]
