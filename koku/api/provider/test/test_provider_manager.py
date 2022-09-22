@@ -258,6 +258,8 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 manager.remove(self._create_delete_request(other_user))
 
@@ -277,11 +279,15 @@ class ProviderManagerTest(IamTestCase):
             with self.assertRaises(ProviderProcessingError):
                 # Test that we throw an execption instead of deleting
                 manager = ProviderManager(str(provider.uuid))
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(self._create_delete_request(self.user), from_sources=True, retry_count=0)
                 self.assertTrue(Provider.objects.filter(uuid=str(provider.uuid)).exists())
             # Now test that we DO delete after the given number of retries
             manager = ProviderManager(str(provider.uuid))
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 manager.remove(self._create_delete_request(self.user), from_sources=True, retry_count=25)
             self.assertFalse(Provider.objects.filter(uuid=str(provider.uuid)).exists())
@@ -295,6 +301,8 @@ class ProviderManagerTest(IamTestCase):
             customer = provider.customer
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
         for view in OCP_UI_SUMMARY_TABLES:
@@ -311,6 +319,8 @@ class ProviderManagerTest(IamTestCase):
             customer = provider.customer
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
         for view in AWS_UI_SUMMARY_TABLES:
@@ -358,6 +368,8 @@ class ProviderManagerTest(IamTestCase):
 
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 manager.remove(self._create_delete_request(other_user))
         auth_count = ProviderAuthentication.objects.count()
@@ -405,6 +417,8 @@ class ProviderManagerTest(IamTestCase):
             manager.create(**ocp_data)
 
             manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 manager.remove(self._create_delete_request(other_user))
             cost_model_query = CostModelMap.objects.all().filter(provider_uuid=provider_uuid)
@@ -431,6 +445,8 @@ class ProviderManagerTest(IamTestCase):
         delete_request = self._create_delete_request(self.user, {"Sources-Client": "True"})
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 manager.remove(delete_request, from_sources=True)
         provider_query = Provider.objects.all().filter(uuid=provider_uuid)
@@ -456,6 +472,8 @@ class ProviderManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
             with self.assertRaises(ProviderManagerError):
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(delete_request)
 
@@ -691,5 +709,7 @@ class ProviderManagerTest(IamTestCase):
         with tenant_context(self.tenant):
             manager = ProviderManager(provider_uuid)
             with self.assertRaises(ProviderManagerError):
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(self._create_delete_request(other_user))

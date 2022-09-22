@@ -106,6 +106,8 @@ class ProviderBuilderTest(IamTestCase):
             provider = client.create_provider_from_source(self.mock_source)
             self.assertEqual(provider.name, self.name)
             self.assertEqual(str(provider.uuid), self.source_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 client.destroy_provider(self.source_uuid)
             with self.assertRaises(Provider.DoesNotExist):
@@ -120,6 +122,8 @@ class ProviderBuilderTest(IamTestCase):
             self.assertEqual(str(provider.uuid), self.source_uuid)
             logging.disable(logging.NOTSET)
             with self.assertLogs(logger="api.provider.provider_builder", level=logging.INFO):
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     client.destroy_provider(faker.uuid4())
 

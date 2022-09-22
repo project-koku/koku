@@ -68,6 +68,8 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_awscostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 paws.delete()
             _log_output = "\n".join(_logger.output)
@@ -105,6 +107,8 @@ class TestProviderDeleteSQL(IamTestCase):
         expected2 = "DELETE CASCADE BRANCH TO reporting_azuremeter"
         expected3 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 pazure.delete()
             _log_output = "\n".join(_logger.output)
@@ -142,6 +146,8 @@ class TestProviderDeleteSQL(IamTestCase):
         with patch("api.provider.provider_manager.enable_trino_processing") as enable_trino:
             enable_trino.return_value = False
             with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     pgcp.delete()
                 _log_output = "\n".join(_logger.output)
@@ -178,6 +184,8 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_ocpusagereportperiod"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 pocp.delete()
             _log_output = "\n".join(_logger.output)
@@ -217,6 +225,8 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_ocicostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 poci.delete()
             _log_output = "\n".join(_logger.output)

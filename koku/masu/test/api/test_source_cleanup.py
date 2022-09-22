@@ -120,6 +120,8 @@ class SourceCleanupTests(IamTestCase):
     def test_delete_providers_without_sources(self, _):
         """Test to remove providers without sources."""
         params = {"providers_without_sources": ""}
+        # We use this context manager to get on_commit to fire inside
+        # the unit test transaction that is not committed
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
         body = response.json()
@@ -134,6 +136,8 @@ class SourceCleanupTests(IamTestCase):
         provider_uuid = str(Provider.objects.first().uuid)
 
         url_w_params = reverse("cleanup") + f"?providers_without_sources&uuid={provider_uuid}"
+        # We use this context manager to get on_commit to fire inside
+        # the unit test transaction that is not committed
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.delete(url_w_params)
         body = response.json()
@@ -160,6 +164,8 @@ class SourceCleanupTests(IamTestCase):
         self.assertNotEqual(len(Provider.objects.all()), 0)
 
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 response = self.client.delete(f"{reverse('cleanup')}?missing_sources", params)
 
@@ -169,6 +175,8 @@ class SourceCleanupTests(IamTestCase):
         # Now run again with providers_without_sources parameter to remove providers.
         params = {"providers_without_sources": ""}
         with patch.object(SourcesHTTPClient, "get_source_details", side_effect=SourceNotFoundError):
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
             with self.captureOnCommitCallbacks(execute=True):
                 response = self.client.delete(f"{reverse('cleanup')}?providers_without_sources", params)
             self.assertEqual(response.status_code, status.HTTP_200_OK)

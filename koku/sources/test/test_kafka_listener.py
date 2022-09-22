@@ -704,6 +704,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
                 self.assertTrue(Sources.objects.filter(koku_uuid=provider.source_uuid).exists())
 
+        # We use this context manager to get on_commit to fire inside
+        # the unit test transaction that is not committed
         with self.captureOnCommitCallbacks(execute=True):
             with patch.object(SourcesHTTPClient, "set_source_status"):
                 source_integration.execute_koku_provider_op(msg)
