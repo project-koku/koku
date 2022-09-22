@@ -287,6 +287,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
         None
 
     """
+    LOG.info(f"List of reports to summarise: {reports_to_summarize}")
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
         if report:
