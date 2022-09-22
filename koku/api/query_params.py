@@ -516,7 +516,7 @@ class QueryParameters:
         return self.get("filter", OrderedDict()).get(filt, default)
 
     def get_exclude(self, filt, default=None):
-        """Get a filter parameter."""
+        """Get a exclude parameter."""
         return self.get("exclude", OrderedDict()).get(filt, default)
 
     def get_start_date(self):

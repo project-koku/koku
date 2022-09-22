@@ -119,10 +119,8 @@ class ReportQueryHandler(QueryHandler):
 
     @cached_property
     def query_table_exclude_keys(self):
-        """Return the filter keys specific for selecting the query table."""
-        excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
-        filter_keys = set(self.parameters.get("exclude", {}).keys())
-        return filter_keys.difference(excluded_filters)
+        """Return the exclude keys specific for selecting the query table."""
+        return set(self.parameters.get("exclude", {}).keys())
 
     @property
     def report_annotations(self):
@@ -306,7 +304,7 @@ class ReportQueryHandler(QueryHandler):
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
-        LOG.info(f"self.query_exclusions: {self.query_exclusions}")
+        LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
 
     def _set_or_filters(self):
