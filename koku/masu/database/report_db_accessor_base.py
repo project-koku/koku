@@ -19,7 +19,7 @@ from django.db import transaction
 from jinjasql import JinjaSql
 from tenant_schemas.utils import schema_context
 
-import koku.presto_database as kpdb
+import koku.trino_database as trino_db
 from api.common import log_json
 from koku.database import execute_delete_sql as exec_del_sql
 from koku.database_exc import get_extended_exception_by_type
@@ -375,7 +375,7 @@ class ReportDBAccessorBase(KokuDBAccess):
         """Execute a single presto query and return cur.fetchall and cur.description"""
         try:
             t1 = time.time()
-            presto_conn = kpdb.connect(schema=schema)
+            presto_conn = trino_db.connect(schema=schema)
             presto_cur = presto_conn.cursor()
             presto_cur.execute(sql, bind_params)
             results = presto_cur.fetchall()
@@ -397,8 +397,8 @@ class ReportDBAccessorBase(KokuDBAccess):
         self, schema, sql, bind_params=None, preprocessor=JinjaSql().prepare_query
     ):
         """Execute multiple related SQL queries in Presto."""
-        presto_conn = kpdb.connect(schema=self.schema)
-        return kpdb.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
+        presto_conn = trino_db.connect(schema=self.schema)
+        return trino_db.executescript(presto_conn, sql, params=bind_params, preprocessor=preprocessor)
 
     def get_existing_partitions(self, table):
         if isinstance(table, str):
