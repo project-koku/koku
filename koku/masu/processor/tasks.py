@@ -197,6 +197,10 @@ def get_report_files(  # noqa: C901
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] and report_dict.get(
+                "invoice_month"
+            ):
+                stmt += f" Invoice_month: {report_dict['invoice_month']}"
             LOG.info(log_json(tracing_id, stmt, context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
@@ -212,6 +216,7 @@ def get_report_files(  # noqa: C901
             "end": report_dict.get("end"),
             "invoice_month": report_dict.get("invoice_month"),
         }
+        LOG.info(f"\n\n REPORT META: {report_meta} \n\n")
 
         try:
             stmt = (
@@ -287,7 +292,7 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
         None
 
     """
-    LOG.info(f"List of reports to summarise: {reports_to_summarize}")
+    LOG.info(f"\n\n\nList of reports to summarise: {reports_to_summarize}\n\n\n")
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
         if report:
