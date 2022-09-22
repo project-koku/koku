@@ -204,7 +204,14 @@ def get_report_files(  # noqa: C901
             LOG.info(log_json(tracing_id, stmt, context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
-            return None
+            stmt = (
+                f"No report to be processed: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid}"
+            )
+            LOG.info(log_json(tracing_id, stmt, context))
+            return
 
         report_meta = {
             "schema_name": schema_name,
@@ -216,7 +223,6 @@ def get_report_files(  # noqa: C901
             "end": report_dict.get("end"),
             "invoice_month": report_dict.get("invoice_month"),
         }
-        LOG.info(f"\n\n REPORT META: {report_meta} \n\n")
 
         try:
             stmt = (
@@ -292,7 +298,6 @@ def summarize_reports(reports_to_summarize, queue_name=None, manifest_list=None)
         None
 
     """
-    LOG.info(f"\n\n\nList of reports to summarise: {reports_to_summarize}\n\n\n")
     reports_by_source = defaultdict(list)
     for report in reports_to_summarize:
         if report:
