@@ -80,9 +80,6 @@ class ProviderModelTest(MasuTestCase):
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_instance(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon instance delete."""
-        # mock_commit.side_effect = mock_delete_archived_data.delay(
-        #     self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        # )
         with tenant_context(self.tenant):
             with self.captureOnCommitCallbacks(execute=True):
                 self.aws_provider.delete()
@@ -92,9 +89,6 @@ class ProviderModelTest(MasuTestCase):
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
         """Assert the cost models are deleted upon provider instance delete."""
-        # mock_commit.side_effect = mock_delete_archived_data.delay(
-        #     self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        # )
         provider_uuid = self.aws_provider.uuid
         data = {
             "name": "Test Cost Model",
@@ -147,7 +141,6 @@ class ProviderModelTest(MasuTestCase):
         with tenant_context(self.tenant):
             providers = Provider.objects.all()
             for provider in providers:
-                # mock_commit.side_effect = mock_delete_archived_data.delay(self.schema, provider.type, provider.uuid)
                 with self.captureOnCommitCallbacks(execute=True):
                     provider.delete()
         expected_calls = [
