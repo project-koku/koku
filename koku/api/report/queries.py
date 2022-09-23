@@ -98,8 +98,7 @@ class ReportQueryHandler(QueryHandler):
         self.query_exclusions = None
 
         self.query_filter = self._get_filter()  # sets self.query_exclusions
-        # TODO: Change this to debug before merging.
-        LOG.info(f"query_exclusions: {self.query_exclusions}")
+        LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
     @cached_property
     def query_table_access_keys(self):
