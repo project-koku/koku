@@ -203,9 +203,12 @@ class Provider(models.Model):
                 self._normalized_type = _type if not _type.endswith("-local") else _type[: _type.index("-")]
                 with transaction.atomic():
                     self._cascade_delete()
-                    self._delete_from_target(
-                        {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                        target_values=[self.pk],
+                    # Make sure we commit the cascade delete before deleting the Provider record
+                    transaction.on_commit(
+                        lambda: self._delete_from_target(
+                            {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                            target_values=[self.pk],
+                        )
                     )
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
