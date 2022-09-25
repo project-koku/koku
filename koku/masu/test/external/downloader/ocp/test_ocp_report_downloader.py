@@ -284,7 +284,6 @@ class OCPReportDownloaderTest(MasuTestCase):
         self.assertEqual(self.ocp_report_downloader.context.get("version"), version)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.ocp.ocp_report_downloader.os")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.copy_local_report_file_to_s3_bucket")
     @patch("masu.external.downloader.ocp.ocp_report_downloader.divide_csv_daily")

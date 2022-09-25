@@ -6,8 +6,6 @@
 from unittest.mock import patch
 from unittest.mock import PropertyMock
 
-from django.test import override_settings
-
 from api.models import Provider
 from masu.exceptions import MasuProcessingError
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
@@ -208,7 +206,6 @@ class ReportProcessorTest(MasuTestCase):
         with self.assertRaises(ReportProcessorError):
             processor.remove_processed_files("/my/report/file")
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     def test_set_processor_parquet(self):
         """Test that the Parquet class is returned."""
         processor = ReportProcessor(
