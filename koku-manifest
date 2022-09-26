@@ -79,7 +79,7 @@ mgmt_services/cost-mgmt:koku/python-oauthlib:3.2.1.pipfile
 mgmt_services/cost-mgmt:koku/python-oci:2.83.0.pipfile
 mgmt_services/cost-mgmt:koku/python-ordered-set:4.1.0.pipfile
 mgmt_services/cost-mgmt:koku/python-packaging:21.3.pipfile
-mgmt_services/cost-mgmt:koku/python-pandas:1.5.0.pipfile
+mgmt_services/cost-mgmt:koku/python-pandas:1.3.5.pipfile
 mgmt_services/cost-mgmt:koku/python-patsy:0.5.2.pipfile
 mgmt_services/cost-mgmt:koku/python-pint:0.19.2.pipfile
 mgmt_services/cost-mgmt:koku/python-prometheus-client:0.14.1.pipfile
@@ -107,7 +107,7 @@ mgmt_services/cost-mgmt:koku/python-requests-oauthlib:1.3.1.pipfile
 mgmt_services/cost-mgmt:koku/python-rsa:4.9.pipfile
 mgmt_services/cost-mgmt:koku/python-s3transfer:0.6.0.pipfile
 mgmt_services/cost-mgmt:koku/python-scipy:1.9.1.pipfile
-mgmt_services/cost-mgmt:koku/python-sentry-sdk:1.9.8.pipfile
+mgmt_services/cost-mgmt:koku/python-sentry-sdk:1.9.9.pipfile
 mgmt_services/cost-mgmt:koku/python-setuptools:65.4.0.pipfile
 mgmt_services/cost-mgmt:koku/python-six:1.16.0.pipfile
 mgmt_services/cost-mgmt:koku/python-soupsieve:2.3.2.post1.pipfile
