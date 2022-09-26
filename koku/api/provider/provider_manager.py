@@ -111,7 +111,6 @@ class ProviderManager:
         days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
             manifest_creation_datetime__date__in=days_to_check,
             manifest_completed_datetime__isnull=True,
         ).exists()
