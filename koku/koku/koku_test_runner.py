@@ -19,7 +19,6 @@ from api.models import Customer
 from api.models import Provider
 from api.models import Tenant
 from api.report.test.util.model_bakery_loader import ModelBakeryDataLoader
-from api.report.test.util.nise_data_loader import NiseDataLoader
 from koku.env import ENVIRONMENT
 from reporting.models import OCPEnabledTagKeys
 
@@ -109,6 +108,7 @@ def setup_databases(verbosity, interactive, keepdb=False, debug_sql=False, paral
                             ocp_on_azure_ocp_provider,
                             ocp_on_azure_report_periods,
                         ) = bakery_data_loader.load_openshift_data(ocp_on_azure_cluster_id, on_cloud=True)
+
                         ocp_on_gcp_ocp_provider, ocp_on_gcp_report_periods = bakery_data_loader.load_openshift_data(
                             ocp_on_gcp_cluster_id, on_cloud=True
                         )
