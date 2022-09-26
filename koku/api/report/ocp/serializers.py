@@ -52,7 +52,7 @@ class InventoryOrderBySerializer(OrderBySerializer):
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
-    INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
+    INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
 
     _opfields = ("project", "cluster", "node", "infrastructures")
 
