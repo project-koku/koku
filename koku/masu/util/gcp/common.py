@@ -311,9 +311,14 @@ def deduplicate_reports_for_gcp(report_list):
 
 
 def check_resource_level(gcp_provider_uuid):
-    account = AccountsAccessor().get_accounts(gcp_provider_uuid)[0]
-    if disable_gcp_resource_matching(account.get("schema_name")):
-        LOG.info(f"GCP resource matching disabled for {account.get('schema_name')}")
+    LOG.info("Fetching account for checking unleash resource level")
+    account = AccountsAccessor().get_accounts(gcp_provider_uuid)
+    if account != []:
+        if disable_gcp_resource_matching(account[0].get("schema_name")):
+            LOG.info(f"GCP resource matching disabled for {account[0].get('schema_name')}")
+            return False
+    else:
+        LOG.info("Account not returned, source likely has processing suspended.")
         return False
     with ProviderDBAccessor(gcp_provider_uuid) as provider_accessor:
         source = provider_accessor.get_data_source()
@@ -321,4 +326,5 @@ def check_resource_level(gcp_provider_uuid):
             if "resource" in source.get("table_id"):
                 LOG.info("OCP GCP matching set to resource level")
                 return True
+        LOG.info("Defaulting to GCP tag matching")
         return False

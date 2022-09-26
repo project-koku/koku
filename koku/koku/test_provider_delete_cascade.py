@@ -4,6 +4,7 @@
 #
 import uuid
 from datetime import datetime
+from unittest.mock import patch
 
 from pytz import UTC
 from tenant_schemas.utils import schema_context
@@ -67,7 +68,10 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_awscostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-            paws.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                paws.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
             self.assertIn(expected2, _log_output)
@@ -103,7 +107,10 @@ class TestProviderDeleteSQL(IamTestCase):
         expected2 = "DELETE CASCADE BRANCH TO reporting_azuremeter"
         expected3 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-            pazure.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                pazure.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
             self.assertIn(expected2, _log_output)
@@ -136,11 +143,16 @@ class TestProviderDeleteSQL(IamTestCase):
 
         expected = "reporting_gcpcostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
-        with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-            pgcp.delete()
-            _log_output = "\n".join(_logger.output)
-            self.assertIn(expected, _log_output)
-            self.assertIn(expected2, _log_output)
+        with patch("api.provider.provider_manager.enable_trino_processing") as enable_trino:
+            enable_trino.return_value = False
+            with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
+                with self.captureOnCommitCallbacks(execute=True):
+                    pgcp.delete()
+                _log_output = "\n".join(_logger.output)
+                self.assertIn(expected, _log_output)
+                self.assertIn(expected2, _log_output)
 
         with schema_context(c.schema_name):
             self.assertEqual(GCPCostEntryBill.objects.filter(pk=gcpceb.pk).count(), 0)
@@ -172,7 +184,10 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_ocpusagereportperiod"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-            pocp.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                pocp.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
             self.assertIn(expected2, _log_output)
@@ -210,7 +225,10 @@ class TestProviderDeleteSQL(IamTestCase):
         expected = "reporting_ocicostentrybill"
         expected2 = "DELETE CASCADE BRANCH TO reporting_common_costusagereportmanifest"
         with self.assertLogs("api.provider.models", level="DEBUG") as _logger:
-            poci.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                poci.delete()
             _log_output = "\n".join(_logger.output)
             self.assertIn(expected, _log_output)
             self.assertIn(expected2, _log_output)

@@ -5,7 +5,7 @@ from unittest.mock import patch
 from jinjasql import JinjaSql
 from trino.dbapi import Connection
 
-from . import presto_database as kpdb
+from . import trino_database as trino_db
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.iam.test.iam_test_case import IamTestCase
 
@@ -15,7 +15,7 @@ class TestPrestoDatabaseUtils(IamTestCase):
         """
         Test connection to presto returns presto.dbapi.Connection instance
         """
-        conn = kpdb.connect(schema=self.schema_name, catalog="hive")
+        conn = trino_db.connect(schema=self.schema_name, catalog="hive")
         self.assertTrue(isinstance(conn, Connection))
         self.assertEqual(conn.schema, self.schema_name)
         self.assertEqual(conn.catalog, "hive")
@@ -53,7 +53,7 @@ class TestPrestoDatabaseUtils(IamTestCase):
         ]
 
         for test in tests:
-            test.sql_result = kpdb.sql_mogrify(test.sql_test, test.params)
+            test.sql_result = trino_db.sql_mogrify(test.sql_test, test.params)
             self.assertEqual(test.sql_verify, test.sql_result)
 
     def test_executescript(self):
@@ -86,7 +86,7 @@ drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
             "int_data": 255,
             "txt_data": "This is a test",
         }
-        results = kpdb.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
+        results = trino_db.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
         self.assertEqual(results, [["eek"], ["eek"], ["eek"], ["eek"], ["eek"], ["eek"]])
 
     def test_executescript_err(self):
@@ -98,8 +98,8 @@ drop table if exists hive.{{schema | sqlsafe}}.__test_{{uuid | sqlsafe}};
 select * from eek where val1 in {{val_list}};
 """
         params = {"val_list": (1, 2, 3, 4, 5)}
-        with self.assertRaises(kpdb.PreprocessStatementError):
-            kpdb.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
+        with self.assertRaises(trino_db.PreprocessStatementError):
+            trino_db.executescript(conn, sqlscript, params=params, preprocessor=JinjaSql().prepare_query)
 
     def test_executescript_no_preprocess(self):
         """
@@ -110,7 +110,7 @@ select x from y;
 select a from b;
 """
         conn = FakePrestoConn()
-        res = kpdb.executescript(conn, sqlscript)
+        res = trino_db.executescript(conn, sqlscript)
         self.assertEqual(res, [["eek"], ["eek"]])
 
     def test_preprocessor_err(self):
@@ -123,8 +123,8 @@ select a from b;
 """
         params = {"eek": 1}
         conn = FakePrestoConn()
-        with self.assertRaises(kpdb.PreprocessStatementError):
-            kpdb.executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
+        with self.assertRaises(trino_db.PreprocessStatementError):
+            trino_db.executescript(conn, sqlscript, params=params, preprocessor=t_preprocessor)
 
     def test_executescript_error(self):
         def t_exec_error(*args, **kwargs):
@@ -134,7 +134,7 @@ select a from b;
 select x from y;
 select a from b;
 """
-        with patch("koku.presto_database._execute", side_effect=ValueError("Nope!")):
-            with self.assertRaises(kpdb.TrinoStatementExecError):
+        with patch("koku.trino_database._execute", side_effect=ValueError("Nope!")):
+            with self.assertRaises(trino_db.TrinoStatementExecError):
                 conn = FakePrestoConn()
-                kpdb.executescript(conn, sqlscript)
+                trino_db.executescript(conn, sqlscript)
