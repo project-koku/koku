@@ -54,6 +54,7 @@ markupsafe = "<2.1"
 unleashclient = "<5"
 trino = "*"
 oci = "*"
+croniter = "*"
 
 [dev-packages]
 astroid = ">=2.3"
@@ -79,4 +80,4 @@ django-cprofile-middleware = "*"
 snakeviz = "*"
 
 [requires]
-python_version = "3.8"
+python_version = "3.9"

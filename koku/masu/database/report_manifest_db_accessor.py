@@ -53,25 +53,27 @@ class ReportManifestDBAccessor(KokuDBAccess):
                 f"Marking manifest {manifest.id} "
                 f"\nassembly_id {manifest.assembly_id} "
                 f"\nfor provider {manifest.provider_id} "
-                f"\nmanifest_completed_datetime: {updated_datetime}."
+                f"\nmanifest_updated_datetime: {updated_datetime}."
             )
             LOG.info(msg)
             manifest.manifest_updated_datetime = updated_datetime
             manifest.save()
 
-    def mark_manifest_as_completed(self, manifest):
+    def mark_manifests_as_completed(self, manifest_list):
         """Update the updated timestamp."""
-        if manifest:
-            completed_datetime = self.date_accessor.today_with_timezone("UTC")
-            msg = (
-                f"Marking manifest {manifest.id} "
-                f"\nassembly_id {manifest.assembly_id} "
-                f"\nfor provider {manifest.provider_id} "
-                f"\nmanifest_completed_datetime: {completed_datetime}."
-            )
-            LOG.info(msg)
-            manifest.manifest_completed_datetime = completed_datetime
-            manifest.save()
+        completed_datetime = self.date_accessor.today_with_timezone("UTC")
+        if manifest_list:
+            bulk_manifest_query = self._get_db_obj_query().filter(id__in=manifest_list)
+            for manifest in bulk_manifest_query:
+                msg = (
+                    f"Marking manifest {manifest.id} "
+                    f"\nassembly_id {manifest.assembly_id} "
+                    f"\nfor provider {manifest.provider_id} "
+                    f"\nmanifest_completed_datetime: {completed_datetime}."
+                )
+                LOG.info(msg)
+                manifest.manifest_completed_datetime = completed_datetime
+                manifest.save()
 
     def update_number_of_files_for_manifest(self, manifest):
         """Update the number of files for manifest."""
@@ -252,32 +254,26 @@ class ReportManifestDBAccessor(KokuDBAccess):
         )
         return manifests
 
-    def gcp_self_healing_get_outdated_manifests(self, provider_uuid):
-        """Returns all manifests for a provider that are outdated.
-
-        The new gcp manifest contain "|" that is used to get the
-        partition date."""
-        manifests = CostUsageReportManifest.objects.filter(
-            provider_id=provider_uuid,
-        ).exclude(assembly_id__icontains="|")
-        return manifests
-
-    def gcp_self_healing_bulk_delete_old_manifests(self, provider_uuid, manifest_id_list):
+    def bulk_delete_manifests(self, provider_uuid, manifest_id_list):
         """
-        Deletes a specific manifest given manifest_id & provider_uui
-
+        Deletes a specific manifest given manifest_id & provider_uuid
         Args:
             provider_uuid (uuid): The provider uuid to use to delete associated manifests
             manifest_id_list (list): list of manifest ids to delete.
         """
-        # | is the new gcp manifests delimiter
-        delete_count = (
-            CostUsageReportManifest.objects.filter(provider_id=provider_uuid, id__in=manifest_id_list)
-            .exclude(assembly_id__icontains="|")
-            .delete()
-        )
+        if not manifest_id_list:
+            return
+        msg = f"""
+        Attempting to delete the following manifests:
+           manifest_list: {manifest_id_list}
+           manifest_count: {len(manifest_id_list)}
+        """
+        LOG.info(msg)
+        delete_count = CostUsageReportManifest.objects.filter(
+            provider_id=provider_uuid, id__in=manifest_id_list
+        ).delete()
         LOG.info(
-            "Removed %s outdated GCP manifests for provider_uuid %s",
+            "Removed %s manifests for provider_uuid %s",
             delete_count,
             provider_uuid,
         )

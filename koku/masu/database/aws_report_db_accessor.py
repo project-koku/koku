@@ -619,3 +619,20 @@ class AWSReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         )
 
         return [json.loads(result[0]) for result in results]
+
+    def check_for_matching_enabled_keys(self):
+        """
+        Checks the enabled tag keys for matching keys.
+        """
+        match_sql = f"""
+            SELECT COUNT(*) FROM {self.schema}.reporting_awsenabledtagkeys as aws
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON aws.key = ocp.key;
+        """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(match_sql)
+            results = cursor.fetchall()
+            if results[0][0] < 1:
+                LOG.info(f"No matching enabled keys for OCP on AWS {self.schema}")
+                return False
+        return True

@@ -213,6 +213,21 @@ class DateHelperTest(TestCase):
         expected = datetime.time(0, 0, 0, 0)
         self.assertEqual(self.date_helper.midnight, expected)
 
+    def test_list_days_params_as_strings(self):
+        """Test the list_days method."""
+        first = datetime.datetime.now().replace(microsecond=0, second=0, minute=0, hour=0, day=1)
+        second = first.replace(day=2)
+        third = first.replace(day=3)
+        expected = [first, second, third]
+        result = self.date_helper.list_days(str(first), str(third))
+        self.assertEqual(result, expected)
+
+    def test_invoice_month_from_bill_date(self):
+        """Test that we can get the gcp invoice month from bill date."""
+        bill_date_str = "2022-08-01"
+        result_invoice_month = self.date_helper.invoice_month_from_bill_date(bill_date_str)
+        self.assertEqual(str(result_invoice_month), "202208")
+
 
 class APIUtilsUnitConverterTest(TestCase):
     """Tests against the API utils."""

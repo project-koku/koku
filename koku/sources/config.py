@@ -16,10 +16,7 @@ class Config:
     SOURCES_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
     SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
     SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
-    SOURCES_KAFKA_USER = CONFIGURATOR.get_kafka_username()
-    SOURCES_KAFKA_PASSWORD = CONFIGURATOR.get_kafka_password()
-    SOURCES_KAFKA_SASL_MECHANISM = CONFIGURATOR.get_kafka_sasl_mechanism()
-    SOURCES_KAFKA_SECURITY_PROTOCOL = CONFIGURATOR.get_kafka_security_protocol()
+    SOURCES_KAFKA_SASL = CONFIGURATOR.get_kafka_sasl()
     SOURCES_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
     SOURCES_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
 
