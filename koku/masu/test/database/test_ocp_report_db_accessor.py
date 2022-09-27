@@ -8,6 +8,7 @@ import string
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -17,6 +18,7 @@ from django.conf import settings
 from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models.query import QuerySet
 from tenant_schemas.utils import schema_context
@@ -25,7 +27,7 @@ from trino.exceptions import TrinoExternalError
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
-from koku import presto_database as kpdb
+from koku import trino_database as trino_db
 from koku.database import KeyDecimalTransform
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1117,8 +1119,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
 
-    @patch("masu.database.ocp_report_db_accessor.kpdb.executescript")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.executescript")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto(self, mock_connect, mock_executescript):
         """
         Test that OCP presto processing calls executescript
@@ -1140,7 +1142,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_executescript.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto_preprocess_exception(self, mock_connect, mock_get_data):
         """
         Test that OCP presto processing converts datetime to date for start, end dates
@@ -1156,7 +1158,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = "ocp-cluster"
         cluster_alias = "OCP FTW"
         source = self.provider_uuid
-        with self.assertRaises(kpdb.PreprocessStatementError):
+        with self.assertRaises(trino_db.PreprocessStatementError):
             self.accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
@@ -2808,12 +2810,45 @@ select * from eek where val1 in {{report_period_id}} ;
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_presto.assert_called()
 
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
+        with patch(
+            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
+            Mock(return_value={"table_id": "resource"}),
+        ):
+            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
+        with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
+            with self.assertLogs("masu", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
+
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_populate_openshift_cluster_information_tables(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that we populate cluster info."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2851,7 +2886,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
     def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that OpenShift topology is populated."""
-        nodes = ["node_1", "node_2"]
+        nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
@@ -2866,8 +2901,10 @@ select * from eek where val1 in {{report_period_id}} ;
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
 
+        # Using the aws_provider to short cut this test instead of creating a brand
+        # new provider. The OCP providers already have data, and can't be used here
         self.accessor.populate_openshift_cluster_information_tables(
-            self.ocp_provider, cluster_id, cluster_alias, start_date, end_date
+            self.aws_provider, cluster_id, cluster_alias, start_date, end_date
         )
 
         with schema_context(self.schema):
@@ -2875,7 +2912,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_provider(self.ocp_provider_uuid)
+            topology = self.accessor.get_openshift_topology_for_provider(self.aws_provider_uuid)
 
             self.assertEqual(topology.get("cluster_id"), cluster_id)
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
@@ -2949,3 +2986,75 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.assertEqual(result, test["expected"])
                 self.assertTrue(hasattr(result[0], "date"))
                 self.assertTrue(hasattr(result[1], "date"))
+
+    def test_delete_all_except_infrastructure_raw_cost_from_daily_summary(self):
+        """Test that deleting saves OCP on Cloud data."""
+        dh = DateHelper()
+        start_date = dh.this_month_start
+        end_date = dh.this_month_end
+
+        # First test an OCP on Cloud source to make sure we don't delete that data
+        provider_uuid = self.ocp_on_aws_ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertEqual(initial_non_raw_count, 0)
+        self.assertEqual(new_non_raw_count, 0)
+        self.assertEqual(initial_raw_count, new_raw_count)
+
+        # Now test an on prem OCP cluster to make sure we still remove non raw costs
+        provider_uuid = self.ocp_provider.uuid
+        report_period = self.accessor.report_periods_for_provider_uuid(provider_uuid, start_date)
+
+        with schema_context(self.schema):
+            report_period_id = report_period.id
+            initial_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            initial_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+            provider_uuid, report_period_id, start_date, end_date
+        )
+
+        with schema_context(self.schema):
+            new_non_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=True) | Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+            new_raw_count = OCPUsageLineItemDailySummary.objects.filter(
+                Q(infrastructure_raw_cost__isnull=False) & ~Q(infrastructure_raw_cost=0),
+                report_period_id=report_period_id,
+            ).count()
+
+        self.assertNotEqual(initial_non_raw_count, new_non_raw_count)
+        self.assertEqual(initial_raw_count, 0)
+        self.assertEqual(new_raw_count, 0)

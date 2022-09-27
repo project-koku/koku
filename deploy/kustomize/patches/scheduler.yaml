@@ -79,8 +79,8 @@
           value: ${DEMO_ACCOUNTS}
         - name: WORKER_QUEUES
           value: ${SCHEDULER_WORKER_QUEUE}
-        - name: SCHEDULE_CHECK_INTERVAL
-          value: ${SCHEDULE_CHECK_INTERVAL}
+        - name: REPORT_DOWNLOAD_SCHEDULE
+          value: ${REPORT_DOWNLOAD_SCHEDULE}
         - name: SCHEDULE_REPORT_CHECKS
           value: ${SCHEDULE_REPORT_CHECKS}
         - name: SOURCE_STATUS_FREQUENCY_MINUTES

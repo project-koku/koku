@@ -5,6 +5,7 @@
 """Test the running_celery_tasks endpoint view."""
 import logging
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from django.test import TestCase
 from django.test.utils import override_settings
@@ -55,3 +56,35 @@ class RunningCeleryTasksTests(TestCase):
         mock_collect.return_value = {}
         response = self.client.get(reverse("celery_queue_lengths"))
         self.assertEqual(response.status_code, 200)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.app")
+    def test_clear_celery_queues_default(self, mock_celery, _):
+        """Test the GET of clear_celery_queues endpoint."""
+        mock_celery.control.purge.return_value = 0
+        response = self.client.get(reverse("clear_celery_queues"))
+        mock_celery.control.purge.assert_called_once()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("purged_tasks", response.data)
+
+    @patch("koku.middleware.MASU", return_value=True)
+    @patch("masu.api.running_celery_tasks.app")
+    @patch("masu.api.running_celery_tasks.collect_queue_metrics")
+    @patch("masu.api.running_celery_tasks.redis")
+    def test_clear_celery_queues_clear_all(self, mock_redis, mock_collect, mock_celery, _):
+        """Test the GET of clear_celery_queues endpoint with clear_all."""
+        expected_key = "purged_tasks"
+        mock_celery.control.purge.return_value = 0
+        mock_collect.values.return_value = []
+        mock_redis = mock_redis.Redis.return_value
+        mock_redis.flushall.return_value = "true"
+        params = {"clear_all": True}
+        query_string = urlencode(params)
+        url = reverse("clear_celery_queues") + "?" + query_string
+        response = self.client.get(url)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(expected_key, body)
+        mock_celery.control.purge.assert_called_once()
+        mock_collect.assert_called_once()
+        mock_redis.flushall.assert_called_once()

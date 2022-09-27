@@ -43,6 +43,14 @@ class OCPAllFilterSerializer(awsser.FilterSerializer, ocpser.FilterSerializer):
     source_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class OCPAllExcludeSerializer(awsser.ExcludeSerializer, ocpser.ExcludeSerializer):
+    """Serializer for handling query parameter filter."""
+
+    _opfields = ("source_type",)
+
+    source_type = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -50,7 +58,10 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=OCPAllFilterSerializer, group_by=OCPAllGroupBySerializer, order_by=OCPAllOrderBySerializer
+            filter=OCPAllFilterSerializer,
+            group_by=OCPAllGroupBySerializer,
+            order_by=OCPAllOrderBySerializer,
+            exclude=OCPAllExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -94,6 +105,20 @@ class OCPAllQueryParamSerializer(awsser.QueryParamSerializer):
 
         """
         validate_field(self, "filter", OCPAllFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", OCPAllExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_delta(self, value):

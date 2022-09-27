@@ -8,6 +8,7 @@ omit =
   *virtualenv/*
   *virtualenvs/*
   *manage.py
+  *celery.py
   *configurator.py
   *database.py
   *feature_flags.py

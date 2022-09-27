@@ -6,6 +6,7 @@
 import datetime
 from unittest.mock import patch
 
+from api.utils import DateHelper
 from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.gcp_report_db_accessor import GCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
@@ -55,6 +56,8 @@ class GCPReportSummaryUpdaterTest(MasuTestCase):
         start_date = self.date_accessor.today_with_timezone("UTC")
         end_date = start_date + datetime.timedelta(days=1)
         bill_date = start_date.replace(day=1).date()
+        dh = DateHelper()
+        invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)
 
         with GCPReportDBAccessor(self.schema) as accessor:
             bill = accessor.get_cost_entry_bills_by_date(bill_date)[0]
@@ -67,7 +70,7 @@ class GCPReportSummaryUpdaterTest(MasuTestCase):
         expected_start_date = start_date.date()
         expected_end_date = end_date.date()
 
-        self.updater.update_daily_tables(start_date_str, end_date_str)
+        self.updater.update_daily_tables(start_date_str, end_date_str, invoice_month)
         mock_daily.assert_called_with(expected_start_date, expected_end_date, [str(bill.id)])
         mock_summary.assert_not_called()
 

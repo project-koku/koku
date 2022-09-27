@@ -8,6 +8,7 @@ import datetime
 import logging
 import os
 from functools import cached_property
+from itertools import islice
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -35,11 +36,20 @@ DATA_DIR = Config.TMP_DIR
 LOG = logging.getLogger(__name__)
 
 
+def batch(iterable, n):
+    """Yields successive n-sized chunks from iterable"""
+    it = iter(iterable)
+    while chunk := tuple(islice(it, n)):
+        yield chunk
+
+
 class GCPReportDownloaderError(Exception):
     """GCP Report Downloader error."""
 
 
-def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath, manifest_id, start_date, context={}):
+def create_daily_archives(
+    tracing_id, account, provider_uuid, filename, local_file_paths, manifest_id, start_date, context={}
+):
     """
     Create daily CSVs from incoming report and archive to S3.
 
@@ -55,37 +65,39 @@ def create_daily_archives(tracing_id, account, provider_uuid, filename, filepath
     """
     daily_file_names = []
     date_range = {}
-    if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
-        dh = DateHelper()
-        directory = os.path.dirname(filepath)
-        try:
-            data_frame = pd.read_csv(filepath)
-        except Exception as error:
-            LOG.error(f"File {filepath} could not be parsed. Reason: {str(error)}")
-            raise GCPReportDownloaderError(error)
-        # putting it in for loop handles crossover data, when we have distinct invoice_month
-        for invoice_month in data_frame["invoice.month"].unique():
-            invoice_filter = data_frame["invoice.month"] == invoice_month
-            invoice_month_data = data_frame[invoice_filter]
-            unique_usage_days = pd.to_datetime(data_frame["usage_start_time"]).dt.date.unique()
-            days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
-            date_range = {"start": min(days), "end": max(days)}
-            partition_dates = invoice_month_data.partition_date.unique()
-            for partition_date in partition_dates:
-                partition_date_filter = invoice_month_data["partition_date"] == partition_date
-                invoice_partition_data = invoice_month_data[partition_date_filter]
-                start_of_invoice = dh.invoice_month_start(invoice_month)
-                s3_csv_path = get_path_prefix(
-                    account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
-                )
-                day_file = f"{invoice_month}_{partition_date}.csv"
-                day_filepath = f"{directory}/{day_file}"
-                invoice_partition_data.to_csv(day_filepath, index=False, header=True)
-                copy_local_report_file_to_s3_bucket(
-                    tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
-                )
-                daily_file_names.append(day_filepath)
-        return daily_file_names, date_range
+    for local_file_path in local_file_paths:
+        file_name = os.path.basename(local_file_path).split("/")[-1]
+        if settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, Provider.PROVIDER_GCP, account):
+            dh = DateHelper()
+            directory = os.path.dirname(local_file_path)
+            try:
+                data_frame = pd.read_csv(local_file_path)
+            except Exception as error:
+                LOG.error(f"File {local_file_path} could not be parsed. Reason: {str(error)}")
+                raise GCPReportDownloaderError(error)
+            # putting it in for loop handles crossover data, when we have distinct invoice_month
+            for invoice_month in data_frame["invoice.month"].unique():
+                invoice_filter = data_frame["invoice.month"] == invoice_month
+                invoice_month_data = data_frame[invoice_filter]
+                unique_usage_days = pd.to_datetime(invoice_month_data["usage_start_time"]).dt.date.unique()
+                days = list({day.strftime("%Y-%m-%d") for day in unique_usage_days})
+                date_range = {"start": min(days), "end": max(days), "invoice_month": str(invoice_month)}
+                partition_dates = invoice_month_data.partition_date.unique()
+                for partition_date in partition_dates:
+                    partition_date_filter = invoice_month_data["partition_date"] == partition_date
+                    invoice_partition_data = invoice_month_data[partition_date_filter]
+                    start_of_invoice = dh.invoice_month_start(invoice_month)
+                    s3_csv_path = get_path_prefix(
+                        account, Provider.PROVIDER_GCP, provider_uuid, start_of_invoice, Config.CSV_DATA_TYPE
+                    )
+                    day_file = f"{invoice_month}_{file_name}"
+                    day_filepath = f"{directory}/{day_file}"
+                    invoice_partition_data.to_csv(day_filepath, index=False, header=True)
+                    copy_local_report_file_to_s3_bucket(
+                        tracing_id, s3_csv_path, day_filepath, day_file, manifest_id, start_date, context
+                    )
+                    daily_file_names.append(day_filepath)
+    return daily_file_names, date_range
 
 
 class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
@@ -262,7 +274,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 # for that partition time and new manifest should be created.
                 bill_date = bigquery_pd.replace(day=1)
                 invoice_month = bill_date.strftime("%Y%m")
-                file_name = f"{invoice_month}_{bigquery_pd}.csv"
+                file_name = f"{invoice_month}_{bigquery_pd}"
                 manifest_metadata = {
                     "assembly_id": f"{bigquery_pd}|{bigquery_et}",
                     "bill_date": bill_date,
@@ -368,7 +380,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
                 """
             client = bigquery.Client()
             LOG.info(f"{query}")
-            query_job = client.query(query)
+            query_job = client.query(query).result()
 
         except GoogleCloudError as err:
             err_msg = (
@@ -383,19 +395,21 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             err_msg = f"Error recovering start and end date from csv key ({key})."
             raise GCPReportDownloaderError(err_msg)
         directory_path = self._get_local_directory_path()
-        full_local_path = self._get_local_file_path(directory_path, key)
         os.makedirs(directory_path, exist_ok=True)
-        msg = f"Downloading {key} to {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
         try:
-            with open(full_local_path, "w") as f:
-                writer = csv.writer(f)
-                column_list = self.gcp_big_query_columns.copy()
-                column_list.append("partition_date")
-                LOG.info(f"writing columns: {column_list}")
-                writer.writerow(column_list)
-                for row in query_job:
-                    writer.writerow(row)
+            column_list = self.gcp_big_query_columns.copy()
+            column_list.append("partition_date")
+            local_paths_list = []
+            for i, rows in enumerate(batch(query_job, settings.PARQUET_PROCESSING_BATCH_SIZE)):
+                full_local_path = self._get_local_file_path(directory_path, partition_date, i)
+                msg = f"Downloading subset of {partition_date} to {full_local_path}"
+                LOG.info(log_json(self.tracing_id, msg, self.context))
+                with open(full_local_path, "w") as f:
+                    writer = csv.writer(f)
+                    LOG.info(f"writing columns: {column_list}")
+                    writer.writerow(column_list)
+                    writer.writerows(rows)
+                local_paths_list.append(full_local_path)
         except OSError as exc:
             err_msg = (
                 "Could not create GCP billing data csv file."
@@ -405,22 +419,18 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             )
             raise GCPReportDownloaderError(err_msg)
 
-        msg = f"Returning full_file_path: {full_local_path}"
-        LOG.info(log_json(self.tracing_id, msg, self.context))
-        dh = DateHelper()
-
         file_names, date_range = create_daily_archives(
             self.tracing_id,
             self.account,
             self._provider_uuid,
             key,
-            full_local_path,
+            local_paths_list,
             manifest_id,
             start_date,
             self.context,
         )
 
-        return full_local_path, filename, dh.today, file_names, date_range
+        return key, filename, DateHelper().today, file_names, date_range
 
     def _get_local_directory_path(self):
         """
@@ -434,7 +444,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
         directory_path = os.path.join(DATA_DIR, safe_customer_name, "gcp")
         return directory_path
 
-    def _get_local_file_path(self, directory_path, key):
+    def _get_local_file_path(self, directory_path, key, iterable_num):
         """
         Get the local file path destination for a downloaded file.
 
@@ -446,7 +456,7 @@ class GCPReportDownloader(ReportDownloaderBase, DownloaderInterface):
             str of the destination local file path.
 
         """
-        local_file_name = key.replace("/", "_")
+        local_file_name = key.replace("/", "_") + f"_{str(iterable_num)}.csv"
         msg = f"Local filename: {local_file_name}"
         LOG.info(log_json(self.tracing_id, msg, self.context))
         full_local_path = os.path.join(directory_path, local_file_name)

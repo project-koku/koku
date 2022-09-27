@@ -25,6 +25,7 @@ from masu.database import GCP_REPORT_TABLE_MAP
 from masu.database.koku_database_access import mini_transaction_delete
 from masu.database.report_db_accessor_base import ReportDBAccessorBase
 from masu.external.date_accessor import DateAccessor
+from masu.util.gcp.common import check_resource_level
 from masu.util.ocp.common import get_cluster_alias_from_cluster_id
 from reporting.provider.gcp.models import GCPCostEntryBill
 from reporting.provider.gcp.models import GCPCostEntryLineItem
@@ -235,7 +236,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_line_item_daily_summary_table_presto(self, start_date, end_date, source_uuid, bill_id, markup_value):
+    def populate_line_item_daily_summary_table_presto(
+        self, start_date, end_date, source_uuid, bill_id, markup_value, invoice_month_date
+    ):
         """Populate the daily aggregated summary of line items table.
 
         Args:
@@ -266,8 +269,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "table": PRESTO_LINE_ITEM_TABLE,
             "source_uuid": source_uuid,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": invoice_month_date.strftime("%Y"),
+            "month": invoice_month_date.strftime("%m"),
             "markup": markup_value if markup_value else 0,
             "bill_id": bill_id,
         }
@@ -391,11 +394,11 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             table_name, summary_sql, start_date, end_date, bind_params=list(summary_sql_params)
         )
 
-    def populate_gcp_topology_information_tables(self, provider, start_date, end_date):
+    def populate_gcp_topology_information_tables(self, provider, start_date, end_date, invoice_month_date):
         """Populate the GCP topology table."""
         msg = f"Populating GCP topology for {provider.uuid} from {start_date} to {end_date}"
         LOG.info(msg)
-        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date)
+        topology = self.get_gcp_topology_trino(provider.uuid, start_date, end_date, invoice_month_date)
 
         with schema_context(self.schema):
             for record in topology:
@@ -410,7 +413,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 )
         LOG.info("Finished populating GCP topology")
 
-    def get_gcp_topology_trino(self, source_uuid, start_date, end_date):
+    def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month_date):
         """Get the account topology for a GCP source."""
         sql = f"""
             SELECT source,
@@ -422,8 +425,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 location_region
             FROM hive.{self.schema}.gcp_line_items as gcp
             WHERE gcp.source = '{source_uuid}'
-                AND gcp.year = '{start_date.strftime("%Y")}'
-                AND gcp.month = '{start_date.strftime("%m")}'
+                AND gcp.year = '{invoice_month_date.strftime("%Y")}'
+                AND gcp.month = '{invoice_month_date.strftime("%m")}'
                 AND gcp.usage_start_time >= TIMESTAMP '{start_date}'
                 AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{end_date}')
             GROUP BY source,
@@ -489,6 +492,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             (None)
 
         """
+        # Check for GCP resource level data
+        resource_level = check_resource_level(gcp_provider_uuid)
+
         year = start_date.strftime("%Y")
         month = start_date.strftime("%m")
         days = DateHelper().list_days(start_date, end_date)
@@ -507,9 +513,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             pod_column = "pod_effective_usage_memory_gigabyte_hours"
             cluster_column = "cluster_capacity_memory_gigabyte_hours"
 
-        summary_sql = pkgutil.get_data(
-            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary.sql"
-        )
+        if resource_level:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary_resource_id"
+            matching_type = "resource"
+        else:
+            sql_level = "reporting_ocpgcpcostlineitem_daily_summary"
+            matching_type = "tag"
+
+        summary_sql = pkgutil.get_data("masu.database", f"presto_sql/gcp/openshift/{sql_level}.sql")
         summary_sql = summary_sql.decode("utf-8")
         summary_sql_params = {
             "schema": self.schema,
@@ -527,6 +538,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "cluster_column": cluster_column,
             "cluster_id": cluster_id,
             "cluster_alias": cluster_alias,
+            "matching_type": matching_type,
         }
         LOG.info("Running OCP on GCP SQL with params:")
         LOG.info(summary_sql_params)
@@ -597,7 +609,9 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         return [json.loads(result[0]) for result in results]
 
-    def get_openshift_on_cloud_matched_tags_trino(self, gcp_source_uuid, ocp_source_uuid, start_date, end_date):
+    def get_openshift_on_cloud_matched_tags_trino(
+        self, gcp_source_uuid, ocp_source_uuid, start_date, end_date, invoice_month_date
+    ):
         """Return a list of matched tags."""
         sql = pkgutil.get_data("masu.database", "presto_sql/gcp/openshift/reporting_ocpgcp_matched_tags.sql")
         sql = sql.decode("utf-8")
@@ -611,8 +625,8 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             "schema": self.schema,
             "gcp_source_uuid": gcp_source_uuid,
             "ocp_source_uuid": ocp_source_uuid,
-            "year": start_date.strftime("%Y"),
-            "month": start_date.strftime("%m"),
+            "year": invoice_month_date.strftime("%Y"),
+            "month": invoice_month_date.strftime("%m"),
             "days": days_str,
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
@@ -653,3 +667,20 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         }
         sql, sql_params = self.jinja_sql.prepare_query(sql, sql_params)
         self._execute_presto_multipart_sql_query(self.schema, sql, bind_params=sql_params)
+
+    def check_for_matching_enabled_keys(self):
+        """
+        Checks the enabled tag keys for matching keys.
+        """
+        match_sql = f"""
+            SELECT COUNT(*) FROM {self.schema}.reporting_gcpenabledtagkeys as gcp
+                INNER JOIN {self.schema}.reporting_ocpenabledtagkeys as ocp ON gcp.key = ocp.key;
+        """
+        with connection.cursor() as cursor:
+            cursor.db.set_schema(self.schema)
+            cursor.execute(match_sql)
+            results = cursor.fetchall()
+            if results[0][0] < 1:
+                LOG.info(f"No matching enabled keys for OCP on GCP {self.schema}")
+                return False
+        return True

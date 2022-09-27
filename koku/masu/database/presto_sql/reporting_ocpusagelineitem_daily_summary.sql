@@ -278,6 +278,8 @@ FROM (
             /* The map_filter expression was too complex for presto to use */
 ) as pua
 
+{% if storage_exists %}
+
 UNION
 
 /*
@@ -390,6 +392,9 @@ FROM (
             /* The map_filter expression was too complex for presto to use */
         sli.source
 ) as sua
+
+{% endif %}
+
 ;
 
 
