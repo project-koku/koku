@@ -405,6 +405,14 @@ LOGGING = {
         },
     },
     "loggers": {
+        "gunicorn.access": {
+            "handlers": LOGGING_HANDLERS,
+            "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG"),
+        },
+        "gunicorn.error": {
+            "handlers": LOGGING_HANDLERS,
+            "level": ENVIRONMENT.get_value("GUNICORN_LOG_LEVEL", default="DEBUG"),
+        },
         "django": {"handlers": LOGGING_HANDLERS, "level": DJANGO_LOGGING_LEVEL},
         "api": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL},
         "celery": {"handlers": LOGGING_HANDLERS, "level": KOKU_LOGGING_LEVEL, "propagate": False},
