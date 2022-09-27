@@ -197,10 +197,21 @@ def get_report_files(  # noqa: C901
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] and report_dict.get(
+                "invoice_month"
+            ):
+                stmt += f" Invoice_month: {report_dict['invoice_month']}"
             LOG.info(log_json(tracing_id, stmt, context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
-            return None
+            stmt = (
+                f"No report to be processed: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid}"
+            )
+            LOG.info(log_json(tracing_id, stmt, context))
+            return
 
         report_meta = {
             "schema_name": schema_name,

@@ -111,7 +111,6 @@ class ProviderManager:
         days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
             manifest_creation_datetime__date__in=days_to_check,
             manifest_completed_datetime__isnull=True,
         ).exists()
@@ -253,7 +252,6 @@ class ProviderManager:
             err_msg = f"Provider {self._uuid} must be updated via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
-    @transaction.atomic
     def remove(self, request=None, user=None, from_sources=False, retry_count=None):
         """Remove the provider with current_user."""
         current_user = user
@@ -268,6 +266,7 @@ class ProviderManager:
                 raise ProviderProcessingError(err_msg)
 
         if self.is_removable_by_user(current_user):
+            # The model delete uses transaction.atomic calls
             self.model.delete()
             LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
         else:
