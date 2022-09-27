@@ -329,6 +329,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                         for group_dict in grouping_list:
                             self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
 
+
 class OCPAllReportQueryTestCurrency(IamTestCase):
     """Tests currency for report queries."""
 
