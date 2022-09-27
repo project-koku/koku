@@ -958,4 +958,3 @@ class OCPReportQueryTestCurrency(IamTestCase):
                 total = query_output.get("total")
                 total_value = total.get("cost").get("total").get("value")
                 self.assertAlmostEqual(total_value, sum(expected_total))
-
