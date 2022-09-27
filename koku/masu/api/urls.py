@@ -8,9 +8,11 @@ from rest_framework.routers import DefaultRouter
 
 from masu.api.manifest.views import ManifestView
 from masu.api.sources.views import SourcesViewSet
+from masu.api.trino import trino_ui
 from masu.api.views import bigquery_cost
 from masu.api.views import celery_queue_lengths
 from masu.api.views import cleanup
+from masu.api.views import clear_celery_queues
 from masu.api.views import crawl_account_hierarchy
 from masu.api.views import db_performance_redirect
 from masu.api.views import dbsettings
@@ -48,12 +50,14 @@ urlpatterns = [
     path("report_data/", report_data, name="report_data"),
     path("source_cleanup/", cleanup, name="cleanup"),
     path("trino/query/", trino_query, name="trino_query"),
+    path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
     path("update_openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
+    path("clear_celery_queues/", clear_celery_queues, name="clear_celery_queues"),
     path("manifests/", ManifestView.as_view({"get": "get_all_manifests"}), name="all_manifests"),
     path(
         "manifests/<str:source_uuid>/",

@@ -35,6 +35,7 @@ from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.accounts_accessor import AccountsAccessorError
 from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
 from masu.external.report_downloader import ReportDownloaderError
+from masu.processor import disable_ocp_on_cloud_summary
 from masu.processor import disable_summary_processing
 from masu.processor import enable_trino_processing
 from masu.processor._tasks.download import _get_report_files
@@ -196,10 +197,21 @@ def get_report_files(  # noqa: C901
         )
         if report_dict:
             stmt += f" file: {report_dict['file']}"
+            if provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL] and report_dict.get(
+                "invoice_month"
+            ):
+                stmt += f" Invoice_month: {report_dict['invoice_month']}"
             LOG.info(log_json(tracing_id, stmt, context))
         else:
             WorkerCache().remove_task_from_cache(cache_key)
-            return None
+            stmt = (
+                f"No report to be processed: "
+                f" schema_name: {customer_name} "
+                f" provider: {provider_type} "
+                f" provider_uuid: {provider_uuid}"
+            )
+            LOG.info(log_json(tracing_id, stmt, context))
+            return
 
         report_meta = {
             "schema_name": schema_name,
@@ -378,6 +390,10 @@ def update_summary_tables(  # noqa: C901
         msg = f"Summary disabled for {schema_name}."
         LOG.info(msg)
         return
+    if disable_ocp_on_cloud_summary(schema_name):
+        msg = f"OCP on Cloud summary disabled for {schema_name}."
+        LOG.info(msg)
+        ocp_on_cloud = False
     worker_stats.REPORT_SUMMARY_ATTEMPTS_COUNTER.labels(provider_type=provider).inc()
     task_name = "masu.processor.tasks.update_summary_tables"
     if isinstance(start_date, str):

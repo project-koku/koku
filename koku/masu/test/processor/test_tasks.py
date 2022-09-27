@@ -442,6 +442,16 @@ class TestProcessorTasks(MasuTestCase):
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
         }
+        self.get_report_args_gcp = {
+            "customer_name": self.schema,
+            "authentication": self.gcp_provider.authentication.credentials,
+            "provider_type": Provider.PROVIDER_GCP_LOCAL,
+            "schema_name": self.schema,
+            "billing_source": self.gcp_provider.billing_source.data_source,
+            "provider_uuid": self.gcp_provider_uuid,
+            "report_month": DateHelper().today,
+            "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+        }
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -458,6 +468,34 @@ class TestProcessorTasks(MasuTestCase):
                     mock_get_files.assert_called()
                     mock_cache_remove.assert_called()
                     mock_process_files.assert_not_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._process_report_file")
+    def test_get_report_files_report_dict_none(self, mock_process_files, mock_inspect, mock_cache_remove):
+        """Test raising download exception is handled."""
+        expected_log = "No report to be processed:"
+        with patch("masu.processor.tasks._get_report_files", return_value=None) as mock_get_files:
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                get_report_files(**self.get_report_args)
+                mock_get_files.assert_called()
+                mock_cache_remove.assert_called()
+                mock_process_files.assert_not_called()
+                self.assertIn(expected_log, logger.output[0])
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file")
+    def test_get_report_files_report_dict_invoice_month(
+        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
+    ):
+        """Test raising download exception is handled."""
+        expected_log = "Invoice_month: 202201"
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP", "invoice_month": "202201"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            get_report_files(**self.get_report_args_gcp)
+            self.assertIn(expected_log, logger.output[0])
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -638,6 +676,28 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         end_date = DateHelper().last_month_end
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
         mock_chain.return_value.apply_async.assert_not_called()
+
+    @patch(
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
+        return_value=True,
+    )
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_tables_ocp_disabled_check(
+        self, mock_cost_model, mock_charge_info, mock_chain, mock_task_cost_model, mock_cache, mock_unleash
+    ):
+        """Test that the summary table task runs."""
+
+        provider = Provider.PROVIDER_OCP
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")

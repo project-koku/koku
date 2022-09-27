@@ -103,9 +103,12 @@ function run_test_filter_expression {
     elif check_for_labels "gcp-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api_gcp or test_api_ocp_on_gcp or test_api_cost_model_gcp or test_api_cost_model_ocp_on_gcp"
+    elif check_for_labels "oci-smoke-tests"
+    then
+        export IQE_FILTER_EXPRESSION="test_api_oci or test_api_cost_model_oci"
     elif check_for_labels "ocp-smoke-tests"
     then
-        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp"
+        export IQE_FILTER_EXPRESSION="test_api_ocp or test_api_cost_model_ocp or _ingest_multi_sources"
     elif check_for_labels "hot-fix-smoke-tests"
     then
         export IQE_FILTER_EXPRESSION="test_api"
