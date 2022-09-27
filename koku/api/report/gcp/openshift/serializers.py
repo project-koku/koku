@@ -31,6 +31,14 @@ class OCPGCPFilterSerializer(gcpser.GCPFilterSerializer, ocpser.FilterSerializer
     instance_type = StringOrListField(child=serializers.CharField(), required=False)
 
 
+class OCPGCPExcludeSerializer(gcpser.GCPExcludeSerializer, ocpser.ExcludeSerializer):
+    """Serializer for handling query parameter filter."""
+
+    _opfields = ("account", "region", "service", "project", "instance_type", "cluster", "node", "gcp_project")
+
+    instance_type = StringOrListField(child=serializers.CharField(), required=False)
+
+
 class OCPGCPQueryParamSerializer(gcpser.GCPQueryParamSerializer):
     """Serializer for handling query parameters."""
 
@@ -38,7 +46,10 @@ class OCPGCPQueryParamSerializer(gcpser.GCPQueryParamSerializer):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=OCPGCPFilterSerializer, group_by=OCPGCPGroupBySerializer, order_by=OCPGCPOrderBySerializer
+            filter=OCPGCPFilterSerializer,
+            group_by=OCPGCPGroupBySerializer,
+            order_by=OCPGCPOrderBySerializer,
+            exclude=OCPGCPExcludeSerializer,
         )
 
     def validate_group_by(self, value):
@@ -82,6 +93,20 @@ class OCPGCPQueryParamSerializer(gcpser.GCPQueryParamSerializer):
 
         """
         validate_field(self, "filter", OCPGCPFilterSerializer, value, tag_keys=self.tag_keys)
+        return value
+
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", OCPGCPExcludeSerializer, value, tag_keys=self.tag_keys)
         return value
 
     def validate_delta(self, value):

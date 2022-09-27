@@ -8,6 +8,7 @@ import string
 import uuid
 from collections import defaultdict
 from datetime import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import relativedelta
@@ -26,7 +27,7 @@ from trino.exceptions import TrinoExternalError
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
-from koku import presto_database as kpdb
+from koku import trino_database as trino_db
 from koku.database import KeyDecimalTransform
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1118,8 +1119,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
 
-    @patch("masu.database.ocp_report_db_accessor.kpdb.executescript")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.executescript")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto(self, mock_connect, mock_executescript):
         """
         Test that OCP presto processing calls executescript
@@ -1141,7 +1142,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_executescript.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto_preprocess_exception(self, mock_connect, mock_get_data):
         """
         Test that OCP presto processing converts datetime to date for start, end dates
@@ -1157,7 +1158,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = "ocp-cluster"
         cluster_alias = "OCP FTW"
         source = self.provider_uuid
-        with self.assertRaises(kpdb.PreprocessStatementError):
+        with self.assertRaises(trino_db.PreprocessStatementError):
             self.accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
@@ -2808,6 +2809,39 @@ select * from eek where val1 in {{report_period_id}} ;
 
         self.accessor.get_ocp_infrastructure_map_trino(start_date, end_date)
         mock_presto.assert_called()
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_resource(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
+        with patch(
+            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
+            Mock(return_value={"table_id": "resource"}),
+        ):
+            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
+
+    @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_get_ocp_infrastructure_map_trino_gcp_with_disabled_resource_matching(self, mock_presto):
+        """Test that Trino is used to find matched resource names."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+        expected_log = f"INFO:masu.util.gcp.common:GCP resource matching disabled for {self.schema}"
+        with patch("masu.util.gcp.common.disable_gcp_resource_matching", return_value=True):
+            with self.assertLogs("masu", level="INFO") as logger:
+                self.accessor.get_ocp_infrastructure_map_trino(
+                    start_date, end_date, gcp_provider_uuid=self.gcp_provider_uuid
+                )
+                mock_presto.assert_called()
+                self.assertIn(expected_log, logger.output)
 
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
