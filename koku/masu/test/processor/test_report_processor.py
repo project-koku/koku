@@ -20,6 +20,7 @@ class ReportProcessorTest(MasuTestCase):
 
     def test_initializer_aws(self):
         """Test to initializer for AWS."""
+
         processor = ReportProcessor(
             schema_name=self.schema,
             report_path="/my/report/file",
@@ -27,6 +28,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertIsNotNone(processor._processor)
 
@@ -39,6 +41,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertIsNotNone(processor._processor)
 
@@ -51,6 +54,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AZURE,
             provider_uuid=self.azure_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertIsNotNone(processor._processor)
 
@@ -80,9 +84,12 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AZURE_LOCAL,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         self.assertIsNotNone(processor._processor)
 
+    # TODO: since trino is enable, ParquetReportProcessor is returned
+    # needs updating - test expecting exceptions raised by ReportProcessor
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.__init__", side_effect=MasuProcessingError)
     def test_initializer_error(self, fake_processor):
         """Test to initializer with error."""
@@ -94,8 +101,11 @@ class ReportProcessorTest(MasuTestCase):
                 provider=Provider.PROVIDER_AWS,
                 provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
+                context={"start_date": self.start_date, "tracing_id": "1"},
             )
 
+    # TODO: since trino is enable, ParquetReportProcessor is returned
+    # needs updating - test expecting exceptions raised by ReportProcessor
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.__init__", side_effect=NotImplementedError)
     def test_initializer_not_implemented_error(self, fake_processor):
         """Test to initializer with error."""
@@ -107,8 +117,11 @@ class ReportProcessorTest(MasuTestCase):
                 provider=Provider.PROVIDER_AWS,
                 provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
+                context={"start_date": self.start_date, "tracing_id": "1"},
             )
 
+    # TODO: since trino is enable, ParquetReportProcessor is returned
+    # needs updating - test expecting exceptions raised by ReportProcessor
     def test_initializer_invalid_provider(self):
         """Test to initializer with invalid provider."""
         with self.assertRaises(ReportProcessorError):
@@ -119,6 +132,7 @@ class ReportProcessorTest(MasuTestCase):
                 provider="unknown",
                 provider_uuid=self.aws_provider_uuid,
                 manifest_id=None,
+                context={"start_date": self.start_date, "tracing_id": "1"},
             )
 
     @patch("masu.processor.report_processor.ReportProcessor.trino_enabled", new_callable=PropertyMock)
@@ -153,12 +167,15 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         processor.process()
         mock_process.assert_called()
         mock_parquet_process.assert_not_called()
         mock_ocp_cloud_process.assert_not_called()
 
+    # TODO: since trino is enable, ParquetReportProcessor is returned
+    # needs updating - test expecting exceptions raised by ReportProcessor
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.process", side_effect=MasuProcessingError)
     def test_aws_process_error(self, fake_process):
         """Test to process for AWS with processing error."""
@@ -169,6 +186,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         with self.assertRaises(ReportProcessorError):
             processor.process()
@@ -183,12 +201,15 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         try:
             processor.remove_processed_files("/my/report/file")
         except Exception:
             self.fail("unexpected error")
 
+    # TODO: since trino is enable, ParquetReportProcessor is returned
+    # needs updating - test expecting exceptions raised by ReportProcessor
     @patch(
         "masu.processor.aws.aws_report_processor.AWSReportProcessor.remove_temp_cur_files",
         side_effect=MasuProcessingError,
@@ -202,6 +223,7 @@ class ReportProcessorTest(MasuTestCase):
             provider=Provider.PROVIDER_AWS,
             provider_uuid=self.aws_provider_uuid,
             manifest_id=None,
+            context={"start_date": self.start_date, "tracing_id": "1"},
         )
         with self.assertRaises(ReportProcessorError):
             processor.remove_processed_files("/my/report/file")
