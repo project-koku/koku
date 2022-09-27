@@ -232,7 +232,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             actual_markup = query.get("markup_cost__sum")
             self.assertAlmostEqual(actual_markup, expected_markup, 6)
 
-    # NOTE: we have parquet enabled, we can get rid of this one: test_populate_ocp_on_azure_cost_daily_summary
+    # NOTE: This test is likely obsolete since we have ENABLE_PARQUET_PROCESSING=True
     # def test_populate_ocp_on_azure_cost_daily_summary(self):
     #     """Test the method to run OpenShift on Azure SQL."""
     #     summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]

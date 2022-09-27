@@ -26,6 +26,8 @@ from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
+from api.report.test.util.constants import OCP_POD_LABELS
+from api.report.test.util.constants import OCP_PVC_LABELS
 from api.utils import DateHelper
 from koku import presto_database as kpdb
 from koku.database import KeyDecimalTransform
@@ -69,7 +71,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         super().setUp()
 
         self.cluster_id = "testcluster"
-
         with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_accessor:
             self.ocp_provider_uuid = provider_accessor.get_provider().uuid
 
@@ -358,9 +359,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 # disabled is a tag key added in COST-444, we don't populate
                 # the reporting_ocpusagelineitem_daily table so the disabled
                 # key is never added to that table.
-                expected_tag_keys.append("disabled")
-
-            self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
+                # expected_tag_keys.append("disabled")
+                for item in OCP_POD_LABELS:
+                    expected_tag_keys.extend(list(item.keys()))
+                    self.assertEqual(sorted(tag_keys), sorted(set(expected_tag_keys)))
 
     def test_populate_volume_label_summary_table(self):
         """Test that the volume label summary table is populated."""
@@ -395,9 +397,10 @@ class OCPReportDBAccessorTest(MasuTestCase):
                 # disabled is a tag key added in COST-444, we don't populate
                 # the reporting_ocpstoragelineitem_daily table so the disabled
                 # key is never added to that table.
-                expected_tag_keys.append("disabled")
-
-        self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
+                # expected_tag_keys.append("disabled")
+                for item in OCP_PVC_LABELS:
+                    expected_tag_keys.extend(list(item.keys()))
+                    self.assertEqual(sorted(tag_keys), sorted(set(expected_tag_keys)))
 
     def test_get_usage_period_on_or_before_date(self):
         """Test that gets a query for usage report periods before a date."""
