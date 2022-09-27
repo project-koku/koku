@@ -5,6 +5,7 @@
 """Test the GCP common util."""
 import random
 from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -605,3 +606,13 @@ class TestGCPUtils(MasuTestCase):
             self.assertIsNotNone(expected_dates)
             self.assertEqual(expected_dates.get("start"), result.get("start"))
             self.assertEqual(expected_dates.get("end"), result.get("end"))
+
+    @patch("masu.util.gcp.common.AccountsAccessor.get_accounts")
+    def test_check_resource_level_invalid_uuid(self, mock_accounts):
+        """Test gcp resource level paused source."""
+        mock_accounts.return_value = []
+        expected_log = "Account not returned, source likely has processing suspended."
+        with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+            result = utils.check_resource_level(self.provider_uuid)
+            self.assertFalse(result)
+            self.assertIn(expected_log, logger.output[1])
