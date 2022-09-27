@@ -152,6 +152,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             og_query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             initial_group_by = query_group_by + [self._mapper.cost_units_key]
@@ -236,6 +238,8 @@ class AzureReportQueryHandler(ReportQueryHandler):
         query_group_by = ["date"] + self._get_group_by()
         initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         aggregates = self._mapper.report_type_map.get("aggregates")
         counts = None
