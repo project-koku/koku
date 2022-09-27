@@ -27,7 +27,7 @@ from trino.exceptions import TrinoExternalError
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
 from api.utils import DateHelper
-from koku import presto_database as kpdb
+from koku import trino_database as trino_db
 from koku.database import KeyDecimalTransform
 from masu.database import AWS_CUR_TABLE_MAP
 from masu.database import OCP_REPORT_TABLE_MAP
@@ -1119,8 +1119,8 @@ class OCPReportDBAccessorTest(MasuTestCase):
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
 
-    @patch("masu.database.ocp_report_db_accessor.kpdb.executescript")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.executescript")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto(self, mock_connect, mock_executescript):
         """
         Test that OCP presto processing calls executescript
@@ -1142,7 +1142,7 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_executescript.assert_called()
 
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
-    @patch("masu.database.ocp_report_db_accessor.kpdb.connect")
+    @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
     def test_populate_line_item_daily_summary_table_presto_preprocess_exception(self, mock_connect, mock_get_data):
         """
         Test that OCP presto processing converts datetime to date for start, end dates
@@ -1158,7 +1158,7 @@ select * from eek where val1 in {{report_period_id}} ;
         cluster_id = "ocp-cluster"
         cluster_alias = "OCP FTW"
         source = self.provider_uuid
-        with self.assertRaises(kpdb.PreprocessStatementError):
+        with self.assertRaises(trino_db.PreprocessStatementError):
             self.accessor.populate_line_item_daily_summary_table_presto(
                 start_date, end_date, report_period_id, cluster_id, cluster_alias, source
             )
