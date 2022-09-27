@@ -200,6 +200,9 @@ load-aws-org-unit-tree:
 		echo "This make target requires python3." ; \
 	fi
 
+run-api-test:
+	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
+
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
