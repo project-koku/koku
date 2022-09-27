@@ -4,11 +4,13 @@
 #
 """Test the Report Queries."""
 import logging
+import operator
 from collections import defaultdict
 from collections import OrderedDict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from functools import reduce
 from unittest import skip
 from unittest.mock import patch
 from unittest.mock import PropertyMock
@@ -18,6 +20,7 @@ from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Func
+from django.db.models import Q
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -27,6 +30,7 @@ from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.report.aws.query_handler import AWSReportQueryHandler
+from api.report.aws.serializers import ExcludeSerializer
 from api.report.aws.view import AWSCostView
 from api.report.aws.view import AWSInstanceTypeView
 from api.report.aws.view import AWSStorageView
@@ -842,6 +846,18 @@ class AWSReportQueryTest(IamTestCase):
             month_data = data_item.get("values")
             self.assertEqual(month_val, cmonth_str)
             self.assertIsInstance(month_data, list)
+
+    def test_execute_query_current_month_exclude_service(self):
+        """Test execute_query for current month on monthly excluded by service."""
+        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&exclude[service]=AmazonEC2"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+
+        data = query_output.get("data")
+        total_cost_total = query_output.get("total", {}).get("cost", {}).get("total")
+        self.assertIsNotNone(data)
+        self.assertIsNotNone(total_cost_total)
 
     @patch("api.query_params.QueryParameters.accept_type", new_callable=PropertyMock)
     def test_execute_query_current_month_filter_avail_zone_csv(self, mock_accept):
@@ -2469,6 +2485,127 @@ class AWSReportQueryTest(IamTestCase):
             self.assertEqual(org_cost_total, expected_cost_total)
             self.assertEqual(org_infra_total, expected_cost_total)
 
+    def test_execute_query_current_month_filter_org_unit_group_by_account(self):
+        """Check that the total is correct when filtering by org_unit_id and grouping by account."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
+        org_units = []
+        self.organizational_unit = "OU_001"
+        org_unit_obj = self.ou_to_account_subou_map.get(self.organizational_unit)
+        # get sub org units
+        sub_org_units = org_unit_obj.get("org_units")
+        # user has access to org unit hierarchy, that is sub org units and accounts
+        org_units.append(self.organizational_unit)
+        org_units.extend(sub_org_units)
+        # get all accounts
+        all_accts = list(self.account_alias_mapping.keys())
+        self.account_alias = all_accts[0]
+
+        with tenant_context(self.tenant):
+            org_group_by_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&cost_type=unblended_cost&filter[org_unit_id]=OU_001&group_by[account]={self.account_alias}"  # noqa: E501
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            org_data = handler.execute_query()
+            # query filter to use
+            query_filter = [
+                Q(account_alias__account_alias__in=[self.account_alias]),
+                Q(usage_account_id__in=[self.account_alias]),
+                Q(organizational_unit__org_unit_id__in=org_units),
+            ]
+
+            # get expected totals
+            expected = (
+                AWSCostSummaryByAccountP.objects.filter(
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                )
+                .filter(reduce(operator.or_, query_filter))
+                .aggregate(
+                    **{
+                        "cost_total": Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    }
+                )
+            )
+
+            # grab the actual totals for the org_unit_id filter and account group by
+            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
+            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
+            expected_cost_total = expected.get("cost_total", 0)
+            # infra and total cost match
+            self.assertEqual(org_cost_total, expected_cost_total)
+            self.assertEqual(org_infra_total, expected_cost_total)
+
+    def test_execute_query_current_month_filter_org_unit_group_by_account_outside_ou(self):
+        """Check that the total is correct when filtering by org_unit_id and grouping by account outside org unit."""
+        start_date = self.dh.this_month_start
+        end_date = self.dh.today
+        org_units = []
+
+        self.organizational_unit = "OU_001"
+        org_unit_obj = self.ou_to_account_subou_map.get(self.organizational_unit)
+        # get sub org units
+        sub_org_units = org_unit_obj.get("org_units")
+        # user has access to org unit hierarchy, that is sub org units and accounts
+        org_units.append(self.organizational_unit)
+        org_units.extend(sub_org_units)
+
+        org_unit_accts = org_unit_obj.get("accounts")
+        org_unit_tree_accts = []
+        org_unit_tree_accts.extend(org_unit_accts)
+        # get sub org unit accounts
+        for sub_ou in sub_org_units:
+            org_unit_tree_accts.extend(self.ou_to_account_subou_map.get(sub_ou).get("accounts"))
+        all_accts = list(self.account_alias_mapping.keys())
+        # select from account from non org unit accounts
+        self.account_alias = list(set(all_accts) - set(org_unit_tree_accts))[0]
+        sub_org_units.append(self.organizational_unit)
+
+        with tenant_context(self.tenant):
+            org_group_by_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&cost_type=unblended_cost&filter[org_unit_id]=OU_001&group_by[account]={self.account_alias}"  # noqa: E501
+            self.test_read_access = {
+                "aws.account": {"read": [self.account_alias]},
+                "aws.organizational_unit": {"read": [self.organizational_unit]},
+            }
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView, access=self.test_read_access)
+            handler = AWSReportQueryHandler(query_params)
+            org_data = handler.execute_query()
+            start_date = self.dh.this_month_start
+            end_date = self.dh.today
+            # query filter to use
+            query_filter = [
+                Q(account_alias__account_alias__in=[self.account_alias]),
+                Q(usage_account_id__in=[self.account_alias]),
+                Q(organizational_unit__org_unit_id__in=org_units),
+            ]
+
+            # get expected totals
+            expected = (
+                AWSCostSummaryByAccountP.objects.filter(
+                    usage_start__gte=start_date,
+                    usage_start__lte=end_date,
+                )
+                .filter(reduce(operator.or_, query_filter))
+                .aggregate(
+                    **{
+                        "cost_total": Sum(
+                            Coalesce(F("unblended_cost"), Value(0, output_field=DecimalField()))
+                            + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
+                        )
+                    }
+                )
+            )
+
+            # grab the actual totals for the org_unit_id filter and account group by
+            org_cost_total = org_data.get("total").get("cost").get("total").get("value")
+            org_infra_total = org_data.get("total").get("infrastructure").get("total").get("value")
+            expected_cost_total = expected.get("cost_total", 0)
+            # infra and total cost match
+            self.assertEqual(org_cost_total, expected_cost_total)
+            self.assertEqual(org_infra_total, expected_cost_total)
+
     def test_rename_org_unit(self):
         """Test that a renamed org unit only shows up once."""
         with tenant_context(self.tenant):
@@ -2693,6 +2830,54 @@ class AWSReportQueryTest(IamTestCase):
         url = f"?order_by[cost]=desc&order_by[date]={wrong_date}&group_by[service]=*"
         with self.assertRaises(ValidationError):
             self.mocked_query_params(url, AWSCostView)
+
+    def test_get_sub_org_units(self):
+        """Check that the correct sub org units are returned."""
+        with tenant_context(self.tenant):
+            org_unit = "OU_001"
+            org_group_by_url = f"?filter[org_unit_id]={org_unit}"
+            query_params = self.mocked_query_params(org_group_by_url, AWSCostView)
+            handler = AWSReportQueryHandler(query_params)
+            sub_orgs = handler._get_sub_org_units([org_unit])
+            sub_orgs_ids = []
+            for sub_ou in sub_orgs:
+                # grab the sub org ids
+                sub_orgs_ids.append(sub_ou.org_unit_id)
+            expected_sub_org_units = self.ou_to_account_subou_map.get(org_unit).get("org_units")
+            self.assertEqual(sub_orgs_ids, expected_sub_org_units)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_organizational_unit(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opt = "org_unit_id"
+        parent_org_unit = "R_001"
+        child_org_unit = "OU_005"
+        for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
+            with self.subTest(view=view):
+                # Grab overall value
+                overall_url = f"?filter[{exclude_opt}]={parent_org_unit}"
+                query_params = self.mocked_query_params(overall_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                handler.execute_query()
+                overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                # Grab filtered value
+                filtered_url = f"?filter[{exclude_opt}]={child_org_unit}"
+                query_params = self.mocked_query_params(filtered_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                handler.execute_query()
+                filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                expected_total = overall_total - filtered_total
+                # Test exclude
+                exclude_url = (
+                    f"?filter[{exclude_opt}]={parent_org_unit}&exclude[{exclude_opt}]={child_org_unit}"  # noqa: E501
+                )
+                query_params = self.mocked_query_params(exclude_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                self.assertIsNotNone(handler.query_exclusions)
+                handler.execute_query()
+                excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                self.assertAlmostEqual(expected_total, excluded_total, 6)
+                self.assertNotEqual(overall_total, excluded_total)
 
 
 class AWSReportQueryLogicalAndTest(IamTestCase):
@@ -3017,3 +3202,135 @@ class AWSQueryHandlerTest(IamTestCase):
                 query_params = self.mocked_query_params(url, view)
                 handler = AWSReportQueryHandler(query_params)
                 self.assertEqual(handler.query_table, table)
+
+    def test_aws_date_with_no_data(self):
+        # This test will group by a date that is out of range for data generated.
+        # The data will still return data because other dates will still generate data.
+        yesterday = self.dh.yesterday.date()
+        yesterday_month = self.dh.yesterday - relativedelta(months=2)
+
+        url = f"?group_by[account]=*&order_by[cost]=desc&order_by[date]={yesterday_month.date()}&end_date={yesterday}&start_date={yesterday_month.date()}"  # noqa: E501
+        query_params = self.mocked_query_params(url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        query_output = handler.execute_query()
+        data = query_output.get("data")
+        self.assertIsNotNone(data)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_functionality(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opts = list(ExcludeSerializer._opfields)
+        # Can't group by org_unit_id, tested separately
+        exclude_opts.remove("org_unit_id")
+        for exclude_opt in exclude_opts:
+            for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
+                with self.subTest(exclude_opt=exclude_opt, view=view):
+                    overall_url = f"?group_by[{exclude_opt}]=*"
+                    query_params = self.mocked_query_params(overall_url, view)
+                    handler = AWSReportQueryHandler(query_params)
+                    overall_output = handler.execute_query()
+                    overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    opt_dict = overall_output.get("data", [{}])[0]
+                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
+                    opt_value = opt_dict.get(exclude_opt)
+                    # Grab filtered value
+                    filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
+                    query_params = self.mocked_query_params(filtered_url, view)
+                    handler = AWSReportQueryHandler(query_params)
+                    handler.execute_query()
+                    filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    expected_total = overall_total - filtered_total
+                    # Test exclude
+                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
+                    query_params = self.mocked_query_params(exclude_url, view)
+                    handler = AWSReportQueryHandler(query_params)
+                    self.assertIsNotNone(handler.query_exclusions)
+                    excluded_output = handler.execute_query()
+                    excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    excluded_data = excluded_output.get("data")
+                    # Check to make sure the value is not in the return
+                    for date_dict in excluded_data:
+                        grouping_list = date_dict.get(f"{exclude_opt}s", [])
+                        self.assertIsNotNone(grouping_list)
+                        for group_dict in grouping_list:
+                            self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
+                    self.assertAlmostEqual(expected_total, excluded_total, 6)
+                    self.assertNotEqual(overall_total, excluded_total)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_tags(self, _):
+        """Test that the exclude works for our tags."""
+        url = "?"
+        query_params = self.mocked_query_params(url, AWSTagView)
+        handler = AWSTagQueryHandler(query_params)
+        tags = handler.get_tags()
+        tag = tags[0]
+        tag_key = tag.get("key")
+        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(base_url, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        data = handler.execute_query().get("data")
+        exclude_one = None
+        exclude_two = None
+        for date_dict in data:
+            if exclude_one and exclude_two:
+                continue
+            grouping_list = date_dict.get(f"{tag_key}s", [])
+            for group_dict in grouping_list:
+                if not exclude_one:
+                    exclude_one = group_dict.get(tag_key)
+                elif not exclude_two:
+                    exclude_two = group_dict.get(tag_key)
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        # single_tag_exclude
+        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
+        query_params = self.mocked_query_params(single_exclude, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total1, overall_total)
+        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
+        query_params = self.mocked_query_params(double_exclude, AWSCostView)
+        handler = AWSReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total, exclude_total1)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_multi_exclude_functionality(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opts = list(ExcludeSerializer._opfields)
+        exclude_opts.remove("org_unit_id")
+        for ex_opt in exclude_opts:
+            base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
+            for view in [AWSCostView, AWSStorageView, AWSInstanceTypeView]:
+                query_params = self.mocked_query_params(base_url, view)
+                handler = AWSReportQueryHandler(query_params)
+                overall_output = handler.execute_query()
+                opt_dict = overall_output.get("data", [{}])[0]
+                opt_list = opt_dict.get(f"{ex_opt}s")
+                exclude_one = None
+                exclude_two = None
+                for exclude_option in opt_list:
+                    if "no-" not in exclude_option.get(ex_opt):
+                        if not exclude_one:
+                            exclude_one = exclude_option.get(ex_opt)
+                        elif not exclude_two:
+                            exclude_two = exclude_option.get(ex_opt)
+                        else:
+                            continue
+                if not exclude_one or not exclude_two:
+                    continue
+                url = base_url + f"&exclude[or:{ex_opt}]={exclude_one}&exclude[or:{ex_opt}]={exclude_two}"
+                with self.subTest(url=url, view=view, ex_opt=ex_opt):
+                    query_params = self.mocked_query_params(url, view)
+                    handler = AWSReportQueryHandler(query_params)
+                    self.assertIsNotNone(handler.query_exclusions)
+                    excluded_output = handler.execute_query()
+                    excluded_data = excluded_output.get("data")
+                    self.assertIsNotNone(excluded_data)
+                    for date_dict in excluded_data:
+                        grouping_list = date_dict.get(f"{ex_opt}s", [])
+                        self.assertIsNotNone(grouping_list)
+                        for group_dict in grouping_list:
+                            self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])

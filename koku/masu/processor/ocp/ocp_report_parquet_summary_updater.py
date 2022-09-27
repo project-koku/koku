@@ -113,6 +113,9 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
         with OCPReportDBAccessor(self._schema) as accessor:
             with schema_context(self._schema):
                 report_period = accessor.report_periods_for_provider_uuid(self._provider.uuid, start_date)
+                if not report_period:
+                    LOG.warning(f"No report period for {self._provider.uuid} with start date {start_date}")
+                    return start_date, end_date
                 report_period_id = report_period.id
 
             for start, end in date_range_pair(start_date, end_date, step=settings.TRINO_DATE_STEP):
@@ -127,9 +130,10 @@ class OCPReportParquetSummaryUpdater(PartitionHandlerMixin):
                     end,
                 )
                 # This will process POD and STORAGE together
-                filters = {"report_period_id": report_period_id}  # Use report_period_id to leverage DB index on DELETE
-                accessor.delete_line_item_daily_summary_entries_for_date_range_raw(
-                    self._provider.uuid, start, end, filters
+                # "delete_all_except_infrastructure_raw_cost_from_daily_summary" specificallly excludes
+                # the cost rows generated through the OCPCloudParquetReportSummaryUpdater
+                accessor.delete_all_except_infrastructure_raw_cost_from_daily_summary(
+                    self._provider.uuid, report_period_id, start, end
                 )
                 accessor.populate_line_item_daily_summary_table_presto(
                     start, end, report_period_id, self._cluster_id, self._cluster_alias, self._provider.uuid

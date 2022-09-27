@@ -9,10 +9,46 @@ from unittest.mock import Mock
 from rest_framework import serializers
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.aws.openshift.serializers import OCPAWSExcludeSerializer
 from api.report.aws.openshift.serializers import OCPAWSFilterSerializer
 from api.report.aws.openshift.serializers import OCPAWSGroupBySerializer
 from api.report.aws.openshift.serializers import OCPAWSOrderBySerializer
 from api.report.aws.openshift.serializers import OCPAWSQueryParamSerializer
+
+
+class OCPAWSExcludeSerializerTest(TestCase):
+    """Tests for the exclude serializer."""
+
+    def test_parse_exclude_project(self):
+        """Test exclude by project."""
+        exclude_params = {"project": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_cluster(self):
+        """Test exclude by cluster."""
+        exclude_params = {"cluster": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_parse_exclude_node(self):
+        """Test exclude by node."""
+        exclude_params = {"node": ["*"]}
+        serializer = OCPAWSExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in OCPAWSExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPAWSExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in OCPAWSExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = OCPAWSExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class OCPAWSFilterSerializerTest(TestCase):
@@ -126,7 +162,7 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
         self.path = "/api/cost-management/v1/reports/openshift/infrastructures/aws/costs/"
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name},
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
             self.user_data,
             create_tenant=True,
             path=self.path,
@@ -182,7 +218,7 @@ class OCPAWSQueryParamSerializerTest(IamTestCase):
             "delta": "usage",
         }
         context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name},
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
             self._create_user_data(),
             create_tenant=True,
             path="",

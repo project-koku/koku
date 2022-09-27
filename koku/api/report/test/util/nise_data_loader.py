@@ -19,6 +19,7 @@ from tenant_schemas.utils import schema_context
 
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
+from api.report.test.util.common import populate_ocp_topology
 from api.report.test.util.data_loader import DataLoader
 from masu.config import Config
 from masu.processor.report_processor import ReportProcessor
@@ -118,6 +119,9 @@ class NiseDataLoader(DataLoader):
                     manifest_id=manifest.id,
                     synchronous=True,
                 )
+
+        populate_ocp_topology(self.schema, provider, cluster_id)
+
         update_cost_model_costs(self.schema, provider.uuid, self.dh.last_month_start, self.dh.today, synchronous=True)
         mark_manifest_complete(self.schema, provider_type, provider_uuid=provider.uuid, synchronous=True)
         shutil.rmtree(report_path, ignore_errors=True)

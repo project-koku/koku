@@ -22,18 +22,6 @@ from masu.external.downloader.oci.oci_report_downloader import OCIReportDownload
 from masu.external.downloader.oci.oci_report_downloader import OCIReportDownloaderError
 from masu.test import MasuTestCase
 
-# from unittest.mock import Mock
-
-# import os
-# import tempfile
-# from dateutil.relativedelta import relativedelta
-# from django.test.utils import override_settings
-# from masu.external.date_accessor import DateAccessor
-# from masu.external.downloader.report_downloader_base import ReportDownloaderWarning
-# from masu.util.common import date_range_pair
-
-# from masu.external.downloader.oci.oci_report_downloader import create_daily_archives
-
 LOG = logging.getLogger(__name__)
 
 FAKE = Faker()
@@ -105,7 +93,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         usage_reports = MagicMock()
         usage_reports.data.objects = [usage_report]
         mock_collect_reports.side_effect = [cost_reports, usage_reports]
-        start_date = dh.today
+        start_date = dh.this_month_start
         expected_assembly_id = ":".join([str(provider_uuid), str(start_date)])
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=provider_uuid)
         result_manifest = downloader._generate_monthly_pseudo_manifest(start_date.date())
@@ -133,7 +121,7 @@ class OCIReportDownloaderTest(MasuTestCase):
         """Test successful return of get manifest context for date."""
         self.maxDiff = None
         dh = DateHelper()
-        start_date = dh.today
+        start_date = dh.this_month_start
         p_uuid = uuid4()
         expected_assembly_id = f"{p_uuid}:{str(start_date)}"
         downloader = self.create_oci_downloader_with_mocked_values(provider_uuid=p_uuid)

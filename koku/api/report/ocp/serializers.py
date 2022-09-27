@@ -8,6 +8,7 @@ from pint.errors import UndefinedUnitError
 from rest_framework import serializers
 
 from api.models import Provider
+from api.report.serializers import ExcludeSerializer as BaseExcludeSerializer
 from api.report.serializers import FilterSerializer as BaseFilterSerializer
 from api.report.serializers import GroupSerializer
 from api.report.serializers import OrderSerializer
@@ -51,6 +52,38 @@ class InventoryOrderBySerializer(OrderBySerializer):
 class FilterSerializer(BaseFilterSerializer):
     """Serializer for handling query parameter filter."""
 
+    INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"), ("gcp", "gcp"))
+
+    _opfields = ("project", "cluster", "node", "infrastructures")
+
+    project = StringOrListField(child=serializers.CharField(), required=False)
+    cluster = StringOrListField(child=serializers.CharField(), required=False)
+    node = StringOrListField(child=serializers.CharField(), required=False)
+    infrastructures = serializers.ChoiceField(choices=INFRASTRUCTURE_CHOICES, required=False)
+
+    def validate(self, data):
+        """Validate incoming data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if filter inputs are invalid
+
+        """
+        super().validate(data)
+
+        if data.get("infrastructures"):
+            infra_value = data["infrastructures"]
+            data["infrastructures"] = [Provider.PROVIDER_CASE_MAPPING.get(infra_value.lower())]
+
+        return data
+
+
+class ExcludeSerializer(BaseExcludeSerializer):
+    """Serializer for handling query parameter exclude."""
+
     INFRASTRUCTURE_CHOICES = (("aws", "aws"), ("azure", "azure"))
 
     _opfields = ("project", "cluster", "node", "infrastructures")
@@ -89,7 +122,9 @@ class OCPQueryParamSerializer(ParamSerializer):
     def __init__(self, *args, **kwargs):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
-        self._init_tagged_fields(filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer)
+        self._init_tagged_fields(
+            filter=FilterSerializer, group_by=GroupBySerializer, order_by=OrderBySerializer, exclude=ExcludeSerializer
+        )
 
     def validate(self, data):
         """Validate incoming data.
@@ -137,6 +172,20 @@ class OCPQueryParamSerializer(ParamSerializer):
         validate_field(self, "filter", FilterSerializer, value, tag_keys=self.tag_keys)
         return value
 
+    def validate_exclude(self, value):
+        """Validate incoming exclude data.
+
+        Args:
+            data    (Dict): data to be validated
+        Returns:
+            (Dict): Validated data
+        Raises:
+            (ValidationError): if exclude field inputs are invalid
+
+        """
+        validate_field(self, "exclude", ExcludeSerializer, value, tag_keys=self.tag_keys)
+        return value
+
     def validate_units(self, value):
         """Validate incoming units data.
 
@@ -171,7 +220,10 @@ class OCPInventoryQueryParamSerializer(OCPQueryParamSerializer):
         """Initialize the OCP query param serializer."""
         super().__init__(*args, **kwargs)
         self._init_tagged_fields(
-            filter=FilterSerializer, group_by=GroupBySerializer, order_by=InventoryOrderBySerializer
+            filter=FilterSerializer,
+            group_by=GroupBySerializer,
+            order_by=InventoryOrderBySerializer,
+            exclude=ExcludeSerializer,
         )
 
     def validate_order_by(self, value):

@@ -11,6 +11,7 @@ from rest_framework import serializers
 from rest_framework.serializers import ValidationError
 
 from api.iam.test.iam_test_case import IamTestCase
+from api.report.aws.serializers import ExcludeSerializer
 from api.report.aws.serializers import FilterSerializer
 from api.report.aws.serializers import GroupBySerializer
 from api.report.aws.serializers import OrderBySerializer
@@ -18,6 +19,103 @@ from api.report.aws.serializers import QueryParamSerializer
 from api.report.serializers import ParamSerializer
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
+
+
+class ExcludeSerializerTest(TestCase):
+    """Tests for the exclude serializer."""
+
+    def test_exclude_params_invalid_fields(self):
+        """Test parse of exclude params for invalid fields."""
+        exclude_params = {
+            "invalid": "param",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_tag_keys_dynamic_field_validation_success(self):
+        """Test that tag keys are validated as fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"valid_tag": "value"}
+        serializer = ExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        self.assertTrue(serializer.is_valid())
+
+    def test_tag_keys_dynamic_field_validation_failure(self):
+        """Test that invalid tag keys are not valid fields."""
+        tag_keys = ["valid_tag"]
+        query_params = {"bad_tag": "value"}
+        serializer = ExcludeSerializer(data=query_params, tag_keys=tag_keys)
+        with self.assertRaises(serializers.ValidationError):
+            serializer.is_valid(raise_exception=True)
+
+    def test_exclude_params_with_or_string_success_single_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        exclude_params = {
+            "or:account": "account1",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_or_string_success_multi_item(self):
+        """Test that the or: prefix is allowed with a string of items."""
+        exclude_params = {
+            "or:az": "az1,az2",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_or_list_success_single_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        exclude_params = {
+            "or:service": ["service1"],
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_or_list_success_multi_item(self):
+        """Test that the or: prefix is allowed with a list."""
+        exclude_params = {
+            "or:region": ["region1", "region2"],
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_and_string_success(self):
+        """Test that the and: prefix is allowed with a string of items."""
+        exclude_params = {
+            "and:product_family": "fam1,fam2",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_and_list_success(self):
+        """Test that the and: prefix is allowed with a list."""
+        exclude_params = {
+            "and:account": ["account1", "account2"],
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_exclude_params_with_and_string_success_single_item(self):
+        """Test that the and: prefix succeeds with one item."""
+        exclude_params = {
+            "and:account": "account1",
+        }
+        serializer = ExcludeSerializer(data=exclude_params)
+        self.assertTrue(serializer.is_valid())
+
+    def test_all_exclude_op_fields(self):
+        """Test that the allowed fields pass."""
+        for field in ExcludeSerializer._opfields:
+            field = "and:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = ExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
+        for field in ExcludeSerializer._opfields:
+            field = "or:" + field
+            exclude_param = {field: ["1", "2"]}
+            serializer = ExcludeSerializer(data=exclude_param)
+            self.assertTrue(serializer.is_valid())
 
 
 class FilterSerializerTest(TestCase):
@@ -364,7 +462,10 @@ class QueryParamSerializerTest(IamTestCase):
         """setting up a user to test with."""
         self.user_data = self._create_user_data()
         self.alt_request_context = self._create_request_context(
-            {"account_id": "10001", "schema_name": self.schema_name}, self.user_data, create_tenant=True, path=""
+            {"account_id": "10001", "org_id": "1234567", "schema_name": self.schema_name},
+            self.user_data,
+            create_tenant=True,
+            path="",
         )
 
     def test_parse_query_params_success(self):

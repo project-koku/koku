@@ -71,7 +71,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
         "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.populate_openshift_cluster_information_tables"  # noqa: E501
     )
     @patch(
-        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_line_item_daily_summary_entries_for_date_range_raw"  # noqa: E501
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportDBAccessor.delete_all_except_infrastructure_raw_cost_from_daily_summary"  # noqa: E501
     )
     @patch(
         "masu.processor.ocp.ocp_report_parquet_summary_updater."
@@ -109,9 +109,7 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
                 report_period_id = report_period.id
 
         self.updater.update_summary_tables(start_date_str, end_date_str)
-        mock_delete.assert_called_with(
-            self.ocp_provider.uuid, start_date.date(), end_date.date(), {"report_period_id": report_period_id}
-        )
+        mock_delete.assert_called_with(self.ocp_provider.uuid, report_period_id, start_date.date(), end_date.date())
         mock_sum.assert_called()
         mock_tag_sum.assert_called()
         mock_vol_tag_sum.assert_called()
@@ -167,3 +165,19 @@ class OCPReportSummaryUpdaterTest(MasuTestCase):
 
         result = Provider.objects.get(uuid=new_ocp_provider.uuid).infrastructure.infrastructure_provider_id
         self.assertEqual(result, self.aws_provider.uuid)
+
+    @patch(
+        "masu.processor.ocp.ocp_report_parquet_summary_updater.OCPReportParquetSummaryUpdater._check_parquet_date_range"
+    )
+    def test_update_summary_tables_no_report_period(self, mock_date_check):
+        start_date = "1900-12-30"
+        end_date = "1900-12-31"
+        mock_date_check.return_value = (start_date, end_date)
+        with self.assertLogs("masu.processor.ocp.ocp_report_parquet_summary_updater", level="WARNING") as _logger:
+            self.updater.update_summary_tables(start_date, end_date)
+            found_it = False
+            for log_line in _logger.output:
+                found_it = "No report period for" in log_line
+                if found_it:
+                    break
+            self.assertTrue(found_it)

@@ -170,6 +170,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
@@ -197,9 +199,11 @@ class GCPReportQueryHandler(ReportQueryHandler):
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
-                    order_date = param
-                    break
-            # Remove the date order by as it is not actually used for ordering
+                    # Checks to see if the date is in the query_data
+                    if any(d["date"] == param for d in query_data):
+                        # Set order_date to a valid date
+                        order_date = param
+                        break
             if order_date:
                 sort_term = self._get_group_by()[0]
                 query_order_by.pop(i)
@@ -249,6 +253,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")

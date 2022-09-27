@@ -16,10 +16,7 @@ class Config:
     SOURCES_KAFKA_HOST = CONFIGURATOR.get_kafka_broker_host()
     SOURCES_KAFKA_PORT = CONFIGURATOR.get_kafka_broker_port()
     SOURCES_KAFKA_ADDRESS = f"{SOURCES_KAFKA_HOST}:{SOURCES_KAFKA_PORT}"
-    SOURCES_KAFKA_USER = CONFIGURATOR.get_kafka_username()
-    SOURCES_KAFKA_PASSWORD = CONFIGURATOR.get_kafka_password()
-    SOURCES_KAFKA_SASL_MECHANISM = CONFIGURATOR.get_kafka_sasl_mechanism()
-    SOURCES_KAFKA_SECURITY_PROTOCOL = CONFIGURATOR.get_kafka_security_protocol()
+    SOURCES_KAFKA_SASL = CONFIGURATOR.get_kafka_sasl()
     SOURCES_KAFKA_CACERT = CONFIGURATOR.get_kafka_cacert()
     SOURCES_KAFKA_AUTHTYPE = CONFIGURATOR.get_kafka_authtype()
 
@@ -35,17 +32,19 @@ class Config:
     SOURCES_FAKE_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_HEADER",
         default=(
-            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAidXNlciI6IHsiaXNfb3J"
-            "nX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdXJjZXMiLCAiZW1haWwiOiAic291cm"
-            "Nlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX2lkIjogIjU0MzIxIn19fQ=="
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzM"
+            "zMzMiLCAidXNlciI6IHsiaXNfb3JnX2FkbWluIjogImZhbHNlIiwgInVzZXJuYW1lIjogInNvdX"
+            "JjZXMiLCAiZW1haWwiOiAic291cmNlc0Bzb3VyY2VzLmlvIn0sICJpbnRlcm5hbCI6IHsib3JnX"
+            "2lkIjogIjMzMzMzMzMifX19"
         ),
     )
     SOURCES_FAKE_CLUSTER_HEADER = ENVIRONMENT.get_value(
         "SOURCES_FAKE_CLUSTER_HEADER",
         default=(
-            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAiYXV0aF90eXBlIjogInVoYy1"
-            "hdXRoIiwgInR5cGUiOiAiU3lzdGVtIiwgInN5c3RlbSI6IHsiY2x1c3Rlcl9pZCI6ICIwYmIyOTEzNS1k"
-            "NmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVybmFsIjogeyJvcmdfaWQiOiAiNTQzMjEifX19"
+            "eyJpZGVudGl0eSI6IHsiYWNjb3VudF9udW1iZXIiOiAiMTIzNDUiLCAib3JnX2lkIjogIjMzMzMzMzM"
+            "iLCAiYXV0aF90eXBlIjogInVoYy1hdXRoIiwgInR5cGUiOiAiU3lzdGVtIiwgInN5c3RlbSI6IHsiY2"
+            "x1c3Rlcl9pZCI6ICIwYmIyOTEzNS1kNmQxLTQ3OGItYjViNi02YmQxMjljYjZkNWQifSwgImludGVyb"
+            "mFsIjogeyJvcmdfaWQiOiAiMzMzMzMzMyJ9fX0="
         ),
     )
     SOURCES_PSK = ENVIRONMENT.get_value("SOURCES_PSK", default="sources-psk")

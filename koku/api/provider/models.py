@@ -171,6 +171,8 @@ class Provider(models.Model):
                 should_ingest = True
             else:
                 should_ingest = False
+            if provider.setup_complete != self.setup_complete:
+                should_ingest = False
 
         # Commit the new/updated Provider to the DB
         super().save(*args, **kwargs)
@@ -201,9 +203,12 @@ class Provider(models.Model):
                 self._normalized_type = _type if not _type.endswith("-local") else _type[: _type.index("-")]
                 with transaction.atomic():
                     self._cascade_delete()
-                    self._delete_from_target(
-                        {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
-                        target_values=[self.pk],
+                    # Make sure we commit the cascade delete before deleting the Provider record
+                    transaction.on_commit(
+                        lambda: self._delete_from_target(
+                            {"table_schema": "public", "table_name": self._meta.db_table, "column_name": "uuid"},
+                            target_values=[self.pk],
+                        )
                     )
                 LOG.info(f"PROVIDER {self.name} ({self.pk}) CASCADE DELETE COMPLETE")
                 post_delete.send(sender=self.__class__, instance=self, using=using)
@@ -370,7 +375,7 @@ delete
 """
         with transaction.get_connection().cursor() as cur:
             cur.execute(_sql, (target_values,))
-            LOG.info(f"Deleted {cur.rowcount} recurds from {qual_table_name}")
+            LOG.info(f"Deleted {cur.rowcount} records from {qual_table_name}")
 
 
 class Sources(RunTextFieldValidators, models.Model):

@@ -170,6 +170,8 @@ class GCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
+        invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        invoice_month_date = dh.invoice_month_start(invoice_month)
 
         bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
         with schema_context(self.schema):
@@ -180,7 +182,7 @@ class GCPReportDBAccessorTest(MasuTestCase):
             markup_value = float(markup.get("value", 0)) / 100
 
         self.accessor.populate_line_item_daily_summary_table_presto(
-            start_date, end_date, self.gcp_provider_uuid, current_bill_id, markup_value
+            start_date, end_date, self.gcp_provider_uuid, current_bill_id, markup_value, invoice_month_date
         )
         mock_presto.assert_called()
 
@@ -286,17 +288,71 @@ class GCPReportDBAccessorTest(MasuTestCase):
         mock_presto.assert_called()
         mock_delete.assert_called()
 
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor.delete_ocp_on_gcp_hive_partition_by_day")
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
+    def test_populate_ocp_on_gcp_cost_daily_summary_presto_resource_names(self, mock_presto, mock_delete):
+        """Test that we construst our SQL and query using Presto."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+        end_date = dh.this_month_end.date()
+
+        bills = self.accessor.get_cost_entry_bills_query_by_provider(self.gcp_provider.uuid)
+        with schema_context(self.schema):
+            current_bill_id = bills.first().id if bills else None
+
+        with CostModelDBAccessor(self.schema, self.gcp_provider.uuid) as cost_model_accessor:
+            markup = cost_model_accessor.markup
+            markup_value = float(markup.get("value", 0)) / 100
+            distribution = cost_model_accessor.distribution
+
+        expected_log = "INFO:masu.util.gcp.common:OCP GCP matching set to resource level"
+        with patch(
+            "masu.util.gcp.common.ProviderDBAccessor.get_data_source",
+            Mock(return_value={"table_id": "resource"}),
+        ):
+            with self.assertLogs("masu.util.gcp.common", level="INFO") as logger:
+                self.accessor.populate_ocp_on_gcp_cost_daily_summary_presto(
+                    start_date,
+                    end_date,
+                    self.ocp_provider_uuid,
+                    self.ocp_cluster_id,
+                    self.gcp_provider_uuid,
+                    self.ocp_cluster_id,
+                    current_bill_id,
+                    markup_value,
+                    distribution,
+                )
+                mock_presto.assert_called()
+                mock_delete.assert_called()
+                self.assertIn(expected_log, logger.output)
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
         dh = DateHelper()
         start_date = dh.this_month_start.date()
         end_date = dh.this_month_end.date()
+        invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        invoice_month_date = dh.invoice_month_start(invoice_month)
 
         self.accessor.get_openshift_on_cloud_matched_tags_trino(
-            self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date
+            self.gcp_provider_uuid, self.ocp_provider_uuid, start_date, end_date, invoice_month_date
         )
         mock_presto.assert_called()
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys_no_matches(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        with schema_context(self.schema):
+            GCPEnabledTagKeys.objects.all().delete()
+        value = self.accessor.check_for_matching_enabled_keys()
+        self.assertFalse(value)
+
+    @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
+    def test_check_for_matching_enabled_keys(self, mock_presto):
+        """Test that Trino is used to find matched tags."""
+        value = self.accessor.check_for_matching_enabled_keys()
+        self.assertTrue(value)
 
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_multipart_sql_query")
     def test_back_populate_ocp_on_gcp_daily_summary_trino(self, mock_presto):
@@ -329,7 +385,11 @@ class GCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.accessor.populate_gcp_topology_information_tables(self.gcp_provider, start_date, end_date)
+        invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        invoice_month_date = dh.invoice_month_start(invoice_month)
+        self.accessor.populate_gcp_topology_information_tables(
+            self.gcp_provider, start_date, end_date, invoice_month_date
+        )
 
         with schema_context(self.schema):
             records = GCPTopology.objects.all()
@@ -343,7 +403,9 @@ class GCPReportDBAccessorTest(MasuTestCase):
         dh = DateHelper()
         start_date = dh.this_month_start
         end_date = dh.this_month_end
-        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date)
+        invoice_month = dh.gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        invoice_month_date = dh.invoice_month_start(invoice_month)
+        self.accessor.get_gcp_topology_trino(self.gcp_provider_uuid, start_date, end_date, invoice_month_date)
 
         mock_trino.assert_called()
 

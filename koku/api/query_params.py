@@ -21,13 +21,37 @@ from api.models import Tenant
 from api.models import User
 from api.provider.models import Provider
 from api.report.queries import ReportQueryHandler
+from api.tags.serializers import month_list
+from koku.feature_flags import UNLEASH_CLIENT
 from reporting.models import OCPAllCostLineItemDailySummaryP
 from reporting.provider.aws.models import AWSOrganizationalUnit
+
 
 LOG = logging.getLogger(__name__)
 TAG_PREFIX = "tag:"
 AND_TAG_PREFIX = "and:tag:"
 OR_TAG_PREFIX = "or:tag:"
+
+
+def enable_negative_filtering(org_id):
+    """Helper to determine if account is enabled for negative filtering."""
+    # Developing Note: To test this you will have to run gunicorn locally
+    # since the unleash client is initilized in the gunicorn_conf
+    if not org_id:
+        return False
+    if isinstance(org_id, str) and not org_id.startswith("org"):
+        # TODO: So since we only pass in the org_id, the schema is
+        # showing up as acct1234567, but our actual schema is
+        # org1234567. Which may be a little confusing.
+        org_id = f"acct{org_id}"
+    elif not isinstance(org_id, str):
+        org_id = f"acct{org_id}"
+
+    context = {"schema": org_id}
+    LOG.info(f"enable_negative_filtering context: {context}")
+    result = bool(UNLEASH_CLIENT.is_enabled("cost-enable-negative-filtering", context))
+    LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
+    return result
 
 
 class QueryParameters:
@@ -90,7 +114,14 @@ class QueryParameters:
         self._set_tag_keys()  # sets self.tag_keys
         self._validate(query_params)  # sets self.parameters
 
-        for item in ["filter", "group_by", "order_by", "access"]:
+        parameter_set_list = ["filter", "group_by", "order_by", "access"]
+        org_id = self.request.user.customer.org_id
+        if enable_negative_filtering(org_id):
+            parameter_set_list.append("exclude")
+        elif self.parameters.get("exclude"):
+            del self.parameters["exclude"]
+
+        for item in parameter_set_list:
             if item not in self.parameters:
                 self.parameters[item] = OrderedDict()
 
@@ -227,7 +258,40 @@ class QueryParameters:
                     raise PermissionDenied()
         return access_list
 
-    def _set_access(self, provider, filter_key, access_key, raise_exception=True):
+    def _get_org_unit_account_hierarchy(self, org_unit_list):
+        """Get all acounts in org unit tree
+        Args:
+            org_unit_list (list): list of parent org units
+        Returns:
+            org_unit_accounts (list): list of org unit accounts
+        """
+        if not org_unit_list:
+            return []
+
+        _org_units = org_unit_list
+
+        # get all parent org units:
+        parent_org_units = (
+            AWSOrganizationalUnit.objects.filter(org_unit_id__in=_org_units)
+            .filter(account_alias__isnull=True)
+            .order_by("org_unit_id", "-created_timestamp")
+            .distinct("org_unit_id")
+        )
+
+        # get all accounts in the org unit hierarchy.
+        org_unit_accounts = []
+        for org_unit_object in parent_org_units:
+            org_accounts = (
+                AWSOrganizationalUnit.objects.filter(level__gte=(org_unit_object.level))
+                .filter(org_unit_path__icontains=org_unit_object.org_unit_id)
+                .filter(account_alias__isnull=False)
+                .values_list("account_alias__account_id", flat=True)
+                .distinct()
+            )
+            org_unit_accounts.extend(list(org_accounts))
+        return org_unit_accounts
+
+    def _set_access(self, provider, filter_key, access_key, raise_exception=True):  # noqa C901
         """Alter query parameters based on user access."""
         access_list = self.access.get(access_key, {}).get("read", [])
         access_filter_applied = False
@@ -236,6 +300,7 @@ class QueryParameters:
 
         # check group by
         group_by = self.parameters.get("group_by", {})
+        filters = self.parameters.get("filter", {})
         if access_key == "aws.organizational_unit":
             if "org_unit_id" in group_by or "or:org_unit_id" in group_by:
                 # Only check the tree hierarchy if we are grouping by org units.
@@ -243,8 +308,40 @@ class QueryParameters:
                 # the hierarchy for later checks regarding filtering.
                 access_list = self._check_org_unit_tree_hierarchy(group_by, access_list)
 
+            elif "org_unit_id" in filters and not access_list and self.parameters.get("ou_or_operator", False):
+                org_unit_filter = filters.get("org_unit_id")
+                access_list = set(
+                    AWSOrganizationalUnit.objects.filter(
+                        reduce(operator.or_, (Q(org_unit_path__icontains=rbac) for rbac in org_unit_filter))
+                    )
+                    .filter(account_alias__isnull=True)
+                    .order_by("org_unit_id", "-created_timestamp")
+                    .distinct("org_unit_id")
+                    .values_list("org_unit_id", flat=True)
+                )
+                access_list.update(self.parameters.get("access").get(filter_key))
+            items = set(self.get_filter(filter_key) or [])
+            result = get_replacement_result(items, access_list, raise_exception, return_access=True)
+            if result:
+                self.parameters["access"][filter_key] = result
+                access_filter_applied = True
+
         if group_by.get(filter_key):
             items = set(group_by.get(filter_key))
+            org_unit_access_list = self.access.get("aws.organizational_unit", {}).get("read", [])
+            org_unit_filter = filters.get("org_unit_id", [])
+            if "org_unit_id" in filters and access_key == "aws.account":
+                access_list = self.parameters.get("access").get(filter_key)
+
+            if (
+                "org_unit_id" in filters
+                and access_key == "aws.account"
+                and set(org_unit_filter).issubset(org_unit_access_list)
+            ):
+                account_group_by = group_by.get(filter_key, [])
+                org_unit_accts = self._get_org_unit_account_hierarchy(org_unit_access_list)
+                access_list = org_unit_accts if set(account_group_by).issubset(org_unit_accts) else account_group_by
+
             result = get_replacement_result(items, access_list, raise_exception)
             if result:
                 self.parameters["access"][filter_key] = result
@@ -307,14 +404,13 @@ class QueryParameters:
         start_date = self.get_start_date()
         end_date = self.get_end_date()
         resolution = self.get_filter("resolution")
-
         if not (start_date or end_date):
             if not time_scope_value:
                 time_scope_value = -1 if time_scope_units == "month" else -10
             if not time_scope_units:
-                time_scope_units = "month" if int(time_scope_value) in [-1, -2] else "day"
+                time_scope_units = "month" if int(time_scope_value) in month_list else "day"
             if not resolution:
-                resolution = "monthly" if int(time_scope_value) in [-1, -2] else "daily"
+                resolution = "monthly" if int(time_scope_value) in month_list else "daily"
             self.set_filter(
                 time_scope_value=str(time_scope_value),
                 time_scope_units=str(time_scope_units),
@@ -419,6 +515,10 @@ class QueryParameters:
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
 
+    def get_exclude(self, filt, default=None):
+        """Get a exclude parameter."""
+        return self.get("exclude", OrderedDict()).get(filt, default)
+
     def get_start_date(self):
         """Get a start_date parameter."""
         return self.get("start_date")
@@ -441,7 +541,7 @@ class QueryParameters:
             self.parameters["filter"][key] = val
 
 
-def get_replacement_result(param_res_list, access_list, raise_exception=True):
+def get_replacement_result(param_res_list, access_list, raise_exception=True, return_access=False):
     """Adjust param list based on access list."""
     if ReportQueryHandler.has_wildcard(param_res_list):
         return access_list
@@ -455,6 +555,8 @@ def get_replacement_result(param_res_list, access_list, raise_exception=True):
             access_list,
         )
         raise PermissionDenied()
+    if return_access:
+        return access_list
     return param_res_list
 
 

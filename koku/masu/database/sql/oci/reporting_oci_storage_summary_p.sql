@@ -9,6 +9,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_storage_summary_p (
     usage_start,
     usage_end,
     product_service,
+    unit,
     cost,
     markup_cost,
     currency,
@@ -18,6 +19,7 @@ SELECT uuid_generate_v4() as id,
     usage_start,
     usage_start as usage_end,
     product_service,
+    max(unit) as unit,
     sum(cost) as cost,
     sum(markup_cost) as markup_cost,
     max(currency) as currency,
@@ -25,7 +27,7 @@ SELECT uuid_generate_v4() as id,
 FROM {{schema | sqlsafe}}.reporting_ocicostentrylineitem_daily_summary
 -- Get data for this month or last month
 WHERE product_service LIKE '%%STORAGE%%'
-    AND unit = 'GB-Mo'
+    AND unit in ('GB_MS', 'BYTES_MS', 'BYTES')
     AND usage_start >= {{start_date}}::date
     AND usage_end <= {{end_date}}::date
     AND source_uuid = {{source_uuid}}

@@ -124,6 +124,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
             group_by_value = self._get_group_by()
 
@@ -156,8 +158,11 @@ class OCPReportQueryHandler(ReportQueryHandler):
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
-                    order_date = param
-                    break
+                    # Checks to see if the date is in the query_data
+                    if any(d["date"] == param for d in query_data):
+                        # Set order_date to a valid date
+                        order_date = param
+                        break
             # Remove the date order by as it is not actually used for ordering
             if order_date:
                 sort_term = self._get_group_by()[0]
@@ -218,7 +223,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
         daily_capacity_by_cluster = defaultdict(lambda: defaultdict(Decimal))
 
         q_table = self._mapper.query_table
+        LOG.debug(f"Using query table: {q_table}")
         query = q_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_group_by = ["usage_start", "cluster_id"]
 
         with tenant_context(self.tenant):

@@ -345,31 +345,43 @@ class ProcessReportFileTests(MasuTestCase):
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list(self, mock_update_summary):
         """Test that the summarize_reports task is called when a processing list is provided."""
-        mock_update_summary.s = Mock()
+        providers = [
+            {"type": Provider.PROVIDER_OCP, "uuid": self.ocp_test_provider_uuid},
+            {"type": Provider.PROVIDER_GCP, "uuid": self.gcp_test_provider_uuid},
+        ]
+        for provider_dict in providers:
+            invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(
+                DateHelper().yesterday, DateHelper().today
+            )[0]
+            with self.subTest(provider_dict=provider_dict):
+                mock_update_summary.s = Mock()
+                report_meta = {}
+                report_meta["start_date"] = str(DateHelper().today)
+                report_meta["schema_name"] = self.schema
+                report_meta["provider_type"] = Provider.PROVIDER_OCP
+                report_meta["provider_uuid"] = self.ocp_test_provider_uuid
+                report_meta["manifest_id"] = 1
+                report_meta["start"] = str(DateHelper().yesterday)
+                report_meta["end"] = str(DateHelper().today)
+                if provider_dict.get("type") == Provider.PROVIDER_GCP:
+                    report_meta["invoice_month"] = invoice_month
 
-        report_meta = {}
-        report_meta["start_date"] = str(DateHelper().today)
-        report_meta["schema_name"] = self.schema
-        report_meta["provider_type"] = Provider.PROVIDER_OCP
-        report_meta["provider_uuid"] = self.ocp_test_provider_uuid
-        report_meta["manifest_id"] = 1
-        report_meta["start"] = str(DateHelper().yesterday)
-        report_meta["end"] = str(DateHelper().today)
+                # add a report with start/end dates specified
+                report2_meta = {}
+                report2_meta["start_date"] = str(DateHelper().today)
+                report2_meta["schema_name"] = self.schema
+                report2_meta["provider_type"] = Provider.PROVIDER_OCP
+                report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
+                report2_meta["manifest_id"] = 2
+                report2_meta["start"] = str(DateHelper().yesterday)
+                report2_meta["end"] = str(DateHelper().today)
+                if provider_dict.get("type") == Provider.PROVIDER_GCP:
+                    report_meta["invoice_month"] = invoice_month
 
-        # add a report with start/end dates specified
-        report2_meta = {}
-        report2_meta["start_date"] = str(DateHelper().today)
-        report2_meta["schema_name"] = self.schema
-        report2_meta["provider_type"] = Provider.PROVIDER_OCP
-        report2_meta["provider_uuid"] = self.ocp_test_provider_uuid
-        report2_meta["manifest_id"] = 2
-        report2_meta["start"] = str(DateHelper().yesterday)
-        report2_meta["end"] = str(DateHelper().today)
+                reports_to_summarize = [report_meta, report2_meta]
 
-        reports_to_summarize = [report_meta, report2_meta]
-
-        summarize_reports(reports_to_summarize)
-        mock_update_summary.s.assert_called()
+                summarize_reports(reports_to_summarize)
+                mock_update_summary.s.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_summarize_reports_processing_list_with_none(self, mock_update_summary):
@@ -430,6 +442,16 @@ class TestProcessorTasks(MasuTestCase):
             "report_month": DateHelper().today,
             "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
         }
+        self.get_report_args_gcp = {
+            "customer_name": self.schema,
+            "authentication": self.gcp_provider.authentication.credentials,
+            "provider_type": Provider.PROVIDER_GCP_LOCAL,
+            "schema_name": self.schema,
+            "billing_source": self.gcp_provider.billing_source.data_source,
+            "provider_uuid": self.gcp_provider_uuid,
+            "report_month": DateHelper().today,
+            "report_context": {"current_file": f"/my/{self.test_assembly_id}/koku-1.csv.gz"},
+        }
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -446,6 +468,34 @@ class TestProcessorTasks(MasuTestCase):
                     mock_get_files.assert_called()
                     mock_cache_remove.assert_called()
                     mock_process_files.assert_not_called()
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._process_report_file")
+    def test_get_report_files_report_dict_none(self, mock_process_files, mock_inspect, mock_cache_remove):
+        """Test raising download exception is handled."""
+        expected_log = "No report to be processed:"
+        with patch("masu.processor.tasks._get_report_files", return_value=None) as mock_get_files:
+            with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+                get_report_files(**self.get_report_args)
+                mock_get_files.assert_called()
+                mock_cache_remove.assert_called()
+                mock_process_files.assert_not_called()
+                self.assertIn(expected_log, logger.output[0])
+
+    @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks._get_report_files")
+    @patch("masu.processor.tasks._process_report_file")
+    def test_get_report_files_report_dict_invoice_month(
+        self, mock_process_files, mock_get_files, mock_inspect, mock_cache_remove
+    ):
+        """Test raising download exception is handled."""
+        expected_log = "Invoice_month: 202201"
+        mock_get_files.return_value = {"file": self.fake.word(), "compression": "GZIP", "invoice_month": "202201"}
+        with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
+            get_report_files(**self.get_report_args_gcp)
+            self.assertIn(expected_log, logger.output[0])
 
     @patch("masu.processor.tasks.WorkerCache.remove_task_from_cache")
     @patch("masu.processor.worker_cache.CELERY_INSPECT")
@@ -605,6 +655,50 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_chain.return_value.apply_async.assert_called()
 
+    @patch(
+        "masu.processor.tasks.disable_summary_processing",
+        return_value=True,
+    )
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_tables_ocp_unleash_check(
+        self, mock_cost_model, mock_charge_info, mock_chain, mock_task_cost_model, mock_cache, mock_unleash
+    ):
+        """Test that the summary table task runs."""
+
+        provider = Provider.PROVIDER_OCP
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        mock_chain.return_value.apply_async.assert_not_called()
+
+    @patch(
+        "masu.processor.tasks.disable_ocp_on_cloud_summary",
+        return_value=True,
+    )
+    @patch("masu.processor.worker_cache.CELERY_INSPECT")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.update_cost_model_costs")
+    @patch("masu.processor.ocp.ocp_cost_model_cost_updater.CostModelDBAccessor")
+    def test_update_summary_tables_ocp_disabled_check(
+        self, mock_cost_model, mock_charge_info, mock_chain, mock_task_cost_model, mock_cache, mock_unleash
+    ):
+        """Test that the summary table task runs."""
+
+        provider = Provider.PROVIDER_OCP
+        provider_ocp_uuid = self.ocp_test_provider_uuid
+
+        start_date = DateHelper().last_month_start
+        end_date = DateHelper().last_month_end
+        update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
+        mock_chain.return_value.apply_async.assert_called()
+
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain):
@@ -636,7 +730,48 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
             ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
             | mark_manifest_complete.si(
-                self.schema, provider, provider_uuid=provider_aws_uuid, manifest_id=manifest_id, tracing_id=tracing_id
+                self.schema,
+                provider,
+                provider_uuid=provider_aws_uuid,
+                manifest_list=[manifest_id],
+                tracing_id=tracing_id,
+            ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
+        )
+
+    @patch("masu.processor.tasks.enable_trino_processing", return_value=True)
+    @patch("masu.processor.tasks.chain")
+    @patch("masu.processor.tasks.CostModelDBAccessor")
+    def test_update_summary_tables_remove_expired_data_gcp(self, mock_accessor, mock_chain, _):
+        # COST-444: We use start & end date based off manifest
+        provider = Provider.PROVIDER_GCP
+        start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
+        end_date = DateHelper().today
+        manifest_id = 1
+        tracing_id = "1234"
+
+        invoice_month = DateHelper().gcp_find_invoice_months_in_date_range(start_date, end_date)[0]
+        update_summary_tables(
+            self.schema,
+            provider,
+            self.gcp_provider_uuid,
+            start_date,
+            end_date,
+            manifest_id,
+            tracing_id=tracing_id,
+            synchronous=True,
+            invoice_month=invoice_month,
+        )
+        mock_chain.assert_called
+        mock_chain.assert_called_once_with(
+            update_cost_model_costs.s(self.schema, self.gcp_provider_uuid, ANY, ANY, tracing_id=tracing_id).set(
+                queue=UPDATE_COST_MODEL_COSTS_QUEUE
+            )
+            | mark_manifest_complete.si(
+                self.schema,
+                provider,
+                provider_uuid=self.gcp_provider_uuid,
+                manifest_list=[manifest_id],
+                tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
 
@@ -653,7 +788,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         """Test that the vacuum schema task runs."""
         logging.disable(logging.NOTSET)
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("table",)]
-        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE acct10001.table"
+        expected = "INFO:masu.processor.tasks:VACUUM ANALYZE org1234567.table"
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             vacuum_schema(self.schema)
             self.assertIn(expected, logger.output)
@@ -669,7 +804,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -677,7 +812,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.02);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -685,7 +820,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -702,7 +837,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.02")})
         ]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
@@ -716,7 +853,8 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 20000000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.0001);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model "
+            "set (autovacuum_vacuum_scale_factor = 0.0001);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -724,7 +862,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 2000000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.004);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.004);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -732,7 +870,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [("cost_model", 200000, {})]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.011);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.011);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -749,7 +887,9 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
         mock_conn.cursor.return_value.__enter__.return_value.fetchall.return_value = [
             ("cost_model", 20000, {"autovacuum_vacuum_scale_factor": Decimal("0.004")})
         ]
-        expected = "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model reset (autovacuum_vacuum_scale_factor);"
+        expected = (
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model reset (autovacuum_vacuum_scale_factor);"
+        )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
             self.assertIn(expected, logger.output)
@@ -777,7 +917,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             ("cost_model", 200000, {"autovacuum_vacuum_scale_factor": Decimal("0.06")})
         ]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.05);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -797,7 +937,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             ("cost_model", 20000000, {"autovacuum_vacuum_scale_factor": ""})
         ]
         expected = (
-            "INFO:masu.processor.tasks:ALTER TABLE acct10001.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
+            "INFO:masu.processor.tasks:ALTER TABLE org1234567.cost_model set (autovacuum_vacuum_scale_factor = 0.01);"
         )
         with self.assertLogs("masu.processor.tasks", level="INFO") as logger:
             autovacuum_tune_schema(self.schema)
@@ -923,7 +1063,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         )
         manifest.save()
         mark_manifest_complete(
-            self.schema, provider.type, manifest_id=manifest.id, provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema, provider.type, manifest_list=[manifest.id], provider_uuid=str(provider.uuid), tracing_id=1
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()
@@ -936,7 +1076,7 @@ class TestMarkManifestCompleteTask(MasuTestCase):
         provider = self.ocp_provider
         initial_update_time = provider.data_updated_timestamp
         mark_manifest_complete(
-            self.schema, provider.type, manifest_id=None, provider_uuid=str(provider.uuid), tracing_id=1
+            self.schema, provider.type, manifest_list=None, provider_uuid=str(provider.uuid), tracing_id=1
         )
 
         provider = Provider.objects.filter(uuid=self.ocp_provider.uuid).first()

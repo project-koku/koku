@@ -147,6 +147,9 @@ dev/*.yml
 
 #sonarqube
 sonarqube/
+.scannerwork/
+.bash_history
+?/
 
 # performance profiling
 /koku.iml

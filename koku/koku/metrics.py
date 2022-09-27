@@ -102,7 +102,7 @@ class DatabaseStatus:
         #
         #   schema   |   size
         # -----------+----------
-        #  acct10001 | 51011584
+        #  org1234567 | 51011584
         #
         query = """
             SELECT schema_name as schema,

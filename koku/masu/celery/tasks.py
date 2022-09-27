@@ -34,6 +34,7 @@ from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.external.accounts.hierarchy.aws.aws_org_unit_crawler import AWSOrgUnitCrawler
 from masu.external.accounts_accessor import AccountsAccessor
 from masu.external.date_accessor import DateAccessor
+from masu.processor import enable_purge_trino_files
 from masu.processor import enable_trino_processing
 from masu.processor.orchestrator import Orchestrator
 from masu.processor.tasks import autovacuum_tune_schema
@@ -64,6 +65,79 @@ def remove_expired_data(simulate=False):
     orchestrator.remove_expired_report_data(simulate)
 
 
+@celery_app.task(name="masu.celery.tasks.purge_trino_files", queue=DEFAULT)
+def purge_s3_files(prefix, schema_name, provider_type, provider_uuid):
+    """Remove files in a particular path prefix."""
+    LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
+    if not enable_purge_trino_files(schema_name):
+        msg = f"Schema {schema_name} not enabled in unleash."
+        LOG.info(msg)
+        return msg
+    if not schema_name or not provider_type or not provider_uuid:
+        # Sanity-check all of these inputs in case somehow any receives an
+        # empty value such as None or '' because we need to minimize the risk
+        # of deleting unrelated files from our S3 bucket.
+        messages = []
+        if not schema_name:
+            message = "missing required argument: schema_name"
+            LOG.error(message)
+            messages.append(message)
+        if not provider_type:
+            message = "missing required argument: provider_type"
+            LOG.error(message)
+            messages.append(message)
+        if not provider_uuid:
+            message = "missing required argument: provider_uuid"
+            LOG.error(message)
+            messages.append(message)
+        raise TypeError("purge_trino_files() %s", ", ".join(messages))
+
+    if not (settings.ENABLE_S3_ARCHIVING or enable_trino_processing(provider_uuid, provider_type, schema_name)):
+        LOG.info("Skipping purge_trino_files. Upload feature is disabled.")
+        return
+    elif settings.SKIP_MINIO_DATA_DELETION:
+        LOG.info("Skipping purge_trino_files. MinIO in use.")
+        return
+    else:
+        message = f"Deleting S3 data for {provider_type} provider {provider_uuid} in account {schema_name}."
+        LOG.info(message)
+
+    LOG.info("Attempting to delete our archived data in S3 under %s", prefix)
+    remaining_objects = deleted_archived_with_prefix(settings.S3_BUCKET_NAME, prefix)
+    LOG.info(f"Deletion complete. Remaining objects: {remaining_objects}")
+    return remaining_objects
+
+
+@celery_app.task(name="masu.celery.tasks.purge_manifest_records", queue=DEFAULT)
+def purge_manifest_records(schema_name, provider_uuid, dates):
+    """Remove files in a particular path prefix."""
+    LOG.info(f"enable-purge-turnpikes schema: {schema_name}")
+    if not enable_purge_trino_files(schema_name):
+        msg = f"Schema {schema_name} not enabled in unleash."
+        LOG.info(msg)
+        return msg
+    with ReportManifestDBAccessor() as manifest_accessor:
+        if dates.get("start_date") and dates.get("end_date"):
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_date_range(
+                provider_uuid, dates.get("start_date"), dates.get("end_date")
+            )
+        elif dates.get("bill_date"):
+            manifest_list = manifest_accessor.get_manifest_list_for_provider_and_bill_date(
+                provider_uuid=provider_uuid, bill_date=dates.get("bill_date")
+            )
+        else:
+            msg = f"Dates requirements not met no manifest deleted, received: {dates}"
+            LOG.info(msg)
+            return msg
+        manifest_id_list = [manifest.id for manifest in manifest_list]
+        LOG.info(f"Attempting to delete the following manifests: {manifest_id_list}")
+        manifest_accessor.bulk_delete_manifests(provider_uuid, manifest_id_list)
+    provider = Provider.objects.filter(uuid=provider_uuid).first()
+    provider.setup_complete = False
+    provider.save()
+    LOG.info(f"Provider ({provider_uuid}) setup_complete set to to False")
+
+
 def deleted_archived_with_prefix(s3_bucket_name, prefix):
     """
     Delete data from archive with given prefix.
@@ -75,6 +149,7 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
     s3_resource = get_s3_resource()
     s3_bucket = s3_resource.Bucket(s3_bucket_name)
     object_keys = [{"Key": s3_object.key} for s3_object in s3_bucket.objects.filter(Prefix=prefix)]
+    LOG.info(f"Starting objects: {len(object_keys)}")
     batch_size = 1000  # AWS S3 delete API limits to 1000 objects per request.
     for batch_number in range(math.ceil(len(object_keys) / batch_size)):
         batch_start = batch_size * batch_number
@@ -87,16 +162,17 @@ def deleted_archived_with_prefix(s3_bucket_name, prefix):
         LOG.warning(
             "Found %s objects after attempting to delete all objects with prefix %s", len(remaining_objects), prefix
         )
+    return remaining_objects
 
 
-@celery_app.task(
+@celery_app.task(  # noqa: C901
     name="masu.celery.tasks.delete_archived_data",
     queue=REMOVE_EXPIRED_DATA_QUEUE,
     autoretry_for=(ClientError,),
     max_retries=10,
     retry_backoff=10,
 )
-def delete_archived_data(schema_name, provider_type, provider_uuid):
+def delete_archived_data(schema_name, provider_type, provider_uuid):  # noqa: C901
     """
     Delete archived data from our S3 bucket for a given provider.
 
@@ -143,7 +219,10 @@ def delete_archived_data(schema_name, provider_type, provider_uuid):
         LOG.info(message)
 
     # We need to normalize capitalization and "-local" dev providers.
-    account = schema_name[4:]
+
+    # Existing schema will start with acct and we strip that prefix for use later
+    # new customers include the org prefix in case an org-id and an account number might overlap
+    account = schema_name.strip("acct")
 
     # Data in object storage does not use the local designation
     source_type = provider_type.replace("-local", "")
@@ -357,23 +436,55 @@ def crawl_account_hierarchy(provider_uuid=None):
 @celery_app.task(name="masu.celery.tasks.check_cost_model_status", queue=DEFAULT)
 def check_cost_model_status(provider_uuid=None):
     """Scheduled task to initiate source check and notification fire."""
-    accounts = []
+    providers = []
     if provider_uuid:
-        accounts = AccountsAccessor().get_accounts(provider_uuid)
+        provider = Provider.objects.filter(uuid=provider_uuid).values("uuid", "type")
+        if provider[0].get("type") == Provider.PROVIDER_OCP:
+            providers = provider
+        else:
+            LOG.info(f"Source {provider_uuid} is not an openshift source.")
     else:
-        accounts = AccountsAccessor().get_accounts()
-    LOG.info("Cost model status check found %s accounts to scan" % len(accounts))
+        providers = Provider.objects.filter(infrastructure_id__isnull=True, type=Provider.PROVIDER_OCP).all()
+    LOG.info("Cost model status check found %s providers to scan" % len(providers))
     processed = 0
     skipped = 0
-    for account in accounts:
-        if account.get("provider_type") == Provider.PROVIDER_OCP:
-            cost_model_map = CostModelDBAccessor(account.get("schema_name"), account.get("provider_uuid"))
-            if cost_model_map.cost_model:
-                skipped += 1
-            else:
-                NotificationService().cost_model_notification(account)
-                processed += 1
+    for provider in providers:
+        uuid = provider_uuid if provider_uuid else provider.uuid
+        account = AccountsAccessor().get_accounts(uuid)[0]
+        cost_model_map = CostModelDBAccessor(account.get("schema_name"), uuid)
+        if cost_model_map.cost_model:
+            skipped += 1
+        else:
+            NotificationService().cost_model_notification(account)
+            processed += 1
     LOG.info(f"Cost model status check finished. {processed} notifications fired and {skipped} skipped")
+
+
+@celery_app.task(name="masu.celery.tasks.check_for_stale_ocp_source", queue=DEFAULT)
+def check_for_stale_ocp_source(provider_uuid=None):
+    """Scheduled task to initiate source check and fire notifications."""
+    manifest_accessor = ReportManifestDBAccessor()
+    if provider_uuid:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime(provider_uuid)
+    else:
+        manifest_data = manifest_accessor.get_last_manifest_upload_datetime()
+    if manifest_data:
+        LOG.info("Openshfit stale cluster check found %s clusters to scan" % len(manifest_data))
+        processed = 0
+        skipped = 0
+        today = DateAccessor().today()
+        check_date = DateHelper().n_days_ago(today, 3)
+        for data in manifest_data:
+            last_upload_time = data.get("most_recent_manifest")
+            if not last_upload_time or last_upload_time < check_date:
+                accounts = AccountsAccessor().get_accounts(data.get("provider_id"))
+                NotificationService().ocp_stale_source_notification(accounts[0])
+                processed += 1
+            else:
+                skipped += 1
+        LOG.info(
+            f"Openshift stale source status check finished. {processed} notifications fired and {skipped} skipped"
+        )
 
 
 @celery_app.task(name="masu.celery.tasks.delete_provider_async", queue=PRIORITY_QUEUE)

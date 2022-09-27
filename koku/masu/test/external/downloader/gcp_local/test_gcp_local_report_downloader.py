@@ -10,14 +10,20 @@ import tempfile
 from datetime import datetime
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
+from api.utils import DateHelper
 from masu.config import Config
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
+from masu.external.downloader.gcp_local.gcp_local_report_downloader import create_daily_archives
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
+
+# from unittest.mock import patch
+# from api.utils import DateHelper
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -48,6 +54,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         """Set up each test."""
         super().setUp()
         self.start_date = datetime(year=2020, month=11, day=8).date()
+        self.end_date = datetime(year=2020, month=11, day=11).date()
         self.etag = "30c31bca571d9b7f3b2c8459dd8bc34a"
         self.invoice = "202011"
         test_report = f"./koku/masu/test/data/gcp/{self.invoice}_{self.etag}_2020-11-08:2020-11-11.csv"
@@ -103,23 +110,25 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
     def test_get_manifest_for_date(self):
         """Test GCP-local get manifest."""
-        expected_assembly_id = ":".join([str(self.gcp_provider_uuid), self.etag, self.invoice])
-        result_report_dict = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
-        self.assertEqual(result_report_dict.get("assembly_id"), expected_assembly_id)
-        result_files = result_report_dict.get("files")
-        self.assertTrue(result_files)
-        for file_info in result_files:
-            self.assertEqual(file_info.get("key"), self.csv_file_name)
-            self.assertEqual(file_info.get("local_file"), self.csv_file_name)
+        expected_assembly_id = f"{self.start_date}|{self.end_date}"
+        result_report_list = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
+        for result_report in result_report_list:
+            self.assertIn(expected_assembly_id, result_report.get("assembly_id"))
+            result_files = result_report.get("files")
+            self.assertTrue(result_files)
+            for file_info in result_files:
+                self.assertEqual(file_info.get("key"), self.csv_file_name)
+                self.assertEqual(file_info.get("local_file"), self.csv_file_name)
 
     def test_empty_manifest(self):
         """Test an empty report is returned if no manifest."""
-        # I created the patch_sting cause the patch was being reordered making the E501 useless
-        patch_string = "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader._generate_monthly_pseudo_manifest"  # noqa: E501
-        with patch(patch_string) as patch_manifest:
-            patch_manifest.side_effect = [None]
+        with patch(
+            "masu.external.downloader.gcp_local.gcp_local_report_downloader.GCPLocalReportDownloader"
+            + ".collect_new_manifests",
+            return_value=[],
+        ):
             report = self.gcp_local_report_downloader.get_manifest_context_for_date(self.start_date)
-            self.assertEqual(report, {})
+            self.assertEqual(report, [])
 
     def test_delete_manifest_file_warning(self):
         """Test attempting a file that doesn't exist handles correctly."""
@@ -148,22 +157,55 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         file_data = result_mapping.get(self.invoice, {}).get(self.etag)
         self.assertIsNotNone(file_data)
 
-    def test_generate_monthly_pseudo_manifest(self):
-        """Test generating the monthly manifest."""
-        expected_assembly_id = ":".join([str(self.gcp_provider_uuid), self.etag, self.invoice])
-        result_manifest_data = self.gcp_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
-        self.assertTrue(result_manifest_data)
-        self.assertEqual(result_manifest_data.get("assembly_id"), expected_assembly_id)
-
-    @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.ReportManifestDBAccessor.get_manifest")
-    def test_generate_monthly_pseudo_manifest_already_exist(self, patch_manifest):
-        """Test manifest already exists."""
-        patch_manifest.side_effect = [True]
-        manifest = self.gcp_local_report_downloader._generate_monthly_pseudo_manifest(self.start_date)
-        self.assertEqual(manifest, {})
-
     def test_remove_manifest_file(self):
         """Test remove manifest file."""
         self.assertTrue(os.path.exists(self.csv_file_path))
         self.gcp_local_report_downloader._remove_manifest_file(self.csv_file_path)
         self.assertFalse(os.path.exists(self.csv_file_path))
+
+    def test_collect_new_manifest(self):
+        """Test collecting new manifests when there is new data in BigQuery"""
+        expected_bill_date = datetime.combine(self.start_date.replace(day=1), datetime.min.time())
+        expected_assembly_id = f"{self.start_date}|{self.end_date}|{self.gcp_provider_uuid}"
+
+        new_manifests = self.gcp_local_report_downloader.collect_new_manifests()
+
+        for manifest_metadata in new_manifests:
+            self.assertEqual(manifest_metadata["bill_date"], expected_bill_date)
+            self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
+            self.assertEqual(manifest_metadata["files"], [self.csv_file_name])
+
+    @override_settings(ENABLE_PARQUET_PROCESSING=True)
+    @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.copy_local_report_file_to_s3_bucket")
+    def test_create_daily_archives(self, mock_s3):
+        """Test that we load daily files to S3."""
+        # Use the processor example for data:
+        file_path = "./koku/masu/test/data/gcp/202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        file_name = "202011_30c31bca571d9b7f3b2c8459dd8bc34a_2020-11-08:2020-11-11.csv"
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file_name)
+        shutil.copy2(file_path, temp_path)
+
+        expected_daily_files = [
+            f"{temp_dir}/202011_2020-11-08 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-09 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-10 00:00:00+00:00.csv",
+            f"{temp_dir}/202011_2020-11-11 00:00:00+00:00.csv",
+        ]
+
+        start_date = DateHelper().this_month_start
+        daily_file_names, date_range = create_daily_archives(
+            "request_id", "account", self.gcp_provider_uuid, file_name, temp_path, None, start_date, None
+        )
+        expected_date_range = {"start": "2020-11-08", "end": "2020-11-11", "invoice_month": "202011"}
+        self.assertEqual(date_range, expected_date_range)
+        self.assertIsInstance(daily_file_names, list)
+
+        mock_s3.assert_called()
+        self.assertEqual(sorted(daily_file_names), sorted(expected_daily_files))
+
+        for daily_file in expected_daily_files:
+            self.assertTrue(os.path.exists(daily_file))
+            os.remove(daily_file)
+
+        os.remove(temp_path)
