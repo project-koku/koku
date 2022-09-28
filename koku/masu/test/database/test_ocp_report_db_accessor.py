@@ -15,7 +15,6 @@ from dateutil import relativedelta
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
-from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Q
@@ -26,8 +25,6 @@ from trino.exceptions import TrinoExternalError
 
 from api.iam.test.iam_test_case import FakePrestoConn
 from api.metrics import constants as metric_constants
-from api.report.test.util.constants import OCP_POD_LABELS
-from api.report.test.util.constants import OCP_PVC_LABELS
 from api.utils import DateHelper
 from koku import trino_database as trino_db
 from koku.database import KeyDecimalTransform
@@ -51,6 +48,10 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
+
+# from django.db import connection
+# from api.report.test.util.constants import OCP_POD_LABELS
+# from api.report.test.util.constants import OCP_PVC_LABELS
 
 
 class OCPReportDBAccessorTest(MasuTestCase):
@@ -326,81 +327,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
 
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
-
-    def test_populate_pod_label_summary_table(self):
-        """Test that the pod label summary table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        agg_table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = list({tag.key for tag in tags})
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT DISTINCT jsonb_object_keys(pod_labels)
-                        FROM reporting_ocpusagelineitem_daily"""
-                )
-
-                expected_tag_keys = cursor.fetchall()
-                expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-                # disabled is a tag key added in COST-444, we don't populate
-                # the reporting_ocpusagelineitem_daily table so the disabled
-                # key is never added to that table.
-                # expected_tag_keys.append("disabled")
-                for item in OCP_POD_LABELS:
-                    expected_tag_keys.extend(list(item.keys()))
-                    self.assertEqual(sorted(tag_keys), sorted(set(expected_tag_keys)))
-
-    def test_populate_volume_label_summary_table(self):
-        """Test that the volume label summary table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        agg_table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-        self.accessor.populate_volume_label_summary_table([self.reporting_period.id], start_date, end_date)
-
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = list({tag.key for tag in tags})
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels || persistentvolumeclaim_labels)
-                        FROM reporting_ocpstoragelineitem_daily"""
-                )
-
-                expected_tag_keys = cursor.fetchall()
-                expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-                # disabled is a tag key added in COST-444, we don't populate
-                # the reporting_ocpstoragelineitem_daily table so the disabled
-                # key is never added to that table.
-                # expected_tag_keys.append("disabled")
-                for item in OCP_PVC_LABELS:
-                    expected_tag_keys.extend(list(item.keys()))
-                    self.assertEqual(sorted(tag_keys), sorted(set(expected_tag_keys)))
 
     def test_get_usage_period_on_or_before_date(self):
         """Test that gets a query for usage report periods before a date."""

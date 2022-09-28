@@ -610,6 +610,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
 
         start_date = DateHelper().last_month_start
         end_date = DateHelper().last_month_end
+        # TODO: figure out what needs to be mocked in here
         update_summary_tables(self.schema, provider, provider_ocp_uuid, start_date, end_date, synchronous=True)
         update_cost_model_costs(
             schema_name=self.schema,

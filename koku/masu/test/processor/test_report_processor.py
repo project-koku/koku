@@ -7,133 +7,14 @@ from unittest.mock import patch
 from unittest.mock import PropertyMock
 
 from api.models import Provider
-from masu.exceptions import MasuProcessingError
 from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.parquet.parquet_report_processor import ParquetReportProcessor
 from masu.processor.report_processor import ReportProcessor
-from masu.processor.report_processor import ReportProcessorError
 from masu.test import MasuTestCase
 
 
 class ReportProcessorTest(MasuTestCase):
     """Test Cases for the ReportProcessor object."""
-
-    def test_initializer_aws(self):
-        """Test to initializer for AWS."""
-
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AWS,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        self.assertIsNotNone(processor._processor)
-
-    def test_initializer_aws_local(self):
-        """Test to initializer for AWS-local."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AWS_LOCAL,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        self.assertIsNotNone(processor._processor)
-
-    def test_initializer_azure(self):
-        """Test to initializer for Azure."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AZURE,
-            provider_uuid=self.azure_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        self.assertIsNotNone(processor._processor)
-
-    def test_initializer_ocp(self):
-        """Test to initializer for OCP."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path=(
-                "./koku/masu/test/data/ocp/" "e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
-            ),
-            compression="PLAIN",
-            provider=Provider.PROVIDER_OCP,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        self.assertIsNotNone(processor._processor)
-
-    def test_initializer_azure_local(self):
-        """Test to initializer for AZURE-local."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path=(
-                "./koku/masu/test/data/ocp/" "e6b3701e-1e91-433b-b238-a31e49937558_February-2019-my-ocp-cluster-1.csv"
-            ),
-            compression="PLAIN",
-            provider=Provider.PROVIDER_AZURE_LOCAL,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        self.assertIsNotNone(processor._processor)
-
-    # TODO: since trino is enable, ParquetReportProcessor is returned
-    # needs updating - test expecting exceptions raised by ReportProcessor
-    @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.__init__", side_effect=MasuProcessingError)
-    def test_initializer_error(self, fake_processor):
-        """Test to initializer with error."""
-        with self.assertRaises(ReportProcessorError):
-            ReportProcessor(
-                schema_name=self.schema,
-                report_path="/my/report/file",
-                compression="GZIP",
-                provider=Provider.PROVIDER_AWS,
-                provider_uuid=self.aws_provider_uuid,
-                manifest_id=None,
-                context={"start_date": self.start_date, "tracing_id": "1"},
-            )
-
-    # TODO: since trino is enable, ParquetReportProcessor is returned
-    # needs updating - test expecting exceptions raised by ReportProcessor
-    @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.__init__", side_effect=NotImplementedError)
-    def test_initializer_not_implemented_error(self, fake_processor):
-        """Test to initializer with error."""
-        with self.assertRaises(NotImplementedError):
-            ReportProcessor(
-                schema_name=self.schema,
-                report_path="/my/report/file",
-                compression="GZIP",
-                provider=Provider.PROVIDER_AWS,
-                provider_uuid=self.aws_provider_uuid,
-                manifest_id=None,
-                context={"start_date": self.start_date, "tracing_id": "1"},
-            )
-
-    # TODO: since trino is enable, ParquetReportProcessor is returned
-    # needs updating - test expecting exceptions raised by ReportProcessor
-    def test_initializer_invalid_provider(self):
-        """Test to initializer with invalid provider."""
-        with self.assertRaises(ReportProcessorError):
-            ReportProcessor(
-                schema_name=self.schema,
-                report_path="/my/report/file",
-                compression="GZIP",
-                provider="unknown",
-                provider_uuid=self.aws_provider_uuid,
-                manifest_id=None,
-                context={"start_date": self.start_date, "tracing_id": "1"},
-            )
 
     @patch("masu.processor.report_processor.ReportProcessor.trino_enabled", new_callable=PropertyMock)
     @patch("masu.processor.report_processor.ParquetReportProcessor.process", return_value=(1, 1))
@@ -174,23 +55,6 @@ class ReportProcessorTest(MasuTestCase):
         mock_parquet_process.assert_not_called()
         mock_ocp_cloud_process.assert_not_called()
 
-    # TODO: since trino is enable, ParquetReportProcessor is returned
-    # needs updating - test expecting exceptions raised by ReportProcessor
-    @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.process", side_effect=MasuProcessingError)
-    def test_aws_process_error(self, fake_process):
-        """Test to process for AWS with processing error."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AWS,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        with self.assertRaises(ReportProcessorError):
-            processor.process()
-
     @patch("masu.processor.aws.aws_report_processor.AWSReportProcessor.remove_temp_cur_files", return_value=None)
     def test_aws_remove_processed_files(self, fake_process):
         """Test to remove_processed_files for AWS."""
@@ -207,26 +71,6 @@ class ReportProcessorTest(MasuTestCase):
             processor.remove_processed_files("/my/report/file")
         except Exception:
             self.fail("unexpected error")
-
-    # TODO: since trino is enable, ParquetReportProcessor is returned
-    # needs updating - test expecting exceptions raised by ReportProcessor
-    @patch(
-        "masu.processor.aws.aws_report_processor.AWSReportProcessor.remove_temp_cur_files",
-        side_effect=MasuProcessingError,
-    )
-    def test_aws_remove_processed_files_error(self, fake_process):
-        """Test to remove_processed_files for AWS with processing error."""
-        processor = ReportProcessor(
-            schema_name=self.schema,
-            report_path="/my/report/file",
-            compression="GZIP",
-            provider=Provider.PROVIDER_AWS,
-            provider_uuid=self.aws_provider_uuid,
-            manifest_id=None,
-            context={"start_date": self.start_date, "tracing_id": "1"},
-        )
-        with self.assertRaises(ReportProcessorError):
-            processor.remove_processed_files("/my/report/file")
 
     def test_set_processor_parquet(self):
         """Test that the Parquet class is returned."""
