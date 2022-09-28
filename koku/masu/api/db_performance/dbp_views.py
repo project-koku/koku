@@ -5,7 +5,9 @@
 import json
 import logging
 import os
+import threading
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.http import HttpResponse
 from django.shortcuts import redirect
@@ -29,17 +31,30 @@ LOG = logging.getLogger(__name__)
 MY_PATH = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(MY_PATH, "templates")
 
-DATABASE_RANKING = [CONFIGURATOR.get_database_name()]
+DBNAME_LOCK = threading.Lock()
+APPLICATION_DBNAME = CONFIGURATOR.get_database_name()
+ALL_DATABASES = []
 
 # CANCEL_URL = 0
 # TERMINATE_URL = 1
 
 
+def get_database_list(dbps):
+    with DBNAME_LOCK:
+        if not ALL_DATABASES:
+            ALL_DATABASES.append(APPLICATION_DBNAME)
+            for rec in dbps.get_databases():
+                if rec["datname"] != APPLICATION_DBNAME:
+                    ALL_DATABASES.append(rec["datname"])
+
+    return ALL_DATABASES
+
+
 def get_limit_offset(request):
     try:
-        limit = int(request.query_params.get("limit", "500"))
+        limit = int(request.query_params.get("limit", "100"))
     except (TypeError, ValueError):
-        limit = 500
+        limit = 100
 
     try:
         offset = int(request.query_params.get("offset"))
@@ -47,6 +62,10 @@ def get_limit_offset(request):
         offset = None
 
     return limit, offset
+
+
+def get_selected_db(request):
+    return request.query_params.get("dbname", CONFIGURATOR.get_database_name())
 
 
 def get_parameter_list(request, param_name, default=None, sep=","):
@@ -87,6 +106,7 @@ def get_menu(curr_url_name):
         ("conn_activity", "Connection Activity"),
         ("stmt_stats", "Statement Statistics"),
         ("lock_info", "Lock Information"),
+        ("schema_sizes", "Schema Sizes"),
         ("explain_query", "Explain Query"),
     )
     menu_elements = ['<ul id="menu-list" class="menu unselectable">']
@@ -103,7 +123,17 @@ def get_menu(curr_url_name):
     return os.linesep.join(menu_elements)
 
 
-def render_template(url_name, page_header, fields, data, targets=(), template="gen_table.html", action_urls=[]):
+def render_template(
+    url_name,
+    page_header,
+    fields,
+    data,
+    targets=(),
+    template="gen_table.html",
+    action_urls=[],
+    db_select=None,
+    pagination=None,
+):
     menu = get_menu(url_name)
     tmpl = JinjaTemplate(open(os.path.join(TEMPLATE_PATH, template)).read())
     return tmpl.render(
@@ -113,6 +143,8 @@ def render_template(url_name, page_header, fields, data, targets=(), template="g
         data=data,
         targets=targets,
         action_urls=action_urls,
+        db_select=db_select,
+        pagination=pagination,
     )
 
 
@@ -126,6 +158,44 @@ def set_null_display(rec, null_display_val=""):
 def get_identity_username(request):
     # This is a placeholder for now. This should resolve a username once actions are enabled.
     return "koku-user"
+
+
+def make_db_options(databases, selected_db, request, target):
+    jsnippet = """onchange="select_db(this)" """
+    params = request.query_params.dict()
+    path = reverse(target)
+    buff = [f'<select name="dbname" {jsnippet}>']
+    for db in databases:
+        params["dbname"] = db
+        url = f"{path}?{urlencode(params)}"
+        sel = "selected" if db == selected_db else ""
+        buff.append(f'    <option value="{url}" {sel}>{db}</option>')
+    buff.append("</select>")
+    return os.linesep.join(buff)
+
+
+def make_pagination(limit, offset, data, request, target):
+    offset = offset or 0
+    diff = abs(limit - offset)
+    links = []
+    if offset <= 0:
+        links.append("<span>Prev</span>")
+    else:
+        _prev = request.query_params.dict()
+        _prev["limit"] = limit - diff
+        _prev["offset"] = offset - diff
+        url = f"{reverse(target)}?{urlencode(_prev)}"
+        links.append(f"""<a href="{url}">&lt;&lt; Prev</a>""")
+    if len(data) >= diff:
+        _next = request.query_params.dict()
+        _next["limit"] = limit + diff
+        _next["offset"] = offset + diff
+        url = f"{reverse(target)}?{urlencode(_next)}"
+        links.append(f"""<a href="{url}">Next &gt;&gt;</a>""")
+    else:
+        links.append("<span>Next</span>")
+
+    return "<span> | </span>".join(links)
 
 
 @never_cache
@@ -142,10 +212,14 @@ def lockinfo(request):
     """Get any blocked and blocking process data"""
 
     limit, offset = get_limit_offset(request)
+    selected_db = get_selected_db(request)
     data = None
+    databases = None
     with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
-        data = dbp.get_lock_info(limit=limit, offset=offset)
+        databases = get_database_list(dbp)
+        data = dbp.get_lock_info(selected_db, limit=limit, offset=offset)
 
+    pagination = make_pagination(limit, offset, data, request, "lock_info")
     if not data:
         data = [{"Result": "No blocking locks"}]
 
@@ -176,7 +250,7 @@ def lockinfo(request):
                 "blocking_pid": 'class="sans"',
                 "blocked_pid": 'class="sans"',
             }
-            activity_url = f'{reverse("conn_activity")}?pids={rec["blocking_pid"]},{rec["blocked_pid"]}'
+            activity_url = f'{reverse("conn_activity")}?pid={rec["blocking_pid"]}&pid={rec["blocked_pid"]}'
             for t in targets:
                 rec[f"_raw_{t}"] = rec[t]
             if template != "gen_table.html":
@@ -198,6 +272,7 @@ def lockinfo(request):
             )
 
     page_header = "Lock Information"
+    db_options = make_db_options(databases, selected_db, request, "lock_info")
     return HttpResponse(
         render_template(
             "lock_info",
@@ -206,6 +281,8 @@ def lockinfo(request):
             data,
             targets=targets,
             template=template,
+            db_select=db_options,
+            pagination=pagination,
             # action_urls=action_urls,
         )
     )
@@ -221,12 +298,15 @@ def stat_statements(request):
     query_bad_threshold = Decimal("5000")
     query_warn_threshold = Decimal("2500")
     limit, offset = get_limit_offset(request)
+    selected_db = get_selected_db(request)
 
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
-        data = dbp.get_statement_stats(limit=limit, offset=offset)
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        databases = get_database_list(dbp)
+        data = dbp.get_statement_stats(selected_db, limit=limit, offset=offset)
 
+    pagination = make_pagination(limit, offset, data, request, "stmt_stats")
     action_urls = []
-    if "mean_exec_time" in data[0]:
+    if data and "mean_exec_time" in data[0]:
         for rec in data:
             set_null_display(rec)
             rec["_attrs"] = {"query": 'class="pre monospace"'}
@@ -242,8 +322,11 @@ def stat_statements(request):
                 rec["_attrs"][col] = " ".join(attrs)
 
         # action_urls.append(reverse("stat_statements_reset"))
+    else:
+        data = [{"Result": "No data matching the criteria"}]
 
     page_header = "Statement Statistics"
+    db_options = make_db_options(databases, selected_db, request, "stmt_stats")
     return HttpResponse(
         render_template(
             "stmt_stats",
@@ -252,6 +335,8 @@ def stat_statements(request):
             data,
             template="stats_table.html",
             action_urls=action_urls,
+            db_select=db_options,
+            pagination=pagination,
         )
     )
 
@@ -275,56 +360,60 @@ def stat_activity(request):
     template = "t_action_table.html"
     states = get_parameter_list(request, "state", default=[])
     pids = get_parameter_list(request, "pid", default=[])
-    include_self = get_parameter_bool(request, "include_self", False)
-    records_per_db = int(request.query_params.get("records_per_db", "100"))
     limit, offset = get_limit_offset(request)
+    selected_db = get_selected_db(request)
 
     data = None
-    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR, database_ranking=DATABASE_RANKING) as dbp:
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        databases = get_database_list(dbp)
         data = dbp.get_activity(
+            selected_db,
             pid=pids,
             state=states,
-            include_self=include_self,
             limit=limit,
             offset=offset,
-            records_per_db=records_per_db,
         )
+
+    pagination = make_pagination(limit, offset, data, request, "conn_activity")
     if not data:
         data = [{"Response": "No data matching the criteria"}]
         targets = ()
     else:
         targets = ("backend_pid",)
+        rec_attrs = {
+            "query": 'class="pre monospace"',
+            "state": 'class="monospace"',
+            "backend_pid": 'class="sans"',
+            "client_ip": 'class="sans"',
+            "backend_start": 'class="sans"',
+            "xact_start": 'class="sans"',
+            "query_start": 'class="sans"',
+            "state_change": 'class="sans"',
+            "active_time": 'class="sans"',
+            "wait_type_event": 'class="sans"',
+        }
         for rec in data:
             set_null_display(rec)
             rec["_raw_backend_pid"] = rec["backend_pid"]
-            rec["_attrs"] = {
-                "query": 'class="pre monospace"',
-                "state": 'class="monospace"',
-                "backend_pid": 'class="sans"',
-                "client_ip": 'class="sans"',
-                "backend_start": 'class="sans"',
-                "xact_start": 'class="sans"',
-                "query_start": 'class="sans"',
-                "state_change": 'class="sans"',
-                "active_time": 'class="sans"',
-                "wait_type_event": 'class="sans"',
-            }
+            rec["_attrs"] = rec_attrs
             rec["query"] = format_sql(rec["query"], reindent=True, indent_realigned=True, keyword_case="upper")
 
     fields = tuple(f for f in data[0] if not f.startswith("_")) if data else ()
 
     page_header = "Connection Activity"
+    db_options = make_db_options(databases, selected_db, request, "conn_activity")
     return HttpResponse(
-        render_template("conn_activity", page_header, fields, data, targets=targets, template=template)
-        # render_template(
-        #     "conn_activity",
-        #     page_header,
-        #     fields,
-        #     data,
-        #     targets=("backend_pid",),
-        #     template=template,
-        #     action_urls=action_urls
-        # )
+        render_template(
+            "conn_activity",
+            page_header,
+            fields,
+            data,
+            targets=targets,
+            template=template,
+            db_select=db_options,
+            pagination=pagination,
+            # action_urls=action_urls,
+        )
     )
 
 
@@ -342,6 +431,7 @@ def dbsettings(request):
         set_null_display(rec)
 
         rec["_attrs"] = {
+            "category": 'style="font-weight: bold;"',
             "name": 'class="monospace"',
             "unit": 'class="monospace"',
             "setting": 'class="monospace"',
@@ -406,3 +496,41 @@ def explain_query(request):
                 data = {"query_plan": (os.linesep * 3).join(all_plans)}
 
         return Response(data)
+
+
+@never_cache
+@api_view(http_method_names=["GET"])
+@permission_classes((AllowAny,))
+def schema_sizes(request):
+    """Get any blocked and blocking process data"""
+
+    limit, offset = get_limit_offset(request)
+    top = int(request.query_params.get("top", "0"))
+    if top > limit:
+        top = limit
+    data = None
+    with DBPerformanceStats(get_identity_username(request), CONFIGURATOR) as dbp:
+        data = dbp.get_schema_sizes(top=top, limit=limit, offset=offset)
+
+    pagination = make_pagination(limit, offset, data, request, "schema_sizes")
+    for rec in data:
+        set_null_display(rec)
+
+        rec["_attrs"] = {
+            "schema_name": 'class="monospace"',
+            "table_name": 'class="monospace"',
+            "table_size_gb": 'class="sans"',
+            "schema_size_gb": 'class="sans"',
+        }
+
+    table_header = "and Top {top} Table " if top else ""
+    page_header = f'Schema {table_header}Sizes for Database "{APPLICATION_DBNAME}"'
+    return HttpResponse(
+        render_template(
+            "schema_sizes",
+            page_header,
+            tuple(f for f in data[0] if not f.startswith("_")) if data else (),
+            data,
+            pagination=pagination,
+        )
+    )
