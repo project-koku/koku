@@ -11,6 +11,7 @@ from masu.api.db_performance.dbp_views import dbsettings
 from masu.api.db_performance.dbp_views import explain_query
 from masu.api.db_performance.dbp_views import lockinfo
 from masu.api.db_performance.dbp_views import pg_engine_version
+from masu.api.db_performance.dbp_views import schema_sizes
 from masu.api.db_performance.dbp_views import stat_activity
 from masu.api.db_performance.dbp_views import stat_statements
 from masu.api.download import download_report
