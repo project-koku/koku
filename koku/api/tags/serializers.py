@@ -15,7 +15,7 @@ from api.report.serializers import validate_field
 
 
 OCP_FILTER_OP_FIELDS = ["project", "enabled", "cluster"]
-AWS_FILTER_OP_FIELDS = ["account"]
+AWS_FILTER_OP_FIELDS = ["account", "org_unit_id"]
 AZURE_FILTER_OP_FIELDS = ["subscription_guid"]
 GCP_FILTER_OP_FIELDS = ["account", "gcp_project"]
 OCI_FILTER_OP_FIELDS = ["payer_tenant_id"]
@@ -72,6 +72,7 @@ class AWSFilterSerializer(FilterSerializer):
     """Serializer for handling tag query parameter filter."""
 
     account = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
 
     def __init__(self, *args, **kwargs):
@@ -84,6 +85,7 @@ class AWSExcludeSerializer(ExcludeSerializer):
     """Serializer for handling tag query parameter exclude."""
 
     account = StringOrListField(child=serializers.CharField(), required=False)
+    org_unit_id = StringOrListField(child=serializers.CharField(), required=False)
     enabled = serializers.BooleanField(default=True, required=False)
 
     def __init__(self, *args, **kwargs):
