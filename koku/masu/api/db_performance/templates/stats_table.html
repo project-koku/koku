@@ -75,21 +75,27 @@ SPDX-License-Identifier: Apache-2.0
                 user-select: none;
             }
         </style>
-        <!-- <script>
-function clear_stmt_stats() {
-    document.getElementById("clear-stats-btn").disabled = true;
-    if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
-        xhttp = new XMLHttpRequest();
-        xhttp.open("GET", "{{action_urls[0]}}", false);
-        xhttp.send();
-        if (xhttp.status != 200) {
-            window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
-        }
-        location.reload();
-    }
-}
+        <script>
+
+            function select_db(db_sel) {
+                location = db_sel.value;
+            }
+
+            // function clear_stmt_stats() {
+            //     document.getElementById("clear-stats-btn").disabled = true;
+            //     if (window.confirm("Reset and clear statement statistics?\nThis cannot be undone.")) {
+            //         xhttp = new XMLHttpRequest();
+            //         xhttp.open("GET", "{{action_urls[0]}}", false);
+            //         xhttp.send();
+            //         if (xhttp.status != 200) {
+            //             window.alert("Request failed: " + xhttp.statusText + " (" + xhttp.status + ")");
+            //         }
+            //         location.reload();
+            //     }
+            // }
+
         </script>
-    </head> -->
+    </head>
     <body>
         <div id="header-container" class="container unselectable">
             <div id="header-div" class="header1 unselectable" style="display: inline-block !important;">Database Performance</div>
@@ -99,8 +105,22 @@ function clear_stmt_stats() {
         </div>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
+        <div id="controls" class="unselectable" style="display: block; clear: both;">
+{% if db_select %}
+            <div id="dbseldiv" style="float: left;">
+                <b>Database: </b>
+                {{db_select}}
+            </div>
+{% endif %}
+{% if pagination %}
+            <div id="pagination" style="float: right;">
+                {{pagination}}
+            </div>
+{% endif %}
+        </div>
         <!-- <button class="clear-stats" id="clear-stats-btn" onclick="clear_stmt_stats();" disabled="true">Clear Statement Statistics</button> -->
-    <table id="stmt_stats_table" cellspacing="0">
+        <div id="tablediv" style="display: block; clear: both;"></div>
+        <table id="stmt_stats_table" cellspacing="0">
 {% for rec in data %}
     {% if loop.first %}
             <thead>
@@ -124,5 +144,6 @@ function clear_stmt_stats() {
     {% endif %}
 {% endfor %}
         </table>
+    </div>
     </body>
 </html>
