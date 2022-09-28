@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('reporting', '0257_raw_currency_ocp_on_cloud'),
+        ('reporting', '0258_aws_azure_daily_summ_idxs'),
     ]
 
     operations = [
