@@ -50,7 +50,9 @@ def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover
     schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG)
+    return bool(
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG
+    )
 
 
 def get_start_and_end_from_manifest_id(manifest_id):
