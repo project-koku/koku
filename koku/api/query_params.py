@@ -35,16 +35,23 @@ OR_TAG_PREFIX = "or:tag:"
 
 def enable_negative_filtering(org_id):
     """Helper to determine if account is enabled for negative filtering."""
+    # Developing Note: To test this you will have to run gunicorn locally
+    # since the unleash client is initilized in the gunicorn_conf
     if not org_id:
         return False
     if isinstance(org_id, str) and not org_id.startswith("org"):
+        # TODO: So since we only pass in the org_id, the schema is
+        # showing up as acct1234567, but our actual schema is
+        # org1234567. Which may be a little confusing.
         org_id = f"acct{org_id}"
     elif not isinstance(org_id, str):
         org_id = f"acct{org_id}"
 
     context = {"schema": org_id}
     LOG.info(f"enable_negative_filtering context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-enable-negative-filtering", context))
+    result = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-enable-negative-filtering", context))
+    LOG.info(f"    Negative Filtering {'Enabled' if result else 'disabled'} {org_id}")
+    return result
 
 
 class QueryParameters:
@@ -507,6 +514,10 @@ class QueryParameters:
     def get_filter(self, filt, default=None):
         """Get a filter parameter."""
         return self.get("filter", OrderedDict()).get(filt, default)
+
+    def get_exclude(self, filt, default=None):
+        """Get a exclude parameter."""
+        return self.get("exclude", OrderedDict()).get(filt, default)
 
     def get_start_date(self):
         """Get a start_date parameter."""

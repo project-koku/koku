@@ -3,10 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Test the Report Queries."""
+from collections import OrderedDict
 from unittest.mock import Mock
 
 from django.test import TestCase
 from faker import Faker
+from tenant_schemas.utils import tenant_context
 
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
@@ -15,11 +17,15 @@ from api.report.aws.openshift.query_handler import OCPAWSReportQueryHandler
 from api.report.aws.query_handler import AWSReportQueryHandler
 from api.report.azure.openshift.query_handler import OCPAzureReportQueryHandler
 from api.report.azure.query_handler import AzureReportQueryHandler
+from api.report.gcp.openshift.query_handler import OCPGCPReportQueryHandler
+from api.report.gcp.provider_map import GCPProviderMap
+from api.report.gcp.query_handler import GCPReportQueryHandler
 from api.report.ocp.query_handler import OCPReportQueryHandler
 from api.report.provider_map import ProviderMap
 from api.report.queries import ReportQueryHandler
 from api.report.view import ReportView
 from api.utils import DateHelper
+from reporting.models import GCPCostEntryLineItemDailySummary
 
 FAKE = Faker()
 
@@ -33,6 +39,8 @@ class ReportQueryUtilsTest(TestCase):
         OCPAzureReportQueryHandler,
         OCPReportQueryHandler,
         OCPAWSReportQueryHandler,
+        GCPReportQueryHandler,
+        OCPGCPReportQueryHandler,
     ]
 
     def test_has_wildcard_yes(self):
@@ -422,6 +430,43 @@ class ReportQueryHandlerTest(IamTestCase):
         pd = rqh._percent_delta(10, 0)
         self.assertEqual(pd, None)
 
+    def test_get_search_filter_with_exclude(self):
+        """Test that the search filter with excludes."""
+        with tenant_context(self.tenant):
+            exclude_project = GCPCostEntryLineItemDailySummary.objects.values_list(
+                "project_name", flat=True
+            ).distinct()[0]
+        url = (
+            f"filter[resolution]=monthly&"
+            f"filter[time_scope_value]=-1&"
+            f"filter[time_scope_units]=month&"
+            f"group_by[gcp_project]=*&"
+            f"exclude[gcp_project]={exclude_project}"
+        )
+        fake_view = Mock(
+            spec=ReportView,
+            provider="GCP",
+            query_handler=GCPReportQueryHandler,
+            report="cost",
+            serializer=Mock,
+            tag_handler=Mock,
+        )
+        mocked_parameters = self.mocked_query_params(url, fake_view)
+        # I couldn't figure out how to mock an unleash flag inside of another mock,
+        # so I manually added the expected exclude to the parameters here.
+        mocked_parameters.parameters["exclude"] = OrderedDict([("gcp_project", [exclude_project])])
+        filters_dict = GCPProviderMap("GCP", "cost")._mapping[0].get("filters")
+        mapper = {"filter": [{}], "filters": filters_dict}
+        rqh = create_test_handler(params=mocked_parameters, mapper=mapper)
+        with tenant_context(self.tenant):
+            result = (
+                GCPCostEntryLineItemDailySummary.objects.values_list("project_name", flat=True)
+                .exclude(rqh.query_exclusions)
+                .distinct()
+            )
+            self.assertIsNotNone(result)
+            self.assertNotIn(exclude_project, result)
+
     # FIXME: need test for _apply_group_by
     # FIXME: need test for _apply_group_null_label
     # FIXME: need test for _build_custom_filter_list  }
@@ -429,7 +474,6 @@ class ReportQueryHandlerTest(IamTestCase):
     # FIXME: need test for _get_filter
     # FIXME: need test for _get_group_by
     # FIXME: need test for _get_previous_totals_filter
-    # FIXME: need test for _get_search_filter
     # FIXME: need test for _get_tag_group_by
     # FIXME: need test for _group_data_by_list
     # FIXME: need test for _pack_data_object
