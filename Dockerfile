@@ -1,9 +1,8 @@
-FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest as build
 
 # PIPENV_DEV is set to true in the docker-compose allowing
 # local builds to install the dev dependencies
 ARG PIPENV_DEV=False
-ARG ARCH=x86_64
 ARG USER_ID=1000
 
 USER root
@@ -44,15 +43,21 @@ RUN INSTALL_PKGS="python39 python39-devel glibc-langpack-en gcc shadow-utils" &&
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
-RUN if [ ${ARCH} != "x86_64" ] ; then microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel; \
+FROM --platform=linux/amd64 build as stage-amd64
+FROM --platform=linux/arm64 build as stage-arm64
+RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel; \
     git clone https://github.com/edenhill/librdkafka.git && \
     cd librdkafka && \
     git checkout tags/v1.9.2 && \
     ./configure --prefix /usr --install-deps && \
     make -j4 && \
     make install && \
-    ldconfig; fi
+    ldconfig
 
+# Declare TARGETARCH to make it available
+ARG TARGETARCH
+# Select final stage based on TARGETARCH ARG
+FROM stage-${TARGETARCH} as final
 # Create a Python virtual environment for use by any application to avoid
 # potential conflicts with Python packages preinstalled in the main Python
 # installation.
