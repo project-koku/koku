@@ -3,6 +3,7 @@ FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
 # PIPENV_DEV is set to true in the docker-compose allowing
 # local builds to install the dev dependencies
 ARG PIPENV_DEV=False
+ARG ARCH=x86_64
 ARG USER_ID=1000
 
 USER root
@@ -43,13 +44,21 @@ RUN INSTALL_PKGS="python39 python39-devel glibc-langpack-en gcc shadow-utils" &&
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
+RUN if [ ${ARCH} != "x86_64" ] ; then microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel; \
+    git clone https://github.com/edenhill/librdkafka.git && \
+    cd librdkafka && \
+    git checkout tags/v1.9.2 && \
+    ./configure --prefix /usr --install-deps && \
+    make -j4 && \
+    make install && \
+    ldconfig; fi
+
 # Create a Python virtual environment for use by any application to avoid
 # potential conflicts with Python packages preinstalled in the main Python
 # installation.
-RUN python3.9 -m venv /pipenv-venv
 ENV PATH="/pipenv-venv/bin:$PATH"
-# Install pipenv into the virtual env
-RUN \
+RUN python3.9 -m venv /pipenv-venv && \
+    # Install pipenv into the virtual env
     pip install --upgrade pip && \
     pip install pipenv
 

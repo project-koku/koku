@@ -330,7 +330,7 @@ docker-logs:
 	$(DOCKER_COMPOSE) logs -f koku-server koku-worker masu-server
 
 docker-trino-logs:
-	$(DOCKER_COMPOSE) -f ./testing/compose_files/docker-compose-trino.yml logs -f
+	$(DOCKER_COMPOSE) logs -f trino
 
 docker-rabbit:
 	$(DOCKER_COMPOSE) up -d rabbit
@@ -384,10 +384,10 @@ docker-up-no-build: docker-up-db
 # basic dev environment targets
 docker-up-min: docker-up-db
 	$(DOCKER_COMPOSE) build koku-base
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 docker-up-min-no-build: docker-up-db
-	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker
+	$(DOCKER_COMPOSE) up -d --scale koku-worker=$(scale) redis koku-server masu-server koku-worker trino hive-metastore
 
 # basic dev environment targets with koku-listener for local Sources Kafka testing
 docker-up-min-with-listener: docker-up-min docker-up-db
@@ -441,16 +441,16 @@ docker-trino-setup:
 	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
 
 docker-trino-up: docker-trino-setup
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up --build -d
+	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
 
 docker-trino-up-no-build: docker-trino-setup
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml up -d $(build)
+	$(DOCKER_COMPOSE) up -d trino hive-metastore
 
 docker-trino-ps:
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml ps
+	$(DOCKER_COMPOSE) ps trino hive-metastore
 
 docker-trino-down:
-	docker-compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down
