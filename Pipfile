@@ -55,6 +55,7 @@ unleashclient = "<5"
 trino = "*"
 oci = "*"
 croniter = "*"
+numpy = {version = "*", markers = "platform_machine == 'arm64' or platform_machine == 'amd64'"}
 
 [dev-packages]
 astroid = ">=2.3"
