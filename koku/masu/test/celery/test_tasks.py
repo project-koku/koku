@@ -487,3 +487,12 @@ class TestCeleryTasks(MasuTestCase):
             tasks.purge_manifest_records("act1111", "123456", dates)
             mock_accessor.return_value.__enter__.return_value = FakeManifest()
             mock_accessor.assert_called_once()
+
+    def test_purge_manifest_schema_not_in_unleash(self):
+        """Test that a schema not being enabled for purging does not purge records."""
+        dates = {}
+        with patch("masu.celery.tasks.ReportManifestDBAccessor") as mock_accessor:
+            returned_msg = tasks.purge_manifest_records("acct0000", "0000", dates)
+            expected_msg = "Schema acct0000 not enabled in unleash."
+            self.assertEqual(returned_msg, expected_msg)
+            mock_accessor.assert_not_called()
