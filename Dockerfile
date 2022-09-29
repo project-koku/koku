@@ -33,6 +33,8 @@ LABEL summary="$SUMMARY" \
     version="1" \
     maintainer="Red Hat Cost Management Services <cost-mgmt@redhat.com>"
 
+WORKDIR ${APP_ROOT}
+
 # Very minimal set of packages
 # glibc-langpack-en is needed to set locale to en_US and disable warning about it
 # gcc to compile some python packages (e.g. ciso8601)
@@ -43,7 +45,22 @@ RUN INSTALL_PKGS="python39 python39-devel glibc-langpack-en gcc shadow-utils" &&
     rpm -V $INSTALL_PKGS && \
     microdnf -y clean all --enablerepo='*'
 
+# Create a Python virtual environment for use by any application to avoid
+# potential conflicts with Python packages preinstalled in the main Python
+# installation.
+ENV PATH="/pipenv-venv/bin:$PATH"
+RUN python3.9 -m venv /pipenv-venv && \
+    # Install pipenv into the virtual env
+    pip install --upgrade pip && \
+    pip install pipenv
+
+COPY Pipfile .
+
+
 FROM --platform=linux/amd64 build as stage-amd64
+# The lock file is only used in the amd image because of the numpy markers
+COPY Pipfile.lock .
+
 FROM --platform=linux/arm64 build as stage-arm64
 RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel; \
     git clone https://github.com/edenhill/librdkafka.git && \
@@ -58,20 +75,9 @@ RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget
 ARG TARGETARCH
 # Select final stage based on TARGETARCH ARG
 FROM stage-${TARGETARCH} as final
-# Create a Python virtual environment for use by any application to avoid
-# potential conflicts with Python packages preinstalled in the main Python
-# installation.
-ENV PATH="/pipenv-venv/bin:$PATH"
-RUN python3.9 -m venv /pipenv-venv && \
-    # Install pipenv into the virtual env
-    pip install --upgrade pip && \
-    pip install pipenv
 
-WORKDIR ${APP_ROOT}
 
 # install dependencies
-COPY Pipfile .
-COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
     pipenv install --deploy && \
