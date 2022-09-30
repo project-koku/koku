@@ -732,19 +732,16 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
     @patch("masu.processor.tasks.chain")
     @patch("masu.processor.tasks.CostModelDBAccessor")
     def test_update_summary_tables_remove_expired_data(self, mock_accessor, mock_chain, mock_date_check, mock_conn):
+        """Test that the update summary table task runs."""
+
         # COST-444: We use start & end date based off manifest
         provider = Provider.PROVIDER_AWS
         provider_aws_uuid = self.aws_provider_uuid
         start_date = DateHelper().last_month_start - relativedelta.relativedelta(months=1)
         end_date = DateHelper().today
-        mock_date_check.return_value = (start_date, end_date)
         manifest_id = 1
-        with ReportManifestDBAccessor() as manifest_accessor:
-            manifest = manifest_accessor.get_manifest_by_id(manifest_id)
-        billing_period_start = manifest.billing_period_start_datetime
-        expected_start_date = billing_period_start.strftime("%Y-%m-%d")
-        expected_end_date = DateHelper().month_end(billing_period_start).strftime("%Y-%m-%d")
         tracing_id = "1234"
+        mock_date_check.return_value = (start_date, end_date)
 
         update_summary_tables(
             self.schema,
@@ -757,10 +754,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
         )
         mock_chain.assert_called_once_with(
-            update_cost_model_costs.s(
-                self.schema, provider_aws_uuid, expected_start_date, expected_end_date, tracing_id=tracing_id
-            ).set(queue=UPDATE_COST_MODEL_COSTS_QUEUE)
-            | mark_manifest_complete.si(
+            mark_manifest_complete.s(
                 self.schema,
                 provider,
                 provider_uuid=provider_aws_uuid,
@@ -768,6 +762,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.enable_trino_processing", return_value=True)
     @patch("masu.processor.tasks.chain")
@@ -792,7 +787,6 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
             synchronous=True,
             invoice_month=invoice_month,
         )
-        mock_chain.assert_called
         mock_chain.assert_called_once_with(
             update_cost_model_costs.s(self.schema, self.gcp_provider_uuid, ANY, ANY, tracing_id=tracing_id).set(
                 queue=UPDATE_COST_MODEL_COSTS_QUEUE
@@ -805,6 +799,7 @@ class TestUpdateSummaryTablesTask(MasuTestCase):
                 tracing_id=tracing_id,
             ).set(queue=MARK_MANIFEST_COMPLETE_QUEUE)
         )
+        mock_chain.return_value.apply_async.assert_called()
 
     @patch("masu.processor.tasks.update_summary_tables")
     def test_get_report_data_for_all_providers(self, mock_update):
