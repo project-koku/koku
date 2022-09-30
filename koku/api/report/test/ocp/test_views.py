@@ -605,6 +605,7 @@ class OCPReportViewTest(IamTestCase):
         last_month_start = self.dh.last_month_start
 
         date_delta = relativedelta.relativedelta(months=1)
+        prev_month_end = self.dh.this_month_end - date_delta
 
         def date_to_string(dt):
             return dt.strftime("%Y-%m-%d")
@@ -735,7 +736,7 @@ class OCPReportViewTest(IamTestCase):
 
             prev_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
-                .filter(usage_start__lt=this_month_start.date())
+                .filter(usage_start__lte=prev_month_end.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
