@@ -2892,9 +2892,9 @@ select * from eek where val1 in {{report_period_id}} ;
         resource_ids = ["id_1", "id_2"]
         capacity = [1, 1]
         volumes = ["vol_1", "vol_2"]
-        roles = ["master", "worker"]
         pvcs = ["pvc_1", "pvc_2"]
         projects = ["project_1", "project_2"]
+        roles = ["master", "worker"]
         mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
         mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
