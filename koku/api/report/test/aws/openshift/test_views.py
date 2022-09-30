@@ -275,6 +275,7 @@ class OCPAWSReportViewTest(IamTestCase):
         last_month_start = self.dh.last_month_start
 
         date_delta = relativedelta.relativedelta(months=1)
+        last_month_end = self.dh.this_month_end - date_delta
 
         def date_to_string(dt):
             return dt.strftime("%Y-%m-%d")
@@ -301,7 +302,7 @@ class OCPAWSReportViewTest(IamTestCase):
 
             prev_totals = (
                 OCPAWSCostLineItemDailySummaryP.objects.filter(usage_start__gte=last_month_start)
-                .filter(usage_start__lt=this_month_start)
+                .filter(usage_start__lte=last_month_end)
                 .filter(product_family__contains="Storage")
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
