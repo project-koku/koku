@@ -55,7 +55,7 @@ RUN make install
 
 
 # Only copy compiled libraries for arm64
-FROM --platform=arm64 base AS stage-amd64
+FROM --platform=amd64 base AS stage-amd64
 FROM --platform=arm64 base AS stage-arm64
 COPY --from=build-arm64 /opt/librdkafka /opt/librdkafka
 
