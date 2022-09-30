@@ -605,7 +605,7 @@ class OCPReportViewTest(IamTestCase):
         last_month_start = self.dh.last_month_start
 
         date_delta = relativedelta.relativedelta(months=1)
-        prev_month_end = self.dh.this_month_end - date_delta
+        last_month_end = self.dh.this_month_end - date_delta
 
         def date_to_string(dt):
             return dt.strftime("%Y-%m-%d")
