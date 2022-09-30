@@ -736,7 +736,7 @@ class OCPReportViewTest(IamTestCase):
 
             prev_totals = (
                 OCPUsageLineItemDailySummary.objects.filter(usage_start__gte=last_month_start.date())
-                .filter(usage_start__lte=prev_month_end.date())
+                .filter(usage_start__lte=last_month_end.date())
                 .annotate(**{"date": TruncDayString("usage_start")})
                 .values(*["date"])
                 .annotate(
