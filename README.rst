@@ -101,10 +101,6 @@ Starting Koku using Docker Compose
 
     docker-compose logs -f koku-server koku-worker
 
-3. Install koku-nise::
-
-    pip install koku-nise
-
 Run AWS Scenario
 ^^^^^^^^^^^^^^^^
 
