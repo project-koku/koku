@@ -7,30 +7,14 @@ About
 
 This documentation is to guide M1 Mac users on how to successfully install and run Koku on their machines.
 
-Generally, in order to run Intel-based packages and programs on Mac with Apple silicon processors (M1), one can make `use of Rosetta`_ which simulates the Intel environment.
+Generally, in order to run Intel-based packages and programs on Mac with Apple silicon processors (M1), one can make `use of Rosetta`_ which emulates the Intel environment.
 
 However, as for running Koku on M1 Macs we can follow the general development documentation with a few modifications as shown below.
-
-Development
------------
-
-From the current list of packages used by Koku, only ``confluent-kafka`` has no support on M1 Mac, but we can install it through ``brew`` with a few modifications.
-
-1. Install ``librdkafka`` through ``brew``: ::
-
-    brew install librdkafka
-
-2. Add the following lines into ``~/.zshrc`` and run ``source ~/.zshrc`` ::
-
-    export C_INCLUDE_PATH=$(brew --prefix)/include
-    export LIBRARY_PATH=$(brew --prefix)/lib
-
-After compoleting these steps, you should be able to follow the development on `Koku's README`_. Make sure to install the versions of Docker and Homebrew that are made for M1 Macs.
 
 Developing with Docker
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Alternatively, if you want to run the project in Docker environment, follow the below steps:
+If you want to run the project in Docker environment, follow the below steps:
 
 1. Set ``compose_file`` in your ``.env`` file to point to docker-compose-m1.yml_ file specially created for M1 Mac: ::
 
