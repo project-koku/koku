@@ -148,13 +148,17 @@ def azure_post_processor(data_frame):
 
     data_frame = data_frame.rename(columns=column_name_map)
 
-    columns = set(list(data_frame))
+    columns = set(data_frame)
     columns = set(PRESTO_COLUMNS).union(columns)
     columns = sorted(columns)
 
     data_frame = data_frame.reindex(columns=columns)
 
-    return data_frame
+    unique_tags = set()
+    for tags_json in data_frame["tags"]:
+        unique_tags.update(json.loads(tags_json))
+
+    return (data_frame, unique_tags)
 
 
 def get_column_converters():

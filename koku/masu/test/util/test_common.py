@@ -26,6 +26,7 @@ from masu.external import POLL_INGEST
 from masu.test import MasuTestCase
 from reporting.provider.aws.models import AWSCostEntryBill
 from reporting.provider.aws.models import AWSEnabledTagKeys
+from reporting.provider.azure.models import AzureEnabledTagKeys
 
 
 class CommonUtilTests(MasuTestCase):
@@ -365,7 +366,7 @@ class CommonUtilTests(MasuTestCase):
         with self.assertRaises(ValueError):
             _ = list(common_utils.batch(vals, start="eek"))
 
-    def test_create_enabled_keys(self):
+    def test_create_enabled_keys_aws(self):
         with schema_context(self.schema):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
             AWSEnabledTagKeys.objects.all().delete()
@@ -389,7 +390,31 @@ class CommonUtilTests(MasuTestCase):
         self.assertEqual(enabled, check_enabled)
         self.assertEqual(orig_disabled, check_disabled)
 
-    def test_update_enabled_keys(self):
+    def test_create_enabled_keys_azure(self):
+        with schema_context(self.schema):
+            orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AzureEnabledTagKeys.objects.all()]
+            AzureEnabledTagKeys.objects.all().delete()
+            for key in ("masu", "database", "processor", "common"):
+                AzureEnabledTagKeys.objects.create(key=key, enabled=(key != "masu"))
+            all_keys = list(AzureEnabledTagKeys.objects.all())
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        enabled = orig_enabled.union({"ek_test1", "ek_test2"})
+
+        common_utils.create_enabled_keys(self.schema, AzureEnabledTagKeys, enabled)
+        with schema_context(self.schema):
+            all_keys = list(AzureEnabledTagKeys.objects.all())
+            AzureEnabledTagKeys.objects.all().delete()
+            AzureEnabledTagKeys.objects.bulk_create([AzureEnabledTagKeys(**rec) for rec in orig_keys])
+
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertEqual(enabled, check_enabled)
+        self.assertEqual(orig_disabled, check_disabled)
+
+    def test_update_enabled_keys_aws(self):
         with schema_context(self.schema):
             orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AWSEnabledTagKeys.objects.all()]
             AWSEnabledTagKeys.objects.all().delete()
@@ -414,6 +439,44 @@ class CommonUtilTests(MasuTestCase):
             all_keys = list(AWSEnabledTagKeys.objects.all())
             AWSEnabledTagKeys.objects.all().delete()
             AWSEnabledTagKeys.objects.bulk_create([AWSEnabledTagKeys(**rec) for rec in orig_keys])
+
+        all_keys_set = {k.key for k in all_keys}
+        check_disabled = {d.key for d in all_keys if not d.enabled}
+        check_enabled = {e.key for e in all_keys if e.enabled}
+
+        self.assertTrue(new_keys.isdisjoint(all_keys))
+        self.assertTrue(disabled in all_keys_set)
+        self.assertTrue(disabled in check_disabled)
+        self.assertEqual(orig_disabled.intersection(check_disabled), orig_disabled)
+        self.assertNotEqual(orig_disabled, check_disabled)
+        self.assertNotEqual(orig_enabled, check_enabled)
+        self.assertEqual((enabled - new_keys), check_enabled)
+
+    def test_update_enabled_keys_azure(self):
+        with schema_context(self.schema):
+            orig_keys = [{"key": e.key, "enabled": e.enabled} for e in AzureEnabledTagKeys.objects.all()]
+            AzureEnabledTagKeys.objects.all().delete()
+            for key in ("masu", "database", "processor", "common"):
+                AzureEnabledTagKeys.objects.create(key=key, enabled=(key != "masu"))
+            all_keys = list(AzureEnabledTagKeys.objects.all())
+
+        orig_disabled = {e.key for e in all_keys if not e.enabled}
+        orig_enabled = {e.key for e in all_keys if e.enabled}
+        disabled = None
+        enabled = set()
+        for i, k in enumerate(orig_enabled):
+            if i == 0:
+                disabled = k
+            else:
+                enabled.add(k)
+        new_keys = {"ek_test1", "ek_test2"}
+        enabled.update(new_keys)
+
+        common_utils.update_enabled_keys(self.schema, AzureEnabledTagKeys, enabled)
+        with schema_context(self.schema):
+            all_keys = list(AzureEnabledTagKeys.objects.all())
+            AzureEnabledTagKeys.objects.all().delete()
+            AzureEnabledTagKeys.objects.bulk_create([AzureEnabledTagKeys(**rec) for rec in orig_keys])
 
         all_keys_set = {k.key for k in all_keys}
         check_disabled = {d.key for d in all_keys if not d.enabled}
