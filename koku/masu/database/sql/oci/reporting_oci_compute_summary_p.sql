@@ -12,6 +12,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
     instance_type,
     resource_ids,
     resource_count,
+    unit,
     cost,
     markup_cost,
     currency,
@@ -24,6 +25,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
         c.instance_type,
         r.resource_ids,
         CARDINALITY(r.resource_ids) AS resource_count,
+        c.unit,
         c.cost,
         c.markup_cost,
         c.currency,
@@ -32,6 +34,7 @@ INSERT INTO {{schema | sqlsafe}}.reporting_oci_compute_summary_p (
         -- this group by gets the counts
         SELECT usage_start,
             SUM(usage_amount) AS usage_amount,
+            MAX(unit) AS unit,
             SUM(cost) AS cost,
             SUM(markup_cost) AS markup_cost,
             MAX(currency) AS currency,
