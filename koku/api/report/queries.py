@@ -750,8 +750,6 @@ class ReportQueryHandler(QueryHandler):
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            if "count" in aggs:
-                aggs["count"] = ["max"]
 
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
@@ -759,6 +757,9 @@ class ReportQueryHandler(QueryHandler):
             grouped_df.reset_index(inplace=True)
             grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
+            if query_data and isinstance(query_data[0].get("count"), list):
+                for data in query_data:
+                    data["count"] = len(set(data["count"]))
         return query_data
 
     def pandas_agg_for_total(  # noqa: C901
@@ -806,12 +807,17 @@ class ReportQueryHandler(QueryHandler):
             if units and "usage" in df.columns:
                 df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            if "count" in aggs:
-                aggs["count"] = ["max"]
+            replace_count = False
+            if "instance_type" in self._report_type:
+                # get all of the unique instances from the whole df
+                instance_types = list(df["count"].apply(pd.Series).stack().unique())
+                replace_count = True
             grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
             total_query = grouped_df.to_dict("records")[0]
+            if replace_count:
+                total_query["count"] = instance_types
         else:
             total_query = query_data.aggregate(**aggregates)
         return total_query
