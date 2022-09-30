@@ -55,15 +55,14 @@ This project is developed using the Django web framework. Many configuration set
     AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
     AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-3. (Mac Only) If you are on Mac, do the following note that psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+3. (Mac Only) Install libraries for building wheels on ARM ::
 
-    brew install openssl
-    brew unlink openssl && brew link openssl --force
+    brew install openssl librdkafka
 
-4. (Mac Only) Also add the following to your ``.env``::
+4. (Mac Only) Also add the following to your ``.env`` or shell profile ::
 
-    LDFLAGS="-L/usr/local/opt/openssl/lib"
-    CPPFLAGS="-I/usr/local/opt/openssl/include"
+    LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
+    CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
 
 5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
