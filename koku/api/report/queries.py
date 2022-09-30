@@ -100,9 +100,11 @@ class ReportQueryHandler(QueryHandler):
         self._delta = parameters.delta
         self._offset = parameters.get_filter("offset", default=0)
         self.query_delta = {"value": None, "percent": None}
+        self.query_exclusions = None
         self.currency = parameters.parameters.get("currency")
 
-        self.query_filter = self._get_filter()
+        self.query_filter = self._get_filter()  # sets self.query_exclusions
+        LOG.debug(f"query_exclusions: {self.query_exclusions}")
 
     @cached_property
     def query_table_access_keys(self):
@@ -120,6 +122,11 @@ class ReportQueryHandler(QueryHandler):
         excluded_filters = {"time_scope_value", "time_scope_units", "resolution", "limit", "offset"}
         filter_keys = set(self.parameters.get("filter", {}).keys())
         return filter_keys.difference(excluded_filters)
+
+    @cached_property
+    def query_table_exclude_keys(self):
+        """Return the exclude keys specific for selecting the query table."""
+        return set(self.parameters.get("exclude", {}).keys())
 
     @property
     def report_annotations(self):
@@ -143,7 +150,11 @@ class ReportQueryHandler(QueryHandler):
             return query_table
 
         key_tuple = tuple(
-            sorted(self.query_table_filter_keys.union(self.query_table_group_by_keys, self.query_table_access_keys))
+            sorted(
+                self.query_table_filter_keys.union(
+                    self.query_table_group_by_keys, self.query_table_access_keys, self.query_table_exclude_keys
+                )
+            )
         )
         if key_tuple:
             report_group = key_tuple
@@ -200,10 +211,10 @@ class ReportQueryHandler(QueryHandler):
             query_sum[value] = 0
         return query_sum
 
-    def get_tag_filter_keys(self):
+    def get_tag_filter_keys(self, parameter_key="filter"):
         """Get tag keys from filter arguments."""
         tag_filters = []
-        filters = self.parameters.get("filter", {})
+        filters = self.parameters.get(parameter_key, {})
         for filt in filters:
             if filt in self._tag_keys:
                 tag_filters.append(filt)
@@ -230,6 +241,27 @@ class ReportQueryHandler(QueryHandler):
                 filter_list = list(set(filter_list + custom_list))
         return filter_list
 
+    def _check_for_operator_specific_filters(self, filter_collection, check_for_exclude=False):
+        """Checks for operator specific fitlers, and adds them to the filter collection"""
+        filter_collection = self._set_tag_filters(filter_collection, check_for_exclude)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "and", check_for_exclude)
+        filter_collection = self._set_operator_specified_tag_filters(filter_collection, "or", check_for_exclude)
+
+        and_composed_filters = self._set_operator_specified_filters("and", check_for_exclude)
+        or_composed_filters = self._set_operator_specified_filters("or", check_for_exclude)
+
+        composed_filters = filter_collection.compose()
+
+        if check_for_exclude:
+            # When excluding, we can get a combination of None & filters
+            if composed_filters:
+                composed_filters = composed_filters & and_composed_filters & or_composed_filters
+            else:
+                composed_filters = and_composed_filters & or_composed_filters
+        else:
+            composed_filters = composed_filters & and_composed_filters & or_composed_filters
+        return composed_filters
+
     def _get_search_filter(self, filters):  # noqa C901
         """Populate the query filter collection for search filters.
 
@@ -242,6 +274,7 @@ class ReportQueryHandler(QueryHandler):
         # define filter parameters using API query params.
         fields = self._mapper._provider_map.get("filters")
         access_filters = QueryFilterCollection()
+        exclusions = QueryFilterCollection()
         # TODO: find a better name for ou_or_operator and ou_or_filter
         ou_or_operator = self.parameters.parameters.get("ou_or_operator", False)
         if ou_or_operator:
@@ -251,39 +284,39 @@ class ReportQueryHandler(QueryHandler):
         for q_param, filt in fields.items():
             access = self.parameters.get_access(q_param, list())
             group_by = self.parameters.get_group_by(q_param, list())
+            exclude_ = self.parameters.get_exclude(q_param, list())
             filter_ = self.parameters.get_filter(q_param, list())
             list_ = list(set(group_by + filter_))  # uniquify the list
-            if list_ and not ReportQueryHandler.has_wildcard(list_):
-                if isinstance(filt, list):
-                    for _filt in filt:
+            if isinstance(filt, list):
+                for _filt in filt:
+                    if not ReportQueryHandler.has_wildcard(list_):
                         for item in list_:
                             q_filter = QueryFilter(parameter=item, **_filt)
                             filters.add(q_filter)
-                else:
-                    list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
+                    for item in exclude_:
+                        exclude_filter = QueryFilter(parameter=item, **_filt)
+                        exclusions.add(exclude_filter)
+            else:
+                list_ = self._build_custom_filter_list(q_param, filt.get("custom"), list_)
+                if not ReportQueryHandler.has_wildcard(list_):
                     for item in list_:
                         q_filter = QueryFilter(parameter=item, **filt)
                         filters.add(q_filter)
+
+                exclude_ = self._build_custom_filter_list(q_param, filt.get("custom"), exclude_)
+                for item in exclude_:
+                    exclude_filter = QueryFilter(parameter=item, **filt)
+                    exclusions.add(exclude_filter)
             if access:
                 access_filt = copy.deepcopy(filt)
                 self.set_access_filters(access, access_filt, access_filters)
 
-        # Update filters with tag filters
-        filters = self._set_tag_filters(filters)
-        filters = self._set_operator_specified_tag_filters(filters, "and")
-        filters = self._set_operator_specified_tag_filters(filters, "or")
-
-        # Update filters that specifiy and or or in the query parameter
-        and_composed_filters = self._set_operator_specified_filters("and")
-        or_composed_filters = self._set_operator_specified_filters("or")
+        self.query_exclusions = self._check_for_operator_specific_filters(exclusions, True)
+        composed_filters = self._check_for_operator_specific_filters(filters)
+        # Additional filter[] specific options to consider.
         multi_field_or_composed_filters = self._set_or_filters()
-        composed_filters = filters.compose()
-
         if ou_or_operator and ou_or_filters:
-            composed_filters = ou_or_filters & composed_filters & and_composed_filters & or_composed_filters
-        else:
-            composed_filters = composed_filters & and_composed_filters & or_composed_filters
-
+            composed_filters = ou_or_filters & composed_filters
         if access_filters:
             if ou_or_operator:
                 composed_access_filters = access_filters.compose(logical_operator="or")
@@ -294,6 +327,7 @@ class ReportQueryHandler(QueryHandler):
         if multi_field_or_composed_filters:
             composed_filters = composed_filters & multi_field_or_composed_filters
         LOG.debug(f"_get_search_filter: {composed_filters}")
+        LOG.debug(f"self.query_exclusions: {self.query_exclusions}")
         return composed_filters
 
     def _set_or_filters(self):
@@ -311,47 +345,59 @@ class ReportQueryHandler(QueryHandler):
 
         return filters.compose(logical_operator="or")
 
-    def _set_tag_filters(self, filters):
+    def _set_tag_filters(self, filters, check_for_exclude=False):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
+        if check_for_exclude:
+            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
+        else:
+            tag_filters = self.get_tag_filter_keys()
+            tag_group_by = self.get_tag_group_by_keys()
+            tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if "and:" not in tag and "or:" not in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                list_ = self.parameters.get_exclude(tag, list())
+            else:
+                group_by = self.parameters.get_group_by(tag, list())
+                filter_ = self.parameters.get_filter(tag, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, **filt)
                     filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_tag_filters(self, filters, operator):
+    def _set_operator_specified_tag_filters(self, filters, operator, check_for_exclude=False):
         """Create tag_filters."""
         tag_column = self._mapper.tag_column
-        tag_filters = self.get_tag_filter_keys()
-        tag_group_by = self.get_tag_group_by_keys()
-        tag_filters.extend(tag_group_by)
+        if check_for_exclude:
+            tag_filters = self.get_tag_filter_keys(parameter_key="exclude")
+        else:
+            tag_filters = self.get_tag_filter_keys()
+            tag_group_by = self.get_tag_group_by_keys()
+            tag_filters.extend(tag_group_by)
         tag_filters = [tag for tag in tag_filters if operator + ":" in tag]
         for tag in tag_filters:
             # Update the filter to use the label column name
             tag_db_name = tag_column + "__" + strip_tag_prefix(tag)
             filt = {"field": tag_db_name, "operation": "icontains"}
-            group_by = self.parameters.get_group_by(tag, list())
-            filter_ = self.parameters.get_filter(tag, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                list_ = self.parameters.get_exclude(tag, list())
+            else:
+                group_by = self.parameters.get_group_by(tag, list())
+                filter_ = self.parameters.get_filter(tag, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             if list_ and not ReportQueryHandler.has_wildcard(list_):
                 for item in list_:
                     q_filter = QueryFilter(parameter=item, logical_operator=operator, **filt)
                     filters.add(q_filter)
         return filters
 
-    def _set_operator_specified_filters(self, operator):
+    def _set_operator_specified_filters(self, operator, check_for_exclude=False):
         """Set any filters using AND instead of OR."""
         fields = self._mapper._provider_map.get("filters")
         filters = QueryFilterCollection()
@@ -360,8 +406,11 @@ class ReportQueryHandler(QueryHandler):
         for q_param, filt in fields.items():
             q_param = operator + ":" + q_param
             group_by = self.parameters.get_group_by(q_param, list())
-            filter_ = self.parameters.get_filter(q_param, list())
-            list_ = list(set(group_by + filter_))  # uniquify the list
+            if check_for_exclude:
+                list_ = self.parameters.get_exclude(q_param, list())
+            else:
+                filter_ = self.parameters.get_filter(q_param, list())
+                list_ = list(set(group_by + filter_))  # uniquify the list
             logical_operator = operator
             # This is a flexibilty feature allowing a user to set
             # a single and: value and still get a result instead
@@ -701,8 +750,6 @@ class ReportQueryHandler(QueryHandler):
             if "count" not in df.columns:
                 skip_columns.extend(["count", "count_units"])
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            if "count" in aggs:
-                aggs["count"] = ["max"]
 
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
@@ -710,6 +757,9 @@ class ReportQueryHandler(QueryHandler):
             grouped_df.reset_index(inplace=True)
             grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
+            if query_data and isinstance(query_data[0].get("count"), list):
+                for data in query_data:
+                    data["count"] = len(set(data["count"]))
         return query_data
 
     def pandas_agg_for_total(  # noqa: C901
@@ -757,12 +807,17 @@ class ReportQueryHandler(QueryHandler):
             if units and "usage" in df.columns:
                 df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            if "count" in aggs:
-                aggs["count"] = ["max"]
+            replace_count = False
+            if "instance_type" in self._report_type:
+                # get all of the unique instances from the whole df
+                instance_types = list(df["count"].apply(pd.Series).stack().unique())
+                replace_count = True
             grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
             total_query = grouped_df.to_dict("records")[0]
+            if replace_count:
+                total_query["count"] = instance_types
         else:
             total_query = query_data.aggregate(**aggregates)
         return total_query

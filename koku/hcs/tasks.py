@@ -24,7 +24,7 @@ from masu.external.date_accessor import DateAccessor
 LOG = logging.getLogger(__name__)
 
 HCS_QUEUE = "hcs"
-HCS_EXCEPTED_PROVIDERS = (
+HCS_ACCEPTED_PROVIDERS = (
     Provider.PROVIDER_AWS,
     Provider.PROVIDER_AWS_LOCAL,
     Provider.PROVIDER_AZURE,
@@ -50,7 +50,9 @@ def enable_hcs_processing(schema_name: str) -> bool:  # pragma: no cover
     schema_name = check_schema_name(schema_name)
     context = {"schema": schema_name}
     LOG.info(f"enable_hcs_processing context: {context}")
-    return bool(UNLEASH_CLIENT.is_enabled("hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG)
+    return bool(
+        UNLEASH_CLIENT.is_enabled("cost-management.backend.hcs-data-processor", context) or settings.ENABLE_HCS_DEBUG
+    )
 
 
 def get_start_and_end_from_manifest_id(manifest_id):
@@ -185,7 +187,7 @@ def collect_hcs_report_data(
     if tracing_id is None:
         tracing_id = str(uuid.uuid4())
 
-    if enable_hcs_processing(schema_name) and provider_type in HCS_EXCEPTED_PROVIDERS:
+    if enable_hcs_processing(schema_name) and provider_type in HCS_ACCEPTED_PROVIDERS:
         stmt = (
             f"[collect_hcs_report_data]: "
             f"schema_name: {schema_name}, "
@@ -275,7 +277,7 @@ def collect_hcs_report_finalization(  # noqa: C901
         LOG.debug(log_json(tracing_id, f"provided provider_type: {provider_type}"))
         providers = get_providers_by_type(provider_type)
     else:
-        providers = get_all_excepted_providers()
+        providers = get_all_accepted_providers()
 
     if providers is None:
         return
@@ -305,8 +307,8 @@ def collect_hcs_report_finalization(  # noqa: C901
         ).apply_async()
 
 
-def get_all_excepted_providers():
-    providers = Provider.objects.filter(type__in=HCS_EXCEPTED_PROVIDERS).all()
+def get_all_accepted_providers():
+    providers = Provider.objects.filter(type__in=HCS_ACCEPTED_PROVIDERS, active=True).all()
     if not providers:
         LOG.warning("no valid providers found")
         return
@@ -315,7 +317,7 @@ def get_all_excepted_providers():
 
 
 def get_providers_by_type(provider_type):
-    providers = Provider.objects.filter(type=provider_type, type__in=HCS_EXCEPTED_PROVIDERS).all()
+    providers = Provider.objects.filter(type=provider_type, type__in=HCS_ACCEPTED_PROVIDERS, active=True).all()
     if not providers:
         LOG.warning(f"no valid providers found for provider_type: {provider_type}")
         return
@@ -324,7 +326,7 @@ def get_providers_by_type(provider_type):
 
 
 def get_providers_by_uuid(provider_uuid):
-    providers = Provider.objects.filter(uuid=provider_uuid, type__in=HCS_EXCEPTED_PROVIDERS).all()
+    providers = Provider.objects.filter(uuid=provider_uuid, type__in=HCS_ACCEPTED_PROVIDERS).all()
     if not providers:
         LOG.warning(f"provider_uuid: {provider_uuid} does not exist")
         return
@@ -334,7 +336,7 @@ def get_providers_by_uuid(provider_uuid):
 
 def get_providers_by_schema(schema_name, provider_type=None):
     if provider_type is None:
-        providers = Provider.objects.filter(customer__schema_name=schema_name, type__in=HCS_EXCEPTED_PROVIDERS).all()
+        providers = Provider.objects.filter(customer__schema_name=schema_name, type__in=HCS_ACCEPTED_PROVIDERS).all()
     else:
         providers = Provider.objects.filter(customer__schema_name=schema_name, type=provider_type).all()
 

@@ -22,9 +22,12 @@ from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 from api.query_filter import QueryFilter
 from api.report.gcp.query_handler import GCPReportQueryHandler
+from api.report.gcp.serializers import GCPExcludeSerializer
 from api.report.gcp.view import GCPCostView
 from api.report.gcp.view import GCPInstanceTypeView
 from api.report.gcp.view import GCPStorageView
+from api.tags.gcp.queries import GCPTagQueryHandler
+from api.tags.gcp.view import GCPTagView
 from api.utils import DateHelper
 from api.utils import materialized_view_month_start
 from reporting.models import GCPComputeSummaryByAccountP
@@ -1561,6 +1564,122 @@ class GCPReportQueryHandlerTest(IamTestCase):
         query_output = handler.execute_query()
         data = query_output.get("data")
         self.assertIsNotNone(data)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_functionality(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opts = GCPExcludeSerializer._opfields
+        for exclude_opt in exclude_opts:
+            for view in [GCPCostView, GCPStorageView, GCPInstanceTypeView]:
+                with self.subTest(exclude_opt):
+                    overall_url = f"?group_by[{exclude_opt}]=*"
+                    query_params = self.mocked_query_params(overall_url, view)
+                    handler = GCPReportQueryHandler(query_params)
+                    overall_output = handler.execute_query()
+                    overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    opt_dict = overall_output.get("data", [{}])[0]
+                    opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
+                    opt_value = opt_dict.get(exclude_opt)
+                    # Grab filtered value
+                    filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
+                    query_params = self.mocked_query_params(filtered_url, view)
+                    handler = GCPReportQueryHandler(query_params)
+                    handler.execute_query()
+                    filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    expected_total = overall_total - filtered_total
+                    # Test exclude
+                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
+                    query_params = self.mocked_query_params(exclude_url, view)
+                    handler = GCPReportQueryHandler(query_params)
+                    self.assertIsNotNone(handler.query_exclusions)
+                    excluded_output = handler.execute_query()
+                    excluded_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+                    excluded_data = excluded_output.get("data")
+                    # Check to make sure the value is not in the return
+                    for date_dict in excluded_data:
+                        grouping_list = date_dict.get(f"{exclude_opt}s", [])
+                        self.assertIsNotNone(grouping_list)
+                        for group_dict in grouping_list:
+                            self.assertNotEqual(opt_value, group_dict.get(exclude_opt))
+                    self.assertAlmostEqual(expected_total, excluded_total, 6)
+                    self.assertNotEqual(overall_total, excluded_total)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_exclude_tags(self, _):
+        """Test that the exclude works for our tags."""
+        url = "?"
+        query_params = self.mocked_query_params(url, GCPTagView)
+        handler = GCPTagQueryHandler(query_params)
+        tags = handler.get_tags()
+        tag = tags[0]
+        tag_key = tag.get("key")
+        base_url = f"?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=daily&group_by[tag:{tag_key}]=*"  # noqa: E501
+        query_params = self.mocked_query_params(base_url, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        data = handler.execute_query().get("data")
+        exclude_one = None
+        exclude_two = None
+        for date_dict in data:
+            if exclude_one and exclude_two:
+                continue
+            grouping_list = date_dict.get(f"{tag_key}s", [])
+            for group_dict in grouping_list:
+                if not exclude_one:
+                    exclude_one = group_dict.get(tag_key)
+                elif not exclude_two:
+                    exclude_two = group_dict.get(tag_key)
+        overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        # single_tag_exclude
+        single_exclude = base_url + f"&exclude[tag:{tag_key}]={exclude_one}"
+        query_params = self.mocked_query_params(single_exclude, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total1 = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total1, overall_total)
+        double_exclude = single_exclude + f"&exclude[tag:{tag_key}]={exclude_two}"
+        query_params = self.mocked_query_params(double_exclude, GCPCostView)
+        handler = GCPReportQueryHandler(query_params)
+        handler.execute_query()
+        exclude_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
+        self.assertLess(exclude_total, exclude_total1)
+
+    @patch("api.query_params.enable_negative_filtering", return_value=True)
+    def test_multi_exclude_functionality(self, _):
+        """Test that the exclude feature works for all options."""
+        exclude_opts = GCPExcludeSerializer._opfields
+        for ex_opt in exclude_opts:
+            base_url = f"?group_by[{ex_opt}]=*&filter[time_scope_units]=month&filter[resolution]=monthly&filter[time_scope_value]=-1"  # noqa: E501
+            for view in [GCPCostView, GCPStorageView, GCPInstanceTypeView]:
+                query_params = self.mocked_query_params(base_url, view)
+                handler = GCPReportQueryHandler(query_params)
+                overall_output = handler.execute_query()
+                opt_dict = overall_output.get("data", [{}])[0]
+                opt_list = opt_dict.get(f"{ex_opt}s")
+                exclude_one = None
+                exclude_two = None
+                for exclude_option in opt_list:
+                    if "no-" not in exclude_option.get(ex_opt):
+                        if not exclude_one:
+                            exclude_one = exclude_option.get(ex_opt)
+                        elif not exclude_two:
+                            exclude_two = exclude_option.get(ex_opt)
+                        else:
+                            continue
+                if not exclude_one or not exclude_two:
+                    continue
+                url = base_url + f"&exclude[or:{ex_opt}]={exclude_one}&exclude[or:{ex_opt}]={exclude_two}"
+                with self.subTest(url=url, view=view, ex_opt=ex_opt):
+                    query_params = self.mocked_query_params(url, view)
+                    handler = GCPReportQueryHandler(query_params)
+                    self.assertIsNotNone(handler.query_exclusions)
+                    excluded_output = handler.execute_query()
+                    excluded_data = excluded_output.get("data")
+                    self.assertIsNotNone(excluded_data)
+                    for date_dict in excluded_data:
+                        grouping_list = date_dict.get(f"{ex_opt}s", [])
+                        self.assertIsNotNone(grouping_list)
+                        for group_dict in grouping_list:
+                            self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
 
 
 class GCPReportQueryTestCurrency(IamTestCase):

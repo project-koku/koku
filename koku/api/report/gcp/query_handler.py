@@ -170,6 +170,8 @@ class GCPReportQueryHandler(ReportQueryHandler):
 
         with tenant_context(self.tenant):
             query = self.query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             og_query_data = query.annotate(**self.annotations)
             query_group_by = ["date"] + self._get_group_by()
             initial_group_by = query_group_by + [self._mapper.cost_units_key]
@@ -257,13 +259,18 @@ class GCPReportQueryHandler(ReportQueryHandler):
         query_group_by = ["date"] + self._get_group_by()
         initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*initial_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         query_data = query_data.annotate(**aggregates)
+        remove_columns = ["usage"]
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
-        total_query = self.pandas_agg_for_total(query_data, skip_columns, self.report_annotations, query, units=units)
+        total_query = self.pandas_agg_for_total(
+            query_data, skip_columns, self.report_annotations, query, remove_columns, units=units
+        )
 
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value

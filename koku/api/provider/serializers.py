@@ -349,10 +349,9 @@ class ProviderSerializer(serializers.ModelSerializer):
         # We can re-use a billing source or a auth, but not the same combination.
         dup_queryset = Provider.objects.filter(authentication=auth).filter(billing_source=bill)
         if dup_queryset.count() != 0:
-            conflict_provider = dup_queryset.first()
             message = (
-                f"Cost management does not allow duplicate accounts. "
-                f"{conflict_provider.name} already exists. Edit source settings to configure a new source."
+                "Cost management does not allow duplicate accounts. "
+                "A source already exists with these details. Edit source settings to configure a new source."
             )
             LOG.warn(message)
             raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))
@@ -402,10 +401,9 @@ class ProviderSerializer(serializers.ModelSerializer):
             if instance.billing_source != bill or instance.authentication != auth:
                 dup_queryset = Provider.objects.filter(authentication=auth).filter(billing_source=bill)
                 if dup_queryset.count() != 0:
-                    conflict_provder = dup_queryset.first()
                     message = (
-                        f"Cost management does not allow duplicate accounts. "
-                        f"{conflict_provder.name} already exists. Edit source settings to configure a new source."
+                        "Cost management does not allow duplicate accounts. "
+                        "A source already exists with these details. Edit source settings to configure a new source."
                     )
                     LOG.warn(message)
                     raise serializers.ValidationError(error_obj(ProviderErrors.DUPLICATE_AUTH, message))

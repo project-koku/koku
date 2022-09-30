@@ -563,6 +563,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             LOG.debug(f"Using query table: {query_table}")
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             og_query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
@@ -669,6 +671,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         query_group_by = ["date"] + self._get_group_by()
         initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*initial_group_by)
 
