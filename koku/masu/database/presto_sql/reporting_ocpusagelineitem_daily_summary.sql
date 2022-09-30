@@ -146,8 +146,9 @@ cte_ocp_cluster_capacity AS (
         sum(nc.node_capacity_memory_byte_seconds) as cluster_capacity_memory_byte_seconds
     FROM cte_ocp_node_capacity AS nc
     GROUP BY nc.usage_start
-),
+)
 {% if storage_exists %}
+,
 -- Determine which node a PVC is running on
 cte_volume_nodes AS (
     SELECT date(sli.interval_start) as usage_start,
