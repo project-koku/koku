@@ -200,6 +200,9 @@ load-aws-org-unit-tree:
 		echo "This make target requires python3." ; \
 	fi
 
+run-api-test:
+	$(PYTHON) $(SCRIPTDIR)/report_api_test.py || echo "WARNING: run-api-test failed unexpectedly!"
+
 collect-static:
 	$(DJANGO_MANAGE) collectstatic --no-input
 
@@ -303,7 +306,8 @@ kustomize:
 ifeq (, $(shell which kustomize))
 	@{ \
 	set -e ;\
-	bash <$(curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh") $(TESTINGDIR);\
+	curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash;\
+	mv kustomize $(TESTINGDIR);\
 	}
 KUSTOMIZE=$(TESTINGDIR)/kustomize
 else

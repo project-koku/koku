@@ -28,5 +28,63 @@ def enable_trino_processing(source_uuid, source_type, account):  # noqa
         or source_uuid in settings.ENABLE_TRINO_SOURCES
         or source_type in settings.ENABLE_TRINO_SOURCE_TYPE
         or account in settings.ENABLE_TRINO_ACCOUNTS
-        or UNLEASH_CLIENT.is_enabled("cost-trino-processor", context)
+        or UNLEASH_CLIENT.is_enabled("cost-management.backend.cost-trino-processor", context)
     )
+
+
+def enable_purge_trino_files(account):
+    """Helper to determine if account is enabled for deleting trino files."""
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"enable_purge_trino_files context: {context}")
+    return bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.enable-purge-turnpike", context))
+
+
+def disable_cloud_source_processing(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Processing UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-cloud-source-processing", context))
+    LOG.info(f"    Processing {'disabled' if res else 'enabled'} {account}")
+
+    return res
+
+
+def disable_summary_processing(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-summary-processing", context))
+    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+
+    return res
+
+
+def disable_ocp_on_cloud_summary(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-ocp-on-cloud-summary", context))
+    LOG.info(f"    Summary {'disabled' if res else 'enabled'} {account}")
+
+    return res
+
+
+def disable_gcp_resource_matching(account):
+    if account and not account.startswith("acct") and not account.startswith("org"):
+        account = f"acct{account}"
+
+    context = {"schema": account}
+    LOG.info(f"Summary UNLEASH check: {context}")
+    res = bool(UNLEASH_CLIENT.is_enabled("cost-management.backend.disable-gcp-resource-matching", context))
+    LOG.info(f"    GCP resource matching {'disabled' if res else 'enabled'} {account}")
+
+    return res

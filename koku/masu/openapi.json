@@ -67,6 +67,10 @@
       "description": "Returns a list of celery queues with their lengths."
     },
     {
+      "name": "Clear Celery Queue",
+      "description": "Returns number of tasks cleared from the queue"
+    },
+    {
       "name": "Update exchange rates",
       "description": "Updates and returns the list of exchange rates"
     },
@@ -471,6 +475,17 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "invoice_month",
+            "in": "query",
+            "description": "Whether to summarize OCP on Cloud as well.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "201912"
             }
           }
         ],
@@ -895,7 +910,19 @@
         "summary": "check and send notifications",
         "operationId": "getNotifications",
         "description": "Return notification file async task ID.",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The celery task ID of the notification task",
@@ -911,20 +938,7 @@
         "tags": [
           "Notification"
         ]
-      },
-      "parameters": [
-        {
-          "name": "provider_uuid",
-          "in": "query",
-          "description": "The provider UUID",
-          "required": false,
-          "schema": {
-            "type": "string",
-            "format": "uuid",
-            "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
-          }
-        }
-      ]
+      }
     },
     "/crawl_account_hierarchy/": {
       "get": {
@@ -1049,6 +1063,38 @@
         ]
       }
     },
+    "/clear_celery_queues/":{
+      "get":{
+        "summary": "Returns the number of tasks cleared the celery queues.",
+        "operationId":"clearCeleryQueues",
+        "description": "Returns the number of tasks cleared the celery queues.",
+        "parameters":[
+          {
+            "name": "clear_all",
+            "description":"whether to clear all celery queues.",
+            "in":"query",
+            "schema":{
+              "type":"boolean"
+            }
+          }
+        ],
+        "responses":{
+          "200":{
+            "description": "Returns the number of tasks cleared the celery queue.",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/clearCeleryQueues"
+                }
+              }
+            }
+          }
+        },
+        "tags":[
+          "Clearing Celery Tasks"
+        ]
+      }
+    },
     "/db-performance/db-version/": {
         "get": {
           "summary": "Returns a table showing the PostgreSQL database software version.",
@@ -1094,9 +1140,20 @@
           "description": "Returns a HTML document showing query statement statistics if the pg_stat_statements extension has been installed.",
           "parameters": [
             {
+              "name": "dbname",
+              "in": "query",
+              "description": "Specify a database in the cluster. Default is the application DB",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "minlength": 4,
+                "maxlength": 100
+              }
+            },
+            {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set",
+              "description": "Limit of the returned result set. Default is 100",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1136,10 +1193,21 @@
           "operationId": "dbPerformanceStatActivity",
           "description": "Returns a HTML document showing current connection activity.",
           "parameters": [
-            {
+              {
+                "name": "dbname",
+                "in": "query",
+                "description": "Specify a database in the cluster. Default is the application DB",
+                "required": false,
+                "schema": {
+                  "type": "string",
+                  "minlength": 4,
+                  "maxlength": 100
+                }
+              },
+              {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set. The default is 500.",
+              "description": "Limit of the returned result set. The default is 100.",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1180,30 +1248,8 @@
               "schema": {
                 "type": "array",
                 "items": {
-                    "type": "string",
-                    "minlength": 4,
-                    "maxlength": 100
+                    "type": "string"
                 }
-              }
-            },
-            {
-              "name": "include_self",
-              "in": "query",
-              "description": "If true, include the pid of the connection running the DB Performance queries",
-              "required": false,
-              "schema": {
-                "type": "boolean"
-              }
-            },
-            {
-              "name": "records_per_db",
-              "in": "query",
-              "description": "If there are multiple databases hosted by the engine, then how many records per db to include up to the limit. The default is 100.",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "format": "int32",
-                "minimum": 1
               }
             }
           ],
@@ -1228,9 +1274,20 @@
           "description": "Returns a HTML document showing any blocking locks and processes that are blocked by them.",
           "parameters": [
             {
+              "name": "dbname",
+              "in": "query",
+              "description": "Specify a database in the cluster. Default is the application DB",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "minlength": 4,
+                "maxlength": 100
+              }
+            },
+            {
               "name": "limit",
               "in": "query",
-              "description": "Limit of the returned result set",
+              "description": "Limit of the returned result set. Default is 100",
               "required": false,
               "schema": {
                 "type": "integer",
@@ -1264,6 +1321,60 @@
           ]
         }
       },
+      "/db-performance/schema-sizes/": {
+        "get": {
+          "summary": "Return a table listing dtabase schemata and the assiciated storage size.",
+          "operationId": "dbPerformanceSchemaSize",
+          "description": "Returns a HTML document showing schema sizes.",
+          "parameters": [
+            {
+              "name": "limit",
+              "in": "query",
+              "description": "Limit of the returned result set. The default is 500.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "offset",
+              "in": "query",
+              "description": "Offset into the query result set before returning records. The default is no offset.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 1
+              }
+            },
+            {
+              "name": "top",
+              "in": "query",
+              "description": "Also include top n tables by storage size (if > 0). Default is zero",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "format": "int32",
+                "minimum": 0
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Returns a HTML document showing current connection activity.",
+              "content": {
+                "text/html": {}
+            }
+          }
+          },
+          "tags": [
+            "db-performance",
+            "stat-activity"
+          ]
+        }
+      },
       "/db-performance/explain-query/": {
         "get": {
           "summary": "Returns a HTML document interface to submit a query for the database to explain.",
@@ -1290,7 +1401,7 @@
           "parameters": [
             {
               "name": "sql_statement",
-              "in": "body",
+              "in": "query",
               "description": "The text of the SQL statement to explain.",
               "required": true,
               "schema": {
@@ -1360,6 +1471,50 @@
         },
         "tags": [
           "GCP Invoice Monthly Cost"
+        ]
+      }
+    },
+    "/bigquery_cost/": {
+      "get": {
+        "summary": "Returns dictionary with cost mappings for continuity checks",
+        "operationId": "BigQueryCost",
+        "description": "Returns a dictionary with cost mappings for continuity checks",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "daily",
+            "in": "query",
+            "description": "boolean flag to return daily breakdown",
+            "required": false,
+            "schema": {
+
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gcpInvoiceMonthlyCost"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Bigquery Cost"
         ]
       }
     },
@@ -1680,6 +1835,193 @@
           "Trino"
         ]
       }
+    },
+    "/trino/api/": {
+      "get": {
+        "summary": "Returns JSON with query output.",
+        "operationId": "TrinoUI",
+        "description": "Returns JSON with query output.",
+        "parameters": [
+          {
+            "name": "api_service",
+            "in": "query",
+            "description":"name of the trino ui api to call",
+            "required": true,
+            "schema":{
+              "type":"string",
+              "enum":["query", "stats", "cluster"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON with query result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrinoUiGetResponse"
+                }
+              }
+            }
+          },
+          "400":{
+            "description":"Invalid trino-ui api service",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/TrinoUiGetErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Trino UI"
+        ]
+      }
+    },
+    "/purge_trino_files/": {
+      "get": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFiles",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "ignore_manifest",
+            "in": "query",
+            "description": "will not delete manifests if param is present",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "description": "start of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          },
+          {
+            "name": "end_date",
+            "in": "query",
+            "description": "end of when you want the files purged",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      },
+      "delete": {
+        "summary": "Returns dictionary with task ids as keys and paths as values",
+        "operationId": "purgeTrinoFilesDelete",
+        "description": "Returns a mapping of task ids to paths",
+        "parameters": [
+          {
+            "name": "provider_uuid",
+            "in": "query",
+            "description": "The provider UUID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "83ee048e-3c1d-43ef-b945-108225ae52f4"
+            }
+          },
+          {
+            "name": "schema",
+            "in": "query",
+            "description": "schema",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "string",
+              "example": "acct10001"
+            }
+          },
+          {
+            "name": "bill_date",
+            "in": "query",
+            "description": "The month's data to download",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2019-01-01"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a dictionary with cost mappings for continuity checks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/purgeTrinoFiles"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Purge Trino Files"
+        ]
+      }
     }
   },
   "components": {
@@ -1807,6 +2149,26 @@
             "column_name": {
               "type": "string"
             }
+          }
+        }
+      },
+      "TrinoUiGetResponse":{
+        "type": "object",
+        "properties":{
+          "api_service_name":{
+            "type": "string"
+          },
+          "trino_response":{
+            "type": "object"
+          }
+        }
+      },
+      "TrinoUiGetErrorResponse":{
+        "type":"object",
+        "properties":{
+          "Error":{
+            "type":"string",
+            "example":"query"
           }
         }
       },
@@ -1953,6 +2315,15 @@
           }
         }
       },
+      "clearCeleryQueues": {
+        "type": "object",
+        "properties": {
+          "purged_tasks": {
+            "type": "integer",
+            "example": 8
+          }
+        }
+      },
       "gcpInvoiceMonthlyCost": {
         "type": "object",
         "properties": {
@@ -1966,6 +2337,34 @@
               "current": {
                 "type": "number",
                 "example": 204.51
+              }
+            }
+          }
+        }
+      },
+      "purgeTrinoFiles": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "1234-3234-2342-2343": {
+                "type": "string",
+                "example": "/path/in/s3"
+              }
+            }
+          }
+        }
+      },
+      "NotificationGetResponse": {
+        "type": "object",
+        "properties": {
+          "monthly_invoice_cost_mapping": {
+            "type": "object",
+            "properties": {
+              "1234-3234-2342-2343": {
+                "type": "string",
+                "example": "/path/in/s3"
               }
             }
           }

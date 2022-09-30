@@ -236,8 +236,8 @@ class AWSReportQueryHandler(ReportQueryHandler):
             acc_group_by_key = "account"
             acc_group_by_data = group_by_param.get(acc_group_by_key)
             org_unit_list = filters.get("org_unit_id")
-            self.parameters.parameters["access"]["aws.organizational_unit"] = org_unit_list
-            self.parameters.parameters["access"]["aws.account"] = acc_group_by_data
+            self.parameters.parameters["access"]["org_unit_id"] = org_unit_list
+            self.parameters.parameters["access"]["account"] = acc_group_by_data
 
             # add a key to parameters used in query filter composition in queries.py
             self.parameters.set("ou_or_operator", True)
@@ -563,6 +563,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             LOG.debug(f"Using query table: {query_table}")
             tag_results = None
             query = query_table.objects.filter(self.query_filter)
+            if self.query_exclusions:
+                query = query.exclude(self.query_exclusions)
             query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
@@ -663,6 +665,8 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
+        if self.query_exclusions:
+            query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*query_group_by)
 

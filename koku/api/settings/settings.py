@@ -155,8 +155,7 @@ class Settings:
         )
         doc_link = dict(
             href=generate_doc_link(
-                "html-single/managing_cost_data_using_tagging/index"
-                + "#assembly-configuring-tags-and-labels-in-cost-management"
+                "html/managing_cost_data_using_tagging/assembly-configuring-tags-and-labels-in-cost-management"
             )
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
