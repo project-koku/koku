@@ -54,10 +54,20 @@ RUN make -j4
 RUN make install
 
 
-FROM base AS final
+# Only copy compiled libraries for arm64
+FROM --platform=arm64 base AS stage-amd64
+FROM --platform=arm64 base AS stage-arm64
+COPY --from=build-arm64 /opt/librdkafka /opt/librdkafka
+
+ENV CPPFLAGS -I/opt/librdkafka/include
+ENV LDFLAGS -L/opt/librdkafka/lib
+ENV LD_LIBRARY_PATH /opt/librdkafka/lib
+
+ARG TARGETARCH
+
+FROM stage-${TARGETARCH} AS final
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
-COPY --from=build-arm64 /opt/librdkafka /opt/librdkafka
 
 # Create a Python virtual environment for use by any application to avoid
 # potential conflicts with Python packages preinstalled in the main Python
@@ -76,8 +86,6 @@ COPY Pipfile .
 COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
-    CPPFLAGS="-I/opt/librdkafka/include" \
-    LDFLAGS="-L/opt/librdkafka/lib" \
     pipenv install --deploy && \
     # delete the pipenv cache
     pipenv --clear
