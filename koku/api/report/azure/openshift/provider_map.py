@@ -5,7 +5,6 @@
 """Provider Mapper for OCP on Azure Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
-from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
@@ -426,7 +425,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -457,7 +456,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
@@ -523,7 +522,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -558,7 +557,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
+                            "count": ArrayAgg("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
