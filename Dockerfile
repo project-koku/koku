@@ -54,15 +54,14 @@ RUN python3.9 -m venv /pipenv-venv && \
     pip install --upgrade pip && \
     pip install pipenv
 
-COPY Pipfile .
-
-
 FROM --platform=linux/amd64 build as stage-amd64
-# The lock file is only used in the amd image because of the numpy markers
-COPY Pipfile.lock .
-
 FROM --platform=linux/arm64 build as stage-arm64
-RUN microdnf install -y --setopt=tsflags=nodocs gcc-c++ cmake  git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel; \
+# install librdkafka from source
+# this step is necessary because confluent-kafka-python does not install correctly for arm architecture.
+# https://github.com/confluentinc/confluent-kafka-python/issues/1190
+RUN INSTALL_PKGS="gcc-c++ cmake git tar gzip wget openssl-devel which cyrus-sasl patch zlib-devel" && \
+    microdnf -y --setopt=tsflags=nodocs --setopt=install_weak_deps=0 install $INSTALL_PKGS && \
+    rpm -V $INSTALL_PKGS && \
     git clone https://github.com/edenhill/librdkafka.git && \
     cd librdkafka && \
     git checkout tags/v1.9.2 && \
@@ -76,8 +75,9 @@ ARG TARGETARCH
 # Select final stage based on TARGETARCH ARG
 FROM stage-${TARGETARCH} as final
 
-
 # install dependencies
+COPY Pipfile .
+COPY Pipfile.lock .
 RUN \
     # install the dependencies into the working dir (i.e. ${APP_ROOT}/.venv)
     pipenv install --deploy && \
