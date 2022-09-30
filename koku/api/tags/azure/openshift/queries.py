@@ -27,7 +27,9 @@ class OCPAzureTagQueryHandler(AzureTagQueryHandler, OCPTagQueryHandler):
         {
             "db_table": OCPAzureTagsSummary,
             "db_column_period": "cost_entry_bill__billing_period",
-            "annotations": {"enabled": Exists(AzureEnabledTagKeys.objects.filter(key=OuterRef("key")))},
+            "annotations": {
+                "enabled": Exists(AzureEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True))
+            },
         },
         {
             "db_table": OCPAzureTagsSummary,
