@@ -190,7 +190,12 @@ class AzureCostEntryLineItemDailySummary(models.Model):
         """Meta for AzureCostEntryLineItemDailySummary."""
 
         db_table = "reporting_azurecostentrylineitem_daily_summary"
-        indexes = [models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start")]
+        indexes = [
+            models.Index(fields=["usage_start"], name="ix_azurecstentrydlysumm_start"),
+            models.Index(fields=["resource_location"], name="ix_azurecstentrydlysumm_svc"),
+            models.Index(fields=["subscription_guid"], name="ix_azurecstentrydlysumm_sub_id"),
+            models.Index(fields=["instance_type"], name="ix_azurecstentrydlysumm_instyp"),
+        ]
         # A GIN functional index named "ix_azure_costentrydlysumm_service_name" was created manually
         # via RunSQL migration operation
         # Function: (upper(service_name) gin_trgm_ops)

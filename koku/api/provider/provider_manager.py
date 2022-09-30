@@ -10,6 +10,7 @@ from functools import partial
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -111,7 +112,6 @@ class ProviderManager:
         days_to_check = [today - timedelta(days=1), today, today + timedelta(days=1)]
         return CostUsageReportManifest.objects.filter(
             provider=self._uuid,
-            billing_period_start_datetime=self.date_helper.this_month_start,
             manifest_creation_datetime__date__in=days_to_check,
             manifest_completed_datetime__isnull=True,
         ).exists()
@@ -253,7 +253,6 @@ class ProviderManager:
             err_msg = f"Provider {self._uuid} must be updated via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
-    @transaction.atomic
     def remove(self, request=None, user=None, from_sources=False, retry_count=None):
         """Remove the provider with current_user."""
         current_user = user
@@ -268,8 +267,18 @@ class ProviderManager:
                 raise ProviderProcessingError(err_msg)
 
         if self.is_removable_by_user(current_user):
-            self.model.delete()
-            LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
+            # The model delete uses transaction.atomic calls
+            try:
+                self.model.delete()
+                LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
+            except IntegrityError as err:
+                # One more place to retryfor when we delete smoke test sources while they have
+                # data processing
+                if retry_count is not None and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
+                    err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
+                    raise ProviderProcessingError(err_msg)
+                else:
+                    raise err
         else:
             err_msg = "User {} does not have permission to delete provider {}".format(
                 current_user.username, str(self.model)

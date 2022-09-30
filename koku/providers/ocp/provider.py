@@ -15,6 +15,7 @@ from api.common import error_obj
 from api.provider.models import Provider
 from reporting.provider.aws.openshift.models import OCPAWSCostLineItemDailySummaryP
 from reporting.provider.azure.openshift.models import OCPAzureCostLineItemDailySummaryP
+from reporting.provider.gcp.openshift.models import OCPGCPCostLineItemDailySummaryP
 
 LOG = logging.getLogger(__name__)
 
@@ -93,6 +94,13 @@ class OCPProvider(ProviderInterface):
             clusters = list(objects.distinct())
         return clusters
 
+    def _gcp_clusters(self, tenant):
+        """Return a list of OCP clusters running on Azure."""
+        with tenant_context(tenant):
+            objects = OCPGCPCostLineItemDailySummaryP.objects.values_list("cluster_id", flat=True)
+            clusters = list(objects.distinct())
+        return clusters
+
     def infra_key_list_implementation(self, infrastructure_type, schema_name):
         """Return a list of cluster ids on the given infrastructure type."""
         clusters = []
@@ -100,4 +108,6 @@ class OCPProvider(ProviderInterface):
             clusters = self._aws_clusters(schema_name)
         if infrastructure_type == Provider.PROVIDER_AZURE:
             clusters = self._azure_clusters(schema_name)
+        if infrastructure_type == Provider.PROVIDER_GCP:
+            clusters = self._gcp_clusters(schema_name)
         return clusters

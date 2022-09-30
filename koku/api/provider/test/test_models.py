@@ -77,25 +77,20 @@ class ProviderModelTest(MasuTestCase):
     """Test case with pre-loaded data for the Provider model."""
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
-    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_single_provider_instance(self, mock_delete_archived_data, mock_commit):
+    def test_delete_single_provider_instance(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon instance delete."""
-        mock_commit.side_effect = mock_delete_archived_data.delay(
-            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        )
         with tenant_context(self.tenant):
-            self.aws_provider.delete()
-        mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                self.aws_provider.delete()
+        mock_delete_archived_data.delay.assert_called_with(self.schema, self.aws_provider.type, self.aws_provider.uuid)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
-    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data, mock_commit):
+    def test_delete_single_provider_with_cost_model(self, mock_delete_archived_data):
         """Assert the cost models are deleted upon provider instance delete."""
-        mock_commit.side_effect = mock_delete_archived_data.delay(
-            self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid
-        )
         provider_uuid = self.aws_provider.uuid
         data = {
             "name": "Test Cost Model",
@@ -110,16 +105,22 @@ class ProviderModelTest(MasuTestCase):
                 manager.create(**data)
             cost_model_map = CostModelMap.objects.filter(provider_uuid=provider_uuid)
             self.assertIsNotNone(cost_model_map)
-            self.aws_provider.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                self.aws_provider.delete()
             self.assertEqual(0, CostModelMap.objects.filter(provider_uuid=provider_uuid).count())
-        mock_delete_archived_data.delay.assert_called_with(self.schema, Provider.PROVIDER_AWS, self.aws_provider_uuid)
+        mock_delete_archived_data.delay.assert_called_with(self.schema, self.aws_provider.type, self.aws_provider.uuid)
 
     @patch("masu.celery.tasks.delete_archived_data")
     def test_delete_single_provider_no_archiving(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is not called if archiving is not enabled."""
         with patch("api.provider.provider_manager.settings", ENABLE_S3_ARCHIVING=False):
             with tenant_context(self.tenant):
-                self.aws_provider.delete()
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
+                with self.captureOnCommitCallbacks(execute=True):
+                    self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_not_called()
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
@@ -130,7 +131,10 @@ class ProviderModelTest(MasuTestCase):
         logging.disable(logging.NOTSET)
         with tenant_context(self.tenant), self.assertLogs("api.provider.provider_manager", "WARNING") as captured_logs:
             self.aws_provider.customer = None
-            self.aws_provider.delete()
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.captureOnCommitCallbacks(execute=True):
+                self.aws_provider.delete()
         mock_delete_archived_data.delay.assert_not_called()
         self.assertIn("has no Customer", captured_logs.output[0])
 
@@ -138,16 +142,17 @@ class ProviderModelTest(MasuTestCase):
         logging.disable(logging.CRITICAL)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
-    @patch("api.provider.provider_manager.transaction.on_commit")
     @patch("masu.celery.tasks.delete_archived_data")
-    def test_delete_all_providers_from_queryset(self, mock_delete_archived_data, mock_commit):
+    def test_delete_all_providers_from_queryset(self, mock_delete_archived_data):
         """Assert the delete_archived_data task is called upon queryset delete."""
         mock_delete_archived_data.reset_mock()
         with tenant_context(self.tenant):
             providers = Provider.objects.all()
             for provider in providers:
-                mock_commit.side_effect = mock_delete_archived_data.delay(self.schema, provider.type, provider.uuid)
-                provider.delete()
+                # We use this context manager to get on_commit to fire inside
+                # the unit test transaction that is not committed
+                with self.captureOnCommitCallbacks(execute=True):
+                    provider.delete()
         expected_calls = [
             call(self.schema, Provider.PROVIDER_AWS_LOCAL, UUID(self.aws_provider_uuid)),
             call(self.schema, Provider.PROVIDER_OCP, UUID(self.ocp_provider_uuid)),
