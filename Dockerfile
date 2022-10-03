@@ -1,9 +1,5 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest AS base
 
-# PIPENV_DEV is set to true in the docker-compose allowing
-# local builds to install the dev dependencies
-ARG PIPENV_DEV=False
-
 USER root
 
 ENV PYTHON_VERSION=3.9 \
@@ -66,6 +62,8 @@ FROM --platform=amd64 base AS stage-amd64
 ARG TARGETARCH
 
 FROM stage-${TARGETARCH} AS final
+# PIPENV_DEV is set to true in the docker-compose allowing
+# local builds to install the dev dependencies
 ARG PIPENV_DEV=False
 ARG USER_ID=1000
 
