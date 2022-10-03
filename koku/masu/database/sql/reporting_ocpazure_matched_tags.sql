@@ -4,6 +4,7 @@ WITH cte_unnested_azure_tags AS (
     FROM {{schema | sqlsafe}}.reporting_azuretags_values AS ts
     JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys as enabled_tags
         ON lower(enabled_tags.key) = lower(ts.key)
+       AND enabled_tags.enabled = true
 ),
 cte_unnested_ocp_tags AS (
     SELECT DISTINCT ts.key,

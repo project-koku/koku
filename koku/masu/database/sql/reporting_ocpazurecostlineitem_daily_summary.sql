@@ -22,6 +22,7 @@ CREATE TEMPORARY TABLE matched_tags_{{uuid | sqlsafe}} AS (
             ON tags.cost_entry_bill_id = b.id
         JOIN {{schema | sqlsafe}}.reporting_azureenabledtagkeys as enabled_tags
             ON lower(enabled_tags.key) = lower(tags.key)
+           AND enabled_tags.enabled = true
         {% if bill_ids %}
         WHERE b.id IN (
             {%- for bill_id in bill_ids -%}
@@ -113,6 +114,7 @@ CREATE TEMPORARY TABLE reporting_azure_with_enabled_tags_{{uuid | sqlsafe}} AS (
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
         FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
+        WHERE enabled = true
     ),
     cte_filtered_azure_tags AS (
         SELECT id,

@@ -24,7 +24,7 @@ class AzureTagQueryHandler(TagQueryHandler):
     """Handles tag queries and responses for Azure."""
 
     provider = Provider.PROVIDER_AZURE
-    enabled = AzureEnabledTagKeys.objects.filter(key=OuterRef("key"))
+    enabled = AzureEnabledTagKeys.objects.filter(key=OuterRef("key")).filter(enabled=True)
     data_sources = [
         {
             "db_table": AzureTagsSummary,

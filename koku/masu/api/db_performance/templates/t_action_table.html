@@ -134,6 +134,10 @@ SPDX-License-Identifier: Apache-2.0
                 //     }
                 // }
             }
+
+            function select_db(db_sel) {
+                location = db_sel.value;
+            }
         </script>
     </head>
     <body>
@@ -145,6 +149,20 @@ SPDX-License-Identifier: Apache-2.0
         </div>
         <hr />
         <h2 id="data_header">{{page_header}}</h2>
+        <div id="controls" style="display: block; clear: both;">
+{% if db_select %}
+            <div id="dbseldiv" style="float: left;">
+                <b>Database: </b>
+                {{db_select}}
+            </div>
+{% endif %}
+{% if pagination %}
+            <div id="pagination" style="float: right;">
+                {{pagination}}
+            </div>
+{% endif %}
+        </div>
+        <div id="tablediv" style="display:block; clear: both;">
         <table id="term_action_table" cellspacing="0">
 {% for rec in data %}
     {% set rec_loop = loop %}
@@ -184,5 +202,6 @@ SPDX-License-Identifier: Apache-2.0
     {% endif %}
 {% endfor %}
         </table>
+        </div>
     </body>
 </html>

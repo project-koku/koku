@@ -52,6 +52,7 @@ class Command(migrate_schemas.Command):
                                 FROM pg_catalog.pg_namespace
                                 WHERE nspname = %s
                                     OR nspname ~ '^acct'
+                                    OR nspname ~ '^org'
                             """,
                             (tenant_model._TEMPLATE_SCHEMA,),
                         )

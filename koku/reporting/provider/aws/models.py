@@ -236,6 +236,8 @@ class AWSCostEntryLineItemDailySummary(models.Model):
             models.Index(fields=["account_alias"], name="summary_account_alias_idx"),
             models.Index(fields=["product_family"], name="summary_product_family_idx"),
             models.Index(fields=["instance_type"], name="summary_instance_type_idx"),
+            models.Index(fields=["region"], name="summary_region_idx"),
+            models.Index(fields=["availability_zone"], name="summary_zone_idx"),
             # A GIN functional index named "aws_summ_usage_pfam_ilike" was created manually
             # via RunSQL migration operation
             # Function: (upper(product_family) gin_trgm_ops)

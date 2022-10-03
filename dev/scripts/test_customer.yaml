@@ -84,7 +84,7 @@ customer:
       billing_source:
         data_source:
           dataset: 'example-dataset-name'
-          table_id: 'example-table-id'
+          table_id: 'example-resource-table-id'
           local_dir: '/tmp/gcp_local_bucket'
     - ocp_on_gcp_source:
       source_name: Test OCP on GCP
