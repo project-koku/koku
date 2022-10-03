@@ -15,6 +15,7 @@ SELECT DISTINCT(key)
          SELECT key
            FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
           WHERE key = labels.key
+            AND enabled = true
        )
     AND NOT key = ANY(
           SELECT DISTINCT(key)
