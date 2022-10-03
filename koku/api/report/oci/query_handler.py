@@ -175,7 +175,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
             skip_columns = ["clusters"]
-            remove_columns = ["usage_units", "usage"]
+            remove_columns = ["count", "usage"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
             )
@@ -257,8 +257,8 @@ class OCIReportQueryHandler(ReportQueryHandler):
         aggregates = self._mapper.report_type_map.get("aggregates")
 
         query_data = query_data.annotate(**aggregates)
-        remove_columns = ["usage"]
-        skip_columns = ["source_uuid", "gcp_project_alias", "clusters", "service_alias"]
+        remove_columns = ["usage", "count"]
+        skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
         total_query = self.pandas_agg_for_total(
             query_data, skip_columns, self.report_annotations, query, remove_columns, units=units
         )
