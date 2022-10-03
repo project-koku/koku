@@ -54,14 +54,14 @@ RUN make -j4
 RUN make install
 
 
-# Only copy compiled libraries for arm64
-FROM --platform=amd64 base AS stage-amd64
+# Intermeiate steps for ARM64
 FROM --platform=arm64 base AS stage-arm64
-COPY --from=build-arm64 /opt/librdkafka /opt/librdkafka
+COPY --from=build-arm64 /opt/librdkafka/include/librdkafka/ /usr/include/librdkafka/
+COPY --from=build-arm64 /opt/librdkafka/lib/ /usr/lib/
+RUN ldconfig
 
-ENV CPPFLAGS -I/opt/librdkafka/include
-ENV LDFLAGS -L/opt/librdkafka/lib
-ENV LD_LIBRARY_PATH /opt/librdkafka/lib
+# No intermetiate steps for x86_64, but declare it so it can be used for the final image
+FROM --platform=amd64 base AS stage-amd64
 
 ARG TARGETARCH
 
