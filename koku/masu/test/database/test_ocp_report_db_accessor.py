@@ -38,7 +38,6 @@ from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import month_date_range_tuple
 from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
-from reporting.models import OCPUsageLineItem
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.models import OCPUsageReport
@@ -48,6 +47,8 @@ from reporting.provider.ocp.models import OCPNode
 from reporting.provider.ocp.models import OCPProject
 from reporting.provider.ocp.models import OCPPVC
 from reporting_common import REPORT_COLUMN_MAP
+
+# from reporting.models import OCPUsageLineItem
 
 # from django.db import connection
 # from api.report.test.util.constants import OCP_POD_LABELS
@@ -241,28 +242,29 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEqual(period.provider_id, provider_uuid)
 
-    def test_get_lineitem_query_for_reportid(self):
-        """Test that the line item data is returned given a report_id."""
-        current_report = self.accessor.get_current_usage_report()
-        with schema_context(self.schema):
-            self.assertIsNotNone(current_report.report_period_id)
-            report_id = current_report.id
-            initial_count = OCPUsageLineItem.objects.filter(report_id=report_id).count()
-        line_item_query = self.accessor.get_lineitem_query_for_reportid(report_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.count(), initial_count)
-            self.assertEqual(line_item_query.first().report_id, report_id)
+    # TODO: Do we need tests using OCPUsageLineItem table?
+    # def test_get_lineitem_query_for_reportid(self):
+    #     """Test that the line item data is returned given a report_id."""
+    #     current_report = self.accessor.get_current_usage_report()
+    #     with schema_context(self.schema):
+    #         self.assertIsNotNone(current_report.report_period_id)
+    #         report_id = current_report.id
+    #         initial_count = OCPUsageLineItem.objects.filter(report_id=report_id).count()
+    #     line_item_query = self.accessor.get_lineitem_query_for_reportid(report_id)
+    #     with schema_context(self.schema):
+    #         self.assertEqual(line_item_query.count(), initial_count)
+    #         self.assertEqual(line_item_query.first().report_id, report_id)
 
-            query_report = line_item_query.first()
-            self.assertIsNotNone(query_report.namespace)
-            self.assertIsNotNone(query_report.pod)
-            self.assertIsNotNone(query_report.node)
-            self.assertIsNotNone(query_report.pod_usage_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_request_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_limit_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_usage_memory_byte_seconds)
-            self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
-            self.assertIsNotNone(query_report.pod_limit_memory_byte_seconds)
+    #         query_report = line_item_query.first()
+    #         self.assertIsNotNone(query_report.namespace)
+    #         self.assertIsNotNone(query_report.pod)
+    #         self.assertIsNotNone(query_report.node)
+    #         self.assertIsNotNone(query_report.pod_usage_cpu_core_seconds)
+    #         self.assertIsNotNone(query_report.pod_request_cpu_core_seconds)
+    #         self.assertIsNotNone(query_report.pod_limit_cpu_core_seconds)
+    #         self.assertIsNotNone(query_report.pod_usage_memory_byte_seconds)
+    #         self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
+    #         self.assertIsNotNone(query_report.pod_limit_memory_byte_seconds)
 
     def test_populate_line_item_daily_table(self):
         """Test that the line item daily table populates."""
@@ -352,39 +354,41 @@ class OCPReportDBAccessorTest(MasuTestCase):
             usage_period = self.accessor.get_usage_period_on_or_before_date(earlier_cutoff)
             self.assertEqual(usage_period.count(), 0)
 
-    def test_get_item_query_report_period_id(self):
-        """Test that gets a usage report line item query given a report period id."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+    # TODO: Do we need tests using OCPUsageLineItem table?
+    # def test_get_item_query_report_period_id(self):
+    #     """Test that gets a usage report line item query given a report period id."""
+    #     table_name = OCP_REPORT_TABLE_MAP["report_period"]
 
-        with schema_context(self.schema):
-            # Verify that the line items for the test report_period_id are returned
-            report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        line_item_query = self.accessor.get_item_query_report_period_id(report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.first().report_period_id, report_period_id)
+    #     with schema_context(self.schema):
+    #         # Verify that the line items for the test report_period_id are returned
+    #         report_period_id = self.accessor._get_db_obj_query(table_name).first().id
+    #     line_item_query = self.accessor.get_item_query_report_period_id(report_period_id)
+    #     with schema_context(self.schema):
+    #         self.assertEqual(line_item_query.first().report_period_id, report_period_id)
 
-            # Verify that no line items are returned for a missing report_period_id
-            wrong_report_period_id = report_period_id + 5
-        line_item_query = self.accessor.get_item_query_report_period_id(wrong_report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.count(), 0)
+    #         # Verify that no line items are returned for a missing report_period_id
+    #         wrong_report_period_id = report_period_id + 5
+    #     line_item_query = self.accessor.get_item_query_report_period_id(wrong_report_period_id)
+    #     with schema_context(self.schema):
+    #         self.assertEqual(line_item_query.count(), 0)
 
-    def test_get_report_query_report_period_id(self):
-        """Test that gets a usage report item query given a report period id."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
+    # TODO: Do we need tests using OCPUsageLineItem table?
+    # def test_get_report_query_report_period_id(self):
+    #     """Test that gets a usage report item query given a report period id."""
+    #     table_name = OCP_REPORT_TABLE_MAP["report_period"]
 
-        with schema_context(self.schema):
-            # Verify that the line items for the test report_period_id are returned
-            report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        usage_report_query = self.accessor.get_report_query_report_period_id(report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(usage_report_query.first().report_period_id, report_period_id)
+    #     with schema_context(self.schema):
+    #         # Verify that the line items for the test report_period_id are returned
+    #         report_period_id = self.accessor._get_db_obj_query(table_name).first().id
+    #     usage_report_query = self.accessor.get_report_query_report_period_id(report_period_id)
+    #     with schema_context(self.schema):
+    #         self.assertEqual(usage_report_query.first().report_period_id, report_period_id)
 
-            # Verify that no line items are returned for a missing report_period_id
-            wrong_report_period_id = report_period_id + 5
-        usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(usage_report_query.count(), 0)
+    #         # Verify that no line items are returned for a missing report_period_id
+    #         wrong_report_period_id = report_period_id + 5
+    #     usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
+    #     with schema_context(self.schema):
+    #         self.assertEqual(usage_report_query.count(), 0)
 
     def test_get_pod_cpu_core_hours(self):
         """Test that gets pod cpu usage/request."""
