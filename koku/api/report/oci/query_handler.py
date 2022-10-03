@@ -129,7 +129,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
-        if query.exists():
+        if query:
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -144,7 +144,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
 
             query_sum = self.calculate_total(**sum_units)
         else:
-            sum_units["cost_units"] = cost_units_fallback
+            sum_units["cost_units"] = self.currency
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -164,15 +164,21 @@ class OCIReportQueryHandler(ReportQueryHandler):
             query = self.query_table.objects.filter(self.query_filter)
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
-            query_data = query.annotate(**self.annotations)
+            og_query_data = query.annotate(**self.annotations)
 
             query_group_by = ["date"] + self._get_group_by()
+            initial_group_by = query_group_by + [self._mapper.cost_units_key]
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
-            query_data = query_data.values(*query_group_by).annotate(**annotations)
+            query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
+            skip_columns = ["clusters"]
+            remove_columns = ["count", "usage"]
+            query_data = self.pandas_agg_for_currency(
+                query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
+            )
 
             if self._limit:
                 query_data = self._group_by_ranks(query, query_data)
@@ -242,16 +248,24 @@ class OCIReportQueryHandler(ReportQueryHandler):
 
         """
         query_group_by = ["date"] + self._get_group_by()
+        initial_group_by = query_group_by + [self._mapper.cost_units_key]
         query = self.query_table.objects.filter(self.query_filter)
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*query_group_by)
+        query_data = query_data.values(*initial_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
 
-        total_query = query.aggregate(**aggregates)
+        query_data = query_data.annotate(**aggregates)
+        remove_columns = ["usage", "count"]
+        skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
+        total_query = self.pandas_agg_for_total(
+            query_data, skip_columns, self.report_annotations, query, remove_columns, units=units
+        )
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
+            if unit_key not in ["usage_units", "count_units"]:
+                total_query[unit_key] = self.currency
 
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
