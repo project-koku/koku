@@ -66,11 +66,8 @@ class OCIProviderMap(ProviderMap):
                             "sup_markup": Sum(Value(0, output_field=DecimalField())),
                             "sup_total": Sum(Value(0, output_field=DecimalField())),
                             "cost_total": Sum(
-                                (
-                                    Coalesce(F("cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField()))
+                                Coalesce(F("cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_raw": Sum(Coalesce(F("cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
@@ -93,11 +90,8 @@ class OCIProviderMap(ProviderMap):
                             "cost_usage": Value(0, output_field=DecimalField()),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
                             "cost_total": Sum(
-                                (
-                                    Coalesce(F("cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
-                                )
-                                * Coalesce("exchange_rate", Value(1.0, output_field=DecimalField()))
+                                Coalesce(F("cost"), Value(0, output_field=DecimalField()))
+                                + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
                             "source_uuid": ArrayAgg(
