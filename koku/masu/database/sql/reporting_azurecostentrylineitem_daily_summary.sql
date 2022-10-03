@@ -7,6 +7,7 @@ SELECT DISTINCT(key)
          SELECT key
            FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
           WHERE key = labels.key
+            AND enabled = true
        )
    AND NOT key = ANY(
          SELECT DISTINCT(key)
@@ -27,6 +28,7 @@ CREATE TEMPORARY TABLE reporting_azurecostentrylineitem_daily_summary_{{uuid | s
     WITH cte_array_agg_keys AS (
         SELECT array_agg(key) as key_array
         FROM {{schema | sqlsafe}}.reporting_azureenabledtagkeys
+        WHERE enabled = true
     ),
     cte_filtered_tags AS (
         SELECT id,
