@@ -505,16 +505,6 @@ services:
     depends_on:
       - db
 
-  # koku-rabbit:
-  #   container_name: koku_rabbit
-  #   hostname: rabbit
-  #   image: rabbitmq:latest
-  #   environment:
-  #       - RABBITMQ_DEFAULT_USER=guest
-  #       - RABBITMQ_DEFAULT_PASS=guest
-  #   ports:
-  #     - "${RABBITMQ_PORT-5674}:5672"
-
   unleash:
     container_name: koku-unleash
     image: unleashorg/unleash-server:3.9  # 3.9 to match clowder
@@ -567,7 +557,6 @@ services:
       /usr/bin/mc rb --force local/metastore/;
       /usr/bin/mc mb --quiet local/metastore/;
       /usr/bin/mc policy set public local/metastore;
-
       "
 
   hive-metastore:
@@ -594,9 +583,6 @@ services:
   trino:
     container_name: trino
     image: quay.io/mskarbek/ubi-trino:390-001
-    # build:
-    #     context: .
-    #     dockerfile: ../../Dockerfile.ubi-trino
     user: root
     ports:
       - 8080:8080

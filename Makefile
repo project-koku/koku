@@ -28,7 +28,7 @@ DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 
 # Docker compose specific file
 ifdef compose_file
-    DOCKER_COMPOSE = $(DOCKER)-compose -f $(compose_file)
+    DOCKER_COMPOSE = $(DOCKER)-compose -f docker-compose.yml -f $(compose_file)
 else
 	DOCKER_COMPOSE = $(DOCKER)-compose
 endif
