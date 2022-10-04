@@ -38,7 +38,7 @@ aws_daily_summary = Recipe(
     region=cycle(AWS_GEOG["regions"]),
     availability_zone=cycle(AWS_GEOG["availability_zones"]),
     _fill_optional=True,
-    _quantity=AWS_CONSTANTS.length,
+    _quantity=10,
 )
 
 azure_daily_summary = Recipe(
