@@ -5,6 +5,7 @@
 """Test the Provider views."""
 import json
 from datetime import date
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import parser
@@ -50,6 +51,7 @@ class MockResponse:
         return json.loads(self.response_text)
 
 
+@patch("masu.celery.tasks.delete_archived_data.delay", Mock())
 class ProviderManagerTest(IamTestCase):
     """Tests for Provider Manager."""
 
