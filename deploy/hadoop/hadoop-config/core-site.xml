@@ -1,7 +1,7 @@
 <configuration>
   <property>
       <name>fs.defaultFS</name>
-      <value>s3a://s3path/</value>
+      <value>s3a://koku-bucket/</value>
   </property>
   <property>
       <name>fs.gs.impl</name>
