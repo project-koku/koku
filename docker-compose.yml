@@ -560,7 +560,7 @@ services:
 
   hive-metastore:
     container_name: hive-metastore
-    image: quay.io/mskarbek/ubi-hive:3.1.2-metastore-008
+    image: quay.io/cloudservices/ubi-hive:3.1.2-metastore-008
     ports:
       - 9083:8000
     environment:
@@ -581,7 +581,7 @@ services:
 
   trino:
     container_name: trino
-    image: quay.io/mskarbek/ubi-trino:390-001
+    image: quay.io/cloudservices/ubi-trino:latest
     user: root
     ports:
       - 8080:8080
@@ -600,14 +600,14 @@ services:
       - DATABASE_USER=${DATABASE_USER-postgres}
       - DATABASE_PASSWORD=${DATABASE_PASSWORD-postgres}
     volumes:
-      - ./.trino/trino/etc/config.properties:/etc/trino/config.properties
-      - ./.trino/trino/etc/jvm.config:/etc/trino/jvm.config
-      - ./.trino/trino/etc/log.properties:/etc/trino/log.properties
-      - ./.trino/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
-      - ./.trino/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
+      - ./deploy/trino/etc/config.properties:/etc/trino/config.properties
+      - ./deploy/trino/etc/jvm.config:/etc/trino/jvm.config
+      - ./deploy/trino/etc/log.properties:/etc/trino/log.properties
+      - ./deploy/trino/etc/catalog/hive.properties:/etc/trino/catalog/hive.properties
+      - ./deploy/trino/etc/catalog/postgres.properties:/etc/trino/catalog/postgres.properties
+      - ./deploy/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
       - ./.trino/trino/trino-data:/data/trino/data
       - ./.trino/trino/trino-logs:/data/trino/logs
-      - ./.trino/hadoop/hadoop-config/core-site.xml:/etc/trino/hadoop-config/core-site.xml
     links:
       - hive-metastore
     depends_on:
