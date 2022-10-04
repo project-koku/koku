@@ -1674,7 +1674,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         exclude_opts = AzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
             for view in [AzureCostView, AzureStorageView, AzureInstanceTypeView]:
-                with self.subTest(exclude_opt):
+                with self.subTest((exclude_opt, view)):
                     overall_url = f"?group_by[{exclude_opt}]=*"
                     query_params = self.mocked_query_params(overall_url, view)
                     handler = AzureReportQueryHandler(query_params)
