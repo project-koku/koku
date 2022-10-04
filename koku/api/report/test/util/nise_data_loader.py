@@ -32,9 +32,9 @@ from masu.util.aws.insert_aws_org_tree import InsertAwsOrgTree
 class NiseDataLoader(DataLoader):
     """Loads nise generated test data for different source types."""
 
-    def __init__(self, schema, customer, num_days=10):
+    def __init__(self, schema, customer, num_days=40):
         """Initialize the data loader."""
-        super().__init__(schema, customer, num_days=10)
+        super().__init__(schema, customer, num_days=40)
         self.nise_data_path = Config.TMP_DIR
         if not os.path.exists(self.nise_data_path):
             os.makedirs(self.nise_data_path)
