@@ -259,7 +259,6 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
-                        # _quantity=len(self.tags),
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:
@@ -298,7 +297,6 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                     )
         bill_ids = [bill.id for bill in bills]
         with GCPReportDBAccessor(self.schema) as accessor:
@@ -430,7 +428,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
                     baker.make_recipe(
@@ -443,7 +440,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
                     baker.make_recipe(
@@ -456,7 +452,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
         with dbaccessor(self.schema) as accessor:
