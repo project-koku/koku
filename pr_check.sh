@@ -35,6 +35,7 @@ function check_for_labels() {
 }
 
 function build_image() {
+    export DOCKER_BUILDKIT=1
     source $CICD_ROOT/build.sh
 }
 
