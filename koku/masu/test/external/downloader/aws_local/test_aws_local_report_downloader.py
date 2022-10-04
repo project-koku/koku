@@ -12,6 +12,7 @@ from datetime import datetime
 from tarfile import TarFile
 from unittest.mock import patch
 
+from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
@@ -86,13 +87,14 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
         shutil.rmtree(DATA_DIR, ignore_errors=True)
         shutil.rmtree(self.fake_bucket_name)
 
+    @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True)
-    def test_download_bucket(self, _):
+    def test_download_bucket(self, _, __):
         """Test to verify that basic report downloading works."""
         with patch("masu.processor.parquet.parquet_report_processor.Path"):
             with patch("masu.processor.parquet.parquet_report_processor.pd"):
                 with patch("masu.processor.parquet.parquet_report_processor.open"):
-                    with patch("masu.processor.parquet.parquet_report_processor.copy_data_to_s3_bucket"):
+                    with patch("masu.util.aws.common.copy_data_to_s3_bucket"):
                         with patch(
                             "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor."
                             "create_parquet_table"
@@ -142,6 +144,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
                             self.assertEqual(report_downloader.report_name, self.fake_report_name)
                             self.assertIsNone(report_downloader.report_prefix)
 
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_download_bucket_with_prefix(self):
         """Test to verify that basic report downloading works."""
         fake_bucket = tempfile.mkdtemp()

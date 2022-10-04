@@ -92,7 +92,9 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         """Test the GCP-Local initializer."""
         self.assertIsNotNone(self.report_downloader)
 
-    def test_download_file(self):
+    @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_download_file(self, _, __):
         """Test GCP-Local report download."""
 
         full_file_path, etag, _, __, ___ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
