@@ -1,3 +1,6 @@
+# for the Makefile to use this file, set the `compose_file` env variable to:
+# compose_file=docker-compose.m1.yml
+
 version: '3'
 
 services:
