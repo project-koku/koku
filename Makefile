@@ -431,7 +431,7 @@ docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 minio-bucket-cleanup:
 	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data/
 
-docker-trino-setup:
+docker-trino-setup: clear-trino
 	mkdir -p -m a+rwx ./.trino
 	@cp -fr deploy/trino/ .trino/trino/
 	find ./.trino/trino -type d -exec chmod a+rwx {} \;
