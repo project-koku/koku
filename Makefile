@@ -26,13 +26,6 @@ OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 
-# Docker compose specific file
-ifdef compose_file
-    DOCKER_COMPOSE = $(DOCKER) compose -f docker-compose.yml -f $(compose_file)
-else
-	DOCKER_COMPOSE = $(DOCKER) compose
-endif
-
 # Platform differences
 #
 # - Use 'sudo' on Linux

@@ -18,8 +18,6 @@ Getting Started
 
 This project is developed using Python 3.8. Make sure you have at least this version installed.
 
-| *Note*: M1 Mac users should follow the `M1 Mac Setup`_.
-
 Prerequisites
 -------------
 
@@ -342,7 +340,6 @@ Please refer to Contributing_.
 .. _pre-commit: https://pre-commit.com
 .. _Black: https://github.com/psf/black
 .. _Flake8: http://flake8.pycqa.org
-.. _`M1 Mac Setup`: https://github.com/project-koku/koku/blob/main/docs/koku_setup_on_m1.rst
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/main/LICENSE
