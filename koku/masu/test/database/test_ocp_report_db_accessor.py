@@ -2945,7 +2945,7 @@ select * from eek where val1 in {{report_period_id}} ;
             self.assertEqual(node.node_role, node_info[3])
 
     def test_populate_node_table_second_time_no_change(self):
-        """Test that populating the node table for an entry properly sets the node_role."""
+        """Test that populating the node table for an entry a second time does not duplicate entries."""
         node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
         cluster_id = str(uuid.uuid4())
         cluster_alias = "node_role_test"
