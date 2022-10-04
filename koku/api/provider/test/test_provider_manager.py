@@ -8,6 +8,7 @@ from datetime import date
 from unittest.mock import patch
 
 from dateutil import parser
+from django.db import IntegrityError
 from django.http import HttpRequest
 from django.http import QueryDict
 from model_bakery import baker
@@ -228,6 +229,58 @@ class ProviderManagerTest(IamTestCase):
 
         with self.assertRaises(ProviderManagerError):
             ProviderManager(uuid="abc")
+
+    @patch("api.provider.models.Provider.delete", side_effect=IntegrityError())
+    @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=True)
+    def test_remove_IntegrityError(self, mock_removable, mock_delete):
+        """Remove provider IntegrityError."""
+        # Create Provider
+        credentials = {"role_arn": "arn:aws:iam::2:role/mg"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        data_source = {"bucket": "my_s3_bucket"}
+        provider_billing = ProviderBillingSource.objects.create(data_source=data_source)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="awsprovidername",
+                created_by=self.user,
+                customer=self.customer,
+                authentication=provider_authentication,
+                billing_source=provider_billing,
+            )
+        provider_uuid = provider.uuid
+
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.assertRaises(IntegrityError):
+                manager.remove(self._create_delete_request("test"))
+
+    @patch("api.provider.models.Provider.delete", side_effect=IntegrityError())
+    @patch("api.provider.provider_manager.ProviderManager.is_removable_by_user", return_value=True)
+    def test_remove_ProviderProcessingError(self, mock_removable, mock_delete):
+        """Remove provider ProviderProcessingError."""
+        # Create Provider
+        credentials = {"role_arn": "arn:aws:iam::2:role/mg"}
+        provider_authentication = ProviderAuthentication.objects.create(credentials=credentials)
+        data_source = {"bucket": "my_s3_bucket"}
+        provider_billing = ProviderBillingSource.objects.create(data_source=data_source)
+        with patch("masu.celery.tasks.check_report_updates"):
+            provider = Provider.objects.create(
+                name="awsprovidername",
+                created_by=self.user,
+                customer=self.customer,
+                authentication=provider_authentication,
+                billing_source=provider_billing,
+            )
+        provider_uuid = provider.uuid
+
+        with tenant_context(self.tenant):
+            manager = ProviderManager(provider_uuid)
+            # We use this context manager to get on_commit to fire inside
+            # the unit test transaction that is not committed
+            with self.assertRaises(ProviderProcessingError):
+                manager.remove(self._create_delete_request("test"), retry_count=1)
 
     def test_remove_aws(self):
         """Remove aws provider."""

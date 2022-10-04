@@ -271,9 +271,13 @@ class ProviderDBAccessor(KokuDBAccess):
             None
 
         """
-        mapping, _ = ProviderInfrastructureMap.objects.get_or_create(
+        mapping = ProviderInfrastructureMap.objects.filter(
             infrastructure_provider_id=infrastructure_provider_uuid, infrastructure_type=infrastructure_type
-        )
+        ).first()
+        if not mapping:
+            mapping = ProviderInfrastructureMap.objects.create(
+                infrastructure_provider_id=infrastructure_provider_uuid, infrastructure_type=infrastructure_type
+            )
 
         self.provider.infrastructure = mapping
         self.provider.save()

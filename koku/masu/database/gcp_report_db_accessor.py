@@ -402,7 +402,7 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         with schema_context(self.schema):
             for record in topology:
-                _, created = GCPTopology.objects.get_or_create(
+                gcp_top = GCPTopology.objects.filter(
                     source_uuid=record[0],
                     account_id=record[1],
                     project_id=record[2],
@@ -410,7 +410,17 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                     service_id=record[4],
                     service_alias=record[5],
                     region=record[6],
-                )
+                ).first()
+                if not gcp_top:
+                    GCPTopology.objects.create(
+                        source_uuid=record[0],
+                        account_id=record[1],
+                        project_id=record[2],
+                        project_name=record[3],
+                        service_id=record[4],
+                        service_alias=record[5],
+                        region=record[6],
+                    )
         LOG.info("Finished populating GCP topology")
 
     def get_gcp_topology_trino(self, source_uuid, start_date, end_date, invoice_month_date):

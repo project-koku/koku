@@ -130,7 +130,7 @@
                 "sha256:58d5c3d29f5a36ffeb94f02f0d786cd53014cf9b3b3951d42e0080d8a9498d30",
                 "sha256:ad9aa55b65ef2808eb405f46cf74df7fcb7044d5cbc26487f96eb2ef2e436693"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_full_version >= '3.6.0'",
             "version": "==4.11.1"
         },
         "billiard": {
@@ -261,7 +261,7 @@
                 "sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845",
                 "sha256:83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_full_version >= '3.6.0'",
             "version": "==2.1.1"
         },
         "circuitbreaker": {
@@ -290,7 +290,7 @@
                 "sha256:a0713dc7a1de3f06bc0df5a9567ad19ead2d3d5689b434768a6145bff77c0667",
                 "sha256:f184f0d851d96b6d29297354ed981b7dd71df7ff500d82fa6d11f0856bee8035"
             ],
-            "markers": "python_version < '4' and python_full_version >= '3.6.2'",
+            "markers": "python_full_version >= '3.6.2' and python_full_version < '4.0.0'",
             "version": "==0.3.0"
         },
         "click-plugins": {
@@ -476,6 +476,7 @@
             "version": "==5.0.4"
         },
         "google-api-core": {
+            "extras": [],
             "hashes": [
                 "sha256:92d17123cfe399b5ef7e026c63babf978d8475e1ac877919eb7933e25dea2273",
                 "sha256:e16c15a11789bc5a3457afb2818a3540a03f341e6e710d7f9bbf6cde2ef4a7c8"
@@ -1918,7 +1919,7 @@
                 "sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845",
                 "sha256:83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f"
             ],
-            "markers": "python_version >= '3.6'",
+            "markers": "python_full_version >= '3.6.0'",
             "version": "==2.1.1"
         },
         "circuitbreaker": {
@@ -2181,11 +2182,11 @@
         },
         "fonttools": {
             "hashes": [
-                "sha256:a5bc5f5d48faa4085310b8ebd4c5d33bf27c6636c5f10a7de792510af2745a81",
-                "sha256:f32ef6ec966cf0e7d2aa88601fed2e3a8f2851c26b5db2c80ccc8f82bee4eedc"
+                "sha256:86918c150c6412798e15a0de6c3e0d061ddefddd00f97b4f7b43dfa867ad315e",
+                "sha256:afae1b39555f9c3f0ad1f0f1daf678e5ad157e38c8842ecb567951bf1a9b9fd7"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==4.37.3"
+            "version": "==4.37.4"
         },
         "future": {
             "hashes": [
@@ -2195,6 +2196,7 @@
             "version": "==0.18.2"
         },
         "google-api-core": {
+            "extras": [],
             "hashes": [
                 "sha256:92d17123cfe399b5ef7e026c63babf978d8475e1ac877919eb7933e25dea2273",
                 "sha256:e16c15a11789bc5a3457afb2818a3540a03f341e6e710d7f9bbf6cde2ef4a7c8"
@@ -2526,11 +2528,11 @@
         },
         "koku-nise": {
             "hashes": [
-                "sha256:e1bbeacb00b19adbe125347bc05525b9a1388904b4c7ed34a5672c9e231442d6",
-                "sha256:f4c689e9e07d2e76df5cf7c3cd036d47563019eadff2c9bed6c85bc0d288dd7b"
+                "sha256:71f60d970aaf1a4e58eae27e110ef21d4766664001c185e9d10a2a251300552a",
+                "sha256:a1fbc95386aaa2149422f26fc49b45bab1e222134967847c5c809d41ee55341a"
             ],
             "index": "pypi",
-            "version": "==3.0.2"
+            "version": "==3.0.3"
         },
         "kubernetes": {
             "hashes": [

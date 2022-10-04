@@ -8,6 +8,7 @@ services:
       args:
         GIT_COMMIT: ${GIT_COMMIT-local-dev}
         PIPENV_DEV: "True"
+        USER_ID: ${USER_ID-1000}
     command: "echo 'Base Image Should Not Run'"
     depends_on:
       - db
