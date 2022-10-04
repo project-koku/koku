@@ -28,9 +28,9 @@ DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
 
 # Docker compose specific file
 ifdef compose_file
-    DOCKER_COMPOSE = $(DOCKER)-compose -f docker-compose.yml -f $(compose_file)
+    DOCKER_COMPOSE = $(DOCKER) compose -f docker-compose.yml -f $(compose_file)
 else
-	DOCKER_COMPOSE = $(DOCKER)-compose
+	DOCKER_COMPOSE = $(DOCKER) compose
 endif
 
 # Platform differences
@@ -109,9 +109,9 @@ help:
 	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run docker-compose up --build -d"
-	@echo "  docker-up-no-build                   run docker-compose up -d"
-	@echo "  docker-up-koku                       run docker-compose up -d koku-server"
+	@echo "  docker-up                            run docker compose up --build -d"
+	@echo "  docker-up-no-build                   run docker compose up -d"
+	@echo "  docker-up-koku                       run docker compose up -d koku-server"
 	@echo "                                         @param build : set to '--build' to build the container"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-up-db-monitor                 run the database monitoring via grafana"
@@ -315,7 +315,7 @@ KUSTOMIZE=$(shell which kustomize)
 endif
 
 ###############################
-### Docker-compose Commands ###
+### Docker compose Commands ###
 ###############################
 
 docker-down:
@@ -348,7 +348,7 @@ docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
 
 docker-test-all:
-	docker-compose -f koku-test.yml up --build
+	docker compose -f koku-test.yml up --build
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
@@ -447,10 +447,10 @@ docker-trino-up-no-build: docker-trino-setup
 	$(DOCKER_COMPOSE) up -d trino hive-metastore
 
 docker-trino-ps:
-	$(DOCKER_COMPOSE) ps trino hive-metastore
+	docker compose -f ./testing/compose_files/docker-compose-trino.yml ps
 
 docker-trino-down:
-	$(DOCKER_COMPOSE) down -v --remove-orphans
+	docker compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down

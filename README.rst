@@ -99,7 +99,7 @@ Starting Koku using Docker Compose
 
 2. Display log output from the docker containers. It is recommended that logs be kept in a second terminal ::
 
-    docker-compose logs -f koku-server koku-worker
+    docker compose logs -f koku-server koku-worker
 
 Run AWS Scenario
 ^^^^^^^^^^^^^^^^
@@ -158,11 +158,11 @@ To bring down all the docker containers, run the following command::
 Database
 ^^^^^^^^
 
-PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
+PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-**Note:** There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
+**Note:** There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
     "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
@@ -224,7 +224,7 @@ Information about Grafana dashboards can be found here: https://grafana.com/docs
 Using Trino and MinIO
 ^^^^^^^^^^^^^^^^^^^^^
 
-We have a special docker-compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
+We have a special docker compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
 
 Set the following environment variables ::
 
@@ -288,7 +288,7 @@ To run a specific subset of unit tests, you can pass a particular module path to
 
     tox -e py38 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker compose run::
 
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
@@ -313,7 +313,7 @@ pgAdmin
 If you want to interact with the Postgres database from a GUI:
 
  1. Copy the `pgadmin_servers.json.example` into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
- 2. `docker-compose up` causes pgAdmin to run on http://localhost:8432
+ 2. `docker compose up` causes pgAdmin to run on http://localhost:8432
  3. In the login screen, the default login email is `postgres`
 
 Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
