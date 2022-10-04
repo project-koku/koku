@@ -2944,6 +2944,24 @@ select * from eek where val1 in {{report_period_id}} ;
             )
             self.assertEqual(node.node_role, node_info[3])
 
+    def test_populate_node_table_second_time_no_change(self):
+        """Test that populating the node table for an entry properly sets the node_role."""
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "node_role_test"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            self.accessor.populate_node_table(cluster, [node_info])
+            node_count = OCPNode.objects.filter(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            ).count()
+            self.assertEqual(node_count, 1)
+            self.accessor.populate_node_table(cluster, [node_info])
+            node_count = OCPNode.objects.filter(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            ).count()
+            self.assertEqual(node_count, 1)
+
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""
         dh = DateHelper()
