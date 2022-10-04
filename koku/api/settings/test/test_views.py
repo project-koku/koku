@@ -99,8 +99,9 @@ class SettingsViewTest(IamTestCase):
             ocp_list = [f"openshift-{tag}" for tag in tags]
             keys_list = aws_list + ocp_list
             max_idx = len(keys_list)
+
+        enabled_tags = list(set(random.choices(keys_list, k=random.randint(0, max_idx))))
         for _ in ["test01", "test02", "test03", "test04"]:
-            enabled_tags = list(set(random.choices(keys_list, k=random.randint(0, max_idx))))
             with self.subTest(enabled_tags=enabled_tags):
                 body = {"api": {"settings": {"tag-management": {"enabled": enabled_tags}}}}
                 response = self.post_settings(body)
