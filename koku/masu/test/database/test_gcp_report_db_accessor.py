@@ -435,6 +435,14 @@ class GCPReportDBAccessorTest(MasuTestCase):
             record = records.first()
             self.assertEqual(record.source_uuid, source_uuid)
 
+        # attempt to populate a second time but verify no new entry added:
+        self.accessor.populate_gcp_topology_information_tables(
+            self.gcp_provider, start_date, end_date, invoice_month_date
+        )
+        with schema_context(self.schema):
+            records = GCPTopology.objects.all()
+            self.assertEqual(records.count(), len(mock_topo_record))
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_gcp_topology_trino(self, mock_trino):
         """Test that we call Trino to get topology."""
