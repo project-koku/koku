@@ -2927,6 +2927,23 @@ select * from eek where val1 in {{report_period_id}} ;
             for project in projects:
                 self.assertIn(project.project, topology.get("projects"))
 
+    def test_populate_node_table_update_role(self):
+        """Test that populating the node table for an entry that previously existed fills the node role correctly."""
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "node_role_test"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            node = OCPNode.objects.create(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            )
+            self.assertIsNone(node.node_role)
+            self.accessor.populate_node_table(cluster, [node_info])
+            node = OCPNode.objects.get(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            )
+            self.assertEqual(node.node_role, node_info[3])
+
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""
         dh = DateHelper()
