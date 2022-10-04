@@ -1423,7 +1423,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         exclude_opts = OCPAzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
             for view in [OCPAzureCostView, OCPAzureStorageView, OCPAzureInstanceTypeView]:
-                with self.subTest(exclude_opt):
+                with self.subTest((exclude_opt, view)):
                     overall_url = f"?group_by[{exclude_opt}]=*"
                     query_params = self.mocked_query_params(overall_url, view)
                     handler = OCPAzureReportQueryHandler(query_params)
