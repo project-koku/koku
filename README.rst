@@ -93,6 +93,8 @@ This will explain how to start the server and its dependencies using Docker, cre
 Starting Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. note:: In order for the ``koku_base`` image to build correctly, buildkit must be enabled by setting ``DOCKER_BUILDKIT=1``. This is set in the ``.env`` file, but if you are having issues building the ``koku_base`` image, make sure buildkit is enabled.
+
 1. Start the docker containers::
 
     make docker-up
