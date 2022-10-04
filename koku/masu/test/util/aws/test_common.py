@@ -13,6 +13,7 @@ import boto3
 import pandas as pd
 from botocore.exceptions import ClientError
 from dateutil.relativedelta import relativedelta
+from django.test.utils import override_settings
 from faker import Faker
 from tenant_schemas.utils import schema_context
 
@@ -344,57 +345,43 @@ class TestAWSUtils(MasuTestCase):
                 removed = utils.remove_files_not_in_set_from_s3_bucket("request_id", s3_csv_path, "manifest_id")
                 self.assertEqual(removed, [])
 
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_copy_data_to_s3_bucket(self):
         """Test copy_data_to_s3_bucket."""
-        # TODO: Trino is enabled. obsolete code to be removed after reviews.
-        # upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-        # self.assertEqual(upload, None)
+        # TODO: needs review and remove ENABLE_PARQUET_PROCESSING=False
 
-        # with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
-        #     with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-        #         upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-        #         self.assertIsNotNone(upload)
+        upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+        self.assertEqual(upload, None)
 
-        # with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
-        #     with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-        #         mock_s3.side_effect = ClientError({}, "Error")
-        #         upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-        #         self.assertEqual(upload, None)
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+                self.assertIsNotNone(upload)
 
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-            self.assertIsNotNone(upload)
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
+                self.assertEqual(upload, None)
 
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-            self.assertEqual(upload, None)
-
+    @override_settings(ENABLE_PARQUET_PROCESSING=False)
     def test_copy_hcs_data_to_s3_bucket(self):
         """Test copy_hcs_data_to_s3_bucket."""
-        # TODO: Trino is enabled. obsolete code to be removed after reviews.
-        # upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-        # self.assertEqual(upload, None)
+        # TODO: needs review and remove ENABLE_PARQUET_PROCESSING=False
 
-        # with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
-        #     with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-        #         upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-        #         self.assertIsNotNone(upload)
+        upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+        self.assertEqual(upload, None)
 
-        # with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
-        #     with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-        #         mock_s3.side_effect = ClientError({}, "Error")
-        #         upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-        #         self.assertEqual(upload, None)
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+                self.assertIsNotNone(upload)
 
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertIsNotNone(upload)
-
-        with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
-            mock_s3.side_effect = ClientError({}, "Error")
-            upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-            self.assertEqual(upload, None)
+        with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
+            with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
+                mock_s3.side_effect = ClientError({}, "Error")
+                upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
+                self.assertEqual(upload, None)
 
     def test_aws_post_processor(self):
         """Test that missing columns in a report end up in the data frame."""
