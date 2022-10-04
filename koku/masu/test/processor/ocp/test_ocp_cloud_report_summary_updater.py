@@ -5,10 +5,12 @@
 """Test the OCPCloudReportSummaryUpdaterTest."""
 import datetime
 import decimal
+from unittest import skip
 from unittest.mock import Mock
 from unittest.mock import patch
 
 from django.db import connection
+from django.db.models import Sum
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
@@ -16,19 +18,16 @@ from api.models import Provider
 from api.utils import DateHelper
 from koku.database import get_model
 from masu.database import AWS_CUR_TABLE_MAP
+from masu.database import AZURE_REPORT_TABLE_MAP
+from masu.database import OCP_REPORT_TABLE_MAP
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
+from masu.database.azure_report_db_accessor import AzureReportDBAccessor
+from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.provider_db_accessor import ProviderDBAccessor
 from masu.processor.ocp.ocp_cloud_summary_updater import OCPCloudReportSummaryUpdater
 from masu.test import MasuTestCase
 from reporting.models import AWSCostEntryBill
 from reporting_common.models import CostUsageReportManifest
-
-# from masu.database import AZURE_REPORT_TABLE_MAP
-# from masu.database import OCP_REPORT_TABLE_MAP
-
-# from django.db.models import Sum
-# from masu.database.azure_report_db_accessor import AzureReportDBAccessor
-# from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 
 
 class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
@@ -257,55 +256,55 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     # @patch(
     #     "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
     # )
-    # @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
-    # TODO: revisit
-    # def test_update_summary_tables_azure(
-    #     self, mock_cost_model, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
-    # ):
-    #     """Test that summary tables are updated correctly."""
-    #     markup = {"value": 10, "unit": "percent"}
-    #     mock_cost_model.markup = markup
+    # TODO: needs review
+    @skip("this one needs a review, OCPAzureCostLineItemDailySummaryP is returns empty qs on filter")
+    @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
+    def test_update_summary_tables_azure(
+        self, mock_cost_model  # , mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
+    ):
+        """Test that summary tables are updated correctly."""
 
-    #     start_date = self.dh.this_month_start
-    #     end_date = self.dh.this_month_end
+        markup = {"value": 10, "unit": "percent"}
+        mock_cost_model.markup = markup
 
-    #     updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.azure_provider, manifest=None)
+        start_date = self.dh.this_month_start
+        end_date = self.dh.this_month_end
 
-    #     updater.update_summary_tables(
-    #         start_date,
-    #         end_date,
-    #         self.ocp_on_azure_ocp_provider.uuid,
-    #         self.azure_provider.uuid,
-    #         Provider.PROVIDER_AZURE,
-    #     )
+        updater = OCPCloudReportSummaryUpdater(schema=self.schema, provider=self.azure_provider, manifest=None)
 
-    # summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
-    # with AzureReportDBAccessor(self.schema) as azure_accessor:
-    #     query = azure_accessor._get_db_obj_query(summary_table_name).filter(
-    #         cost_entry_bill__billing_period_start=start_date
-    #     )
-    #     markup_cost = query.aggregate(Sum("markup_cost"))["markup_cost__sum"]
-    #     pretax_cost = query.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
+        updater.update_summary_tables(
+            start_date,
+            end_date,
+            self.ocp_on_azure_ocp_provider.uuid,
+            self.azure_provider.uuid,
+            Provider.PROVIDER_AZURE,
+        )
 
-    # # self.assertIsNotNone(markup_cost)
-    # # self.assertIsNotNone(pretax_cost)
-    # self.assertAlmostEqual(markup_cost, pretax_cost * decimal.Decimal(markup.get("value") / 100), places=5)
+        summary_table_name = AZURE_REPORT_TABLE_MAP["ocp_on_azure_daily_summary"]
+        with AzureReportDBAccessor(self.schema) as azure_accessor:
+            query = azure_accessor._get_db_obj_query(summary_table_name).filter(
+                cost_entry_bill__billing_period_start=start_date
+            )
+            markup_cost = query.aggregate(Sum("markup_cost"))["markup_cost__sum"]
+            pretax_cost = query.aggregate(Sum("pretax_cost"))["pretax_cost__sum"]
 
-    # daily_summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
-    # with OCPReportDBAccessor(self.schema) as ocp_accessor:
-    #     query = ocp_accessor._get_db_obj_query(daily_summary_table_name).filter(
-    #         report_period__provider=self.ocp_on_azure_ocp_provider,
-    #         report_period__report_period_start=self.dh.this_month_start,
-    #     )
-    #     infra_cost = query.aggregate(Sum("infrastructure_raw_cost"))["infrastructure_raw_cost__sum"]
-    #     project_infra_cost = query.aggregate(Sum("infrastructure_project_raw_cost"))[
-    #         "infrastructure_project_raw_cost__sum"
-    #     ]
+        self.assertAlmostEqual(markup_cost, pretax_cost * decimal.Decimal(markup.get("value") / 100), places=5)
 
-    # self.assertIsNotNone(infra_cost)
-    # self.assertIsNotNone(project_infra_cost)
-    # self.assertNotEqual(infra_cost, decimal.Decimal(0))
-    # self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
+        daily_summary_table_name = OCP_REPORT_TABLE_MAP["line_item_daily_summary"]
+        with OCPReportDBAccessor(self.schema) as ocp_accessor:
+            query = ocp_accessor._get_db_obj_query(daily_summary_table_name).filter(
+                report_period__provider=self.ocp_on_azure_ocp_provider,
+                report_period__report_period_start=self.dh.this_month_start,
+            )
+            infra_cost = query.aggregate(Sum("infrastructure_raw_cost"))["infrastructure_raw_cost__sum"]
+            project_infra_cost = query.aggregate(Sum("infrastructure_project_raw_cost"))[
+                "infrastructure_project_raw_cost__sum"
+            ]
+
+        self.assertIsNotNone(infra_cost)
+        self.assertIsNotNone(project_infra_cost)
+        self.assertNotEqual(infra_cost, decimal.Decimal(0))
+        self.assertNotEqual(project_infra_cost, decimal.Decimal(0))
 
     def test_partition_handler_str_table(self):
         new_table_sql = f"""
