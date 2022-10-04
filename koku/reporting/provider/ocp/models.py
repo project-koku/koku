@@ -615,6 +615,7 @@ class OCPNode(models.Model):
     resource_id = models.TextField(null=True)
     node_capacity_cpu_cores = models.DecimalField(max_digits=18, decimal_places=2, null=True)
     cluster = models.ForeignKey("OCPCluster", on_delete=models.CASCADE)
+    node_role = models.TextField(null=True)
 
 
 class OCPPVC(models.Model):
