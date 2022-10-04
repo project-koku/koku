@@ -808,7 +808,7 @@ class ReportQueryHandler(QueryHandler):
                 df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
             replace_count = False
-            if "instance_type" in self._report_type:
+            if "instance_type" in self._report_type and "count" in df.columns:
                 # get all of the unique instances from the whole df
                 instance_types = list(df["count"].apply(pd.Series).stack().unique())
                 replace_count = True
