@@ -15,7 +15,6 @@ from dateutil import relativedelta
 from dateutil.rrule import MONTHLY
 from dateutil.rrule import rrule
 from django.conf import settings
-from django.db import connection
 from django.db.models import Max
 from django.db.models import Min
 from django.db.models import Q
@@ -39,7 +38,6 @@ from masu.test.database.helpers import ReportObjectCreator
 from masu.util.common import month_date_range_tuple
 from reporting.models import OCPEnabledTagKeys
 from reporting.models import OCPStorageVolumeLabelSummary
-from reporting.models import OCPUsageLineItem
 from reporting.models import OCPUsageLineItemDailySummary
 from reporting.models import OCPUsagePodLabelSummary
 from reporting.models import OCPUsageReport
@@ -69,7 +67,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         super().setUp()
 
         self.cluster_id = "testcluster"
-
         with ProviderDBAccessor(provider_uuid=self.ocp_test_provider_uuid) as provider_accessor:
             self.ocp_provider_uuid = provider_accessor.get_provider().uuid
 
@@ -239,29 +236,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
         with schema_context(self.schema):
             self.assertEqual(period.provider_id, provider_uuid)
 
-    def test_get_lineitem_query_for_reportid(self):
-        """Test that the line item data is returned given a report_id."""
-        current_report = self.accessor.get_current_usage_report()
-        with schema_context(self.schema):
-            self.assertIsNotNone(current_report.report_period_id)
-            report_id = current_report.id
-            initial_count = OCPUsageLineItem.objects.filter(report_id=report_id).count()
-        line_item_query = self.accessor.get_lineitem_query_for_reportid(report_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.count(), initial_count)
-            self.assertEqual(line_item_query.first().report_id, report_id)
-
-            query_report = line_item_query.first()
-            self.assertIsNotNone(query_report.namespace)
-            self.assertIsNotNone(query_report.pod)
-            self.assertIsNotNone(query_report.node)
-            self.assertIsNotNone(query_report.pod_usage_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_request_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_limit_cpu_core_seconds)
-            self.assertIsNotNone(query_report.pod_usage_memory_byte_seconds)
-            self.assertIsNotNone(query_report.pod_request_memory_byte_seconds)
-            self.assertIsNotNone(query_report.pod_limit_memory_byte_seconds)
-
     def test_populate_line_item_daily_table(self):
         """Test that the line item daily table populates."""
         report_table_name = OCP_REPORT_TABLE_MAP["report"]
@@ -326,79 +300,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             for column in summary_columns:
                 self.assertIsNotNone(getattr(entry, column))
 
-    def test_populate_pod_label_summary_table(self):
-        """Test that the pod label summary table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        agg_table_name = OCP_REPORT_TABLE_MAP["pod_label_summary"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = list({tag.key for tag in tags})
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT DISTINCT jsonb_object_keys(pod_labels)
-                        FROM reporting_ocpusagelineitem_daily"""
-                )
-
-                expected_tag_keys = cursor.fetchall()
-                expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-                # disabled is a tag key added in COST-444, we don't populate
-                # the reporting_ocpusagelineitem_daily table so the disabled
-                # key is never added to that table.
-                expected_tag_keys.append("disabled")
-
-            self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
-
-    def test_populate_volume_label_summary_table(self):
-        """Test that the volume label summary table is populated."""
-        report_table_name = OCP_REPORT_TABLE_MAP["report"]
-        agg_table_name = OCP_REPORT_TABLE_MAP["volume_label_summary"]
-
-        report_table = getattr(self.accessor.report_schema, report_table_name)
-
-        with schema_context(self.schema):
-            report_entry = report_table.objects.all().aggregate(Min("interval_start"), Max("interval_start"))
-            start_date = report_entry["interval_start__min"]
-            end_date = report_entry["interval_start__max"]
-
-        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        query = self.accessor._get_db_obj_query(agg_table_name)
-        self.accessor.populate_volume_label_summary_table([self.reporting_period.id], start_date, end_date)
-
-        with schema_context(self.schema):
-            tags = query.all()
-            tag_keys = list({tag.key for tag in tags})
-
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """SELECT DISTINCT jsonb_object_keys(persistentvolume_labels || persistentvolumeclaim_labels)
-                        FROM reporting_ocpstoragelineitem_daily"""
-                )
-
-                expected_tag_keys = cursor.fetchall()
-                expected_tag_keys = [tag[0] for tag in expected_tag_keys]
-                # disabled is a tag key added in COST-444, we don't populate
-                # the reporting_ocpstoragelineitem_daily table so the disabled
-                # key is never added to that table.
-                expected_tag_keys.append("disabled")
-
-        self.assertEqual(sorted(tag_keys), sorted(expected_tag_keys))
-
     def test_get_usage_period_on_or_before_date(self):
         """Test that gets a query for usage report periods before a date."""
         with schema_context(self.schema):
@@ -422,40 +323,6 @@ class OCPReportDBAccessorTest(MasuTestCase):
             earlier_cutoff = earlier_date.replace(month=earlier_date.month, day=15)
             usage_period = self.accessor.get_usage_period_on_or_before_date(earlier_cutoff)
             self.assertEqual(usage_period.count(), 0)
-
-    def test_get_item_query_report_period_id(self):
-        """Test that gets a usage report line item query given a report period id."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
-        with schema_context(self.schema):
-            # Verify that the line items for the test report_period_id are returned
-            report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        line_item_query = self.accessor.get_item_query_report_period_id(report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.first().report_period_id, report_period_id)
-
-            # Verify that no line items are returned for a missing report_period_id
-            wrong_report_period_id = report_period_id + 5
-        line_item_query = self.accessor.get_item_query_report_period_id(wrong_report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(line_item_query.count(), 0)
-
-    def test_get_report_query_report_period_id(self):
-        """Test that gets a usage report item query given a report period id."""
-        table_name = OCP_REPORT_TABLE_MAP["report_period"]
-
-        with schema_context(self.schema):
-            # Verify that the line items for the test report_period_id are returned
-            report_period_id = self.accessor._get_db_obj_query(table_name).first().id
-        usage_report_query = self.accessor.get_report_query_report_period_id(report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(usage_report_query.first().report_period_id, report_period_id)
-
-            # Verify that no line items are returned for a missing report_period_id
-            wrong_report_period_id = report_period_id + 5
-        usage_report_query = self.accessor.get_report_query_report_period_id(wrong_report_period_id)
-        with schema_context(self.schema):
-            self.assertEqual(usage_report_query.count(), 0)
 
     def test_get_pod_cpu_core_hours(self):
         """Test that gets pod cpu usage/request."""

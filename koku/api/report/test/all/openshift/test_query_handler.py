@@ -4,6 +4,7 @@
 #
 """Test the OCP on All query handler."""
 import logging
+from unittest import skip
 from unittest.mock import patch
 
 from tenant_schemas.utils import tenant_context
@@ -257,6 +258,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                     self.assertAlmostEqual(expected_total, excluded_total, 6)
                     self.assertNotEqual(overall_total, excluded_total)
 
+    @skip("the ocp-all table is not populated")
     @patch("api.query_params.enable_negative_filtering", return_value=True)
     def test_exclude_tags(self, _):
         """Test that the exclude works for our tags."""
