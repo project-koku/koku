@@ -14,7 +14,6 @@ from unittest.mock import PropertyMock
 
 import faker
 import pandas as pd
-from django.test import override_settings
 
 from api.models import Provider
 from api.utils import DateHelper
@@ -232,7 +231,7 @@ class TestParquetReportProcessor(MasuTestCase):
             self.assertTrue(data_frame.empty)
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.remove_files_not_in_set_from_s3_bucket"
                 ) as mock_remove:
@@ -258,7 +257,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         expected = "Failed to convert the following files to parquet"
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame(), False),
@@ -271,7 +270,7 @@ class TestParquetReportProcessor(MasuTestCase):
                             self.assertIn(expected, " ".join(logger.output))
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame(), False),
@@ -280,7 +279,7 @@ class TestParquetReportProcessor(MasuTestCase):
                         self.report_processor.convert_to_parquet()
 
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame(), False),
@@ -290,7 +289,7 @@ class TestParquetReportProcessor(MasuTestCase):
 
         # Daily data exists
         with patch("masu.processor.parquet.parquet_report_processor.enable_trino_processing", return_value=True):
-            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix"):
+            with patch("masu.processor.parquet.parquet_report_processor.get_path_prefix", return_value=""):
                 with patch(
                     "masu.processor.parquet.parquet_report_processor.ParquetReportProcessor.convert_csv_to_parquet",
                     return_value=("", pd.DataFrame([{"key": "value"}]), True),
@@ -300,7 +299,6 @@ class TestParquetReportProcessor(MasuTestCase):
                         call_args = mock_create_daily.call_args
                         self.assertTrue(call_args.equals(data_frame[0]))
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.processor.parquet.parquet_report_processor.os.path.exists")
     @patch("masu.processor.parquet.parquet_report_processor.os.remove")
     def test_convert_csv_to_parquet(self, mock_remove, mock_exists):

@@ -533,11 +533,18 @@ class AzureReportQueryHandlerTest(IamTestCase):
         filters = {**self.this_month_filter}
         filters["resource_location__icontains"] = location
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
+        # check total cost
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
+        # check raw cost
+        expected_cost_raw = current_totals.get("cost_raw")
+        self.assertIsNotNone(expected_cost_raw)
+        result_cost_raw = total.get("cost", {}).get("raw", {}).get("value")
+        self.assertIsNotNone(result_cost_raw)
+        self.assertEqual(result_cost_raw, expected_cost_raw)
 
         cmonth_str = DateHelper().this_month_start.strftime("%Y-%m")
         for data_item in data:
@@ -636,7 +643,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
@@ -684,7 +691,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         current_totals = self.get_totals_costs_by_time_scope(aggregates, filters)
         expected_cost_total = current_totals.get("cost_total")
         self.assertIsNotNone(expected_cost_total)
-        result_cost_total = total.get("cost", {}).get("raw", {}).get("value")
+        result_cost_total = total.get("cost", {}).get("total", {}).get("value")
         self.assertIsNotNone(result_cost_total)
         self.assertEqual(result_cost_total, expected_cost_total)
 
@@ -1631,11 +1638,9 @@ class AzureReportQueryHandlerTest(IamTestCase):
                 .annotate(cost=cost_annotation)
                 .order_by("-cost")
             )
-        correctlst = [service.get("service_name") for service in expected]
-        for element in data:
-            lst = [service.get("service_name") for service in element.get("service_names", [])]
-            if lst and correctlst:
-                self.assertEqual(correctlst, lst)
+
+        expected_lst = [service.get("service_name") for service in expected]
+        self.assertEqual(correctlst, expected_lst)
 
     def test_azure_date_incorrect_date(self):
         wrong_date = "200BC"
@@ -1674,7 +1679,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         exclude_opts = AzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
             for view in [AzureCostView, AzureStorageView, AzureInstanceTypeView]:
-                with self.subTest(exclude_opt):
+                with self.subTest((exclude_opt, view)):
                     overall_url = f"?group_by[{exclude_opt}]=*"
                     query_params = self.mocked_query_params(overall_url, view)
                     handler = AzureReportQueryHandler(query_params)

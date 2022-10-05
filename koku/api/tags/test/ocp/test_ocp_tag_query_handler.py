@@ -244,16 +244,16 @@ class OCPTagQueryHandlerTest(IamTestCase):
 
     def test_get_tags_for_key_filter(self):
         """Test that get tags runs properly with key query."""
-        key = "version"
+        key = "app"
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, OCPTagView)
         handler = OCPTagQueryHandler(query_params)
         with tenant_context(self.tenant):
             storage_tags = (
-                OCPStorageVolumeLabelSummary.objects.filter(key__icontains=key).values("values").distinct().all()
+                OCPStorageVolumeLabelSummary.objects.filter(key__exact=key).values("values").distinct().all()
             )
             storage_values = [value for tag in storage_tags for value in tag.get("values")]
-            usage_tags = OCPUsagePodLabelSummary.objects.filter(key__icontains=key).values("values").distinct().all()
+            usage_tags = OCPUsagePodLabelSummary.objects.filter(key__exact=key).values("values").distinct().all()
             usage_values = [value for tag in usage_tags for value in tag.get("values")]
             # remove duplicates from the values
             tag_values = list(dict.fromkeys(storage_values + usage_values))
