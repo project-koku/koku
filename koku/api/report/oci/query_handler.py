@@ -6,7 +6,9 @@
 import copy
 import logging
 
+from django.db.models import F
 from django.db.models import Value
+from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
@@ -128,8 +130,9 @@ class OCIReportQueryHandler(ReportQueryHandler):
 
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
+        count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
 
-        if query:
+        if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
@@ -141,10 +144,13 @@ class OCIReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 sum_units["usage_units"] = units_value
-
+            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
+                sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = self.currency
+            if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
+                sum_units["count_units"] = count_units_fallback
             if self._mapper.report_type_map.get("annotations", {}).get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -255,9 +261,17 @@ class OCIReportQueryHandler(ReportQueryHandler):
         query_data = query.annotate(**self.annotations)
         query_data = query_data.values(*initial_group_by)
         aggregates = self._mapper.report_type_map.get("aggregates")
+        counts = None
+        if "count" in aggregates:
+            instance_ids = (
+                query_data.annotate(instance_id=Func(F("resource_ids"), function="unnest"))
+                .values_list("resource_ids", flat=True)
+                .distinct()
+            )
+            counts = len(instance_ids)
 
         query_data = query_data.annotate(**aggregates)
-        remove_columns = ["usage", "count"]
+        remove_columns = ["usage"]
         skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
         total_query = self.pandas_agg_for_total(
             query_data, skip_columns, self.report_annotations, query, remove_columns, units=units
@@ -267,6 +281,8 @@ class OCIReportQueryHandler(ReportQueryHandler):
             if unit_key not in ["usage_units", "count_units"]:
                 total_query[unit_key] = self.currency
 
+        if counts:
+            total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query
