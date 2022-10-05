@@ -21,9 +21,6 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLo
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
 
-# from unittest.mock import patch
-# from api.utils import DateHelper
-
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
 CUSTOMER_NAME = FAKE.word()
@@ -94,7 +91,7 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
 
     @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.util.aws.common.copy_data_to_s3_bucket")
-    def test_download_file(self, _, __):
+    def test_download_file(self, *args):
         """Test GCP-Local report download."""
 
         full_file_path, etag, _, __, ___ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
