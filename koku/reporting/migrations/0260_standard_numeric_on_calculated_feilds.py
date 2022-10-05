@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
                     ALTER COLUMN markup_cost TYPE numeric(33, 15),
                     ALTER COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
                     ALTER COLUMN unblended_cost TYPE numeric(33, 15),
-                    ALTER COLUMN usage_amountTYPE numeric(33, 15)
+                    ALTER COLUMN usage_amount TYPE numeric(33, 15)
             """,
             state_operations=[
                 migrations.AlterField(
@@ -99,7 +99,7 @@ class Migration(migrations.Migration):
                     ALTER COLUMN reservation_unused_recurring_fee TYPE numeric(33, 15),
                     ALTER COLUMN savingsplan_effective_cost TYPE numeric(33, 15),
                     ALTER COLUMN unblended_cost TYPE numeric(33, 15),
-                    ALTER COLUMN nblended_rate TYPE numeric(33, 15),
+                    ALTER COLUMN unblended_rate TYPE numeric(33, 15),
                     ALTER COLUMN usage_amount TYPE numeric(33, 15)
 
             """,
@@ -902,7 +902,7 @@ class Migration(migrations.Migration):
                 ALTER TABLE reporting_gcpcostentrylineitem_daily
                     ALTER COLUMN cost TYPE numeric(33, 15),
                     ALTER COLUMN credit_amount TYPE numeric(33, 15),
-                    ALTER COLUMN usage_to_pricing_units TYPE numeric(33, 15)
+                    ALTER COLUMN usage_in_pricing_units TYPE numeric(33, 15)
             """,
             state_operations=[
                 migrations.AlterField(
