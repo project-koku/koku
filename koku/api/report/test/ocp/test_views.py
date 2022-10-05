@@ -1169,7 +1169,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("total", {}).get("value")
             else:
                 result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, expected)
+            self.assertAlmostEqual(result, expected, 6)
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
@@ -1238,7 +1238,7 @@ class OCPReportViewTest(IamTestCase):
             expected = totals[key]
             result = data_totals.get(key, {}).get("total", {}).get("value")
             self.assertNotEqual(result, Decimal(0))
-            self.assertEqual(result, expected)
+            self.assertAlmostEqual(result, expected, 6)
 
     @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_with_wildcard_tag_filter(self):
@@ -1343,12 +1343,8 @@ class OCPReportViewTest(IamTestCase):
     def test_execute_query_with_group_by_tag_and_limit(self):
         """Test that data is grouped by tag key and limited."""
         client = APIClient()
-        tag_url = reverse("openshift-tags")
-        tag_url = tag_url + "?filter[time_scope_value]=-2&key_only=True&filter[enabled]=true"
-        response = client.get(tag_url, **self.headers)
-        tag_keys = response.data.get("data", [])
-        tag_key = tag_keys[0]
-        tag_key_plural = tag_key + "s"
+        tag_key = "storageclass"
+        tag_key_plural = f"{tag_key}s"
 
         url = reverse("reports-openshift-cpu")
         params = {
@@ -1358,7 +1354,7 @@ class OCPReportViewTest(IamTestCase):
             f"group_by[tag:{tag_key}]": "*",
             "filter[limit]": 2,
         }
-        url = url + "?" + urlencode(params, quote_via=quote_plus)
+        url = f"{url}?{urlencode(params, quote_via=quote_plus)}"
         response = client.get(url, **self.headers)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -1368,7 +1364,7 @@ class OCPReportViewTest(IamTestCase):
         for entry in data[0].get(tag_key_plural, []):
             current_tag_usage = entry.get("values", [{}])[0].get("usage", {}).get("value", 0)
             if "Other" not in entry.get(tag_key):
-                self.assertTrue(current_tag_usage <= previous_tag_usage)
+                self.assertLessEqual(current_tag_usage, previous_tag_usage)
                 previous_tag_usage = current_tag_usage
 
     def test_execute_query_with_group_by_and_limit(self):

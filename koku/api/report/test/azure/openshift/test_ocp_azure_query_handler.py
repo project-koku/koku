@@ -28,6 +28,7 @@ from api.report.azure.openshift.serializers import OCPAzureExcludeSerializer
 from api.report.azure.openshift.view import OCPAzureCostView
 from api.report.azure.openshift.view import OCPAzureInstanceTypeView
 from api.report.azure.openshift.view import OCPAzureStorageView
+from api.report.test.util.constants import AZURE_SERVICE_NAMES
 from api.tags.azure.openshift.queries import OCPAzureTagQueryHandler
 from api.tags.azure.openshift.view import OCPAzureTagView
 from api.utils import DateHelper
@@ -45,26 +46,6 @@ from reporting.models import OCPAzureStorageSummaryP
 
 LOG = logging.getLogger(__name__)
 RATES = {"USD": "1"}
-
-
-AZURE_SERVICES = {
-    "Bandwidth": ["Bandwidth"],
-    "Log Analytics": ["Log Analytics"],
-    "SQL Database": ["SQL DB Single Std"],
-    "Storage": [
-        "Blob Storage",
-        "Files",
-        "General Block Blob",
-        "Premium SSD Managed Disks",
-        "Queues v2",
-        "Standard Page Blob",
-        "Standard SSD Managed Disks",
-        "Storage - Bandwidth",
-        "Tables",
-    ],
-    "Virtual Machines": ["A Series", "A Series VM", "BS Series VM"],
-    "Virtual Network": ["IP Addresses"],
-}
 
 
 class OCPAzureQueryHandlerTestNoData(IamTestCase):
@@ -188,8 +169,8 @@ class OCPAzureQueryHandlerTest(IamTestCase):
 
     def test_execute_query_current_month_by_service(self):
         """Test execute_query for current month on monthly breakdown by service."""
-        valid_services = list(AZURE_SERVICES.keys())
-        url = "?filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
+        valid_services = list(AZURE_SERVICE_NAMES)
+        url = "?filter[limit]=10&filter[offset]=5&filter[time_scope_units]=month&filter[time_scope_value]=-1&filter[resolution]=monthly&group_by[service_name]=*"  # noqa: E501
         query_params = self.mocked_query_params(url, OCPAzureCostView)
         handler = OCPAzureReportQueryHandler(query_params)
         query_output = handler.execute_query()
@@ -1446,7 +1427,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         exclude_opts = OCPAzureExcludeSerializer._opfields
         for exclude_opt in exclude_opts:
             for view in [OCPAzureCostView, OCPAzureStorageView, OCPAzureInstanceTypeView]:
-                with self.subTest(exclude_opt):
+                with self.subTest((exclude_opt, view)):
                     overall_url = f"?group_by[{exclude_opt}]=*"
                     query_params = self.mocked_query_params(overall_url, view)
                     handler = OCPAzureReportQueryHandler(query_params)

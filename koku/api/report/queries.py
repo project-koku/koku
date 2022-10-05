@@ -720,7 +720,7 @@ class ReportQueryHandler(QueryHandler):
             currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
             if len(currencies) == 1 and currencies[0] == self.currency:
-                LOG.info("Bypassing the pandas data function because all currencies are the same.")
+                LOG.debug("Bypassing the pandas data function because all currencies are the same.")
                 if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
                     annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
                 query_data = og_query.values(*query_group_by).annotate(**annotations)

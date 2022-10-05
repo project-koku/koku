@@ -346,8 +346,6 @@ class TestAWSUtils(MasuTestCase):
 
     def test_copy_data_to_s3_bucket(self):
         """Test copy_data_to_s3_bucket."""
-        upload = utils.copy_data_to_s3_bucket("request_id", "path", "filename", "data", "manifest_id")
-        self.assertEqual(upload, None)
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
@@ -362,8 +360,6 @@ class TestAWSUtils(MasuTestCase):
 
     def test_copy_hcs_data_to_s3_bucket(self):
         """Test copy_hcs_data_to_s3_bucket."""
-        upload = utils.copy_hcs_data_to_s3_bucket("request_id", "path", "filename", "data")
-        self.assertEqual(upload, None)
 
         with patch("masu.util.aws.common.settings", ENABLE_S3_ARCHIVING=True):
             with patch("masu.util.aws.common.get_s3_resource") as mock_s3:
