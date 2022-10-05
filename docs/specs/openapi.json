@@ -5241,16 +5241,6 @@
                   "$ref": "#/components/schemas/OrganizationFilter"
                 }
             },
-            "QueryComputeCount": {
-                "name": "compute_count",
-                "required": false,
-                "in": "query",
-                "description": "Toggle to include count values in report.",
-                "schema": {
-                    "type": "boolean",
-                    "default": false
-                }
-            },
             "QueryDelta": {
                 "name": "delta",
                 "required": false,
