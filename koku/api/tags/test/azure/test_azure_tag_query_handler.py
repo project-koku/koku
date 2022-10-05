@@ -142,12 +142,12 @@ class AzureTagQueryHandlerTest(IamTestCase):
 
     def test_get_tags_for_key_filter(self):
         """Test that get tags runs properly with key query."""
-        key = "version"
+        key = "app"
         url = f"?filter[key]={key}"
         query_params = self.mocked_query_params(url, AzureTagView)
         handler = AzureTagQueryHandler(query_params)
         with tenant_context(self.tenant):
-            tags = AzureTagsSummary.objects.filter(key__contains=key).values("values").distinct().all()
+            tags = AzureTagsSummary.objects.filter(key__exact=key).values("values").distinct().all()
             tag_values = tags[0].get("values")
         expected = {"key": key, "values": tag_values}
         result = handler.get_tags()

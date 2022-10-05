@@ -98,7 +98,8 @@ class ProviderBuilderTest(IamTestCase):
         with self.assertRaises(ValidationError):
             client.create_provider_from_source(self.mock_source)
 
-    def test_destroy_provider(self):
+    @patch("masu.celery.tasks.delete_archived_data.delay")
+    def test_destroy_provider(self, _):
         """Test to destroy a provider."""
         client = ProviderBuilder(auth_header=Config.SOURCES_FAKE_HEADER)
 

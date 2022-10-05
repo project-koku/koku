@@ -4,6 +4,7 @@
 #
 import uuid
 from datetime import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from pytz import UTC
@@ -20,6 +21,7 @@ from reporting.provider.oci.models import OCICostEntryBill
 from reporting.provider.ocp.models import OCPUsageReportPeriod
 
 
+@patch("masu.celery.tasks.delete_archived_data.delay", Mock())
 class TestProviderDeleteSQL(IamTestCase):
     @classmethod
     def setUpClass(cls):

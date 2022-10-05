@@ -9,7 +9,6 @@ from unittest.mock import PropertyMock
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
-from django.test.utils import override_settings
 from faker import Faker
 from google.cloud.exceptions import GoogleCloudError
 from pytz import timezone
@@ -200,7 +199,6 @@ class GCPReportDownloaderTest(MasuTestCase):
             self.assertEqual(report_dict.get("files"), expected_files)
             self.assertEqual(report_dict.get("compression"), UNCOMPRESSED)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives(self, mock_s3):
         """Test that we load daily files to S3."""
@@ -233,7 +231,6 @@ class GCPReportDownloaderTest(MasuTestCase):
 
         os.remove(temp_path)
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.gcp.gcp_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives_error_opening_file(self, mock_s3):
         """
