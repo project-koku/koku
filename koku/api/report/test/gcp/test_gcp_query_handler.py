@@ -1559,8 +1559,8 @@ class GCPReportQueryHandlerTest(IamTestCase):
         for exclude_opt in exclude_opts:
             for view in [GCPCostView, GCPStorageView, GCPInstanceTypeView]:
                 with self.subTest(exclude_opt):
-                    overall_url = f"?group_by[{exclude_opt}]=*"
-                    query_params = self.mocked_query_params(overall_url, view)
+                    base_url = f"?group_by[{exclude_opt}]=*&filter[time_scope_value]=-2&filter[time_scope_units]=month&filter[resolution]=monthly"  # noqa: E501
+                    query_params = self.mocked_query_params(base_url, view)
                     handler = GCPReportQueryHandler(query_params)
                     overall_output = handler.execute_query()
                     overall_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
@@ -1568,14 +1568,14 @@ class GCPReportQueryHandlerTest(IamTestCase):
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
                     # Grab filtered value
-                    filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
+                    filtered_url = f"{base_url}&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
                     handler = GCPReportQueryHandler(query_params)
                     handler.execute_query()
                     filtered_total = handler.query_sum.get("cost", {}).get("total", {}).get("value")
                     expected_total = overall_total - filtered_total
                     # Test exclude
-                    exclude_url = f"?group_by[{exclude_opt}]=*&exclude[{exclude_opt}]={opt_value}"
+                    exclude_url = f"{base_url}&exclude[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(exclude_url, view)
                     handler = GCPReportQueryHandler(query_params)
                     self.assertIsNotNone(handler.query_exclusions)
