@@ -480,6 +480,79 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         msg = f"Deleted {count} records from {table}"
         LOG.info(msg)
 
+    def populate_ocp_on_gcp_cost_daily_summary_presto_by_node(
+        self,
+        start_date,
+        end_date,
+        openshift_provider_uuid,
+        cluster_id,
+        gcp_provider_uuid,
+        report_period_id,
+        bill_id,
+        markup_value,
+        distribution,
+        node,
+        node_count=None,
+    ):
+        """Populate the daily cost aggregated summary for OCP on GCP.
+
+        This method is called for each node in the update_gcp_summary_tables
+        if an unleash flag is enabled.
+
+        Args:
+            start_date (datetime.date) The date to start populating the table.
+            end_date (datetime.date) The date to end on.
+
+        Returns
+            (None)
+
+        """
+        year = start_date.strftime("%Y")
+        month = start_date.strftime("%m")
+        days = DateHelper().list_days(start_date, end_date)
+        days_str = "','".join([str(day.day) for day in days])
+        days_list = [str(day.day) for day in days]
+        self.delete_ocp_on_gcp_hive_partition_by_day(
+            days_list, gcp_provider_uuid, openshift_provider_uuid, year, month
+        )
+
+        cluster_alias = get_cluster_alias_from_cluster_id(cluster_id)
+
+        # Default to cpu distribution
+        pod_column = "pod_effective_usage_cpu_core_hours"
+        cluster_column = "cluster_capacity_cpu_core_hours"
+        if distribution == "memory":
+            pod_column = "pod_effective_usage_memory_gigabyte_hours"
+            cluster_column = "cluster_capacity_memory_gigabyte_hours"
+
+        summary_sql = pkgutil.get_data(
+            "masu.database", "presto_sql/gcp/openshift/reporting_ocpgcpcostlineitem_daily_summary_by_node.sql"
+        )
+        summary_sql = summary_sql.decode("utf-8")
+        summary_sql_params = {
+            "schema": self.schema,
+            "start_date": start_date,
+            "year": year,
+            "month": month,
+            "days": days_str,
+            "end_date": end_date,
+            "gcp_source_uuid": gcp_provider_uuid,
+            "ocp_source_uuid": openshift_provider_uuid,
+            "bill_id": bill_id,
+            "report_period_id": report_period_id,
+            "markup": markup_value,
+            "pod_column": pod_column,
+            "cluster_column": cluster_column,
+            "cluster_id": cluster_id,
+            "cluster_alias": cluster_alias,
+            "node": node,
+            "node_count": node_count,
+        }
+
+        LOG.info("Running OCP on GCP SQL with params (BY NODE):")
+        LOG.info(summary_sql_params)
+        self._execute_presto_multipart_sql_query(self.schema, summary_sql, bind_params=summary_sql_params)
+
     def populate_ocp_on_gcp_cost_daily_summary_presto(
         self,
         start_date,
