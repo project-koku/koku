@@ -1169,7 +1169,7 @@ class OCPReportViewTest(IamTestCase):
                 result = data_totals.get(key, {}).get("total", {}).get("value")
             else:
                 result = data_totals.get(key, {}).get("value")
-            self.assertEqual(result, expected)
+            self.assertAlmostEqual(result, expected, 6)
 
     def test_execute_costs_query_with_tag_filter(self):
         """Test that data is filtered by tag key."""
@@ -1238,7 +1238,7 @@ class OCPReportViewTest(IamTestCase):
             expected = totals[key]
             result = data_totals.get(key, {}).get("total", {}).get("value")
             self.assertNotEqual(result, Decimal(0))
-            self.assertEqual(result, expected)
+            self.assertAlmostEqual(result, expected, 6)
 
     @skip("https://issues.redhat.com/browse/COST-2470")
     def test_execute_query_with_wildcard_tag_filter(self):

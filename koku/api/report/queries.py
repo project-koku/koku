@@ -720,7 +720,7 @@ class ReportQueryHandler(QueryHandler):
             currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
             if len(currencies) == 1 and currencies[0] == self.currency:
-                LOG.info("Bypassing the pandas data function because all currencies are the same.")
+                LOG.debug("Bypassing the pandas data function because all currencies are the same.")
                 if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
                     annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
                     if not self.parameters.parameters.get("compute_count"):
@@ -786,7 +786,7 @@ class ReportQueryHandler(QueryHandler):
                 if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
                     # Query parameter indicates count should be removed from DB queries
                     aggregates.pop("count", None)
-                LOG.info("Bypassing the pandas total function because all currencies are the same.")
+                LOG.debug("Bypassing the pandas total function because all currencies are the same.")
                 query_data = og_query.aggregate(**aggregates)
                 return query_data
 

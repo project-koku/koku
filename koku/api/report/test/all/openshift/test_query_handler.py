@@ -332,6 +332,7 @@ class OCPAllQueryHandlerTest(IamTestCase):
                             self.assertNotIn(group_dict.get(ex_opt), [exclude_one, exclude_two])
 
 
+@skip("the ocp-all table is not populated")
 class OCPAllReportQueryTestCurrency(IamTestCase):
     """Tests currency for report queries."""
 
