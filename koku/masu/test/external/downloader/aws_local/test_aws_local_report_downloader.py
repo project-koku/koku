@@ -89,7 +89,7 @@ class AWSLocalReportDownloaderTest(MasuTestCase):
 
     @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
     @patch("masu.processor.parquet.parquet_report_processor.settings", ENABLE_S3_ARCHIVING=True)
-    def test_download_bucket(self, _, __):
+    def test_download_bucket(self, *args):
         """Test to verify that basic report downloading works."""
         with patch("masu.processor.parquet.parquet_report_processor.Path"):
             with patch("masu.processor.parquet.parquet_report_processor.pd"):
