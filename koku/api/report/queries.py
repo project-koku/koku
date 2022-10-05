@@ -723,10 +723,6 @@ class ReportQueryHandler(QueryHandler):
                 LOG.info("Bypassing the pandas data function because all currencies are the same.")
                 if self.provider == Provider.PROVIDER_AWS or Provider.OCP_AWS:
                     annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-                    if not self.parameters.parameters.get("compute_count"):
-                        # Query parameter indicates count should be removed from DB queries
-                        annotations.pop("count", None)
-                        annotations.pop("count_units", None)
                 query_data = og_query.values(*query_group_by).annotate(**annotations)
                 if self.provider == Provider.PROVIDER_AWS:
                     if "account" in query_group_by:
@@ -747,19 +743,14 @@ class ReportQueryHandler(QueryHandler):
                     axis=1,
                 )
                 df["cost_units"] = self.currency
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
             grouped_df.reset_index(inplace=True)
             grouped_df = grouped_df.replace({np.nan: None})
             query_data = grouped_df.to_dict("records")
-            if query_data and isinstance(query_data[0].get("count"), list):
-                for data in query_data:
-                    data["count"] = len(set(data["count"]))
+
         return query_data
 
     def pandas_agg_for_total(  # noqa: C901
@@ -783,9 +774,6 @@ class ReportQueryHandler(QueryHandler):
             currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
             if len(currencies) == 1 and currencies[0] == self.currency:
-                if self.provider == Provider.PROVIDER_AWS and not self.parameters.parameters.get("compute_count"):
-                    # Query parameter indicates count should be removed from DB queries
-                    aggregates.pop("count", None)
                 LOG.info("Bypassing the pandas total function because all currencies are the same.")
                 query_data = og_query.aggregate(**aggregates)
                 return query_data
@@ -802,22 +790,13 @@ class ReportQueryHandler(QueryHandler):
                     axis=1,
                 )
                 df["cost_units"] = self.currency
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
             if units and "usage" in df.columns:
                 df["usage_units"] = units.get("usage_units")
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
-            replace_count = False
-            if "instance_type" in self._report_type and "count" in df.columns:
-                # get all of the unique instances from the whole df
-                instance_types = list(df["count"].apply(pd.Series).stack().unique())
-                replace_count = True
             grouped_df = df.groupby(["cost_units"]).agg(aggs, axis=1)
             columns = grouped_df.columns.droplevel(1)
             grouped_df.columns = columns
             total_query = grouped_df.to_dict("records")[0]
-            if replace_count:
-                total_query["count"] = instance_types
         else:
             total_query = query_data.aggregate(**aggregates)
         return total_query
@@ -1040,9 +1019,6 @@ class ReportQueryHandler(QueryHandler):
         if "costs" not in self._report_type:
             agg_fields.update({"usage_units": ["max"]})
             drop_columns.append("usage_units")
-        if "instance_type" in self._report_type and "count" in data_frame.columns:
-            agg_fields.update({"count_units": ["max"]})
-            drop_columns.append("count_units")
 
         aggs = data_frame.groupby(group_by, dropna=False).agg(agg_fields)
         columns = aggs.columns.droplevel(1)
@@ -1092,8 +1068,6 @@ class ReportQueryHandler(QueryHandler):
         groups = ["date"]
 
         skip_columns = ["source_uuid", "gcp_project_alias", "clusters"]
-        if "count" not in data_frame.columns:
-            skip_columns.extend(["count", "count_units"])
 
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns

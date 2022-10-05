@@ -98,19 +98,17 @@ class ReportQueryUtilsTest(TestCase):
             with self.subTest(handler=handler):
                 group_by = ["instance_type"]
                 data = [
-                    {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0},
-                    {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.small", "total": 17.0, "count": 0},
-                    {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0, "count": 0},
+                    {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0},
+                    {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.small", "total": 17.0},
+                    {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0},
                 ]
                 out_data = handler._group_data_by_list(group_by, 0, data)
                 expected = {
                     "t2.micro": [
-                        {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0, "count": 0},
-                        {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0, "count": 0},
+                        {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.micro", "total": 1.0},
+                        {"date": "2018-07-22", "units": "", "instance_type": "t2.micro", "total": 30.0},
                     ],
-                    "t2.small": [
-                        {"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.small", "total": 17.0, "count": 0}
-                    ],
+                    "t2.small": [{"date": "2018-07-22", "units": "Hrs", "instance_type": "t2.small", "total": 17.0}],
                 }
                 self.assertEqual(expected, out_data)
 

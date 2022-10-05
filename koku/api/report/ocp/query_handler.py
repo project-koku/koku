@@ -199,8 +199,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 # and we need to change source uuid to an array
                 df["source_uuid"] = df["source_uuid"].apply(lambda x: [x])
                 annotations.append("source_uuid")
-            if "count" not in df.columns:
-                skip_columns.extend(["count", "count_units"])
             aggs = {col: ["max"] if "units" in col else ["sum"] for col in annotations if col not in skip_columns}
 
             grouped_df = df.groupby(query_group_by, dropna=False).agg(aggs, axis=1)
@@ -239,8 +237,6 @@ class OCPReportQueryHandler(ReportQueryHandler):
             )
             df["cost_units"] = self.currency
         skip_columns = ["source_uuid", "clusters"]
-        if "count" not in df.columns:
-            skip_columns.extend(["count", "count_units"])
         aggs = {
             col: ["max"] if "units" in col else ["sum"] for col in self.report_annotations if col not in skip_columns
         }

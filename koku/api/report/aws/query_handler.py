@@ -12,7 +12,6 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
-from django.db.models.expressions import Func
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
@@ -336,12 +335,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
         sum_units = {}
 
         query_sum = self.initialize_totals()
-        if not self.parameters.parameters.get("compute_count"):
-            query_sum.pop("count", None)
 
         cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
-        count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
         if query.exists():
             sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
             if self._mapper.usage_units_key:
@@ -353,13 +349,9 @@ class AWSReportQueryHandler(ReportQueryHandler):
             if self._mapper.usage_units_key:
                 units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
                 sum_units["usage_units"] = units_value
-            if annotations.get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
         else:
             sum_units["cost_units"] = self.currency
-            if annotations.get("count_units"):
-                sum_units["count_units"] = count_units_fallback
             if annotations.get("usage_units"):
                 sum_units["usage_units"] = usage_units_fallback
             query_sum.update(sum_units)
@@ -573,10 +565,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-            if not self.parameters.parameters.get("compute_count"):
-                # Query parameter indicates count should be removed from DB queries
-                annotations.pop("count", None)
-                annotations.pop("count_units", None)
             annotations_keys = list(self.report_annotations.keys())
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             if "account" in query_group_by:
@@ -588,7 +576,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
                     tag_results = self._get_associated_tags(query_table, self.query_filter)
 
             query_sum = self._build_sum(query, annotations)
-            remove_columns = ["count", "usage"]
+            remove_columns = ["usage"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, annotations_keys, og_query_data, remove_columns
@@ -678,33 +666,19 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
         new_annotations = list(self.report_annotations.keys())
-        if not self.parameters.parameters.get("compute_count"):
-            # Query parameter indicates count should be removed from DB queries
-            aggregates.pop("count", None)
-
-        counts = None
-        if "count" in aggregates:
-            resource_ids = (
-                query_data.annotate(resource_id=Func(F("resource_ids"), function="unnest"))
-                .values_list("resource_id", flat=True)
-                .distinct()
-            )
-            counts = len(resource_ids)
 
         query_data = query_data.annotate(**aggregates)
-        remove_columns = ["usage", "count"]
-        skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
+        remove_columns = ["usage"]
+        skip_columns = ["source_uuid", "clusters", "usage_units"]
         if "usage_units" in new_annotations:
             new_annotations.remove("usage_units")
         total_query = self.pandas_agg_for_total(query_data, skip_columns, new_annotations, query, remove_columns)
 
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if unit_key not in ["usage_units", "count_units"]:
+            if unit_key not in ["usage_units"]:
                 total_query[unit_key] = self.currency
 
-        if counts:
-            total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query

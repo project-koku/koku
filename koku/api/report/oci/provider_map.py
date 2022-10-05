@@ -4,7 +4,6 @@
 #
 """Provider Mapper for OCI Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models import CharField
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -140,7 +139,6 @@ class OCIProviderMap(ProviderMap):
                             "cost_raw": Sum(Coalesce(F("cost"), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
@@ -164,8 +162,6 @@ class OCIProviderMap(ProviderMap):
                                 + Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency"), Value("USD")),
-                            "count": Max("resource_count"),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
@@ -186,8 +182,7 @@ class OCIProviderMap(ProviderMap):
                         ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
-                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {

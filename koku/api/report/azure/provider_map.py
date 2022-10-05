@@ -140,7 +140,6 @@ class AzureProviderMap(ProviderMap):
                             "cost_raw": Sum("pretax_cost"),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_quantity"),
                         },
                         "aggregate_key": "usage_quantity",
@@ -167,8 +166,6 @@ class AzureProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Max("instance_count"),
-                            "count_units": Value("instance_types", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -195,8 +192,7 @@ class AzureProviderMap(ProviderMap):
                         ),
                         "usage_units_key": "unit_of_measure",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {

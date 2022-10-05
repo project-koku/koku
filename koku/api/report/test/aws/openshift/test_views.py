@@ -703,7 +703,6 @@ class OCPAWSReportViewTest(IamTestCase):
                 values = item.get("values")[0]
                 self.assertTrue("usage" in values)
                 self.assertTrue("cost" in values)
-                self.assertTrue("count" in values)
 
     def test_execute_query_ocp_aws_instance_type_by_project(self):
         """Test that the instance type API runs when grouped by project."""

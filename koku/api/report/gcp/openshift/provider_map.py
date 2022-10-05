@@ -5,7 +5,6 @@
 """Provider Mapper for OCP on GCP Reports."""
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models import CharField
-from django.db.models import Count
 from django.db.models import DecimalField
 from django.db.models import F
 from django.db.models import Max
@@ -328,13 +327,12 @@ class OCPGCPProviderMap(ProviderMap):
                             )
                             * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                         ),
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
                     },
                     "instance_type_by_project": {
                         "tables": {
@@ -402,8 +400,6 @@ class OCPGCPProviderMap(ProviderMap):
                                 ExpressionWrapper(Max("currency"), output_field=CharField()),
                                 Value("USD", output_field=CharField()),
                             ),
-                            "count": Count("resource_id", distinct=True),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
@@ -414,7 +410,6 @@ class OCPGCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        "count": "resource_id",
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "instance_type", "operation": "isnull", "parameter": False}],
                         "group_by": ["instance_type"],
@@ -430,8 +425,7 @@ class OCPGCPProviderMap(ProviderMap):
                         ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "hour",
-                        "count_units_fallback": "instances",
-                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "sup_total", "infra_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {
@@ -504,7 +498,6 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                         },
-                        # "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",
@@ -597,7 +590,6 @@ class OCPGCPProviderMap(ProviderMap):
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
                         },
-                        # "count": None,
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [{"field": "unit", "operation": "exact", "parameter": "gibibyte month"}],
                         "cost_units_key": "currency",

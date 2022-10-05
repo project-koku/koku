@@ -9,7 +9,6 @@ import logging
 from django.db.models import ExpressionWrapper
 from django.db.models import F
 from django.db.models import Value
-from django.db.models.expressions import Func
 from django.db.models.fields import CharField
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
@@ -162,7 +161,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
             annotations = self._mapper.report_type_map.get("annotations")
             query_data = og_query_data.values(*initial_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
-            remove_columns = ["count", "usage"]
+            remove_columns = ["usage"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, self.report_annotations, og_query_data, remove_columns
@@ -242,28 +241,18 @@ class AzureReportQueryHandler(ReportQueryHandler):
             query = query.exclude(self.query_exclusions)
         query_data = query.annotate(**self.annotations)
         aggregates = self._mapper.report_type_map.get("aggregates")
-        counts = None
-        if "count" in aggregates:
-            instance_ids = (
-                query_data.annotate(instance_id=Func(F("instance_ids"), function="unnest"))
-                .values_list("instance_id", flat=True)
-                .distinct()
-            )
-            counts = len(instance_ids)
         query_data = query_data.values(*initial_group_by)
         query_data = query_data.annotate(**aggregates)
         remove_columns = ["usage"]
-        skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
+        skip_columns = ["source_uuid", "clusters", "usage_units"]
         total_query = self.pandas_agg_for_total(
             query_data, skip_columns, self.report_annotations, query, remove_columns
         )
         for unit_key, unit_value in units.items():
             total_query[unit_key] = unit_value
-            if unit_key not in ["usage_units", "count_units"]:
+            if unit_key not in ["usage_units"]:
                 total_query[unit_key] = self.currency
 
-        if counts:
-            total_query["count"] = counts
         self._pack_data_object(total_query, **self._mapper.PACK_DEFINITIONS)
 
         return total_query

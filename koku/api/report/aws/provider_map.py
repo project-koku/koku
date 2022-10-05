@@ -166,7 +166,6 @@ class AWSProviderMap(ProviderMap):
                             "cost_raw": Sum(Coalesce(F(cost_type), Value(0, output_field=DecimalField()))),
                             "cost_usage": Sum(Value(0, output_field=DecimalField())),
                             "cost_markup": Sum(Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))),
-                            "count": Sum(Value(0, output_field=DecimalField())),
                             "usage": Sum("usage_amount"),
                         },
                         "aggregate_key": "usage_amount",
@@ -190,8 +189,6 @@ class AWSProviderMap(ProviderMap):
                                 + Coalesce(F(self.markup_cost), Value(0, output_field=DecimalField()))
                             ),
                             "cost_units": Coalesce(Max("currency_code"), Value("USD"), output_field=CharField()),
-                            "count": Max("resource_count"),
-                            "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("Hrs")),
                             "source_uuid": ArrayAgg(
@@ -212,8 +209,7 @@ class AWSProviderMap(ProviderMap):
                         ),
                         "usage_units_key": "unit",
                         "usage_units_fallback": "Hrs",
-                        "count_units_fallback": "instances",
-                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total", "count"],
+                        "sum_columns": ["usage", "cost_total", "infra_total", "sup_total"],
                         "default_ordering": {"usage": "desc"},
                     },
                     "storage": {

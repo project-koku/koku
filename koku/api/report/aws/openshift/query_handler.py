@@ -52,7 +52,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     account_alias=Coalesce(F(self._mapper.provider_map.get("alias")), "usage_account_id")
                 )
                 annotations_keys.append("account_alias")
-            remove_columns = ["count", "usage", "cost_units", "usage_units"]
+            remove_columns = ["usage", "cost_units", "usage_units"]
             skip_columns = ["clusters"]
             query_data = self.pandas_agg_for_currency(
                 query_group_by, query_data, skip_columns, annotations_keys, og_query_data, remove_columns
@@ -65,8 +65,8 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                     query_order_by[-1] = "rank"
 
             if query.exists():
-                remove_columns = ["usage", "usage_units", "cost_units", "count"]
-                skip_columns = ["source_uuid", "clusters", "usage_units", "count_units"]
+                remove_columns = ["usage", "usage_units", "cost_units"]
+                skip_columns = ["source_uuid", "clusters", "usage_units"]
                 new_annotations = list(self.report_annotations.keys())
                 query_sum = self.pandas_agg_for_total(
                     query_sum_data, skip_columns, new_annotations, query, remove_columns
@@ -78,12 +78,9 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
 
             usage_units_value = self._mapper.report_type_map.get("usage_units_fallback")
-            count_units_value = self._mapper.report_type_map.get("count_units_fallback")
             if query_data:
                 if self._mapper.usage_units_key:
                     usage_units_value = query_data[0].get("usage_units")
-                if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
-                    count_units_value = query_data[0].get("count_units") or count_units_value
 
             order_date = None
             for i, param in enumerate(query_order_by):
@@ -124,13 +121,9 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 data = self._transform_data(query_group_by, 0, data)
         init_order_keys = []
         query_sum["cost_units"] = self.currency
-        if query_sum.get("count") and isinstance(query_sum.get("count"), list):
-            query_sum["count"] = len(query_sum.get("count"))
         if self._mapper.usage_units_key and usage_units_value:
             init_order_keys = ["usage_units"]
             query_sum["usage_units"] = usage_units_value
-        if self._mapper.report_type_map.get("annotations", {}).get("count_units") and count_units_value:
-            query_sum["count_units"] = count_units_value
         key_order = list(init_order_keys + list(annotations.keys()))
 
         ordered_total = {total_key: query_sum[total_key] for total_key in key_order if total_key in query_sum}
