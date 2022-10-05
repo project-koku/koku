@@ -74,7 +74,7 @@ class AWSForecastTest(IamTestCase):
     def test_constructor(self):
         """Test the constructor."""
         params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         self.assertIsInstance(instance, AWSForecast)
 
     def test_forecast_days_required(self):
@@ -114,7 +114,7 @@ class AWSForecastTest(IamTestCase):
                 mock_dh.return_value.this_month_end = test["this_month_end"]
 
                 with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-                    forecast = AWSForecast(params)
+                    forecast = AWSForecast(params, self.request_context["request"])
                     self.assertEqual(forecast.forecast_days_required, test["expected"])
 
     def test_query_range(self):
@@ -160,7 +160,7 @@ class AWSForecastTest(IamTestCase):
                 mock_dh.return_value.this_month_end = test["this_month_end"]
 
                 with patch("forecast.forecast.DateHelper", new_callable=lambda: mock_dh) as mock_dh:
-                    forecast = AWSForecast(params)
+                    forecast = AWSForecast(params, self.request_context["request"])
                     self.assertEqual(forecast.query_range, test["expected"])
 
     def test_remove_outliers(self):
@@ -174,7 +174,7 @@ class AWSForecastTest(IamTestCase):
 
         outlier = Decimal(100)
         data[dh.this_month_start] = outlier
-        forecast = AWSForecast(params)
+        forecast = AWSForecast(params, self.request_context["request"])
         result = forecast._remove_outliers(data)
 
         self.assertNotIn(dh.this_month_start, result.keys())
@@ -184,10 +184,14 @@ class AWSForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -198,12 +202,9 @@ class AWSForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -231,12 +232,16 @@ class AWSForecastTest(IamTestCase):
         """Test that predict() returns expected values for increasing costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             # the test data needs to include some jitter to avoid
             # division-by-zero in the underlying dot-product maths.
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
                     "total_cost": 5 + random.random() + n,
                     "infrastructure_cost": 3 + random.random() + n,
@@ -247,12 +252,9 @@ class AWSForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -274,10 +276,14 @@ class AWSForecastTest(IamTestCase):
         """Test that predict() returns expected date range."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
                     "total_cost": 5,
                     "infrastructure_cost": 3,
@@ -288,12 +294,9 @@ class AWSForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -309,6 +312,9 @@ class AWSForecastTest(IamTestCase):
 
         num_elements = [AWSForecast.MINIMUM - 1, AWSForecast.MINIMUM, AWSForecast.MINIMUM + 1]
 
+        params = self.mocked_query_params("?", AWSCostForecastView)
+        instance = AWSForecast(params, self.request_context["request"])
+
         for number in num_elements:
             with self.subTest(num_elements=number):
                 expected = []
@@ -317,6 +323,7 @@ class AWSForecastTest(IamTestCase):
                     # division-by-zero in the underlying dot-product maths.
                     expected.append(
                         {
+                            f"{instance.cost_units_key}": "USD",
                             "usage_start": dh.n_days_ago(dh.today, 10 - n).date(),
                             "total_cost": 5 + (0.01 * n),
                             "infrastructure_cost": 3 + (0.01 * n),
@@ -327,12 +334,9 @@ class AWSForecastTest(IamTestCase):
 
                 mocked_table = Mock()
                 mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-                    mock_qset
+                    mock_qset.data
                 )
                 mocked_table.len = mock_qset.len
-
-                params = self.mocked_query_params("?", AWSCostForecastView)
-                instance = AWSForecast(params)
 
                 instance.cost_summary_table = mocked_table
                 if number < AWSForecast.MINIMUM:
@@ -364,7 +368,7 @@ class AWSForecastTest(IamTestCase):
         scenario = [(date(2000, 1, 31), 1.5)]
 
         params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
 
         out = instance._predict(scenario)
         self.assertEqual(out, ZERO_RESULT)
@@ -376,7 +380,7 @@ class AWSForecastTest(IamTestCase):
         """
         # create the elements needed to mock the query handler
         params = self.mocked_query_params("", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         # set filters and access to be used in function
         filters = QueryFilterCollection()
         access = ["589173575009"]
@@ -401,7 +405,7 @@ class AWSForecastTest(IamTestCase):
         """
         # create the elements needed to mock the query handler
         params = self.mocked_query_params("", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         # set filters and access to be used in function
         filters = QueryFilterCollection()
         access = ["589173575009"]
@@ -425,7 +429,7 @@ class AWSForecastTest(IamTestCase):
         ]
 
         params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
 
         for scenario in test_scenarios:
             with self.subTest(dates=scenario["dates"], expected=scenario["expected"]):
@@ -436,7 +440,7 @@ class AWSForecastTest(IamTestCase):
         """COST-908: Test that the expected summary table is used."""
         mock_access = {"aws.organizational_unit": {"read": ["1234", "5678"]}}
         params = self.mocked_query_params("?", AWSCostForecastView, access=mock_access)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         self.assertEqual(instance.cost_summary_table, AWSCostSummaryByAccountP)
 
     @patch("forecast.forecast.Forecast.format_result", return_value="FAKE RESULTS")
@@ -448,7 +452,7 @@ class AWSForecastTest(IamTestCase):
             prediction=[1, 0, -1, -2, -3], confidence_lower=[2, 1, 0, -1, -2], confidence_upper=[3, 2, 1, 0, -1]
         )
         params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         instance.predict()
 
         self.assertIsInstance(mock_format_result.call_args[0][0], dict)
@@ -599,7 +603,7 @@ class AWSForecastTest(IamTestCase):
             },
         ]
         params = self.mocked_query_params("?", AWSCostForecastView)
-        instance = AWSForecast(params)
+        instance = AWSForecast(params, self.request_context["request"])
         for test in table:
             with self.subTest(test=test["name"]):
                 result = instance._key_results_by_date(test["data"])
@@ -613,10 +617,14 @@ class AzureForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", AzureCostForecastView)
+        instance = AzureForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -627,12 +635,9 @@ class AzureForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", AzureCostForecastView)
-        instance = AzureForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -664,10 +669,14 @@ class GCPForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", GCPCostForecastView)
+        instance = GCPForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -678,12 +687,9 @@ class GCPForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", GCPCostForecastView)
-        instance = GCPForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -710,28 +716,28 @@ class GCPForecastTest(IamTestCase):
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
         params = self.mocked_query_params("?", GCPCostForecastView)
-        forecast = GCPForecast(params)
+        forecast = GCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryP)
 
         params = self.mocked_query_params("?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}})
-        forecast = GCPForecast(params)
+        forecast = GCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByAccountP)
 
         params = self.mocked_query_params("?", GCPCostForecastView, access={"gcp.project": {"read": ["1"]}})
-        forecast = GCPForecast(params)
+        forecast = GCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
         params = self.mocked_query_params(
             "?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
         )
-        forecast = GCPForecast(params)
+        forecast = GCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
         params = self.mocked_query_params(
             "?", GCPCostForecastView, access={"gcp.account": {"read": ["1"]}, "gcp.project": {"read": ["1"]}}
         )
 
-        forecast = GCPForecast(params)
+        forecast = GCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, GCPCostSummaryByProjectP)
 
 
@@ -742,10 +748,14 @@ class OCIForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", OCICostForecastView)
+        instance = OCIForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -756,12 +766,9 @@ class OCIForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", OCICostForecastView)
-        instance = OCIForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -788,11 +795,11 @@ class OCIForecastTest(IamTestCase):
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
         params = self.mocked_query_params("?", OCICostForecastView)
-        forecast = OCIForecast(params)
+        forecast = OCIForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCICostSummaryP)
 
         params = self.mocked_query_params("?", OCICostForecastView, access={"oci.payer_tenant_id": {"read": ["1"]}})
-        forecast = OCIForecast(params)
+        forecast = OCIForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCICostSummaryByAccountP)
 
 
@@ -802,11 +809,14 @@ class OCPForecastTest(IamTestCase):
     def test_predict_flat(self):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
+        params = self.mocked_query_params("?", OCPCostForecastView)
+        instance = OCPForecast(params, self.request_context["request"])
 
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -817,12 +827,9 @@ class OCPForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", OCPCostForecastView)
-        instance = OCPForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -849,25 +856,25 @@ class OCPForecastTest(IamTestCase):
     def test_cost_summary_table(self):
         """Test that we select a valid table or view."""
         params = self.mocked_query_params("?", OCPCostForecastView)
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPCostSummaryP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}})
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPCostSummaryP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.node": {"read": ["1"]}})
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNodeP)
 
         params = self.mocked_query_params(
             "?", OCPCostForecastView, access={"openshift.cluster": {"read": ["1"]}, "openshift.node": {"read": ["1"]}}
         )
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPCostSummaryByNodeP)
 
         params = self.mocked_query_params("?", OCPCostForecastView, access={"openshift.project": {"read": ["1"]}})
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
 
         params = self.mocked_query_params(
@@ -875,7 +882,7 @@ class OCPForecastTest(IamTestCase):
             OCPCostForecastView,
             access={"openshift.cluster": {"read": ["1"]}, "openshift.project": {"read": ["1"]}},
         )
-        forecast = OCPForecast(params)
+        forecast = OCPForecast(params, self.request_context["request"])
         self.assertEqual(forecast.cost_summary_table, OCPUsageLineItemDailySummary)
 
 
@@ -886,10 +893,14 @@ class OCPAllForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", OCPAllCostForecastView)
+        instance = OCPAllForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -900,12 +911,9 @@ class OCPAllForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", OCPAllCostForecastView)
-        instance = OCPAllForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -937,10 +945,14 @@ class OCPAWSForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", OCPAWSCostForecastView)
+        instance = OCPAWSForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -951,12 +963,9 @@ class OCPAWSForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", OCPAWSCostForecastView)
-        instance = OCPAWSForecast(params)
 
         instance.cost_summary_table = mocked_table
 
@@ -988,10 +997,14 @@ class OCPAzureForecastTest(IamTestCase):
         """Test that predict() returns expected values for flat costs."""
         dh = DateHelper()
 
+        params = self.mocked_query_params("?", OCPAzureCostForecastView)
+        instance = OCPAzureForecast(params, self.request_context["request"])
+
         expected = []
         for n in range(0, 10):
             expected.append(
                 {
+                    f"{instance.cost_units_key}": "USD",
                     "usage_start": (dh.this_month_start + timedelta(days=n)).date(),
                     "total_cost": 5 + (0.01 * n),
                     "infrastructure_cost": 3 + (0.01 * n),
@@ -1002,13 +1015,10 @@ class OCPAzureForecastTest(IamTestCase):
 
         mocked_table = Mock()
         mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
+            mock_qset.data
         )
 
         mocked_table.len = mock_qset.len
-
-        params = self.mocked_query_params("?", OCPAzureCostForecastView)
-        instance = OCPAzureForecast(params)
 
         instance.cost_summary_table = mocked_table
 

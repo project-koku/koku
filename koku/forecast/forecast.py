@@ -9,15 +9,18 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from functools import cached_property
 from functools import reduce
 
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 from django.db.models import Q
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -32,6 +35,7 @@ from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
+from api.utils import get_currency
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -56,7 +60,7 @@ class Forecast:
 
     REPORT_TYPE = "costs"
 
-    def __init__(self, query_params):  # noqa: C901
+    def __init__(self, query_params, request):  # noqa: C901
         """Class Constructor.
 
         Instance Attributes:
@@ -72,7 +76,9 @@ class Forecast:
             if query_params.get("cost_type"):
                 self.cost_type = query_params.get("cost_type")
             else:
-                self.cost_type = get_cost_type(self.request)
+                self.cost_type = get_cost_type(request)
+
+        self.currency = query_params.get("currency") or get_currency(request)
 
         # select appropriate model based on access
         access = query_params.get("access", {})
@@ -128,6 +134,54 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
+    @property
+    def cost_units_key(self):
+        """Return the cost_units_key property."""
+        return self.provider_map.report_type_map.get("cost_units_key")
+
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
+
+    def convert_currency(self, query_data):
+        if not query_data:
+            return []
+
+        skip_columns = ["usage_start", self.cost_units_key]
+
+        df = pd.DataFrame(query_data)
+        currencies = df[self.cost_units_key].unique()
+
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            LOG.info("Bypassing the pandas total function because all currencies are the same.")
+            query_data = df.drop(self.cost_units_key, axis=1)
+            query_data = query_data.replace({np.nan: None})
+            query_data = query_data.to_dict("records")
+            return query_data
+
+        columns = list(df.columns)
+        for column in columns:
+            if column not in skip_columns:
+                df[column] = df.apply(
+                    lambda row: row[column]
+                    * self.exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                    axis=1,
+                )
+
+        aggs = {col: ["sum"] for col in columns if col not in skip_columns}
+
+        grouped_df = df.groupby("usage_start", dropna=False).agg(aggs, axis=1)
+        columns = grouped_df.columns.droplevel(1)
+        grouped_df.columns = columns
+        grouped_df.reset_index(inplace=True)
+        grouped_df = grouped_df.replace({np.nan: None})
+        query_data = grouped_df.to_dict("records")
+        return query_data
+
     def predict(self):
         """Define ORM query to run forecast and return prediction."""
         cost_predictions = {}
@@ -135,7 +189,7 @@ class Forecast:
             data = (
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
-                .values("usage_start")
+                .values("usage_start", self.cost_units_key)
                 .annotate(
                     total_cost=self.total_cost_term,
                     supplementary_cost=self.supplementary_cost_term,
@@ -143,8 +197,10 @@ class Forecast:
                 )
             )
 
+            data = self.convert_currency(data)
+
             for fieldname in COST_FIELD_NAMES:
-                uniq_data = self._uniquify_qset(data.values("usage_start", fieldname), field=fieldname)
+                uniq_data = self._uniquify_datalist(data, field=fieldname)
                 cost_predictions[fieldname] = self._predict(uniq_data)
 
             cost_predictions = self._key_results_by_date(cost_predictions)
@@ -266,7 +322,7 @@ class Forecast:
     def format_result(self, results):
         """Format results for API consumption."""
         f_format = f"%.{self.PRECISION}f"  # avoid converting floats to e-notation
-        units = "USD"
+        units = self.currency
 
         response = []
         for key in results:
@@ -359,24 +415,21 @@ class Forecast:
         results = model.fit()
         return LinearForecastResult(results, exog=to_predict)
 
-    def _uniquify_qset(self, qset, field="total_cost"):
-        """Take a QuerySet list, sum costs within the same day, and arrange it into a list of tuples.
+    def _uniquify_datalist(self, datalist, field="total_cost"):
+        """Take a list of datapoints, sum costs within the same day, and arrange it into a list of tuples.
 
         Args:
-            qset (QuerySet)
-            field (str) - field name in the QuerySet to be summed
+            datalist (list)
+            field (str) - field name in the datalist to be summed
 
         Returns:
             [(date, cost), ...]
         """
-        # FIXME: this QuerySet->dict->list conversion probably isn't ideal.
-        # FIXME: there's probably a way to aggregate multiple sources by date using just the ORM.
         result = defaultdict(Decimal)
-        for item in qset:
+        for item in datalist:
             result[item.get("usage_start")] += Decimal(item.get(field, 0.0))
         result = self._remove_outliers(result)
-        out = [(k, v) for k, v in result.items()]
-        return out
+        return list(result.items())
 
     def set_access_filters(self, access, filt, filters):
         """Set access filters to ensure RBAC restrictions adhere to user's access and filters.

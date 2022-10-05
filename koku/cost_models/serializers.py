@@ -11,7 +11,7 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from api.common import error_obj
-from api.currency.currencies import CURRENCIES
+from api.currency.currencies import CURRENCY_CHOICES
 from api.metrics import constants as metric_constants
 from api.metrics.constants import SOURCE_TYPE_MAP
 from api.metrics.views import CostModelMetricMapJSONException
@@ -21,7 +21,6 @@ from cost_models.cost_model_manager import CostModelException
 from cost_models.cost_model_manager import CostModelManager
 from cost_models.models import CostModel
 
-CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
 MARKUP_CHOICES = (("percent", "%"),)
 LOG = logging.getLogger(__name__)
 

@@ -67,7 +67,7 @@ class ForecastView(APIView):
         except ValidationError as exc:
             return Response(data=exc.detail, status=status.HTTP_400_BAD_REQUEST)
 
-        handler = self.query_handler(params)
+        handler = self.query_handler(params, request)
         output = handler.predict()
         LOG.debug(f"DATA: {output}")
         cost_type = params.parameters.get("cost_type")
