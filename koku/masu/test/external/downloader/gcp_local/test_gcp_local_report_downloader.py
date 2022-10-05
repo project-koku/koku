@@ -10,7 +10,6 @@ import tempfile
 from datetime import datetime
 from unittest.mock import patch
 
-from django.test.utils import override_settings
 from faker import Faker
 
 from api.models import Provider
@@ -21,9 +20,6 @@ from masu.external.downloader.gcp_local.gcp_local_report_downloader import creat
 from masu.external.downloader.gcp_local.gcp_local_report_downloader import GCPLocalReportDownloader
 from masu.external.report_downloader import ReportDownloader
 from masu.test import MasuTestCase
-
-# from unittest.mock import patch
-# from api.utils import DateHelper
 
 DATA_DIR = Config.TMP_DIR
 FAKE = Faker()
@@ -93,7 +89,9 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
         """Test the GCP-Local initializer."""
         self.assertIsNotNone(self.report_downloader)
 
-    def test_download_file(self):
+    @patch("masu.util.aws.common.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_download_file(self, *args):
         """Test GCP-Local report download."""
 
         full_file_path, etag, _, __, ___ = self.gcp_local_report_downloader.download_file(self.csv_file_name)
@@ -175,7 +173,6 @@ class GCPLocalReportDownloaderTest(MasuTestCase):
             self.assertEqual(manifest_metadata["assembly_id"], expected_assembly_id)
             self.assertEqual(manifest_metadata["files"], [self.csv_file_name])
 
-    @override_settings(ENABLE_PARQUET_PROCESSING=True)
     @patch("masu.external.downloader.gcp_local.gcp_local_report_downloader.copy_local_report_file_to_s3_bucket")
     def test_create_daily_archives(self, mock_s3):
         """Test that we load daily files to S3."""

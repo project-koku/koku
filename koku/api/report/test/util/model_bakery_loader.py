@@ -20,7 +20,6 @@ from tenant_schemas.utils import schema_context
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
-from api.report.test.util.constants import AWS_CONSTANTS
 from api.report.test.util.constants import OCP_ON_PREM_COST_MODEL
 from api.report.test.util.data_loader import DataLoader
 from masu.database.aws_report_db_accessor import AWSReportDBAccessor
@@ -79,9 +78,8 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
-        # TODO: COST-444: when transitioning AWS and Azure, these tables need to be uncommented
-        # for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys",):
-        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys"):
+
+        for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys", "AzureEnabledTagKeys"):
             for dikt in self.tags:
                 for key in dikt.keys():
                     with schema_context(self.schema):
@@ -214,7 +212,6 @@ class ModelBakeryDataLoader(DataLoader):
                         usage_end=start_date + timedelta(i),
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=max(AWS_CONSTANTS.length, len(aliases)),
                     )
         bill_ids = [bill.id for bill in bills]
         with AWSReportDBAccessor(self.schema) as accessor:
@@ -259,7 +256,6 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                     )
         bill_ids = [bill.id for bill in bills]
         with AzureReportDBAccessor(self.schema) as accessor:
@@ -298,7 +294,6 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                     )
         bill_ids = [bill.id for bill in bills]
         with GCPReportDBAccessor(self.schema) as accessor:
@@ -430,7 +425,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
                     baker.make_recipe(
@@ -443,7 +437,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
                     baker.make_recipe(
@@ -456,7 +449,6 @@ class ModelBakeryDataLoader(DataLoader):
                         cost_entry_bill=bill,
                         tags=cycle(self.tags),
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                         **unique_fields,
                     )
         with dbaccessor(self.schema) as accessor:
@@ -509,7 +501,6 @@ class ModelBakeryDataLoader(DataLoader):
                         tags=cycle(self.tags),
                         currency=self.currency,
                         source_uuid=provider.uuid,
-                        _quantity=len(self.tags),
                     )
         bill_ids = [bill.id for bill in bills]
         with OCIReportDBAccessor(self.schema) as accessor:
