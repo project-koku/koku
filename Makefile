@@ -20,10 +20,16 @@ DOCKER_BUILDKIT = 1
 scale = 1
 
 # Prefer Docker Compose v2
-DOCKER_COMPOSE_CHECK := $(shell docker compose version >/dev/null 2>&1 ; echo $$?)
-DOCKER_COMPOSE = docker compose
+DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
+DOCKER_COMPOSE_BIN = $(DOCKER) compose
 ifneq ($(DOCKER_COMPOSE_CHECK), 0)
-	DOCKER_COMPOSE = docker-compose
+	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
+endif
+
+# Allow setting a custom compose file
+DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
+ifdef compose_file
+	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f $(compose_file)
 endif
 
 # Testing directories
