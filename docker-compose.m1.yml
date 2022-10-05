@@ -1,0 +1,11 @@
+# for the Makefile to use this file, set the `compose_file` env variable to:
+# compose_file=docker-compose.m1.yml
+
+version: '3'
+
+services:
+  hive-metastore:
+    image: quay.io/mskarbek/ubi-hive:3.1.2-metastore-008
+
+  trino:
+    image: quay.io/mskarbek/ubi-trino:392-001
