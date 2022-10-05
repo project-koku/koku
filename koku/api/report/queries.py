@@ -774,7 +774,7 @@ class ReportQueryHandler(QueryHandler):
             currencies = df[self._mapper.cost_units_key].unique()
             aggregates = self._mapper.report_type_map.get("aggregates")
             if len(currencies) == 1 and currencies[0] == self.currency:
-                LOG.info("Bypassing the pandas total function because all currencies are the same.")
+                LOG.debug("Bypassing the pandas total function because all currencies are the same.")
                 query_data = og_query.aggregate(**aggregates)
                 return query_data
 
