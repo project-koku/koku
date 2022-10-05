@@ -19,6 +19,13 @@ DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
 DOCKER_BUILDKIT = 1
 scale = 1
 
+# Prefer Docker Compose v2
+DOCKER_COMPOSE_CHECK := $(shell docker compose version >/dev/null 2>&1 ; echo $$?)
+DOCKER_COMPOSE = docker compose
+ifneq ($(DOCKER_COMPOSE_CHECK), 0)
+	DOCKER_COMPOSE = docker-compose
+endif
+
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
 PROVIDER_TEMP_DIR = $(TESTINGDIR)/pvc_dir
@@ -342,7 +349,7 @@ docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
 
 docker-test-all:
-	docker compose -f koku-test.yml up --build
+	$(DOCKER_COMPOSE) -f koku-test.yml up --build
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
@@ -441,10 +448,10 @@ docker-trino-up-no-build: docker-trino-setup
 	$(DOCKER_COMPOSE) up -d trino hive-metastore
 
 docker-trino-ps:
-	docker compose -f ./testing/compose_files/docker-compose-trino.yml ps
+	$(DOCKER_COMPOSE) ps trino hive-metastore
 
 docker-trino-down:
-	docker compose -f ./testing/compose_files/docker-compose-trino.yml down -v --remove-orphans
+	$(DOCKER_COMPOSE) down -v --remove-orphans
 	make clear-trino
 
 docker-trino-down-all: docker-trino-down docker-down
