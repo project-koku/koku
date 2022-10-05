@@ -256,11 +256,10 @@ class OCPCloudReportSummaryUpdaterTest(MasuTestCase):
     # @patch(
     #     "masu.processor.ocp.ocp_cloud_parquet_summary_updater.OCPReportDBAccessor.populate_ocp_on_all_project_daily_summary"  # noqa: E501
     # )
-    # TODO: needs review
-    @skip("this one needs a review, OCPAzureCostLineItemDailySummaryP is returns empty qs on filter")
+    @skip("Revisit this test")
     @patch("masu.database.cost_model_db_accessor.CostModelDBAccessor.cost_model")
     def test_update_summary_tables_azure(
-        self, mock_cost_model  # , mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
+        self, mock_cost_model, mock_ocpall_proj_summ, mock_ocpall_summ, mock_ocpall_persp
     ):
         """Test that summary tables are updated correctly."""
 
