@@ -365,7 +365,7 @@ class OCPGCPCostSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPGCPCostSummaryByServiceP."""
+        """Meta for OCPGCPCostSummaryP."""
 
         db_table = "reporting_ocpgcp_cost_summary_p"
 
@@ -395,7 +395,7 @@ class OCPGCPComputeSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPGCPCostSummaryByServiceP."""
+        """Meta for OCPGCPComputeSummaryP."""
 
         db_table = "reporting_ocpgcp_compute_summary_p"
 
@@ -429,7 +429,7 @@ class OCPGCPDatabaseSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPGCPCostSummaryByServiceP."""
+        """Meta for OCPGCPDatabaseSummaryP."""
 
         db_table = "reporting_ocpgcp_database_summary_p"
 
@@ -464,7 +464,7 @@ class OCPGCPNetworkSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPGCPCostSummaryByServiceP."""
+        """Meta for OCPGCPNetworkSummaryP."""
 
         db_table = "reporting_ocpgcp_network_summary_p"
 
@@ -499,7 +499,7 @@ class OCPGCPStorageSummaryP(models.Model):
         partition_cols = ["usage_start"]
 
     class Meta:
-        """Meta for OCPGCPCostSummaryByServiceP."""
+        """Meta for OCPGCPStorageSummaryP."""
 
         db_table = "reporting_ocpgcp_storage_summary_p"
 

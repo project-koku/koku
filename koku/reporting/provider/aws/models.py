@@ -108,6 +108,8 @@ class AWSCostEntryLineItem(models.Model):
 
     This identifies specific costs and usage of AWS resources.
 
+    db_table: reporting_awscostentrylineitem
+
     """
 
     id = models.BigAutoField(primary_key=True)
