@@ -1381,10 +1381,9 @@ class OCPAzureQueryHandlerTest(IamTestCase):
             )
         correctlst = [service.get("service_name") for service in expected]
         for element in data:
-            if element.get("date") == str(yesterday):
-                lst = [service.get("service_name") for service in element.get("service_names", [])]
-                if lst and correctlst:
-                    self.assertEqual(correctlst, lst)
+            lst = [service.get("service_name") for service in element.get("service_names", [])]
+            if lst and correctlst:
+                self.assertEqual(correctlst, lst)
 
     def test_ocp_azure_date_incorrect_date(self):
         wrong_date = "200BC"

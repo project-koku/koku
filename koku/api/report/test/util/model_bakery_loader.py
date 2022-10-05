@@ -78,8 +78,7 @@ class ModelBakeryDataLoader(DataLoader):
 
     def _populate_enabled_tag_key_table(self):
         """Insert records for our tag keys."""
-        # TODO: COST-444: when transitioning AWS and Azure, these tables need to be uncommented
-        # for table_name in ("AWSEnabledTagKeys", "AzureEnabledTagKeys", "GCPEnabledTagKeys",):
+
         for table_name in ("AWSEnabledTagKeys", "GCPEnabledTagKeys", "OCIEnabledTagKeys", "AzureEnabledTagKeys"):
             for dikt in self.tags:
                 for key in dikt.keys():
