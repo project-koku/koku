@@ -48,7 +48,6 @@ LOG = logging.getLogger(__name__)
 RATES = {"USD": "1"}
 
 
-
 class OCPAzureQueryHandlerTestNoData(IamTestCase):
     """Tests for the OCP report query handler with no data."""
 
