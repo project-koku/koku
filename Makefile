@@ -26,10 +26,10 @@ ifneq ($(DOCKER_COMPOSE_CHECK), 0)
 	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
 endif
 
-# Allow setting a custom compose file
+# Use ARM images on ARM systems
 DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
-ifdef compose_file
-	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f $(compose_file)
+ifeq (arm, $(findstring arm, $(shell uname -m)))
+	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f docker-compose.arm.yml
 endif
 
 # Testing directories
