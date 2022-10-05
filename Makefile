@@ -131,7 +131,6 @@ help:
 
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
-	@echo "  docker-test-all                      run unittests"
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
@@ -347,9 +346,6 @@ docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-mig
 
 docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
-
-docker-test-all:
-	$(DOCKER_COMPOSE) -f koku-test.yml up --build
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
