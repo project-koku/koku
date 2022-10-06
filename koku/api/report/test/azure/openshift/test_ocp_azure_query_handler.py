@@ -655,7 +655,7 @@ class OCPAzureQueryHandlerTest(IamTestCase):
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent", 0))
-        self.assertEqual(delta.get("value", 0), total_cost)
+        self.assertAlmostEqual(delta.get("value", 0), total_cost, 6)
 
     def test_execute_query_orderby_delta(self):
         """Test execute_query with ordering by delta ascending."""

@@ -818,7 +818,7 @@ class AzureReportQueryHandlerTest(IamTestCase):
         delta = query_output.get("delta")
         self.assertIsNotNone(delta.get("value"))
         self.assertIsNone(delta.get("percent"))
-        self.assertEqual(delta.get("value"), total_cost.get("value"))
+        self.assertAlmostEqual(delta.get("value"), total_cost.get("value"), 6)
         self.assertEqual(delta.get("percent"), None)
 
     def test_execute_query_orderby_delta(self):

@@ -2652,7 +2652,11 @@ class AWSReportQueryTest(IamTestCase):
                 group_handler = AWSReportQueryHandler(group_params)
                 group_total = group_handler.execute_query().get("total", None)
                 self.assertIsNotNone(filter_total)
-                self.assertEqual(filter_total, group_total)
+                for cost_type, filter_dict in filter_total.items():
+                    group_dict = group_total[cost_type]
+                    for breakdown in ["raw", "markup", "usage", "total"]:
+                        with self.subTest(breakdown):
+                            self.assertAlmostEqual(group_dict[breakdown]["value"], filter_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_parent_and_child(self):
         """Test that cost is not calculated twice in a multiple group by of parent and child."""
