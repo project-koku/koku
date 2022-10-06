@@ -360,9 +360,6 @@ class ProviderManagerTest(IamTestCase):
             with tenant_context(provider.customer):
                 manager = ProviderManager(provider.uuid)
                 manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
-            mock_delete_archived_data.delay.assert_called_with(
-                customer.schema_name, Provider.PROVIDER_AWS_LOCAL, provider.uuid
-            )
         for view in AWS_UI_SUMMARY_TABLES:
             with tenant_context(customer):
                 model = get_model(view)
