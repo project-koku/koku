@@ -2675,7 +2675,11 @@ class AWSReportQueryTest(IamTestCase):
             query_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             handler = AWSReportQueryHandler(query_params)
             result_total = handler.execute_query().get("total")
-            self.assertEqual(expected_total, result_total)
+            for cost_type, expected_dict in expected_total.items():
+                result_dict = result_total[cost_type]
+                for breakdown in ["raw", "markup", "usage", "total"]:
+                    with self.subTest(breakdown):
+                        self.assertAlmostEqual(result_dict[breakdown]["value"], expected_dict[breakdown]["value"], 6)
 
     def test_multi_group_by_seperate_children(self):
         """Test cost sum of multi org_unit_id group by of children nodes"""
