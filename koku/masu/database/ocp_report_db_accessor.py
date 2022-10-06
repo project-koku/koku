@@ -2298,13 +2298,25 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
         return cluster
 
     def populate_node_table(self, cluster, nodes):
-        """Get or create an entry in the OCP cluster table."""
+        """Get or create an entry in the OCP node table."""
         LOG.info("Populating reporting_ocp_nodes table.")
         with schema_context(self.schema):
             for node in nodes:
-                OCPNode.objects.get_or_create(
+                tmp_node = OCPNode.objects.filter(
                     node=node[0], resource_id=node[1], node_capacity_cpu_cores=node[2], cluster=cluster
-                )
+                ).first()
+                if not tmp_node:
+                    OCPNode.objects.create(
+                        node=node[0],
+                        resource_id=node[1],
+                        node_capacity_cpu_cores=node[2],
+                        node_role=node[3],
+                        cluster=cluster,
+                    )
+                # if the node entry already exists but does not have a role assigned, update the node role
+                elif not tmp_node.node_role:
+                    tmp_node.node_role = node[3]
+                    tmp_node.save()
 
     def populate_pvc_table(self, cluster, pvcs):
         """Get or create an entry in the OCP cluster table."""
@@ -2323,18 +2335,30 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
     def get_nodes_presto(self, source_uuid, start_date, end_date):
         """Get the nodes from an OpenShift cluster."""
         sql = f"""
-            SELECT node,
-                resource_id,
-                max(node_capacity_cpu_cores) as node_capacity_cpu_cores
+            SELECT ocp.node,
+                ocp.resource_id,
+                max(ocp.node_capacity_cpu_cores) as node_capacity_cpu_cores,
+                CASE
+                    WHEN contains(array_agg(DISTINCT ocp.namespace), 'openshift-kube-apiserver') THEN 'master'
+                    WHEN any_match(array_agg(DISTINCT nl.node_labels), element -> element like  '%"node_role_kubernetes_io": "infra"%') THEN 'infra'
+                    ELSE 'worker'
+                END as node_role
             FROM hive.{self.schema}.openshift_pod_usage_line_items_daily as ocp
+            LEFT JOIN hive.{self.schema}.openshift_node_labels_line_items_daily as nl
+                ON ocp.node = nl.node
             WHERE ocp.source = '{source_uuid}'
                 AND ocp.year = '{start_date.strftime("%Y")}'
                 AND ocp.month = '{start_date.strftime("%m")}'
                 AND ocp.interval_start >= TIMESTAMP '{start_date}'
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
-            GROUP BY node,
-                resource_id
-        """
+                AND nl.source = '{source_uuid}'
+                AND nl.year = '{start_date.strftime("%Y")}'
+                AND nl.month = '{start_date.strftime("%m")}'
+                AND nl.interval_start >= TIMESTAMP '{start_date}'
+                AND nl.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+            GROUP BY ocp.node,
+                ocp.resource_id
+        """  # noqa: E501
 
         nodes = self._execute_presto_raw_sql_query(self.schema, sql, log_ref="get_nodes_presto")
 
