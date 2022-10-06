@@ -110,6 +110,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: aws_compute3
+          node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra
           cpu_cores: 4
           memory_gig: 16
           resource_id: 55555557
@@ -171,3 +172,12 @@ generators:
                   mem_limit_gig: 4
                   pod_seconds: 3600
                   labels: label_environment:dev|label_app:master|label_version:master
+            openshift-kube-apiserver:
+              pods:
+                - pod:
+                  pod_name: pod_apiserver
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
