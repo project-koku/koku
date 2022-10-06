@@ -2351,6 +2351,11 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
                 AND ocp.month = '{start_date.strftime("%m")}'
                 AND ocp.interval_start >= TIMESTAMP '{start_date}'
                 AND ocp.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
+                AND nl.source = '{source_uuid}'
+                AND nl.year = '{start_date.strftime("%Y")}'
+                AND nl.month = '{start_date.strftime("%m")}'
+                AND nl.interval_start >= TIMESTAMP '{start_date}'
+                AND nl.interval_start < date_add('day', 1, TIMESTAMP '{end_date}')
             GROUP BY ocp.node,
                 ocp.resource_id
         """  # noqa: E501
