@@ -696,7 +696,6 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
         provider = Sources.objects.get(source_id=source_id)
 
         msg = {"operation": "destroy", "provider": provider, "offset": provider.offset}
-
         with patch.object(SourcesHTTPClient, "set_source_status"):
             with patch.object(ProviderBuilder, "destroy_provider", side_effect=raise_provider_manager_error):
                 source_integration.execute_koku_provider_op(msg)
@@ -704,11 +703,8 @@ class SourcesKafkaMsgHandlerTest(IamTestCase):
                 self.assertTrue(Sources.objects.filter(source_uuid=provider.source_uuid).exists())
                 self.assertTrue(Sources.objects.filter(koku_uuid=provider.source_uuid).exists())
 
-        # We use this context manager to get on_commit to fire inside
-        # the unit test transaction that is not committed
-        with self.captureOnCommitCallbacks(execute=True):
-            with patch.object(SourcesHTTPClient, "set_source_status"):
-                source_integration.execute_koku_provider_op(msg)
+        with patch.object(SourcesHTTPClient, "set_source_status"):
+            source_integration.execute_koku_provider_op(msg)
         self.assertFalse(Provider.objects.filter(uuid=provider.source_uuid).exists())
 
     def test_execute_koku_provider_op_update(self):

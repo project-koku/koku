@@ -253,6 +253,7 @@ class ProviderManager:
             err_msg = f"Provider {self._uuid} must be updated via Sources Integration Service"
             raise ProviderManagerError(err_msg)
 
+    @transaction.atomic
     def remove(self, request=None, user=None, from_sources=False, retry_count=None):
         """Remove the provider with current_user."""
         current_user = user
@@ -272,17 +273,13 @@ class ProviderManager:
                 self.model.delete()
                 LOG.info(f"Provider: {self.model.name} removed by {current_user.username}")
             except IntegrityError as err:
-                # One more place to retryfor when we delete smoke test sources while they have
-                # data processing
-                if retry_count is not None and retry_count < settings.MAX_SOURCE_DELETE_RETRIES:
-                    err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
-                    raise ProviderProcessingError(err_msg)
-                else:
+                if retry_count is None or retry_count >= settings.MAX_SOURCE_DELETE_RETRIES:
                     raise err
+                err_msg = f"Provider {self._uuid} is currently being processed and must finish before delete."
+                raise ProviderProcessingError(err_msg) from err
         else:
-            err_msg = "User {} does not have permission to delete provider {}".format(
-                current_user.username, str(self.model)
-            )
+            err_msg = f"User {current_user.username} does not have permission to delete provider {str(self.model)}"
+
             raise ProviderManagerError(err_msg)
 
 
