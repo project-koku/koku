@@ -5,6 +5,7 @@
 """Test the Provider views."""
 import json
 from datetime import date
+from unittest.mock import Mock
 from unittest.mock import patch
 
 from dateutil import parser
@@ -50,6 +51,7 @@ class MockResponse:
         return json.loads(self.response_text)
 
 
+@patch("masu.celery.tasks.delete_archived_data.delay", Mock())
 class ProviderManagerTest(IamTestCase):
     """Tests for Provider Manager."""
 
@@ -363,7 +365,8 @@ class ProviderManagerTest(IamTestCase):
                 model = get_model(view)
                 self.assertFalse(model.objects.count())
 
-    def test_remove_all_aws_providers(self):
+    @patch("masu.celery.tasks.delete_archived_data")
+    def test_remove_all_aws_providers(self, mock_delete_archived_data):
         """Remove all AWS providers."""
         provider_query = Provider.objects.all().filter(type="AWS-local")
 
@@ -376,6 +379,9 @@ class ProviderManagerTest(IamTestCase):
                 # the unit test transaction that is not committed
                 with self.captureOnCommitCallbacks(execute=True):
                     manager.remove(self._create_delete_request(self.user, {"Sources-Client": "False"}))
+            mock_delete_archived_data.delay.assert_called_with(
+                customer.schema_name, Provider.PROVIDER_AWS_LOCAL, provider.uuid
+            )
         for view in AWS_UI_SUMMARY_TABLES:
             with tenant_context(customer):
                 model = get_model(view)

@@ -101,7 +101,9 @@ class AzureLocalReportDownloaderTest(MasuTestCase):
         self.assertEqual(etag, second_run_etag)
         self.assertEqual(full_file_path, expected_full_path)
 
-    def test_download_report(self):
+    @patch("masu.external.downloader.azure_local.azure_local_report_downloader.remove_files_not_in_set_from_s3_bucket")
+    @patch("masu.util.aws.common.copy_data_to_s3_bucket")
+    def test_download_report(self, *args):
         """Test the top level Azure-Local download_report."""
         test_report_date = datetime.datetime(year=2019, month=8, day=7)
         with patch.object(DateAccessor, "today", return_value=test_report_date):
