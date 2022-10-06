@@ -2698,7 +2698,7 @@ class AWSReportQueryTest(IamTestCase):
             multi_params = self.mocked_query_params(multi_url, AWSCostView, "costs")
             multi_handler = AWSReportQueryHandler(multi_params)
             multi_cost = multi_handler.execute_query().get("total", {}).get("cost", {}).get("total", {}).get("value")
-            self.assertEqual(sum(expected_costs), multi_cost)
+            self.assertAlmostEqual(sum(expected_costs), multi_cost, 6)
 
     def test_multiple_group_by_alias_change(self):
         """Test that the data is correctly formatted to id & alias multi org_unit_id group bys"""
