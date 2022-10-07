@@ -188,7 +188,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
             )
         df["infra_raw"] = df.apply(
             lambda row: row["infra_raw"]
-            * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+            * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
+            if row[self._mapper.cost_units_key]
+            else row["infra_raw"]
+            * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
+                self.currency, Decimal(1.0)
+            ),
             axis=1,
         )
         df["infra_total"] = df.apply(
