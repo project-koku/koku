@@ -257,7 +257,7 @@ The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the S3_ACCES
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as `admin`. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
-For command line interactions with Trino install the CLI from https://trino.io/docs/current/installation/cli.html and follow instructions there. Use the following to login ::
+For command line interactions with Trino `install the CLI`_ and use the following to login ::
 
     trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
 
@@ -340,6 +340,7 @@ Please refer to Contributing_.
 .. _pre-commit: https://pre-commit.com
 .. _Black: https://github.com/psf/black
 .. _Flake8: http://flake8.pycqa.org
+.. _`install the CLI`: https://trino.io/docs/current/client/cli.html
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/main/LICENSE
