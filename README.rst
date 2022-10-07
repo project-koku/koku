@@ -18,8 +18,6 @@ Getting Started
 
 This project is developed using Python 3.8. Make sure you have at least this version installed.
 
-| *Note*: M1 Mac users should follow the `M1 Mac Setup`_.
-
 Prerequisites
 -------------
 
@@ -55,15 +53,14 @@ This project is developed using the Django web framework. Many configuration set
     AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
     AWS_RESOURCE_NAME=YOUR_COST_MANAGEMENT_AWS_ARN
 
-3. (Mac Only) If you are on Mac, do the following note that psycopg2 is a dependency of Django and installing the psycopg2 wheel will likely fail. The following steps should be taken to allow installation to succeed: ::
+3. (Mac Only) Install libraries for building wheels on ARM ::
 
-    brew install openssl
-    brew unlink openssl && brew link openssl --force
+    brew install openssl librdkafka
 
-4. (Mac Only) Also add the following to your ``.env``::
+4. (Mac Only) Also add the following to your ``.env`` or shell profile ::
 
-    LDFLAGS="-L/usr/local/opt/openssl/lib"
-    CPPFLAGS="-I/usr/local/opt/openssl/include"
+    LDFLAGS="-L$(brew --prefix openssl)/lib -L$(brew --prefix librdkafka)/lib"
+    CPPFLAGS="-I$(brew --prefix openssl)/include -I$(brew --prefix librdkafka)/include"
 
 5. Developing inside a virtual environment is recommended. A Pipfile is provided. Pipenv is recommended for combining virtual environment (virtualenv) and dependency management (pip). To install pipenv, use pip ::
 
@@ -94,17 +91,15 @@ This will explain how to start the server and its dependencies using Docker, cre
 Starting Koku using Docker Compose
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. note:: In order for the ``koku_base`` image to build correctly, buildkit must be enabled by setting ``DOCKER_BUILDKIT=1``. This is set in the ``.env`` file, but if you are having issues building the ``koku_base`` image, make sure buildkit is enabled.
+
 1. Start the docker containers::
 
     make docker-up
 
 2. Display log output from the docker containers. It is recommended that logs be kept in a second terminal ::
 
-    docker-compose logs -f koku-server koku-worker
-
-3. Install koku-nise::
-
-    pip install koku-nise
+    docker compose logs -f koku-server koku-worker
 
 Run AWS Scenario
 ^^^^^^^^^^^^^^^^
@@ -163,11 +158,11 @@ To bring down all the docker containers, run the following command::
 Database
 ^^^^^^^^
 
-PostgreSQL is used as the database backend for Koku. A docker-compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
+PostgreSQL is used as the database backend for Koku. A docker compose file is provided for creating a local database container. Assuming the default .env file values are used, to access the database directly using psql run ::
 
     PGPASSWORD=postgres psql postgres -U postgres -h localhost -p 15432
 
-**Note:** There is a known limitation with docker-compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
+**Note:** There is a known limitation with docker compose and Linux environments with SELinux enabled. You may see the following error during the postgres container deployment::
 
     "mkdir: cannot create directory '/var/lib/pgsql/data/userdata': Permission denied" can be resolved by granting ./pg_data ownership permissions to uid:26 (postgres user in centos/postgresql-96-centos7)
 
@@ -229,7 +224,7 @@ Information about Grafana dashboards can be found here: https://grafana.com/docs
 Using Trino and MinIO
 ^^^^^^^^^^^^^^^^^^^^^
 
-We have a special docker-compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
+We have a special docker compose file specifically for running Trino (formerly Presto) with MinIO for object storage. With the proper environment variables set the app will run circumventing our conventional Postgres processing in favor of using Trino.
 
 Set the following environment variables ::
 
@@ -262,7 +257,7 @@ The MinIO UI will be available at http://127.0.0.1:9090/minio/. Use the S3_ACCES
 
 The Trinio UI will be available at http://127.0.0.1:8080/ui/. Login as `admin`. Details can be found there on queries. This is particularly useful for troubleshooting failures.
 
-For command line interactions with Trino install the CLI from https://trino.io/docs/current/installation/cli.html and follow instructions there. Use the following to login ::
+For command line interactions with Trino `install the CLI`_ and use the following to login ::
 
     trino --server localhost:8080 --catalog hive --schema acct10001 --user admin --debug
 
@@ -287,13 +282,13 @@ This will rebuild the tox virtual env and then run all tests.
 
 To run unit tests specifically::
 
-    tox -e py38
+    tox -e py39
 
 To run a specific subset of unit tests, you can pass a particular module path to tox. To do this, use positional args using the -- separator. For example::
 
-    tox -e py38 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
+    tox -e py39 -- masu.test.external.downloader.azure.test_azure_services.AzureServiceTest
 
-To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker-compose run::
+To run IQE Smoke, Vortex or API tests, while on the Red Hat network and koku deployed via docker compose run::
 
     make docker-iqe-smokes-tests
     make docker-iqe-vortex-tests
@@ -318,7 +313,7 @@ pgAdmin
 If you want to interact with the Postgres database from a GUI:
 
  1. Copy the `pgadmin_servers.json.example` into a `pgadmin_servers.json` file and if necessary, change any variables to match your database.
- 2. `docker-compose up` causes pgAdmin to run on http://localhost:8432
+ 2. `docker compose up` causes pgAdmin to run on http://localhost:8432
  3. In the login screen, the default login email is `postgres`
 
 Side note: The `pgadmin_servers.json` file uses [pgadmin servers.json syntax](https://www.pgadmin.org/docs/pgadmin4/development/import_export_servers.html#json-format)
@@ -345,7 +340,7 @@ Please refer to Contributing_.
 .. _pre-commit: https://pre-commit.com
 .. _Black: https://github.com/psf/black
 .. _Flake8: http://flake8.pycqa.org
-.. _`M1 Mac Setup`: https://github.com/project-koku/koku/blob/main/docs/koku_setup_on_m1.rst
+.. _`install the CLI`: https://trino.io/docs/current/client/cli.html
 
 .. |license| image:: https://img.shields.io/github/license/project-koku/koku.svg
    :target: https://github.com/project-koku/koku/blob/main/LICENSE

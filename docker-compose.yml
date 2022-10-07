@@ -488,7 +488,7 @@ services:
     container_name: pgAdmin
     image: dpage/pgadmin4
     environment:
-    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres}
+    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL-postgres@local.dev}
     - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD-postgres}
     ports:
       - "${PGADMIN_PORT-8432}:80"
