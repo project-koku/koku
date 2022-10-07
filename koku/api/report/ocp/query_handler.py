@@ -180,17 +180,21 @@ class OCPReportQueryHandler(ReportQueryHandler):
             df = pd.DataFrame(query_data)
             columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
             for column in columns:
+                if column == "infra_raw":
+                    continue
                 df[column] = df.apply(
                     lambda row: row[column]
-                    * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0))
-                    if row[self._mapper.cost_units_key]
-                    else row[column]
                     * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
                         self.currency, Decimal(1.0)
                     ),
                     axis=1,
                 )
-                df["cost_units"] = self.currency
+            df["infra_raw"] = df.apply(
+                lambda row: row["infra_raw"]
+                * self.exchange_rates.get(row[self._mapper.cost_units_key], {}).get(self.currency, Decimal(1.0)),
+                axis=1,
+            )
+            df["cost_units"] = self.currency
             skip_columns = []
             annotations = list(self.report_annotations.keys())
             if self.query_table == OCPUsageLineItemDailySummary:
