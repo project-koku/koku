@@ -400,6 +400,60 @@ FROM (
 
 ;
 
+INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
+    uuid,
+    report_period_id,
+    cluster_id,
+    cluster_alias,
+    usage_start,
+    usage_end,
+    namespace,
+    node,
+    pod_usage_cpu_core_hours,
+    pod_request_cpu_core_hours,
+    pod_effective_usage_cpu_core_hours,
+    pod_usage_memory_gigabyte_hours,
+    pod_request_memory_gigabyte_hours,
+    pod_effective_usage_memory_gigabyte_hours,
+    source_uuid,
+    source,
+    year,
+    month,
+    day
+)
+SELECT NULL as uuid,
+    {{report_period_id}} as report_period_id,
+    {{cluster_id}} as cluster_id,
+    {{cluster_alias}} as cluster_alias,
+    max(lids.usage_start),
+    max(lids.usage_end),
+    CASE max(nodes.node_role)
+        WHEN 'master' THEN 'Platform Unallocated Capacity'
+        WHEN 'infra' THEN 'Platform Unallocated Capacity'
+        WHEN 'worker' THEN 'Unallocated Capacity'
+    END as namespace,
+    lids.node,
+    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_usage_cpu_core_hours)) as pod_usage_cpu_core_hours,
+    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_request_cpu_core_hours)) as pod_request_cpu_core_hours,
+    (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_effective_usage_cpu_core_hours)) as pod_effective_usage_cpu_core_hours,
+    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_usage_memory_gigabyte_hours)) as pod_usage_memory_gigabyte_hours,
+    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_request_memory_gigabyte_hours)) as pod_request_memory_gigabyte_hours,
+    (max(lids.node_capacity_memory_gigabyte_hours) - sum(lids.pod_effective_usage_memory_gigabyte_hours)) as pod_effective_usage_memory_gigabyte_hours,
+    lids.source_uuid,
+    {{source}} as source,
+    cast(year(lids.usage_start) as varchar) as year,
+    cast(month(lids.usage_start) as varchar) as month,
+    cast(day(lids.usage_start) as varchar) as day
+FROM reporting_ocpusagelineitem_daily_summary as lids
+LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
+    ON lids.node = nodes.node
+WHERE lids.source = {{source}}
+    AND lids.year = {{year}}
+    AND lids.month = {{month}}
+    AND lids.usage_start >= TIMESTAMP {{start_date}}
+    AND lids.node IS NOT NULL
+GROUP BY lids.node, lids.usage_start, lids.source_uuid
+;
 
 INSERT INTO postgres.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
