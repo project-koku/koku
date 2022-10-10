@@ -16,7 +16,21 @@ KOKU_SERVER_PORT = $(shell echo "${KOKU_API_PORT:-8000}")
 MASU_SERVER = $(shell echo "${MASU_SERVICE_HOST:-localhost}")
 MASU_SERVER_PORT = $(shell echo "${MASU_SERVICE_PORT:-5042}")
 DOCKER := $(shell which docker 2>/dev/null || which podman 2>/dev/null)
+DOCKER_BUILDKIT = 1
 scale = 1
+
+# Prefer Docker Compose v2
+DOCKER_COMPOSE_CHECK := $(shell $(DOCKER) compose version >/dev/null 2>&1 ; echo $$?)
+DOCKER_COMPOSE_BIN = $(DOCKER) compose
+ifneq ($(DOCKER_COMPOSE_CHECK), 0)
+	DOCKER_COMPOSE_BIN = $(DOCKER)-compose
+endif
+
+# Use ARM images on ARM systems
+DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN)
+ifeq (arm, $(findstring arm, $(shell uname -m)))
+	DOCKER_COMPOSE = $(DOCKER_COMPOSE_BIN) -f docker-compose.yml -f docker-compose.arm.yml
+endif
 
 # Testing directories
 TESTINGDIR = $(TOPDIR)/testing
@@ -25,13 +39,6 @@ OCP_PROVIDER_TEMP_DIR = $(PROVIDER_TEMP_DIR)/insights_local
 
 # How to execute Django's manage.py
 DJANGO_MANAGE = DJANGO_READ_DOT_ENV_FILE=True $(PYTHON) $(PYDIR)/manage.py
-
-# Docker compose specific file
-ifdef compose_file
-    DOCKER_COMPOSE = $(DOCKER)-compose -f docker-compose.yml -f $(compose_file)
-else
-	DOCKER_COMPOSE = $(DOCKER)-compose
-endif
 
 # Platform differences
 #
@@ -109,9 +116,9 @@ help:
 	@echo "  scan_project                          run security scan"
 	@echo ""
 	@echo "--- Commands using Docker Compose ---"
-	@echo "  docker-up                            run docker-compose up --build -d"
-	@echo "  docker-up-no-build                   run docker-compose up -d"
-	@echo "  docker-up-koku                       run docker-compose up -d koku-server"
+	@echo "  docker-up                            run docker compose up --build -d"
+	@echo "  docker-up-no-build                   run docker compose up -d"
+	@echo "  docker-up-koku                       run docker compose up -d koku-server"
 	@echo "                                         @param build : set to '--build' to build the container"
 	@echo "  docker-up-db                         run database only"
 	@echo "  docker-up-db-monitor                 run the database monitoring via grafana"
@@ -130,7 +137,6 @@ help:
 
 	@echo "  docker-shell                         run Django and database containers with shell access to server (for pdb)"
 	@echo "  docker-logs                          connect to console logs for all services"
-	@echo "  docker-test-all                      run unittests"
 	@echo "  docker-iqe-local-hccm                create container based off local hccm plugin. Requires env 'HCCM_PLUGIN_PATH'"
 	@echo "                                          @param iqe_cmd - (optional) Command to run. Defaults to 'bash'."
 	@echo "  docker-iqe-smokes-tests              run smoke tests"
@@ -315,7 +321,7 @@ KUSTOMIZE=$(shell which kustomize)
 endif
 
 ###############################
-### Docker-compose Commands ###
+### Docker compose Commands ###
 ###############################
 
 docker-down:
@@ -346,9 +352,6 @@ docker-reinitdb-with-sources-lite: docker-down-db remove-db docker-up-db run-mig
 
 docker-shell:
 	$(DOCKER_COMPOSE) run --service-ports koku-server
-
-docker-test-all:
-	docker-compose -f koku-test.yml up --build
 
 docker-restart-koku:
 	@if [ -n "$$($(DOCKER) ps -q -f name=koku_server)" ] ; then \
