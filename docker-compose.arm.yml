@@ -1,5 +1,4 @@
-# for the Makefile to use this file, set the `compose_file` env variable to:
-# compose_file=docker-compose.m1.yml
+# The Makefile will automatically use this file on ARM systems
 
 version: '3'
 
