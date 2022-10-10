@@ -2721,7 +2721,8 @@ select * from eek where val1 in {{report_period_id}} ;
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
         projects = ["project_1", "project_2"]
-        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
+        roles = ["master", "worker"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
         mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
         cluster_id = uuid.uuid4()
@@ -2743,6 +2744,7 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.assertIsNotNone(db_node.resource_id)
                 self.assertIsNotNone(db_node.node_capacity_cpu_cores)
                 self.assertIsNotNone(db_node.cluster_id)
+                self.assertIsNotNone(db_node.node_role)
             for pvc in pvcs:
                 self.assertIsNotNone(OCPPVC.objects.filter(persistent_volume_claim=pvc).first())
             for project in projects:
@@ -2759,7 +2761,8 @@ select * from eek where val1 in {{report_period_id}} ;
         volumes = ["vol_1", "vol_2"]
         pvcs = ["pvc_1", "pvc_2"]
         projects = ["project_1", "project_2"]
-        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity)
+        roles = ["master", "worker"]
+        mock_get_nodes.return_value = zip(nodes, resource_ids, capacity, roles)
         mock_get_pvcs.return_value = zip(volumes, pvcs)
         mock_get_projects.return_value = projects
         cluster_id = str(uuid.uuid4())
@@ -2790,6 +2793,41 @@ select * from eek where val1 in {{report_period_id}} ;
                 self.assertIn(pvc.persistent_volume, topology.get("persistent_volumes"))
             for project in projects:
                 self.assertIn(project.project, topology.get("projects"))
+
+    def test_populate_node_table_update_role(self):
+        """Test that populating the node table for an entry that previously existed fills the node role correctly."""
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "node_role_test"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            node = OCPNode.objects.create(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            )
+            self.assertIsNone(node.node_role)
+            self.accessor.populate_node_table(cluster, [node_info])
+            node = OCPNode.objects.get(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            )
+            self.assertEqual(node.node_role, node_info[3])
+
+    def test_populate_node_table_second_time_no_change(self):
+        """Test that populating the node table for an entry a second time does not duplicate entries."""
+        node_info = ["node_role_test_node", "node_role_test_id", 1, "worker"]
+        cluster_id = str(uuid.uuid4())
+        cluster_alias = "node_role_test"
+        cluster = self.accessor.populate_cluster_table(self.aws_provider, cluster_id, cluster_alias)
+        with schema_context(self.schema):
+            self.accessor.populate_node_table(cluster, [node_info])
+            node_count = OCPNode.objects.filter(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            ).count()
+            self.assertEqual(node_count, 1)
+            self.accessor.populate_node_table(cluster, [node_info])
+            node_count = OCPNode.objects.filter(
+                node=node_info[0], resource_id=node_info[1], node_capacity_cpu_cores=node_info[2], cluster=cluster
+            ).count()
+            self.assertEqual(node_count, 1)
 
     def test_delete_infrastructure_raw_cost_from_daily_summary(self):
         """Test that infra raw cost is deleted."""

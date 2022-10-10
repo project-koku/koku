@@ -104,6 +104,7 @@ generators:
                     capacity_gig: 20
         - node:
           node_name: compute_3
+          node_labels: label_nodeclass:compute|label_node_role_kubernetes_io:infra
           cpu_cores: 4
           memory_gig: 16
           namespaces:
@@ -316,6 +317,15 @@ generators:
               pods:
                 - pod:
                   pod_name: pod_name14
+                  cpu_request: 1
+                  mem_request_gig: 2
+                  cpu_limit: 1
+                  mem_limit_gig: 4
+                  pod_seconds: 3600
+            openshift-kube-apiserver:
+              pods:
+                - pod:
+                  pod_name: pod_apiserver
                   cpu_request: 1
                   mem_request_gig: 2
                   cpu_limit: 1
