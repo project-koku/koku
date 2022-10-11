@@ -30,12 +30,15 @@ SELECT uuid() as uuid,
     cast(product_service AS varchar(50)),
     cast(region AS varchar(50)),
     CASE
-        WHEN product_service = 'COMPUTE' THEN instance_type
+        -- TO-REVIEW: only insert instance_type if resource_type is vm, measured in MS
+        WHEN unit = 'MS' THEN product_resource
         ELSE NULL
     END AS instance_type,
     resource_ids,
     cast(resource_count AS integer),
     cast(CASE
+        -- TO-REVIEW: convert COMPUTE instance is measured in milliseconds (MS)
+        WHEN unit = 'MS' THEN cast((usage_amount / 3600000.0) as integer)
         WHEN unit = 'BYTES' THEN usage_amount / (
                 cast(day(last_day_of_month(date(usage_start))) as integer)
             ) *
@@ -51,7 +54,11 @@ SELECT uuid() as uuid,
             )
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
-    unit,
+    -- TO-REVIEW: insert Hrs as usage units for compute instance types
+    CASE
+        WHEN unit = 'MS' THEN  'Hrs'
+        ELSE unit
+    END as unit,
     cast(currency AS varchar(10)),
     cast(cost AS decimal(24,9)),
     cast(
@@ -68,7 +75,7 @@ FROM (
         c.lineitem_tenantid as payer_tenant_id,
         nullif(c.product_service, '') as product_service,
         nullif(c.product_region, '') as region,
-        nullif(u.product_resource, '') as instance_type,
+        nullif(u.product_resource, '') as product_resource,
         array_agg(DISTINCT c.product_resourceid) as resource_ids,
         count(DISTINCT c.product_resourceid) as resource_count,
         sum(u.usage_consumedquantity) as usage_amount,
