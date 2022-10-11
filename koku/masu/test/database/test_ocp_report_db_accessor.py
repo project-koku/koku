@@ -2784,7 +2784,7 @@ select * from eek where val1 in {{report_period_id}} ;
             projects = OCPProject.objects.filter(cluster=cluster).all()
             topology = self.accessor.get_openshift_topology_for_multiple_providers([self.ocp_provider_uuid])
 
-            self.assertEqual(topology.get("clusters"), [cluster_id])
+            self.assertEqual(topology.get("clusters"), ["OCP-on-Prem"])
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
             for node in nodes:
                 self.assertIn(node.node, topology.get("nodes"))
