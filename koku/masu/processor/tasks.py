@@ -10,6 +10,8 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import InvalidOperation
 
+import ciso8601
+import pandas as pd
 from celery import chain
 from celery import group
 from dateutil import parser
@@ -42,12 +44,15 @@ from masu.processor._tasks.download import _get_report_files
 from masu.processor._tasks.process import _process_report_file
 from masu.processor._tasks.remove_expired import _remove_expired_data
 from masu.processor.cost_model_cost_updater import CostModelCostUpdater
+from masu.processor.parquet.ocp_cloud_parquet_report_processor import OCPCloudParquetReportProcessor
 from masu.processor.report_processor import ReportProcessorDBError
 from masu.processor.report_processor import ReportProcessorError
 from masu.processor.report_summary_updater import ReportSummaryUpdater
 from masu.processor.report_summary_updater import ReportSummaryUpdaterCloudError
 from masu.processor.report_summary_updater import ReportSummaryUpdaterProviderNotFoundError
 from masu.processor.worker_cache import WorkerCache
+from masu.util.aws.common import remove_files_not_in_set_from_s3_bucket
+from masu.util.common import execute_trino_query
 from masu.util.gcp.common import deduplicate_reports_for_gcp
 
 
@@ -915,3 +920,53 @@ def remove_stale_tenants():
                 KokuTenantMiddleware.tenant_cache.clear()
         for name in data:
             LOG.info(f"Deleted tenant: {name}")
+
+
+@celery_app.task(name="masu.processor.tasks.process_openshift_on_cloud", queue=GET_REPORT_FILES_QUEUE, bind=True)
+def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, tracing_id=None):
+    """Process OpenShift on Cloud parquet files using Trino."""
+    provider = Provider.objects.get(uuid=provider_uuid)
+    provider_type = provider.type.replace("-local", "")
+
+    table_info = {
+        Provider.PROVIDER_AWS: {"table": "aws_line_items_daily", "date_columns": ["lineitem_usagestartdate"]},
+        Provider.PROVIDER_AZURE: {"table": "azure_line_items", "date_columns": ["usagedatetime", "date"]},
+        Provider.PROVIDER_GCP: {
+            "table": "gcp_line_items_daily",
+            "date_columns": ["usage_start_time", "usage_end_time"],
+        },
+    }
+    table_name = table_info.get(provider_type).get("table")
+    if isinstance(bill_date, str):
+        bill_date = ciso8601.parse_datetime(bill_date)
+    year = bill_date.strftime("%Y")
+    month = bill_date.strftime("%m")
+
+    # We do not have fine grain control over specific days in a month for
+    # OpenShift on Cloud parquet generation. This task will clear and reprocess
+    # the entire billing month passed in as a parameter.
+    where_clause = f" WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}' "
+    table_count_sql = f"SELECT count(*) FROM {table_name}" + where_clause
+
+    count = execute_trino_query(schema_name, table_count_sql)
+    count = count[0][0][0]
+
+    processor = OCPCloudParquetReportProcessor(
+        schema_name, "", provider_uuid, provider_type, 0, context={"tracing_id": tracing_id, "start_date": bill_date}
+    )
+    remove_files_not_in_set_from_s3_bucket(
+        tracing_id, processor.parquet_ocp_on_cloud_path_s3, 0, processor.error_context
+    )
+    for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
+        query_sql = (
+            f"SELECT * FROM {table_name}"
+            + where_clause
+            + f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+        )
+        results, columns = execute_trino_query(schema_name, query_sql)
+        data_frame = pd.DataFrame(data=results, columns=columns)
+        for column in table_info.get(provider_type).get("date_columns"):
+            data_frame[column] = pd.to_datetime(data_frame[column])
+
+        file_name = f"ocp_on_{provider_type}_{i}"
+        processor.process(file_name, [data_frame])
