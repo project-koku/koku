@@ -199,8 +199,8 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
     tags = data_frame["labels"]
     tags = tags.str.lower()
 
-    cluster_ids = cluster_topology.get("clusters")
-    cluster_aliases = cluster_topology.get("cluster_alias")
+    cluster_ids = cluster_topology.get("clusters", [])
+    cluster_aliases = cluster_topology.get("cluster_aliases", [])
     nodes = cluster_topology.get("nodes", [])
     volumes = cluster_topology.get("persistent_volumes", [])
     matchable_resources = nodes + volumes
