@@ -364,6 +364,20 @@ class GCPReportDBAccessorTest(MasuTestCase):
                 mock_presto.assert_called()
                 mock_delete.assert_called()
 
+    def test_get_openshift_on_cloud_matched_tags(self):
+        """Test that matched tags are returned."""
+        dh = DateHelper()
+        start_date = dh.this_month_start.date()
+
+        with schema_context(self.schema_name):
+            bills = self.accessor.bills_for_provider_uuid(self.gcp_provider_uuid, start_date)
+            bill_id = bills.first().id
+
+        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id)
+
+        self.assertGreater(len(matched_tags), 0)
+        self.assertIsInstance(matched_tags[0], dict)
+
     @patch("masu.database.gcp_report_db_accessor.GCPReportDBAccessor._execute_presto_raw_sql_query")
     def test_get_openshift_on_cloud_matched_tags_trino(self, mock_presto):
         """Test that Trino is used to find matched tags."""
