@@ -22,7 +22,6 @@ from koku.database import get_model
 from masu.database import AZURE_REPORT_TABLE_MAP
 from masu.database.azure_report_db_accessor import AzureReportDBAccessor
 from masu.database.cost_model_db_accessor import CostModelDBAccessor
-from masu.database.ocp_report_db_accessor import OCPReportDBAccessor
 from masu.database.report_manifest_db_accessor import ReportManifestDBAccessor
 from masu.test import MasuTestCase
 from masu.test.database.helpers import ReportObjectCreator
@@ -466,14 +465,7 @@ class AzureReportDBAccessorTest(MasuTestCase):
             bills = self.accessor.bills_for_provider_uuid(self.azure_provider_uuid, start_date)
             bill_id = bills.first().id
 
-        with OCPReportDBAccessor(self.schema_name) as accessor:
-            with schema_context(self.schema_name):
-                report_period = accessor.report_periods_for_provider_uuid(
-                    self.ocp_on_azure_ocp_provider.uuid, start_date
-                )
-                report_period_id = report_period.id
-
-        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id, report_period_id)
+        matched_tags = self.accessor.get_openshift_on_cloud_matched_tags(bill_id)
 
         self.assertGreater(len(matched_tags), 0)
         self.assertIsInstance(matched_tags[0], dict)
