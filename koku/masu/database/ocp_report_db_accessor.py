@@ -2426,20 +2426,6 @@ class OCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
             projects = [project[0] for project in projects]
         return projects
 
-    def get_openshift_topology_for_provider(self, provider_uuid):
-        """Return a dictionary with Cluster topology."""
-        cluster = self.get_cluster_for_provider(provider_uuid)
-        topology = {"cluster_id": cluster.cluster_id, "cluster_alias": cluster.cluster_alias}
-        node_tuples = self.get_nodes_for_cluster(cluster.uuid)
-        pvc_tuples = self.get_pvcs_for_cluster(cluster.uuid)
-        topology["nodes"] = [node[0] for node in node_tuples]
-        topology["resource_ids"] = [node[1] for node in node_tuples]
-        topology["persistent_volumes"] = [pvc[0] for pvc in pvc_tuples]
-        topology["persistent_volume_claims"] = [pvc[1] for pvc in pvc_tuples]
-        topology["projects"] = self.get_projects_for_cluster(cluster.uuid)
-
-        return topology
-
     def get_openshift_topology_for_multiple_providers(self, provider_uuids):
         """Return a dictionary with 1 or more Clusters topology."""
         cluster_list = []

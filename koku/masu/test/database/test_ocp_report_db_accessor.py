@@ -2753,7 +2753,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
-    def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+    def test_get_openshift_topology_for_multiple_providers(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that OpenShift topology is populated."""
         nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
@@ -2782,7 +2782,7 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_provider(self.aws_provider_uuid)
+            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider_uuid])
 
             self.assertEqual(topology.get("cluster_id"), cluster_id)
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
