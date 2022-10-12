@@ -228,6 +228,7 @@ class OCIProviderMap(ProviderMap):
                         },
                         "delta_key": {"usage": Sum("usage_amount")},
                         "filter": [
+                            {"field": "product_service", "operation": "icontains", "parameter": "BLOCK_STORAGE"},
                             {"field": "unit", "operation": "in", "parameter": ["GB_MS", "BYTES_MS", "BYTES"]},
                         ],
                         "cost_units_key": "currency",
