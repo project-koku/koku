@@ -1538,6 +1538,9 @@ class OCIReportQueryHandlerTest(IamTestCase):
                         continue
                     opt_dict = opt_dict.get(f"{exclude_opt}s")[0]
                     opt_value = opt_dict.get(exclude_opt)
+                    if "no-" in opt_value:
+                        # Hanlde cases where "no-instance-type" is returned
+                        continue
                     # Grab filtered value
                     filtered_url = f"?group_by[{exclude_opt}]=*&filter[{exclude_opt}]={opt_value}"
                     query_params = self.mocked_query_params(filtered_url, view)
