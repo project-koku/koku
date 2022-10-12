@@ -162,7 +162,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                         if self._provider_type in [Provider.PROVIDER_GCP, Provider.PROVIDER_GCP_LOCAL]:
                             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
                                 self.provider_uuid,
-                                ocp_provider_uuids,
+                                tuple(ocp_provider_uuids),
                                 self.start_date,
                                 self.end_date,
                                 self.invoice_month_date,
