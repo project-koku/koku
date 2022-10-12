@@ -948,8 +948,8 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     where_clause = f" WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}' "
     table_count_sql = f"SELECT count(*) FROM {table_name}" + where_clause
 
-    count = execute_trino_query(schema_name, table_count_sql)
-    count = count[0][0][0]
+    count, _ = execute_trino_query(schema_name, table_count_sql)
+    count = count[0][0]
 
     processor = OCPCloudParquetReportProcessor(
         schema_name, "", provider_uuid, provider_type, 0, context={"tracing_id": tracing_id, "start_date": bill_date}
@@ -966,7 +966,8 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)
         for column in table_info.get(provider_type).get("date_columns"):
-            data_frame[column] = pd.to_datetime(data_frame[column])
+            if column in data_frame.columns:
+                data_frame[column] = pd.to_datetime(data_frame[column])
 
         file_name = f"ocp_on_{provider_type}_{i}"
         processor.process(file_name, [data_frame])
