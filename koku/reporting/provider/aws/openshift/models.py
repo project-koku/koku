@@ -185,7 +185,7 @@ class OCPAWSCostSummaryByServiceP(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -388,7 +388,7 @@ class OCPAWSNetworkSummaryP(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -439,7 +439,7 @@ class OCPAWSDatabaseSummaryP(models.Model):
 
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.DO_NOTHING, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -528,7 +528,7 @@ class OCPAWSCostLineItemDailySummaryP(models.Model):
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -628,7 +628,7 @@ class OCPAWSCostLineItemProjectDailySummaryP(models.Model):
     # AWS Fields
     cost_entry_bill = models.ForeignKey("AWSCostEntryBill", on_delete=models.CASCADE, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     product_family = models.CharField(max_length=150, null=True)
 
