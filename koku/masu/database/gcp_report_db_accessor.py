@@ -701,13 +701,14 @@ class GCPReportDBAccessor(SQLScriptAtomicExecutorMixin, ReportDBAccessorBase):
 
         days = DateHelper().list_days(start_date, end_date)
         days_str = "','".join([str(day.day) for day in days])
+        ocp_uuids = "','".join([str(ocp_uuid) for ocp_uuid in ocp_source_uuids])
 
         sql_params = {
             "start_date": start_date,
             "end_date": end_date,
             "schema": self.schema,
             "gcp_source_uuid": gcp_source_uuid,
-            "ocp_source_uuids": ocp_source_uuids,
+            "ocp_source_uuids": ocp_uuids,
             "year": invoice_month_date.strftime("%Y"),
             "month": invoice_month_date.strftime("%m"),
             "days": days_str,
