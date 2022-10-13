@@ -134,7 +134,7 @@ class AWSCostEntryLineItem(models.Model):
     usage_account_id = models.CharField(max_length=50, null=False)
     usage_start = models.DateTimeField(null=False)
     usage_end = models.DateTimeField(null=False)
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
     usage_type = models.CharField(max_length=50, null=True)
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
@@ -191,7 +191,7 @@ class AWSCostEntryLineItemDaily(models.Model):
     usage_account_id = models.CharField(max_length=50, null=False)
     usage_start = models.DateField(null=False)
     usage_end = models.DateField(null=True)
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
     usage_type = models.CharField(max_length=50, null=True)
     operation = models.CharField(max_length=50, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
@@ -257,7 +257,7 @@ class AWSCostEntryLineItemDailySummary(models.Model):
     usage_end = models.DateField(null=True)
     usage_account_id = models.CharField(max_length=50, null=False)
     account_alias = models.ForeignKey("AWSAccountAlias", on_delete=models.PROTECT, null=True)
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
     product_family = models.CharField(max_length=150, null=True)
     availability_zone = models.CharField(max_length=50, null=True)
     region = models.CharField(max_length=50, null=True)
@@ -510,7 +510,7 @@ class AWSCostSummaryByServiceP(models.Model):
 
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     product_family = models.CharField(max_length=150, null=True)
 
@@ -894,7 +894,7 @@ class AWSNetworkSummaryP(models.Model):
 
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
@@ -951,7 +951,7 @@ class AWSDatabaseSummaryP(models.Model):
 
     organizational_unit = models.ForeignKey("AWSOrganizationalUnit", on_delete=models.SET_NULL, null=True)
 
-    product_code = models.CharField(max_length=50, null=False)
+    product_code = models.TextField(null=False)
 
     usage_amount = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
