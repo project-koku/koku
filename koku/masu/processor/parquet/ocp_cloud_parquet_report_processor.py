@@ -169,7 +169,7 @@ class OCPCloudParquetReportProcessor(ParquetReportProcessor):
                             )
                         else:
                             matched_tags = self.db_accessor.get_openshift_on_cloud_matched_tags_trino(
-                                self.provider_uuid, ocp_provider_uuids, self.start_date, self.end_date
+                                self.provider_uuid, tuple(ocp_provider_uuids), self.start_date, self.end_date
                             )
                 for i, daily_data_frame in enumerate(daily_data_frames):
                     openshift_filtered_data_frame = self.ocp_on_cloud_data_processor(
