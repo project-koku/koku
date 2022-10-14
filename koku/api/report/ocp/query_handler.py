@@ -174,40 +174,31 @@ class OCPReportQueryHandler(ReportQueryHandler):
         source_mapping = self.build_source_to_currency_map()
         df = pd.DataFrame(query_data)
         columns = self._mapper.PACK_DEFINITIONS["cost_groups"]["keys"].keys()
-        for column in columns:
-            if column == "infra_raw":
-                # infra_raw's currency comes from the cloud provider if one exists.
-                # all of the other costs use the currency defined in the cost model.
-                continue
-            df[column] = df.apply(
-                lambda row: row[column]
-                * self.exchange_rates.get(source_mapping.get(row[source_column], "USD"), {}).get(
-                    self.currency, Decimal(1.0)
-                ),
-                axis=1,
-            )
-        df["infra_raw"] = df.apply(
-            lambda row: row["infra_raw"]
-            * self.exchange_rates.get(
-                # fallback to source_mapping in case row[self._mapper.cost_units_key] is None
-                row[self._mapper.cost_units_key]
-                or source_mapping.get(row[source_column], "USD")
-                or {}
-            ).get(self.currency, Decimal(1.0)),
-            axis=1,
-        )
-        df["infra_total"] = df.apply(
-            lambda row: row["infra_raw"] + row["infra_usage"] + row["infra_distributed"] + row["infra_markup"],
-            axis=1,
+        cost_cols = {col for col in columns if col.startswith("cost_")}
+
+        currencies = set(df[self._mapper.cost_units_key].unique()).union(source_mapping.values())
+        dict_curr_rates = {
+            df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
+            for df_currency in currencies
+        }
+
+        df.loc[:, "infra_raw"] = df.loc[:, "infra_raw"].multiply(
+            # infra currency -> exchange rate to target currency
+            df[self._mapper.cost_units_key].map(dict_curr_rates),
+            axis=0,
         )
 
-        # All of the cost columns need to be recalculated since the provider map ignores currencies
-        for col in [col for col in columns if col.startswith("cost_")]:
+        columns -= {"infra_raw", "infra_total"} | cost_cols
+        df.loc[:, columns] = df.loc[:, columns].multiply(
+            # source-uuid -> currency -> exchange rate to target currency
+            df["source_uuid_id"].map(source_mapping).map(dict_curr_rates),
+            axis=0,
+        )
+
+        df["infra_total"] = df["infra_raw"] + df["infra_usage"] + df["infra_distributed"] + df["infra_markup"]
+        for col in cost_cols:
             ending = col.split("_")[1]
-            df[col] = df.apply(
-                lambda row: row[f"infra_{ending}"] + row[f"sup_{ending}"],
-                axis=1,
-            )
+            df[col] = df[f"infra_{ending}"] + df[f"sup_{ending}"]
 
         df["cost_units"] = self.currency
         return df

@@ -152,7 +152,7 @@ class Forecast:
         if not query_data:
             return []
 
-        skip_columns = ["usage_start", self.cost_units_key]
+        skip_columns = {"usage_start", self.cost_units_key}
 
         df = pd.DataFrame(query_data)
         currencies = df[self.cost_units_key].unique()
@@ -163,17 +163,17 @@ class Forecast:
             query_data = query_data.replace({np.nan: None})
             query_data = query_data.to_dict("records")
             return query_data
-        columns = list(df.columns)
+
         dict_curr_rates = {
             df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
             for df_currency in currencies
         }
-        df["exchange_rate"] = df[self.cost_units_key].map(dict_curr_rates)
         df.loc[:, ~df.columns.isin(skip_columns)] = df.loc[:, ~df.columns.isin(skip_columns)].multiply(
-            df["exchange_rate"], axis="index"
+            df[self.cost_units_key].map(dict_curr_rates), axis=0
         )
 
-        aggs = {col: ["sum"] for col in columns if col not in skip_columns}
+        columns = set(df.columns)
+        aggs = {col: ["sum"] for col in columns - skip_columns}
 
         grouped_df = df.groupby("usage_start", dropna=False).agg(aggs, axis=1)
         columns = grouped_df.columns.droplevel(1)
