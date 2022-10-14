@@ -1,5 +1,5 @@
 #
-# Copyright 2021 Red Hat Inc.
+# Copyright 2022 Red Hat Inc.
 # SPDX-License-Identifier: Apache-2.0
 #
 """View for report_data endpoint."""
@@ -61,7 +61,7 @@ def process_openshift_on_cloud(request):
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     if provider.type not in Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST:
-        errmsg = f"You must provider a cloud provider UUID from {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}."
+        errmsg = f"You must provide a cloud provider UUID from {Provider.OPENSHIFT_ON_CLOUD_PROVIDER_LIST}."
         return Response({"Error": errmsg}, status=status.HTTP_400_BAD_REQUEST)
 
     months = get_months_in_date_range(start=start_date, end=end_date)
@@ -77,8 +77,7 @@ def process_openshift_on_cloud(request):
         }
         LOG.info("Triggering process_openshift_on_cloud task with params:")
         LOG.info(params)
-        msg = f"on queue: {queue_name}"
-        LOG.info(msg)
+        LOG.info("on queue: %s", queue_name)
         async_result = process_openshift_on_cloud_task.s(**params).apply_async(queue=queue_name)
         async_results.append({str(bill_date): str(async_result)})
 
