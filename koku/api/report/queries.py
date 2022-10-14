@@ -694,14 +694,9 @@ class ReportQueryHandler(QueryHandler):
         data.update(new_data)
         return data
 
-    def convert_currencies(self, query_data, og_query, remove_columns, bypass_func, query_group_by=None):
+    def convert_currencies(self, df, currencies, remove_columns):
         """"""
-        df = pd.DataFrame(query_data)
-        currencies = df[self._mapper.cost_units_key].unique()
         aggregates = self._mapper.report_type_map.get("aggregates")
-        if len(currencies) == 1 and currencies[0] == self.currency:
-            return bypass_func(og_query, query_group_by=query_group_by)
-
         columns = aggregates.keys() - remove_columns
         dict_curr_rates = {
             df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
@@ -760,7 +755,13 @@ class ReportQueryHandler(QueryHandler):
             return query_data
         if remove_columns is None:
             remove_columns = []
-        df = self.convert_currencies(query_data, og_query, remove_columns, self.bypass_func, query_group_by)
+
+        df = pd.DataFrame(query_data)
+        currencies = df[self._mapper.cost_units_key].unique()
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            return self.bypass_func(og_query, query_group_by=query_group_by)
+
+        df = self.convert_currencies(df, currencies, remove_columns)
 
         if "count" not in df.columns:
             skip_columns.extend(["count", "count_units"])
@@ -796,7 +797,12 @@ class ReportQueryHandler(QueryHandler):
         if remove_columns is None:
             remove_columns = []
 
-        df = self.convert_currencies(query_data, og_query, remove_columns, self.bypass_total_func)
+        df = pd.DataFrame(query_data)
+        currencies = df[self._mapper.cost_units_key].unique()
+        if len(currencies) == 1 and currencies[0] == self.currency:
+            return self.bypass_total_func(og_query)
+
+        df = self.convert_currencies(df, currencies, remove_columns)
 
         if "count" not in df.columns:
             skip_columns.extend(["count", "count_units"])
