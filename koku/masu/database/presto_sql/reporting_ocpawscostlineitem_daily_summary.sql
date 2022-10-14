@@ -145,7 +145,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
@@ -246,7 +251,12 @@ SELECT aws.uuid as aws_uuid,
         max(nullif(aws.lineitem_resourceid, '')) as resource_id,
         max(aws.lineitem_usagestartdate) as usage_start,
         max(aws.lineitem_usagestartdate) as usage_end,
-        max(nullif(aws.lineitem_productcode, '')) as product_code,
+        max(
+            CASE
+                WHEN aws.bill_billingentity='AWS Marketplace' THEN coalesce(nullif(aws.product_productname, ''), nullif(aws.lineitem_productcode, ''))
+                ELSE nullif(aws.lineitem_productcode, '')
+            END
+        ) as product_code,
         max(nullif(aws.product_productfamily, '')) as product_family,
         max(nullif(aws.product_instancetype, '')) as instance_type,
         max(aws.lineitem_usageaccountid) as usage_account_id,
