@@ -191,7 +191,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         columns -= {"infra_raw", "infra_total"} | cost_cols
         df.loc[:, columns] = df.loc[:, columns].multiply(
             # source-uuid -> currency -> exchange rate to target currency
-            df["source_uuid_id"].map(source_mapping).map(dict_curr_rates),
+            df[source_column].map(source_mapping).map(dict_curr_rates),
             axis=0,
         )
 
