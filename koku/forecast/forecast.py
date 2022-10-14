@@ -148,6 +148,7 @@ class Forecast:
             return {}
 
     def convert_currency(self, query_data):
+
         if not query_data:
             return []
 
@@ -162,15 +163,15 @@ class Forecast:
             query_data = query_data.replace({np.nan: None})
             query_data = query_data.to_dict("records")
             return query_data
-
         columns = list(df.columns)
-        for column in columns:
-            if column not in skip_columns:
-                df[column] = df.apply(
-                    lambda row: row[column]
-                    * self.exchange_rates.get(row[self.cost_units_key], {}).get(self.currency, Decimal(1.0)),
-                    axis=1,
-                )
+        dict_curr_rates = {
+            df_currency: self.exchange_rates.get(df_currency, {}).get(self.currency, Decimal(1.0))
+            for df_currency in currencies
+        }
+        df["exchange_rate"] = df[self.cost_units_key].map(dict_curr_rates)
+        df.loc[:, ~df.columns.isin(skip_columns)] = df.loc[:, ~df.columns.isin(skip_columns)].multiply(
+            df["exchange_rate"], axis="index"
+        )
 
         aggs = {col: ["sum"] for col in columns if col not in skip_columns}
 
