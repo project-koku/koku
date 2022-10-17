@@ -931,7 +931,7 @@ class OCPReportQueryTestCurrency(IamTestCase):
             "CAD": {"USD": Decimal(0.33), "AUD": Decimal(1.5), "CAD": Decimal(1.0)},
         }
 
-    @patch("api.report.ocp.query_handler.OCPReportQueryHandler.build_source_to_currency_map")
+    @patch("api.report.ocp.query_handler.OCPReportQueryHandler.source_to_currency_map")
     @patch("api.report.queries.ExchangeRateDictionary")
     def test_total_cost(self, mock_exchange, mock_map):
         """Test overall cost"""
