@@ -88,7 +88,6 @@ help:
 	@echo "                                          @param schema - (optional) schema name. Default: 'acct10001'."
 	@echo "                                          @param nise_yml - (optional) Nise yaml file. Defaults to nise static yaml."
 	@echo "                                          @param start_date - (optional) Date delta zero in the aws_org_tree.yml"
-	@echo "  minio-bucket-cleanup                  Remove the data directory in our local MinIO bucket."
 	@echo "  backup-local-db-dir                   make a backup copy PostgreSQL database directory (pg_data.bak)"
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
@@ -145,13 +144,6 @@ help:
 
 	@echo "  docker-iqe-api-tests                 run api tests"
 	@echo "  docker-iqe-vortex-tests              run vortex tests"
-	@echo ""
-	@echo "--- Commands using an OpenShift Cluster ---"
-	@echo "  oc-forward-ports                      port forward the DB to localhost"
-	@echo "  oc-login-dev                          login to an openshift cluster as 'developer'"
-	@echo "  oc-reinit                             remove existing app and restart app in initialized openshift cluster"
-	@echo "  oc-run-migrations                     run Django migrations in the Openshift DB"
-	@echo "  oc-stop-forwarding-ports              stop port forwarding the DB to localhost"
 	@echo ""
 	@echo "--- Create Sources ---"
 	@echo "  ocp-source-from-yaml                  Create ocp source using a yaml file."
@@ -283,32 +275,6 @@ unleash-import-drop:
 scan_project:
 	./sonarqube.sh
 
-####################################
-# Commands using OpenShift Cluster #
-####################################
-
-oc-forward-ports: oc-stop-forwarding-ports
-	@oc port-forward $$(oc get pods -o jsonpath='{.items[?(.status.phase=="Running")].metadata.name}' -l name=koku-db) 15432:5432 >/dev/null 2>&1 &
-
-oc-login-dev:
-	oc login -u developer --insecure-skip-tls-verify=true localhost:8443
-
-oc-make-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) makemigrations api reporting reporting_common cost_models
-	$(MAKE) oc-stop-forwarding-ports
-
-oc-run-migrations: oc-forward-ports
-	sleep 1
-	$(DJANGO_MANAGE) migrate_schemas
-	$(MAKE) oc-stop-forwarding-ports
-
-oc-stop-forwarding-ports:
-	@kill -HUP $$(ps -eo pid,command | grep "oc port-forward" | grep -v grep | awk '{print $$1}') 2>/dev/null || true
-
-oc-delete-e2e:
-	oc delete project/hccm project/buildfactory project/secrets
-
 clowdapp: kustomize
 	$(KUSTOMIZE) build deploy/kustomize > deploy/clowdapp.yaml
 
@@ -435,17 +401,9 @@ docker-iqe-api-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 docker-iqe-vortex-tests: docker-reinitdb _set-test-dir-permissions clear-testing
 	./testing/run_vortex_api_tests.sh
 
-minio-bucket-cleanup:
-	$(PREFIX) rm -fr ./.trino/parquet_data/koku-bucket/data/
-
 docker-trino-setup: clear-trino
 	mkdir -p -m a+rwx ./.trino
-	@cp -fr deploy/trino/ .trino/trino/
-	find ./.trino/trino -type d -exec chmod a+rwx {} \;
-	@cp -fr deploy/hadoop/ .trino/hadoop/
-	find ./.trino/hadoop -type d -exec chmod a+rwx {} \;
 	@[[ ! -d ./.trino/parquet_data ]] && mkdir -p -m a+rwx ./.trino/parquet_data || chmod a+rwx ./.trino/parquet_data
-	@$(SED_IN_PLACE) -e 's/s3path/$(shell echo $(or $(S3_BUCKET_NAME),metastore))/g' .trino/hadoop/hadoop-config/core-site.xml
 
 docker-trino-up: docker-trino-setup
 	$(DOCKER_COMPOSE) up --build -d trino hive-metastore
