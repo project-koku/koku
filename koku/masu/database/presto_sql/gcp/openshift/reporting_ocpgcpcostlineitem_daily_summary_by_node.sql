@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineite
 DELETE FROM hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp
 ;
 
--- Direct resource_id matching
+-- OCP ON GCP kubernetes-io-cluster-{cluster_id} label is applied on the VM and is exclusively a pod cost
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpgcpcostlineitem_project_daily_summary_temp (
     gcp_uuid,
     cluster_id,
@@ -193,20 +193,22 @@ SELECT gcp.uuid as gcp_uuid,
     max(json_format(json_parse(gcp.labels))) as tags
 FROM hive.{{schema | sqlsafe}}.gcp_openshift_daily as gcp
 JOIN hive.{{ schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary as ocp
-    ON gcp.usage_start_time = ocp.usage_start
-        AND strpos(gcp.resource_name, ocp.node) != 0
+    ON date(gcp.usage_start_time) = ocp.usage_start
+        AND (strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0 -- THIS IS THE SPECIFIC TO OCP ON GCP TAG MATCH
+            OR strpos(gcp.labels, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
 WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.year = '{{year | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
+    AND ocp.node = '{{node | sqlsafe}}'
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
     AND ocp.data_source = 'Pod' -- this cost is only associated with pod costs
-    AND (ocp.resource_id IS NOT NULL AND ocp.resource_id != '')
 GROUP BY gcp.uuid, ocp.namespace, gcp.invoice_month, ocp.data_source
 ;
 
@@ -314,8 +316,10 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
+    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
+    AND ocp.node = '{{node | sqlsafe}}'
     AND ocp.year = {{year}}
     AND lpad(ocp.month, 2, '0') = {{month}} -- Zero pad the month when fewer than 2 characters
     AND ocp.day IN ({{days}})
@@ -411,21 +415,21 @@ SELECT pds.gcp_uuid,
     sku_alias,
     region,
     unit,
-    usage_amount / r.gcp_uuid_count as usage_amount,
+    usage_amount / r.gcp_uuid_count / {{node_count | sqlsafe}} as usage_amount,
     currency,
     invoice_month,
-    credit_amount / r.gcp_uuid_count as credit_amount,
-    unblended_cost / r.gcp_uuid_count as unblended_cost,
-    markup_cost / r.gcp_uuid_count as markup_cost,
+    credit_amount / r.gcp_uuid_count / {{node_count | sqlsafe}} as credit_amount,
+    unblended_cost / r.gcp_uuid_count / {{node_count | sqlsafe}} as unblended_cost,
+    markup_cost / r.gcp_uuid_count / {{node_count | sqlsafe}} as markup_cost,
     CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
             OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost * cast({{markup}} as decimal(24,9))
-        ELSE unblended_cost / r.gcp_uuid_count * cast({{markup}} as decimal(24,9))
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost / {{node_count | sqlsafe}} * cast({{markup}} as decimal(24,9))
+        ELSE unblended_cost / r.gcp_uuid_count  / {{node_count | sqlsafe}} * cast({{markup}} as decimal(24,9))
     END as project_markup_cost,
     CASE WHEN data_source = 'Pod' AND (strpos(tags, 'kubernetes-io-cluster-{{cluster_id | sqlsafe}}') != 0
             OR strpos(tags, 'kubernetes-io-cluster-{{cluster_alias | sqlsafe}}') != 0)
-        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) * unblended_cost
-        ELSE unblended_cost / r.gcp_uuid_count
+        THEN ({{pod_column | sqlsafe}} / {{cluster_column | sqlsafe}}) / {{node_count | sqlsafe}} * unblended_cost
+        ELSE unblended_cost / r.gcp_uuid_count / {{node_count | sqlsafe}}
     END as pod_cost,
     pod_usage_cpu_core_hours,
     pod_request_cpu_core_hours,

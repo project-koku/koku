@@ -164,14 +164,14 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         base_file_name = f"{self.ocp_provider_uuid}"
         file_path = f"{self.report_processor.local_path}"
         df = pd.DataFrame({"test": [1, 2, 3]})
-        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0, self.ocp_provider_uuid)
+        self.report_processor.create_ocp_on_cloud_parquet(df, base_file_name, 0)
         mock_write.assert_called()
-        expected = f"{file_path}/{self.ocp_provider_uuid}_0_{self.ocp_provider_uuid}{PARQUET_EXT}"
+        expected = f"{file_path}/{self.ocp_provider_uuid}_0_{PARQUET_EXT}"
         mock_create_table.assert_called_with(expected, daily=True)
 
     @patch.object(AWSReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
     def test_process(
@@ -211,7 +211,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
         mock_create_parquet.assert_not_called()
 
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
@@ -231,7 +231,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
     @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags_trino")
     @patch.object(GCPReportDBAccessor, "get_openshift_on_cloud_matched_tags")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")
@@ -259,7 +259,7 @@ class TestOCPCloudParquetReportProcessor(MasuTestCase):
 
     @patch.object(OCPReportDBAccessor, "get_openshift_on_cloud_matched_tags")
     @patch.object(OCPReportDBAccessor, "get_cluster_for_provider")
-    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_provider")
+    @patch.object(OCPReportDBAccessor, "get_openshift_topology_for_multiple_providers")
     @patch.object(OCPCloudParquetReportProcessor, "has_enabled_ocp_labels")
     @patch.object(OCPCloudParquetReportProcessor, "create_ocp_on_cloud_parquet")
     @patch.object(OCPCloudParquetReportProcessor, "ocp_on_cloud_data_processor")

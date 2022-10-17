@@ -167,8 +167,8 @@ class TestGCPUtils(MasuTestCase):
         """Test that OCP on GCP matching occurs."""
         cluster_topology = {
             "resource_ids": [],
-            "cluster_id": "ocp-gcp-cluster",
-            "cluster_alias": "my-ocp-cluster",
+            "clusters": ["ocp-gcp-cluster"],
+            "cluster_aliases": ["my-ocp-cluster"],
             "nodes": ["id1", "id2", "id3"],
             "projects": [],
         }
@@ -227,8 +227,8 @@ class TestGCPUtils(MasuTestCase):
         """Test that OCP on GCP matching occurs."""
         cluster_topology = {
             "resource_ids": [],
-            "cluster_id": "ocp-gcp-cluster",
-            "cluster_alias": "my-ocp-cluster",
+            "clusters": ["ocp-gcp-cluster"],
+            "cluster_aliases": ["my-ocp-cluster"],
             "nodes": ["id1", "id2", "id3"],
             "projects": [],
         }
