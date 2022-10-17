@@ -946,7 +946,7 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     # OpenShift on Cloud parquet generation. This task will clear and reprocess
     # the entire billing month passed in as a parameter.
     where_clause = f" WHERE source='{provider_uuid}' AND year='{year}' AND month='{month}' "
-    table_count_sql = f"SELECT count(*) FROM {table_name}" + where_clause
+    table_count_sql = f"SELECT count(*) FROM {table_name} {where_clause}"
 
     count, _ = execute_trino_query(schema_name, table_count_sql)
     count = count[0][0]
@@ -960,8 +960,8 @@ def process_openshift_on_cloud(self, schema_name, provider_uuid, bill_date, trac
     for i, offset in enumerate(range(0, count, settings.PARQUET_PROCESSING_BATCH_SIZE)):
         query_sql = (
             f"SELECT * FROM {table_name}"
-            + where_clause
-            + f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
+            f"{where_clause}"
+            f"OFFSET {offset} LIMIT {settings.PARQUET_PROCESSING_BATCH_SIZE}"
         )
         results, columns = execute_trino_query(schema_name, query_sql)
         data_frame = pd.DataFrame(data=results, columns=columns)
