@@ -201,7 +201,6 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
@@ -315,7 +314,6 @@ WHERE gcp.source = '{{gcp_source_uuid | sqlsafe}}'
     AND gcp.month = '{{month | sqlsafe}}'
     AND gcp.usage_start_time >= TIMESTAMP '{{start_date | sqlsafe}}'
     AND gcp.usage_start_time < date_add('day', 1, TIMESTAMP '{{end_date | sqlsafe}}')
-    AND gcp.cluster_id = '{{cluster_id | sqlsafe}}'
     AND ocp.source = '{{ocp_source_uuid | sqlsafe}}'
     AND ocp.report_period_id = {{report_period_id | sqlsafe}}
     AND ocp.year = {{year}}
