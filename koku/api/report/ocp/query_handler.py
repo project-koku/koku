@@ -93,10 +93,12 @@ class OCPReportQueryHandler(ReportQueryHandler):
         returns:
             dict: {source_uuid: currency}
         """
+        source_map = defaultdict(lambda: "USD")
         cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
         cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
         mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
-        return {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        return source_map
 
     @cached_property
     def exchange_rate_expression(self):
@@ -178,7 +180,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         }
 
         # if `cost_units_key` is None, fall back to the cost model currency
-        df[self._mapper.cost_units_key].fillna(value=df[source_column].map(self.source_to_currency_map))
+        df[self._mapper.cost_units_key].fillna(value=df[source_column].map(self.source_to_currency_map), inplace=True)
 
         # `infra_raw` and `infra_markup` currencies come from cloud providers
         df.loc[:, ["infra_raw", "infra_markup"]] = df.loc[:, ["infra_raw", "infra_markup"]].multiply(
