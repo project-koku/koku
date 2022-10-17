@@ -945,8 +945,10 @@ class ReportQueryHandler(QueryHandler):
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             return None
 
-    def _group_by_ranks(self, query, data):  # noqa: C901
+    def _group_by_ranks(self, query, data, extra_annotations=None):  # noqa: C901
         """Handle grouping data by filter limit."""
+        if extra_annotations is None:
+            extra_annotations = {}
         group_by_value = self._get_group_by()
         gb = copy.copy(group_by_value) if group_by_value else ["date"]
         tag_column = self._mapper.tag_column
@@ -984,7 +986,7 @@ class ReportQueryHandler(QueryHandler):
 
         rank_by_total = Window(expression=RowNumber(), order_by=rank_orders)
         ranks = (
-            query.annotate(exchange_rate=self.exchange_rate_expression, **self.annotations)
+            query.annotate(exchange_rate=self.exchange_rate_expression, **extra_annotations, **self.annotations)
             .values(*group_by_value)
             .annotate(**rank_annotations)
             .values(*gb)

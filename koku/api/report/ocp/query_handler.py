@@ -136,6 +136,10 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
+    @property
+    def extra_annotations(self):
+        return {"infra_exchange_rate": self.exchange_rate_expression_infra_raw}
+
     def _format_query_response(self):
         """Format the query response with data.
 
@@ -303,7 +307,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             query_data = self.pandas_agg_for_currency(query_group_by, query_data, source_column)
 
             if self._limit and query_data:
-                query_data = self._group_by_ranks(query, query_data)
+                query_data = self._group_by_ranks(query, query_data, self.extra_annotations)
                 if not self.parameters.get("order_by"):
                     # override implicit ordering when using ranked ordering.
                     query_order_by[-1] = "rank"
@@ -452,8 +456,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         if "__" in self._delta:
             return self.add_current_month_deltas(query_data, query_sum)
-        extra_annotations = {"infra_exchange_rate": self.exchange_rate_expression_infra_raw}
-        return super().add_deltas(query_data, query_sum, extra_annotations)
+        return super().add_deltas(query_data, query_sum, self.extra_annotations)
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""

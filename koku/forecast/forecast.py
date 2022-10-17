@@ -15,7 +15,11 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from django.db.models import Case
+from django.db.models import DecimalField
 from django.db.models import Q
+from django.db.models import Value
+from django.db.models import When
 from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
@@ -36,6 +40,8 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
 from api.utils import get_currency
+from cost_models.models import CostModel
+from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
 
@@ -59,6 +65,9 @@ class Forecast:
     PRECISION = 8
 
     REPORT_TYPE = "costs"
+
+    AGGS_KEY = "aggregates"
+    SKIP_CONVERSION = False
 
     def __init__(self, query_params, request):  # noqa: C901
         """Class Constructor.
@@ -122,22 +131,26 @@ class Forecast:
     @property
     def total_cost_term(self):
         """Return the provider map value for total cost."""
-        return self.provider_map.report_type_map.get("aggregates", {}).get("cost_total")
+        return self.provider_map.report_type_map.get(self.AGGS_KEY, {}).get("cost_total")
 
     @property
     def supplementary_cost_term(self):
         """Return the provider map value for total supplemenatry cost."""
-        return self.provider_map.report_type_map.get("aggregates", {}).get("sup_total")
+        return self.provider_map.report_type_map.get(self.AGGS_KEY, {}).get("sup_total")
 
     @property
     def infrastructure_cost_term(self):
         """Return the provider map value for total inftrastructure cost."""
-        return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
+        return self.provider_map.report_type_map.get(self.AGGS_KEY, {}).get("infra_total")
 
     @property
     def cost_units_key(self):
         """Return the cost_units_key property."""
         return self.provider_map.report_type_map.get("cost_units_key")
+
+    @cached_property
+    def extra_annotations(self):
+        return {}
 
     @cached_property
     def exchange_rates(self):
@@ -157,8 +170,8 @@ class Forecast:
         df = pd.DataFrame(query_data)
         currencies = df[self.cost_units_key].unique()
 
-        if len(currencies) == 1 and currencies[0] == self.currency:
-            LOG.info("Bypassing the pandas total function because all currencies are the same.")
+        if self.SKIP_CONVERSION or (len(currencies) == 1 and currencies[0] == self.currency):
+            LOG.debug("Bypassing the pandas total function.")
             query_data = df.drop(self.cost_units_key, axis=1)
             query_data = query_data.replace({np.nan: None})
             query_data = query_data.to_dict("records")
@@ -191,6 +204,7 @@ class Forecast:
                 self.cost_summary_table.objects.filter(self.filters.compose())
                 .order_by("usage_start")
                 .values("usage_start", self.cost_units_key)
+                .annotate(**self.extra_annotations)
                 .annotate(
                     total_cost=self.total_cost_term,
                     supplementary_cost=self.supplementary_cost_term,
@@ -604,6 +618,47 @@ class OCPForecast(Forecast):
 
     provider = Provider.PROVIDER_OCP
     provider_map_class = OCPProviderMap
+
+    AGGS_KEY = "aggregates_forecast"
+    SKIP_CONVERSION = True
+
+    @cached_property
+    def source_to_currency_map(self):
+        """
+        OCP sources do not have costs associated, so we need to
+        grab the base currency from the cost model, and create
+        a mapping of source_uuid to currency.
+
+        returns:
+            dict: {source_uuid: currency}
+        """
+        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
+        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
+        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
+        return {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+
+    @cached_property
+    def exchange_rate_expression(self):
+        whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rate_expression_infra_raw(self):
+        whens = [
+            When(**{self.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def extra_annotations(self):
+        return {
+            "exchange_rate": self.exchange_rate_expression,
+            "infra_exchange_rate": self.exchange_rate_expression_infra_raw,
+        }
 
 
 class OCPAWSForecast(Forecast):
