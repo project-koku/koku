@@ -1203,7 +1203,7 @@ class ReportQueryHandler(QueryHandler):
                 prev_total_filters = Q(usage_start=date)
         return prev_total_filters
 
-    def add_deltas(self, query_data, query_sum):
+    def add_deltas(self, query_data, query_sum, extra_annotations=None):
         """Calculate and add cost deltas to a result set.
 
         Args:
@@ -1214,10 +1214,13 @@ class ReportQueryHandler(QueryHandler):
             (dict) query data with new with keys "value" and "percent"
 
         """
+        if extra_annotations is None:
+            extra_annotations = {}
+
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter)
-        previous_query = previous_query.annotate(exchange_rate=self.exchange_rate_expression)
+        previous_query = previous_query.annotate(exchange_rate=self.exchange_rate_expression, **extra_annotations)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

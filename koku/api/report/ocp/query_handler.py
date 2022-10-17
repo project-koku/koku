@@ -449,8 +449,9 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         if "__" in self._delta:
             return self.add_current_month_deltas(query_data, query_sum)
-        else:
-            return super().add_deltas(query_data, query_sum)
+        # extra_annotations = {"infra_exchange_rate": ""}
+        extra_annotations = {}
+        return super().add_deltas(query_data, query_sum, extra_annotations)
 
     def add_current_month_deltas(self, query_data, query_sum):
         """Add delta to the resultset using current month comparisons."""
