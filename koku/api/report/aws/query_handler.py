@@ -637,15 +637,10 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
         """
         query_group_by = ["date"] + self._get_group_by()
         query = self.query_table.objects.filter(self.query_filter)
-<<<<<<< HEAD
         if self.query_exclusions:
             query = query.exclude(self.query_exclusions)
-        query_data = query.annotate(**self.annotations)
-        query_data = query_data.values(*query_group_by)
-=======
         query = query.annotate(**self.annotations)
         query_data = query.values(*query_group_by)
->>>>>>> d966c5e51 (update aws for currency support)
 
         aggregates = copy.deepcopy(self._mapper.report_type_map.get("aggregates", {}))
         if not self.parameters.parameters.get("compute_count"):
