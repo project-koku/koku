@@ -101,15 +101,17 @@ class OCPReportQueryHandler(ReportQueryHandler):
     @cached_property
     def exchange_rate_expression(self):
         whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
+        ]
+        return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rate_expression_infra_raw(self):
+        whens = [
             When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
             for k, v in self.exchange_rates.items()
         ]
-        whens.extend(
-            [
-                When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
-                for uuid, cur in self.source_to_currency_map.items()
-            ]
-        )
         return Case(*whens, default=1, output_field=DecimalField())
 
     @property
@@ -174,13 +176,14 @@ class OCPReportQueryHandler(ReportQueryHandler):
         # if `cost_units_key` is None, fall back to the cost model currency
         df[self._mapper.cost_units_key].fillna(value=df[source_column].map(self.source_to_currency_map))
 
-        df.loc[:, "infra_raw"] = df.loc[:, "infra_raw"].multiply(
+        # `infra_raw` and `infra_markup` currencies come from cloud providers
+        df.loc[:, ["infra_raw", "infra_markup"]] = df.loc[:, ["infra_raw", "infra_markup"]].multiply(
             # infra currency -> exchange rate to target currency
             df[self._mapper.cost_units_key].map(dict_curr_rates),
             axis=0,
         )
 
-        columns -= {"infra_raw", "infra_total"} | cost_cols
+        columns -= {"infra_raw", "infra_markup", "infra_total"} | cost_cols
         df.loc[:, columns] = df.loc[:, columns].multiply(
             # source-uuid -> currency -> exchange rate to target currency
             df[source_column].map(self.source_to_currency_map).map(dict_curr_rates),
@@ -212,7 +215,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         df = self.convert_currencies(query_data, source_column)
         skip_columns = set()
-        annotations = self.report_annotations.keys()
+        annotations = set(self.report_annotations.keys())
         if "count" not in df.columns:
             skip_columns |= {"count", "count_units"}
         if self.query_table == OCPUsageLineItemDailySummary:
@@ -220,7 +223,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             # but we need to add it back so that it shows up in the data
             # and we need to change source uuid to an array
             df["source_uuid"] = df["source_uuid"].apply(lambda x: [x])
-            annotations.append("source_uuid")
+            annotations.add("source_uuid")
         aggs_cols = annotations - skip_columns
         aggs = {col: ["max"] if "units" in col else ["sum"] for col in aggs_cols}
 
@@ -449,8 +452,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         """
         if "__" in self._delta:
             return self.add_current_month_deltas(query_data, query_sum)
-        # extra_annotations = {"infra_exchange_rate": ""}
-        extra_annotations = {}
+        extra_annotations = {"infra_exchange_rate": self.exchange_rate_expression_infra_raw}
         return super().add_deltas(query_data, query_sum, extra_annotations)
 
     def add_current_month_deltas(self, query_data, query_sum):
