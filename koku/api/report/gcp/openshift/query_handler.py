@@ -63,7 +63,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
                 Value(units_fallback, output_field=CharField()),
             ),
-            "exchange_rate": self.get_exchange_rate_annotation(),
+            **self.exchange_rate_annotation_dict,
         }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")

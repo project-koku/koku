@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
+from functools import cached_property
 from functools import reduce
 
 import numpy as np
@@ -27,7 +28,7 @@ from statsmodels.sandbox.regression.predstd import wls_prediction_std
 from statsmodels.tools.sm_exceptions import ValueWarning
 from tenant_schemas.utils import tenant_context
 
-from api.currency.models import ExchangeRates
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -42,6 +43,7 @@ from api.report.oci.provider_map import OCIProviderMap
 from api.report.ocp.provider_map import OCPProviderMap
 from api.utils import DateHelper
 from api.utils import get_cost_type
+from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 from reporting.provider.aws.models import AWSOrganizationalUnit
 
@@ -147,28 +149,28 @@ class Forecast:
         """Return the provider map value for total inftrastructure cost."""
         return self.provider_map.report_type_map.get("aggregates", {}).get("infra_total")
 
-    @property
+    @cached_property
     def exchange_rates(self):
-        """Look up the exchange rate for the target currency."""
         try:
-            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
-        except ExchangeRates.DoesNotExist:
-            LOG.warning("Invalid exchange rate. Using default of 1.")
-            exchange_rate = 1
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
 
-        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
-
-    def get_exchange_rate_annotation(self, query=None):
-        """Get the exchange rate annotation based on the curriences found in the query."""
-        currency_key = f"{self.provider_map.cost_units_key}__iexact"
-        whens = [When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items()]
-        return Case(*whens, default=1, output_field=DecimalField())
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     def get_data(self):
         """Query the database."""
         return (
             self.cost_summary_table.objects.filter(self.filters.compose())
-            .annotate(exchange_rate=self.get_exchange_rate_annotation())
+            .annotate(**self.exchange_rate_annotation_dict)
             .order_by("usage_start")
             .values("usage_start")
             .annotate(
@@ -592,26 +594,58 @@ class OCPForecast(Forecast):
     provider = Provider.PROVIDER_OCP
     provider_map_class = OCPProviderMap
 
-    def _get_base_currencies(self, source_uuids):
-        """Look up the report base currency."""
-        with tenant_context(self.params.tenant):
-            cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
-        currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
-        for uuid in source_uuids:
-            if uuid in currencies:
-                continue
-            currencies[str(uuid)] = self.provider_map.cost_units_key.lower()
+    @cached_property
+    def source_to_currency_map(self):
+        """
+        OCP sources do not have costs associated, so we need to
+        grab the base currency from the cost model, and create
+        a mapping of source_uuid to currency.
+        returns:
+            dict: {source_uuid: currency}
+        """
+        source_map = defaultdict(lambda: "USD")
+        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
+        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
+        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
+        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        return source_map
 
-        return currencies
-
-    def get_exchange_rate_annotation(self, query):
-        """Get the exchange rate annotation based on the curriences found in the query."""
-        source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
-        currencies = self._get_base_currencies(source_uuids)
-        whens = [
-            When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        exchange_rate_whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
         ]
-        return Case(*whens, default=1, output_field=DecimalField())
+        infra_exchange_rate_whens = [
+            When(**{self.provider_map.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {
+            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
+            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+        }
+
+    # def _get_base_currencies(self, source_uuids):
+    #     """Look up the report base currency."""
+    #     with tenant_context(self.params.tenant):
+    #         cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
+    #     currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
+    #     for uuid in source_uuids:
+    #         if uuid in currencies:
+    #             continue
+    #         currencies[str(uuid)] = self.provider_map.cost_units_key.lower()
+
+    #     return currencies
+
+    # def get_exchange_rate_annotation(self, query):
+    #     """Get the exchange rate annotation based on the curriences found in the query."""
+    #     source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
+    #     currencies = self._get_base_currencies(source_uuids)
+    #     whens = [
+    #         When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
+    #     ]
+    #     return Case(*whens, default=1, output_field=DecimalField())
 
 
 class OCPAWSForecast(Forecast):

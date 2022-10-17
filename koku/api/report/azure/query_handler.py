@@ -71,7 +71,7 @@ class AzureReportQueryHandler(ReportQueryHandler):
                 ExpressionWrapper(F(self._mapper.cost_units_key), output_field=CharField()),
                 Value(units_fallback, output_field=CharField()),
             ),
-            "exchange_rate": self.get_exchange_rate_annotation(),
+            **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")

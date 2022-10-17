@@ -10,6 +10,7 @@ from collections import defaultdict
 from decimal import Decimal
 from decimal import DivisionByZero
 from decimal import InvalidOperation
+from functools import cached_property
 
 from django.db.models import Case
 from django.db.models import CharField
@@ -24,6 +25,7 @@ from api.report.ocp.provider_map import OCPProviderMap
 from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 from api.report.queries import ReportQueryHandler
+from cost_models.models import CostModel
 from cost_models.models import CostModelMap
 
 LOG = logging.getLogger(__name__)
@@ -90,11 +92,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
             "currency": Value(self.currency, output_field=CharField()),
-            # Set a default value of 1 for exchange rates for csv requests.
-            # The values are set for all other requests in get_exchange_rate_annotation.
-            # OCP requires a query param into get_exchange_rate_annotation which is why
-            # its usage is different compared to the cloud providers.
-            "exchange_rate": Value(1, output_field=DecimalField()),
+            **self.exchange_rate_annotation_dict,
         }
         # { query_param: database_field_name }
         fields = self._mapper.provider_map.get("annotations")
@@ -109,28 +107,37 @@ class OCPReportQueryHandler(ReportQueryHandler):
 
         return annotations
 
-    def _get_base_currencies(self, source_uuids):
-        """Look up the report base currency."""
-        with tenant_context(self.tenant):
-            cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
-        currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
-        for uuid in source_uuids:
-            if uuid in currencies:
-                continue
-            currencies[str(uuid)] = self._mapper.cost_units_key.lower()
+    @cached_property
+    def source_to_currency_map(self):
+        """
+        OCP sources do not have costs associated, so we need to
+        grab the base currency from the cost model, and create
+        a mapping of source_uuid to currency.
+        returns:
+            dict: {source_uuid: currency}
+        """
+        source_map = defaultdict(lambda: "USD")
+        cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
+        cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
+        mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
+        source_map |= {row["provider_uuid"]: cm_to_currency[row["cost_model_id"]] for row in mapping}
+        return source_map
 
-        return currencies
-
-    def get_exchange_rate_annotation(self, query):
-        """Get the exchange rate annotation based on the curriences found in the query."""
-        if self.is_csv_output:
-            return {"exchange_rate": self.annotations["exchange_rate"]}
-        source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
-        currencies = self._get_base_currencies(source_uuids)
-        whens = [
-            When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        exchange_rate_whens = [
+            When(**{"source_uuid": uuid, "then": Value(self.exchange_rates.get(cur, {}).get(self.currency, 1))})
+            for uuid, cur in self.source_to_currency_map.items()
         ]
-        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
+        infra_exchange_rate_whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {
+            "exchange_rate": Case(*exchange_rate_whens, default=1, output_field=DecimalField()),
+            "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
+        }
 
     def _format_query_response(self):
         """Format the query response with data.
@@ -165,8 +172,8 @@ class OCPReportQueryHandler(ReportQueryHandler):
             if self.query_exclusions:
                 query = query.exclude(self.query_exclusions)
             query = query.annotate(**self.annotations)
-            exchange_annotation = self.get_exchange_rate_annotation(query)
-            query = query.annotate(**exchange_annotation)
+            # exchange_annotation = self.get_exchange_rate_annotation(query)
+            # query = query.annotate(**exchange_annotation)
             group_by_value = self._get_group_by()
 
             query_group_by = ["date"] + group_by_value

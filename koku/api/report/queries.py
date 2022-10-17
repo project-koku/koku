@@ -34,6 +34,7 @@ from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 from django.db.models.functions import RowNumber
 
+from api.currency.models import ExchangeRateDictionary
 from api.models import Provider
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
@@ -516,6 +517,23 @@ class ReportQueryHandler(QueryHandler):
             When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items()  # if k in lowered_currencies
         ]
         return Case(*whens, default=1, output_field=DecimalField())
+
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     @property
     def annotations(self):
@@ -1078,8 +1096,8 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
-        exchange_annotation = self.get_exchange_rate_annotation(previous_query)
-        previous_query = previous_query.annotate(**exchange_annotation)
+        # exchange_annotation = self.get_exchange_rate_annotation(previous_query)
+        # previous_query = previous_query.annotate(**exchange_annotation)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

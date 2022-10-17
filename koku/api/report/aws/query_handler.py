@@ -74,7 +74,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
-            "exchange_rate": self.get_exchange_rate_annotation(),
+            **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
             units_fallback = self._mapper.report_type_map.get("usage_units_fallback")

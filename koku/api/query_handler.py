@@ -5,6 +5,7 @@
 """Query Handling for all APIs."""
 import datetime
 import logging
+from functools import cached_property
 
 from dateutil import parser
 from dateutil import relativedelta
@@ -13,7 +14,7 @@ from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 from pytz import UTC
 
-from api.currency.models import ExchangeRates
+from api.currency.models import ExchangeRateDictionary
 from api.query_filter import QueryFilter
 from api.query_filter import QueryFilterCollection
 from api.utils import DateHelper
@@ -108,16 +109,24 @@ class QueryHandler:
             return False
         return any(WILDCARD == item for item in in_list)
 
-    @property
-    def exchange_rates(self):
-        """Look up the exchange rate for the target currency."""
-        try:
-            exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
-        except ExchangeRates.DoesNotExist:
-            LOG.warning("Invalid exchange rate. Using default of 1.")
-            exchange_rate = 1
+    # @property
+    # def exchange_rates(self):
+    #     """Look up the exchange rate for the target currency."""
+    #     try:
+    #         exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
+    #     except ExchangeRates.DoesNotExist:
+    #         LOG.warning("Invalid exchange rate. Using default of 1.")
+    #         exchange_rate = 1
 
-        return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
+    #     return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
+
+    @cached_property
+    def exchange_rates(self):
+        try:
+            return ExchangeRateDictionary.objects.first().currency_exchange_dictionary
+        except AttributeError as err:
+            LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
+            return {}
 
     @property
     def order(self):
