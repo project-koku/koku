@@ -86,10 +86,6 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    add_column_table = [
-        "reporting_ocpgcpcostlineitem_project_daily_summary",
-        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
-    ]
     # tables_to_drop = ["gcp_openshift_daily"]
     columns_to_add = ["pod_credit"]
     # columns_to_drop = []
@@ -97,7 +93,8 @@ def main():
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
         logging.info(f"*** Adding column pod_credit to tables for schema {schema} ***")
-        add_columns_to_table(columns_to_add, add_column_table, CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary", CONNECT_PARAMS)
+        add_columns_to_table(columns_to_add, "reporting_ocpgcpcostlineitem_project_daily_summary_temp", CONNECT_PARAMS)
 
 
 if __name__ == "__main__":
