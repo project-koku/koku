@@ -93,8 +93,6 @@ def main():
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        # logging.info(f"*** dropping tables for schema {schema} ***")
-        # drop_tables(tables_to_drop, CONNECT_PARAMS)
         logging.info(f"*** Adding column pod_credit to tables for schema {schema} ***")
         add_columns_to_table(columns_to_add, add_column_table, CONNECT_PARAMS)
 
