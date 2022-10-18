@@ -21,7 +21,7 @@ cte_unnested_ocp_tags AS (
         cast(json_parse(pod_labels) as map(varchar, varchar)),
         cast(json_parse(volume_labels) as map(varchar, varchar))
     ) AS pod_tags(pod_key, pod_value, volume_key, volume_value)
-    WHERE source = '{{ocp_source_uuid | sqlsafe}}'
+    WHERE source IN ('{{ocp_source_uuids | sqlsafe}}')
         AND year = '{{year | sqlsafe}}'
         AND lpad(month, 2, '0') = '{{month | sqlsafe}}'
         AND day IN ('{{days | sqlsafe}}')
