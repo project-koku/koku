@@ -16,7 +16,6 @@ class ForecastParamSerializer(serializers.Serializer):
 
     limit = serializers.IntegerField(required=False, min_value=1)
     offset = serializers.IntegerField(required=False, min_value=0)
-
     currency = serializers.ChoiceField(choices=CURRENCY_CHOICES, required=False)
 
     def __init__(self, *args, **kwargs):
@@ -66,15 +65,6 @@ class AWSCostForecastParamSerializer(ForecastParamSerializer):
             data["cost_type"] = get_cost_type(self.context.get("request"))
         handle_invalid_fields(self, data)
         return data
-
-    def validate_cost_type(self, value):
-        """Validate incoming cost_type value based on path."""
-
-        valid_cost_type = [choice[0] for choice in self.COST_TYPE_CHOICE]
-        if value not in valid_cost_type:
-            error = {"cost_type": f'"{value}" is not a valid choice.'}
-            raise serializers.ValidationError(error)
-        return value
 
 
 class GCPCostForecastParamSerializer(ForecastParamSerializer):

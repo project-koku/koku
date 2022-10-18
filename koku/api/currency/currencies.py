@@ -98,4 +98,5 @@ CURRENCIES = [
     },
 ]
 # fmt: on
-CURRENCY_CHOICES = tuple((currency.get("code"), currency.get("code")) for currency in CURRENCIES)
+VALID_CURRENCIES = [currency["code"] for currency in CURRENCIES]
+CURRENCY_CHOICES = tuple((currency, currency) for currency in VALID_CURRENCIES)
