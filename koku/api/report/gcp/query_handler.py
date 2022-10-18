@@ -224,10 +224,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.order_by(query_data, query_order_by)
 
             if self.is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+                data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
                 groups.remove("date")

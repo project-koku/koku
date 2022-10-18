@@ -231,10 +231,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
                 query_data = self.order_by(query_data, query_order_by)
 
             if self.is_csv_output:
-                if self._limit:
-                    data = self._ranked_list(list(query_data))
-                else:
-                    data = list(query_data)
+                data = list(query_data)
             else:
                 # Pass in a copy of the group by without the added
                 # tag column name prefix
@@ -344,20 +341,22 @@ class OCPReportQueryHandler(ReportQueryHandler):
         delta_field_one, delta_field_two = self._delta.split("__")
 
         for row in query_data:
-            delta_value = Decimal(row.get(delta_field_one, 0)) - Decimal(row.get(delta_field_two, 0))  # noqa: W504
+            delta_value = Decimal(row.get(delta_field_one) or 0) - Decimal(row.get(delta_field_two) or 0)
 
             row["delta_value"] = delta_value
             try:
-                row["delta_percent"] = row.get(delta_field_one, 0) / row.get(delta_field_two, 0) * 100  # noqa: W504
+                row["delta_percent"] = (
+                    Decimal(row.get(delta_field_one) or 0) / Decimal(row.get(delta_field_two) or 0) * Decimal(100)
+                )
             except (DivisionByZero, ZeroDivisionError, InvalidOperation):
                 row["delta_percent"] = None
 
-        total_delta = Decimal(query_sum.get(delta_field_one, 0)) - Decimal(  # noqa: W504
-            query_sum.get(delta_field_two, 0)
-        )
+        total_delta = Decimal(query_sum.get(delta_field_one) or 0) - Decimal(query_sum.get(delta_field_two) or 0)
         try:
             total_delta_percent = (
-                query_sum.get(delta_field_one, 0) / query_sum.get(delta_field_two, 0) * 100  # noqa: W504
+                Decimal(query_sum.get(delta_field_one) or 0)
+                / Decimal(query_sum.get(delta_field_two) or 0)
+                * Decimal(100)
             )
         except (DivisionByZero, ZeroDivisionError, InvalidOperation):
             total_delta_percent = None

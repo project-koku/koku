@@ -10,6 +10,10 @@ from functools import cached_property
 from dateutil import parser
 from dateutil import relativedelta
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import Case
+from django.db.models import DecimalField
+from django.db.models import Value
+from django.db.models import When
 from django.db.models.functions import TruncDay
 from django.db.models.functions import TruncMonth
 from pytz import UTC
@@ -127,6 +131,15 @@ class QueryHandler:
         except AttributeError as err:
             LOG.warning(f"Exchange rates dictionary is not populated resulting in {err}.")
             return {}
+
+    @cached_property
+    def exchange_rate_annotation_dict(self):
+        """Get the exchange rate annotation based on the exchange_rates property."""
+        whens = [
+            When(**{self._mapper.cost_units_key: k, "then": Value(v.get(self.currency))})
+            for k, v in self.exchange_rates.items()
+        ]
+        return {"exchange_rate": Case(*whens, default=1, output_field=DecimalField())}
 
     @property
     def order(self):
