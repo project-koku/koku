@@ -430,7 +430,7 @@ SELECT NULL as uuid,
     CASE max(nodes.node_role)
         WHEN 'master' THEN 'Platform Unallocated Capacity'
         WHEN 'infra' THEN 'Platform Unallocated Capacity'
-        WHEN 'worker' THEN 'Unallocated Capacity'
+        WHEN 'worker' THEN 'Workers Unallocated Capacity'
     END as namespace,
     lids.node,
     (max(lids.node_capacity_cpu_core_hours) - sum(lids.pod_usage_cpu_core_hours)) as pod_usage_cpu_core_hours,
