@@ -174,8 +174,9 @@ def execute(presto_conn, sql, params=None):
     LOG.debug(f"Executing PRESTO SQL: {presto_stmt}")
     presto_cur = _execute(presto_cur, presto_stmt)
     results = _fetchall(presto_cur)
+    columns = [col[0] for col in presto_cur.description]
 
-    return results
+    return results, columns
 
 
 def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
@@ -224,7 +225,7 @@ def executescript(presto_conn, sqlscript, params=None, preprocessor=None):
                 stmt, s_params = p_stmt, params
 
             try:
-                results = execute(presto_conn, stmt, params=s_params)
+                results, _ = execute(presto_conn, stmt, params=s_params)
             except Exception as e:
                 exc_msg = (
                     f"Trino Query Error ({e.__class__.__name__}) : {str(e)} statement number {stmt_num}"
