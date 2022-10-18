@@ -709,19 +709,11 @@ class OCIForecastTest(IamTestCase):
                 }
             )
         mock_qset = MockQuerySet(expected)
-
-        mocked_table = Mock()
-        mocked_table.objects.filter.return_value.order_by.return_value.values.return_value.annotate.return_value = (  # noqa: E501
-            mock_qset
-        )
-        mocked_table.len = mock_qset.len
-
         params = self.mocked_query_params("?", OCICostForecastView)
         instance = OCIForecast(params)
 
-        instance.cost_summary_table = mocked_table
-
-        results = instance.predict()
+        with patch("forecast.forecast.OCIForecast.get_data", return_value=mock_qset):
+            results = instance.predict()
 
         for result in results:
             for val in result.get("values", []):

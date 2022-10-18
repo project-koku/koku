@@ -506,18 +506,6 @@ class ReportQueryHandler(QueryHandler):
                 group_by.append((tag_db_name, group_pos))
         return group_by
 
-    def get_exchange_rate_annotation(self, query=None):
-        """Get the exchange rate annotation based on the curriences found in the query."""
-        if self.is_csv_output:
-            return Value(1, output_field=DecimalField())
-        # currencies = query.values_list(self._mapper.cost_units_key, flat=True).distinct()
-        # lowered_currencies = [currency.lower() for currency in currencies]
-        currency_key = f"{self._mapper.cost_units_key}__iexact"
-        whens = [
-            When(**{currency_key: k, "then": v}) for k, v in self.exchange_rates.items()  # if k in lowered_currencies
-        ]
-        return Case(*whens, default=1, output_field=DecimalField())
-
     @cached_property
     def exchange_rates(self):
         try:
@@ -1096,8 +1084,6 @@ class ReportQueryHandler(QueryHandler):
         delta_group_by = ["date"] + self._get_group_by()
         delta_filter = self._get_filter(delta=True)
         previous_query = self.query_table.objects.filter(delta_filter).annotate(**self.annotations)
-        # exchange_annotation = self.get_exchange_rate_annotation(previous_query)
-        # previous_query = previous_query.annotate(**exchange_annotation)
         previous_dict = self._create_previous_totals(previous_query, delta_group_by)
         for row in query_data:
             key = tuple(row[key] for key in delta_group_by)

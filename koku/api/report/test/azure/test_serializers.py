@@ -249,8 +249,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -266,8 +269,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -283,8 +289,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -292,16 +301,22 @@ class AzureQueryParamSerializerTest(IamTestCase):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -310,8 +325,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
@@ -319,8 +337,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -370,16 +391,22 @@ class AzureQueryParamSerializerTest(IamTestCase):
         """Test that order_by[service_name] works with a matching group-by."""
         query_params = {"group_by": {"service_name": "asc"}, "order_by": {"service_name": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service_name] fails without a matching group-by."""
         query_params = {"order_by": {"service_name": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -393,8 +420,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -408,8 +438,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
-        serializer = AzureQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = AzureQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -420,11 +453,14 @@ class AzureQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/azure/costs/")
+        path = "/api/cost-management/v1/reports/azure/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = AzureQueryParamSerializer(data=param, context={"request": req})
+                    serializer = AzureQueryParamSerializer(data=param, context=ctx)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
 
@@ -435,8 +471,11 @@ class AzureQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/azure/instance-types/")
+        path = "/api/cost-management/v1/reports/azure/instance-types/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_list:
             with self.subTest(param=param):
-                serializer = AzureQueryParamSerializer(data=param, context={"request": req})
+                serializer = AzureQueryParamSerializer(data=param, context=ctx)
                 self.assertTrue(serializer.is_valid())

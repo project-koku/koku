@@ -626,27 +626,6 @@ class OCPForecast(Forecast):
             "infra_exchange_rate": Case(*infra_exchange_rate_whens, default=1, output_field=DecimalField()),
         }
 
-    # def _get_base_currencies(self, source_uuids):
-    #     """Look up the report base currency."""
-    #     with tenant_context(self.params.tenant):
-    #         cost_model_maps = CostModelMap.objects.filter(provider_uuid__in=source_uuids)
-    #     currencies = {cm_map.provider_uuid: cm_map.cost_model.currency.lower() for cm_map in cost_model_maps}
-    #     for uuid in source_uuids:
-    #         if uuid in currencies:
-    #             continue
-    #         currencies[str(uuid)] = self.provider_map.cost_units_key.lower()
-
-    #     return currencies
-
-    # def get_exchange_rate_annotation(self, query):
-    #     """Get the exchange rate annotation based on the curriences found in the query."""
-    #     source_uuids = list(query.values_list("source_uuid", flat=True).distinct())
-    #     currencies = self._get_base_currencies(source_uuids)
-    #     whens = [
-    #         When(**{"source_uuid": uuid, "then": self.exchange_rates.get(cur, 1)}) for uuid, cur in currencies.items()
-    #     ]
-    #     return Case(*whens, default=1, output_field=DecimalField())
-
 
 class OCPAWSForecast(Forecast):
     """OCP+AWS forecasting class."""

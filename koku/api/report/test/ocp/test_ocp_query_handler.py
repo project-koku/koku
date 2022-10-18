@@ -74,9 +74,11 @@ class OCPReportQueryHandlerTest(IamTestCase):
     def get_totals(self, handler, filters=None):
         aggregates = handler._mapper.report_type_map.get("aggregates")
         with tenant_context(self.tenant):
-            query = OCPUsageLineItemDailySummary.objects.filter(**filters).annotate(**handler.annotations)
-            exchange_annotations = handler.get_exchange_rate_annotation(query)
-            return query.annotate(**exchange_annotations).aggregate(**aggregates)
+            return (
+                OCPUsageLineItemDailySummary.objects.filter(**filters)
+                .annotate(**handler.annotations)
+                .aggregate(**aggregates)
+            )
 
     def get_totals_by_time_scope(self, handler, filters=None):
         """Return the total aggregates for a time period."""
@@ -689,11 +691,16 @@ class OCPReportQueryHandlerTest(IamTestCase):
 
         proj_annotations = handler.annotations.get("project")
         exch_annotations = handler.annotations.get("exchange_rate")
+        infra_exch_annotations = handler.annotations.get("infra_exchange_rate")
         cost_annotations = handler.report_annotations.get("cost_total")
         with tenant_context(self.tenant):
             expected = list(
                 OCPCostSummaryByProjectP.objects.filter(usage_start=str(yesterday))
-                .annotate(project=proj_annotations, exchange_rate=exch_annotations)
+                .annotate(
+                    project=proj_annotations,
+                    exchange_rate=exch_annotations,
+                    infra_exchange_rate=infra_exch_annotations,
+                )
                 .values("project", "exchange_rate")
                 .annotate(cost=cost_annotations)
                 .order_by("-cost")

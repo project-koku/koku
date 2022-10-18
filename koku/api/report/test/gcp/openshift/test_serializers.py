@@ -313,8 +313,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_query_ocp_params_success(self):
@@ -331,8 +334,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "units": "byte",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_query_params_invalid_fields(self):
@@ -348,8 +354,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -365,8 +374,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             },
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -374,16 +386,22 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         """Test pass while parsing units query params."""
         query_params = {"units": "bytes"}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_parse_units_failure(self):
         """Test failure while parsing units query params."""
         query_params = {"units": "bites"}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -392,8 +410,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"valid_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_tag_keys_dynamic_field_validation_failure(self):
@@ -401,8 +422,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         tag_keys = ["valid_tag"]
         query_params = {"filter": {"bad_tag": "value"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, tag_keys=tag_keys, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -452,16 +476,22 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
         """Test that order_by[service] works with a matching group-by."""
         query_params = {"group_by": {"service": "asc"}, "order_by": {"service": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         self.assertTrue(serializer.is_valid())
 
     def test_order_by_service_without_groupby(self):
         """Test that order_by[service] fails without a matching group-by."""
         query_params = {"order_by": {"service": "asc"}}
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -474,8 +504,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "filter": {"resolution": "daily", "time_scope_value": "-10", "time_scope_units": "day"},
             "invalid": "param",
         }
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -489,8 +522,11 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             "invalid": "param",
         }
 
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
-        serializer = OCPGCPQueryParamSerializer(data=query_params, context={"request": req})
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
+        serializer = OCPGCPQueryParamSerializer(data=query_params, context=ctx)
         with self.assertRaises(serializers.ValidationError):
             serializer.is_valid(raise_exception=True)
 
@@ -501,10 +537,13 @@ class OCPGCPQueryParamSerializerTest(IamTestCase):
             {"filter": {"limit": "1"}},
             {"filter": {"offset": "1"}},
         ]
-        req = Mock(path="/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/")
+        path = "/api/cost-management/v1/reports/openshift/infrastructures/gcp/costs/"
+        ctx = self._create_request_context(
+            self.customer_data, self._create_user_data(), create_customer=False, create_user=True, path=path
+        )
         for param in param_failures_list:
             with self.subTest(param=param):
                 with self.assertRaises(serializers.ValidationError):
-                    serializer = OCPGCPQueryParamSerializer(data=param, context={"request": req})
+                    serializer = OCPGCPQueryParamSerializer(data=param, context=ctx)
                     self.assertFalse(serializer.is_valid())
                     serializer.is_valid(raise_exception=True)
