@@ -86,7 +86,10 @@ def main():
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    add_column_table = ["reporting_ocpgcpcostlineitem_project_daily_summary"]
+    add_column_table = [
+        "reporting_ocpgcpcostlineitem_project_daily_summary",
+        "reporting_ocpgcpcostlineitem_project_daily_summary_temp",
+    ]
     # tables_to_drop = ["gcp_openshift_daily"]
     columns_to_add = ["pod_credit"]
     # columns_to_drop = []
