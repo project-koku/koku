@@ -378,15 +378,15 @@ def execute_trino_query(schema_name, sql, params=None):
     """Execute Trino SQL."""
     rows = []
     connection = trino_db.connect(schema=schema_name)
-    rows = trino_db.execute(connection, sql, params=params)
-    return rows
+    rows, column_names = trino_db.execute(connection, sql, params=params)
+    return rows, column_names
 
 
 def trino_table_exists(schema_name, table_name):
     """Given a schema and table name, check for an existing table in Trino."""
     LOG.info(f"Checking for Trino table {schema_name}.{table_name}")
     table_check_sql = f"SHOW TABLES LIKE '{table_name}'"
-    table = execute_trino_query(schema_name, table_check_sql)
+    table, _ = execute_trino_query(schema_name, table_check_sql)
     if table:
         return True
     return False

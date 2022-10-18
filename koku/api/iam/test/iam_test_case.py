@@ -40,8 +40,9 @@ class FakePrestoCur(trino.dbapi.Cursor):
     def fetchall(self):
         return [["eek"]]
 
+    @property
     def description(self):
-        pass
+        return []
 
 
 class FakePrestoConn(trino.dbapi.Connection):

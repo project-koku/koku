@@ -503,19 +503,19 @@ class CommonUtilTests(MasuTestCase):
     def test_execute_trino_query(self, mock_connect, mock_execute):
         """Test that the trino query util executes."""
         expected = ["one", "two", "three"]
-        mock_execute.return_value = expected
-        result = common_utils.execute_trino_query(self.schema, "SELECT 'one', 'two', 'three';")
+        mock_execute.return_value = (expected, "")
+        result, _ = common_utils.execute_trino_query(self.schema, "SELECT 'one', 'two', 'three';")
         self.assertEqual(result, expected)
 
     @patch("masu.util.common.execute_trino_query")
     def test_trino_table_exists(self, mock_query):
         """Test that the trino query util executes."""
-        mock_query.return_value = ["true"]
+        mock_query.return_value = (["true"], "")
         result = common_utils.trino_table_exists(self.schema, "table_name")
         self.assertTrue(result)
 
         mock_query.reset_mock()
-        mock_query.return_value = []
+        mock_query.return_value = ([], "")
         result = common_utils.trino_table_exists(self.schema, "table_name")
         self.assertFalse(result)
 
