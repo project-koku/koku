@@ -79,21 +79,20 @@ def drop_columns_from_table(columns, table, conn_params):
 
 
 def main():
-    logging.info("Running the hive migration for OCP/GCP ocp_match drop")
+    logging.info("Running the hive migration for OCP/GCP ocp_matched drop")
 
     logging.info("fetching schemas")
     schemas = get_schemas()
     logging.info("Running against the following schemas")
     logging.info(schemas)
 
-    # add_column_table = ["reporting_ocpgcpcostlineitem_project_daily_summary"]
     tables_to_drop = ["gcp_openshift_daily"]
     # columns_to_add = ["pod_credit"]
     # columns_to_drop = []
 
     for schema in schemas:
         CONNECT_PARAMS["schema"] = schema
-        logging.info(f"*** dropping tables for schema {schema} ***")
+        logging.info(f"*** Adding column pod_credit to tables for schema {schema} ***")
         drop_tables(tables_to_drop, CONNECT_PARAMS)
 
 

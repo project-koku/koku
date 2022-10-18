@@ -16,7 +16,7 @@ COST_TYPES = [
     {
         "code": "savingsplan_effective_cost",
         "name": "Amortized",
-        "description": "recurring and/or upfront costs are distributed evenly across the month",
+        "description": "Recurring and/or upfront costs are distributed evenly across the month",
     },
     {
         "code": "blended_cost",
