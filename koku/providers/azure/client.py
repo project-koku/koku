@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 """Azure Client Configuration."""
-from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import ClientSecretCredential
 from azure.mgmt.costmanagement import CostManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
@@ -40,8 +40,8 @@ class AzureClientFactory:
             "usgov": AZURE_US_GOV_CLOUD,
         }
 
-        self._credentials = ServicePrincipalCredentials(
-            client_id=client_id, secret=client_secret, tenant=tenant_id, cloud_environment=clouds.get(cloud, "public")
+        self._credentials = ClientSecretCredential(
+            tenant_id, client_id, client_secret, cloud_environment=clouds.get(cloud, "public")
         )
 
     @property
