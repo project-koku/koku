@@ -7,7 +7,6 @@ import copy
 import logging
 
 from django.db.models import F
-from django.db.models import Value
 from django.db.models.functions import Coalesce
 from tenant_schemas.utils import tenant_context
 
@@ -43,7 +42,6 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             query_data = query.values(*query_group_by).annotate(**annotations)
 
             if "account" in query_group_by:

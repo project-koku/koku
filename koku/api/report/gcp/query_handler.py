@@ -98,7 +98,7 @@ class GCPReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
-            "currency": Value(self.currency, output_field=CharField()),
+            "currency_annotation": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
@@ -135,11 +135,12 @@ class GCPReportQueryHandler(ReportQueryHandler):
         sum_units = {}
         query_sum = self.initialize_totals()
 
-        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
 
         if query.exists():
-            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
+            sum_annotations = {
+                "cost_units": Coalesce(self._mapper.cost_units_key, Value(self._mapper.cost_units_fallback))
+            }
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
@@ -180,7 +181,6 @@ class GCPReportQueryHandler(ReportQueryHandler):
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
-            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             for alias_key, alias_value in self.group_by_alias.items():
                 if alias_key in query_group_by:
                     annotations[f"{alias_key}_alias"] = F(alias_value)

@@ -74,7 +74,7 @@ class AWSReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
-            "currency": Value(self.currency, output_field=CharField()),
+            "currency_annotation": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
@@ -546,7 +546,6 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
-            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             if not self.parameters.parameters.get("compute_count"):
                 # Query parameter indicates count should be removed from DB queries
                 annotations.pop("count", None)

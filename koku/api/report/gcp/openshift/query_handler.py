@@ -9,7 +9,6 @@ import logging
 from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Value
-from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
 from tenant_schemas.utils import tenant_context
 
@@ -58,7 +57,7 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
-            "currency": Value(self.currency, output_field=CharField()),
+            "currency_annotation": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         # { query_param: database_field_name }
@@ -98,7 +97,6 @@ class OCPGCPReportQueryHandler(GCPReportQueryHandler):
             query_order_by = ["-date"]
             query_order_by.extend(self.order)  # add implicit ordering
             annotations = self._mapper.report_type_map.get("annotations")
-            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             query_data = query.values(*query_group_by).annotate(**annotations)
             if self._limit and query_data:
                 query_data = self._group_by_ranks(query, query_data)

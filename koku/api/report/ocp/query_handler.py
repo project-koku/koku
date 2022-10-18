@@ -91,7 +91,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         annotations = {
             "date": self.date_trunc("usage_start"),
             # this currency is used by the provider map to populate the correct currency value
-            "currency": Value(self.currency, output_field=CharField()),
+            "currency_annotation": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         # { query_param: database_field_name }
