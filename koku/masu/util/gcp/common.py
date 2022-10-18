@@ -262,7 +262,7 @@ def match_openshift_resources_and_labels(data_frame, cluster_topology, matched_t
 
     openshift_matched_data_frame["uuid"] = openshift_matched_data_frame.apply(lambda _: str(uuid.uuid4()), axis=1)
     openshift_matched_data_frame = openshift_matched_data_frame.drop(
-        columns=["special_case_tag_matched", "tag_matched", "ocp_matched"]
+        columns=["special_case_tag_matched", "tag_matched"]
     )
 
     return openshift_matched_data_frame
