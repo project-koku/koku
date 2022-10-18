@@ -17,6 +17,9 @@ RATE_DICT = {
 class CurrencyUtilsTest(IamTestCase):
     """Tests for the currency utils."""
 
+    def setUp(self):
+        ExchangeRateDictionary.objects.all().delete()
+
     def test_build_exchange_dictionary(self):
         """Test that a list GET call returns the supported currencies."""
         expected = {

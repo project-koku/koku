@@ -17,6 +17,7 @@ from faker import Faker
 from model_bakery import baker
 from tenant_schemas.utils import schema_context
 
+from api.currency.utils import exchange_dictionary
 from api.models import Provider
 from api.provider.models import ProviderBillingSource
 from api.report.test.util.common import populate_ocp_topology
@@ -89,8 +90,15 @@ class ModelBakeryDataLoader(DataLoader):
             baker.make("OCPEnabledTagKeys", key=self.tag_test_tag_key)
 
     def _populate_exchange_rates(self):
-        baker.make("ExchangeRates", currency_type="usd", exchange_rate=1)
-        baker.make("ExchangeRates", currency_type="eur", exchange_rate=0.5)
+        rates = [
+            {"code": "USD", "currency_type": "usd", "exchange_rate": 1},
+            {"code": "EUR", "currency_type": "eur", "exchange_rate": 0.5},
+        ]
+        rate_metrics = {}
+        for rate in rates:
+            baker.make("ExchangeRates", currency_type=rate["currency_type"], exchange_rate=rate["exchange_rate"])
+            rate_metrics[rate["code"]] = rate["exchange_rate"]
+        exchange_dictionary(rate_metrics)
 
     def create_provider(self, provider_type, credentials, billing_source, name, linked_openshift_provider=None):
         """Create a Provider record"""
