@@ -9,12 +9,6 @@ from api.currency.utils import build_exchange_dictionary
 from api.currency.utils import exchange_dictionary
 from api.iam.test.iam_test_case import IamTestCase
 
-RATE_DICT = {
-    "USD": 1,
-    "AUD": 2,
-    "CAD": 1.25,
-}
-
 
 class CurrencyUtilsTest(IamTestCase):
     """Tests for the currency utils."""
@@ -30,11 +24,11 @@ class CurrencyUtilsTest(IamTestCase):
             "CAD": {"USD": Decimal(0.8), "AUD": Decimal(1.6), "CAD": Decimal(1.0)},
         }
 
-        output = build_exchange_dictionary(RATE_DICT)
+        output = build_exchange_dictionary({"USD": 1, "AUD": 2, "CAD": 1.25})
         self.assertEqual(output, expected)
 
     def test_exchange_dictionary(self):
         """Test that the exchange rate dict is sent to the DB."""
-        exchange_dictionary(RATE_DICT)
+        exchange_dictionary({"USD": 1, "AUD": 2, "CAD": 1.25})
         exchanged_data = ExchangeRateDictionary.objects.all().first().currency_exchange_dictionary
         self.assertIsNotNone(exchanged_data)
