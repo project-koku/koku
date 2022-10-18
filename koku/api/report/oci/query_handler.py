@@ -6,6 +6,7 @@
 import copy
 import logging
 
+from django.db.models import CharField
 from django.db.models import Value
 from django.db.models.functions import Coalesce
 from django.db.models.functions import Concat
@@ -92,10 +93,10 @@ class OCIReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
@@ -172,6 +173,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = self._mapper.report_type_map.get("annotations")
+            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             query_data = query.values(*query_group_by).annotate(**annotations)
             query_sum = self._build_sum(query)
 

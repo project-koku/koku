@@ -113,17 +113,6 @@ class QueryHandler:
             return False
         return any(WILDCARD == item for item in in_list)
 
-    # @property
-    # def exchange_rates(self):
-    #     """Look up the exchange rate for the target currency."""
-    #     try:
-    #         exchange_rate = ExchangeRates.objects.get(currency_type=self.currency.lower()).exchange_rate
-    #     except ExchangeRates.DoesNotExist:
-    #         LOG.warning("Invalid exchange rate. Using default of 1.")
-    #         exchange_rate = 1
-
-    #     return {er.currency_type: exchange_rate / er.exchange_rate for er in ExchangeRates.objects.all()}
-
     @cached_property
     def exchange_rates(self):
         try:

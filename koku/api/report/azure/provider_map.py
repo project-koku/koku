@@ -126,10 +126,7 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
                             ),
@@ -228,10 +225,7 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "count": Max("instance_count"),
                             "count_units": Value("instance_types", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
@@ -335,10 +329,7 @@ class AzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),

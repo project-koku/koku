@@ -9,6 +9,7 @@ import operator
 from functools import reduce
 
 from django.core.exceptions import FieldDoesNotExist
+from django.db.models import CharField
 from django.db.models import F
 from django.db.models import Q
 from django.db.models import Value
@@ -70,10 +71,10 @@ class AWSReportQueryHandler(ReportQueryHandler):
             (Dict): query annotations dictionary
 
         """
-        units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         annotations = {
             "date": self.date_trunc("usage_start"),
-            "cost_units": Coalesce(self._mapper.cost_units_key, Value(units_fallback)),
+            # this currency is used by the provider map to populate the correct currency value
+            "currency": Value(self.currency, output_field=CharField()),
             **self.exchange_rate_annotation_dict,
         }
         if self._mapper.usage_units_key:
@@ -311,20 +312,21 @@ class AWSReportQueryHandler(ReportQueryHandler):
         if not self.parameters.parameters.get("compute_count"):
             query_sum.pop("count", None)
 
-        cost_units_fallback = self._mapper.report_type_map.get("cost_units_fallback")
         usage_units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
         count_units_fallback = self._mapper.report_type_map.get("count_units_fallback")
         if query.exists():
-            sum_annotations = {"cost_units": Coalesce(self._mapper.cost_units_key, Value(cost_units_fallback))}
+            sum_annotations = {
+                "cost_units": Coalesce(self._mapper.cost_units_key, Value(self._mapper.cost_units_fallback))
+            }
             if self._mapper.usage_units_key:
                 units_fallback = self._mapper.report_type_map.get("usage_units_fallback")
                 sum_annotations["usage_units"] = Coalesce(self._mapper.usage_units_key, Value(units_fallback))
             sum_query = query.annotate(**sum_annotations).order_by()
-            units_value = self.currency
-            sum_units = {"cost_units": units_value}
+            sum_units = {"cost_units": self.currency}
             if self._mapper.usage_units_key:
-                units_value = sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
-                sum_units["usage_units"] = units_value
+                sum_units["usage_units"] = (
+                    sum_query.values("usage_units").first().get("usage_units", usage_units_fallback)
+                )
             if annotations.get("count_units"):
                 sum_units["count_units"] = count_units_fallback
             query_sum = self.calculate_total(**sum_units)
@@ -544,6 +546,7 @@ select coalesce(raa.account_alias, t.usage_account_id)::text as "account",
             query_order_by.extend(self.order)  # add implicit ordering
 
             annotations = copy.deepcopy(self._mapper.report_type_map.get("annotations", {}))
+            annotations["cost_units"] = Coalesce(Value(self.currency), Value(self._mapper.cost_units_fallback))
             if not self.parameters.parameters.get("compute_count"):
                 # Query parameter indicates count should be removed from DB queries
                 annotations.pop("count", None)

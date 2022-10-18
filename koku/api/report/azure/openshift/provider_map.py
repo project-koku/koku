@@ -147,10 +147,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -252,10 +249,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -315,10 +309,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -362,10 +353,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -431,10 +419,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -478,10 +463,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit_of_measure"), output_field=CharField()),
@@ -543,10 +525,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum(F("usage_quantity")),
                             "usage_units": Coalesce(
@@ -592,10 +571,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum(F("usage_quantity")),
@@ -665,10 +641,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_quantity"),
                             "usage_units": Coalesce(
@@ -714,10 +687,7 @@ class OCPAzureProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_units": Coalesce(
-                                ExpressionWrapper(Max("currency"), output_field=CharField()),
-                                Value("USD", output_field=CharField()),
-                            ),
+                            "cost_units": Coalesce("currency", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_quantity"),
