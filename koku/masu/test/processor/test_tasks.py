@@ -559,7 +559,7 @@ class TestProcessorTasks(MasuTestCase):
         expected_count_sql = (
             "SELECT count(*) FROM aws_line_items_daily "
             f"WHERE source='{self.aws_provider_uuid}' AND year='{year}'"
-            f" AND month='{month}' "
+            f" AND month='{month}'"
         )
 
         expected_fetch_sql = (
