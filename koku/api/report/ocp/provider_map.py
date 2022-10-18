@@ -1296,7 +1296,7 @@ class OCPProviderMap(ProviderMap):
                                     )
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
-                            )
+                            ),
                         },
                         "filter": [{}],
                         "cost_units_key": "raw_currency",
@@ -1596,6 +1596,14 @@ class OCPProviderMap(ProviderMap):
                                     )
                                     + Coalesce(
                                         KeyDecimalTransform("cpu", "infrastructure_usage_cost"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "supplementary_monthly_cost_json"),
+                                        Value(0, output_field=DecimalField()),
+                                    )
+                                    + Coalesce(
+                                        KeyDecimalTransform("cpu", "infrastructure_monthly_cost_json"),
                                         Value(0, output_field=DecimalField()),
                                     )
                                 )

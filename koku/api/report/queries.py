@@ -1028,10 +1028,10 @@ class ReportQueryHandler(QueryHandler):
         date_delta = self._get_date_delta()
         # Added deltas for each grouping
         # e.g. date, account, region, availability zone, et cetera
-        previous_sums = previous_query.annotate(**self.annotations)
+        # previous_sums = previous_query.annotate(**self.annotations)
         delta_field = self._mapper._report_type_map.get("delta_key").get(self._delta)
         delta_annotation = {self._delta: delta_field}
-        previous_sums = previous_sums.values(*query_group_by).annotate(**delta_annotation)
+        previous_sums = previous_query.values(*query_group_by).annotate(**delta_annotation)
         previous_dict = OrderedDict()
         for row in previous_sums:
             date = self.string_to_date(row["date"])
