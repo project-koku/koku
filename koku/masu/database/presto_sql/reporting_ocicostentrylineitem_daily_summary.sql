@@ -36,6 +36,7 @@ SELECT uuid() as uuid,
     resource_ids,
     cast(resource_count AS integer),
     cast(CASE
+        WHEN unit = 'MS' THEN usage_amount / 3600000.0
         WHEN unit = 'BYTES' THEN usage_amount / (
                 cast(day(last_day_of_month(date(usage_start))) as integer)
             ) *
@@ -51,7 +52,13 @@ SELECT uuid() as uuid,
             )
         ELSE usage_amount
     END AS decimal(24,9)) AS usage_amount,
-    unit,
+    CASE
+        WHEN unit = 'MS' THEN  'Hrs'
+        WHEN unit = 'BYTES' THEN  'GB-Mo'
+        WHEN unit = 'BYTE_MS' THEN  'GB-Mo'
+        WHEN unit = 'GB_MS' THEN  'GB-Mo'
+        ELSE unit
+    END as unit,
     cast(currency AS varchar(10)),
     cast(cost AS decimal(24,9)),
     cast(
