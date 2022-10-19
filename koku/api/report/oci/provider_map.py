@@ -194,8 +194,10 @@ class OCIProviderMap(ProviderMap):
                         },
                         "aggregate_key": "usage_amount",
                         "annotations": {
-                            "infra_raw": Sum(Coalesce(F("cost"), Value(0, output_field=DecimalField())))
-                            * Coalesce("exchange_rate", Value(1, output_field=DecimalField())),
+                            "infra_raw": Sum(
+                                Coalesce(F("cost"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "infra_usage": Value(0, output_field=DecimalField()),
                             "infra_markup": Sum(
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))

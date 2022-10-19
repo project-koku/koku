@@ -186,8 +186,6 @@ class OCIReportQueryHandler(ReportQueryHandler):
             if self._delta:
                 query_data = self.add_deltas(query_data, query_sum)
 
-            is_csv_output = self.parameters.accept_type and "text/csv" in self.parameters.accept_type
-
             order_date = None
             for i, param in enumerate(query_order_by):
                 if check_if_valid_date_str(param):
@@ -218,7 +216,7 @@ class OCIReportQueryHandler(ReportQueryHandler):
                 # &order_by[cost]=desc&order_by[date]=2021-08-02
                 query_data = self.order_by(query_data, query_order_by)
 
-            if is_csv_output:
+            if self.is_csv_output:
                 data = list(query_data)
             else:
                 groups = copy.deepcopy(query_group_by)
