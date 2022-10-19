@@ -116,7 +116,7 @@ class OCPReportQueryHandler(ReportQueryHandler):
         returns:
             dict: {source_uuid: currency}
         """
-        source_map = defaultdict(lambda: "USD")
+        source_map = defaultdict(lambda: self._mapper.cost_units_fallback)
         cost_models = CostModel.objects.all().values("uuid", "currency").distinct()
         cm_to_currency = {row["uuid"]: row["currency"] for row in cost_models}
         mapping = CostModelMap.objects.all().values("provider_uuid", "cost_model_id")
