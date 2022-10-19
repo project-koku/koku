@@ -152,6 +152,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -254,6 +255,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
@@ -348,6 +350,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum(F("usage_amount")),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
@@ -451,6 +454,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
@@ -549,6 +553,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
@@ -655,6 +660,7 @@ class OCPAWSProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),

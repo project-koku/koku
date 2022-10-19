@@ -164,6 +164,7 @@ class GCPProviderMap(ProviderMap):
                                 Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -283,6 +284,7 @@ class GCPProviderMap(ProviderMap):
                                 Coalesce(F("markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "cost_credit": Sum(
                                 Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
@@ -417,6 +419,7 @@ class GCPProviderMap(ProviderMap):
                                 Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("gibibyte month")),

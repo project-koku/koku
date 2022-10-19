@@ -129,6 +129,7 @@ class OCIProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -230,6 +231,7 @@ class OCIProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "count": Max("resource_count"),
                             "count_units": Value("instances", output_field=CharField()),
@@ -333,6 +335,7 @@ class OCIProviderMap(ProviderMap):
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
+                            # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(Max("unit"), Value("GB-Mo")),
