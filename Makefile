@@ -92,9 +92,7 @@ help:
 	@echo "  restore-local-db-dir                  overwrite the local PostgreSQL database directory with pg_data.bak"
 	@echo "  collect-static                        collect static files to host"
 	@echo "  make-migrations                       make migrations for the database"
-	@echo "  requirements                          generate Pipfile.lock, RTD requirements and manifest for product security"
-	@echo "  manifest                              create/update manifest for product security"
-	@echo "  check-manifest                        check that the manifest is up to date"
+	@echo "  requirements                          generate Pipfile.lock"
 	@echo "  clowdapp                              generates a new clowdapp.yaml"
 	@echo "  remove-db                             remove local directory $(TOPDIR)/pg_data"
 	@echo "  remove-test-db                        remove the django test db"
@@ -232,13 +230,6 @@ reset-db-statistics:
 
 requirements:
 	pipenv lock
-	python dev/scripts/create_manifest.py
-
-manifest:
-	python dev/scripts/create_manifest.py
-
-check-manifest:
-	.github/scripts/check_manifest.sh
 
 run-migrations:
 	scripts/run_migrations.sh $(applabel) $(migration)

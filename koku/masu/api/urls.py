@@ -26,6 +26,7 @@ from masu.api.views import hcs_report_finalization
 from masu.api.views import lockinfo
 from masu.api.views import notification
 from masu.api.views import pg_engine_version
+from masu.api.views import process_openshift_on_cloud
 from masu.api.views import purge_trino_files
 from masu.api.views import report_data
 from masu.api.views import running_celery_tasks
@@ -54,7 +55,8 @@ urlpatterns = [
     path("trino/api/", trino_ui, name="trino_ui"),
     path("notification/", notification, name="notification"),
     path("update_cost_model_costs/", update_cost_model_costs, name="update_cost_model_costs"),
-    path("update_openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
+    path("report/process/openshift_on_cloud/", process_openshift_on_cloud, name="process_openshift_on_cloud"),
+    path("report/summarize/openshift_on_cloud/", update_openshift_on_cloud, name="update_openshift_on_cloud"),
     path("crawl_account_hierarchy/", crawl_account_hierarchy, name="crawl_account_hierarchy"),
     path("running_celery_tasks/", running_celery_tasks, name="running_celery_tasks"),
     path("celery_queue_lengths/", celery_queue_lengths, name="celery_queue_lengths"),
