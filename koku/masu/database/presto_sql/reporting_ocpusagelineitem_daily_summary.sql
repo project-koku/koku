@@ -400,6 +400,11 @@ FROM (
 
 ;
 
+/*
+ * ====================================
+ *        UNALLOCATED CAPACITY
+ * ====================================
+ */
 INSERT INTO hive.{{schema | sqlsafe}}.reporting_ocpusagelineitem_daily_summary (
     uuid,
     report_period_id,
@@ -449,7 +454,7 @@ LEFT JOIN postgres.{{schema | sqlsafe}}.reporting_ocp_nodes as nodes
     ON lids.node = nodes.node
 WHERE lids.source = {{source}}
     AND lids.year = {{year}}
-    AND lids.month = {{month}}
+    AND lpad(lids.month, 2, '0') = {{month}}
     AND lids.usage_start >= TIMESTAMP {{start_date}}
     AND lids.node IS NOT NULL
 GROUP BY lids.node, lids.usage_start, lids.source_uuid
