@@ -168,25 +168,25 @@ class TestCeleryTasks(MasuTestCase):
     @patch("masu.celery.tasks.requests")
     def test_get_currency_conversion_rates_successful(self, mock_requests):
         beforeRows = ExchangeRates.objects.count()
-        self.assertEqual(beforeRows, 0)
+        self.assertEqual(beforeRows, 2)
         mock_requests.get.return_value = Mock(
             status_code=201, json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928}}
         )
         tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
-        self.assertEqual(afterRows, 3)
+        self.assertEqual(afterRows, 5)
 
     @patch("masu.celery.tasks.requests")
     def test_get_currency_conversion_rates_unsupported_currency(self, mock_requests):
         beforeRows = ExchangeRates.objects.count()
-        self.assertEqual(beforeRows, 0)
+        self.assertEqual(beforeRows, 2)
         mock_requests.get.return_value = Mock(
             status_code=201,
             json=lambda: {"result": "success", "rates": {"AUD": 1.37, "CAD": 1.25, "CHF": 0.928, "FOO": 12.34}},
         )
         tasks.get_daily_currency_rates()
         afterRows = ExchangeRates.objects.count()
-        self.assertEqual(afterRows, 3)
+        self.assertEqual(afterRows, 5)
 
     @override_settings(ENABLE_S3_ARCHIVING=True)
     def test_delete_archived_data_bad_inputs_exception(self):

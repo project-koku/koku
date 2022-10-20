@@ -208,6 +208,8 @@ class OCPGCPCostLineItemProjectDailySummaryP(models.Model):
 
     pod_cost = models.DecimalField(max_digits=33, decimal_places=15, null=True)
 
+    pod_credit = models.DecimalField(max_digits=30, decimal_places=15, null=True)
+
     tags = JSONField(null=True)
 
     source_uuid = models.UUIDField(unique=False, null=True)
