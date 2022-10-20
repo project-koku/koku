@@ -986,13 +986,15 @@ class OCPReportDBAccessorTest(MasuTestCase):
         except Exception as err:
             self.fail(f"Exception thrown: {err}")
 
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.trino_db.executescript")
     @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
-    def test_populate_line_item_daily_summary_table_presto(self, mock_connect, mock_executescript):
+    def test_populate_line_item_daily_summary_table_presto(self, mock_connect, mock_executescript, mock_table_exists):
         """
         Test that OCP presto processing calls executescript
         """
         presto_conn = FakePrestoConn()
+        mock_table_exists.return_value = True
         mock_connect.return_value = presto_conn
         mock_executescript.return_value = []
         dh = DateHelper()
@@ -1008,13 +1010,18 @@ class OCPReportDBAccessorTest(MasuTestCase):
         mock_connect.assert_called()
         mock_executescript.assert_called()
 
+    # @patch("masu.util.common.trino_table_exists")
+    @patch("masu.database.ocp_report_db_accessor.trino_table_exists")
     @patch("masu.database.ocp_report_db_accessor.pkgutil.get_data")
     @patch("masu.database.ocp_report_db_accessor.trino_db.connect")
-    def test_populate_line_item_daily_summary_table_presto_preprocess_exception(self, mock_connect, mock_get_data):
+    def test_populate_line_item_daily_summary_table_presto_preprocess_exception(
+        self, mock_connect, mock_get_data, mock_table_exists
+    ):
         """
         Test that OCP presto processing converts datetime to date for start, end dates
         """
         presto_conn = FakePrestoConn()
+        mock_table_exists.return_value = True
         mock_connect.return_value = presto_conn
         mock_get_data.return_value = b"""
 select * from eek where val1 in {{report_period_id}} ;
@@ -2753,7 +2760,7 @@ select * from eek where val1 in {{report_period_id}} ;
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_projects_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_pvcs_presto")
     @patch("masu.database.ocp_report_db_accessor.OCPReportDBAccessor.get_nodes_presto")
-    def test_get_openshift_topology_for_provider(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
+    def test_get_openshift_topology_for_multiple_providers(self, mock_get_nodes, mock_get_pvcs, mock_get_projects):
         """Test that OpenShift topology is populated."""
         nodes = ["test_node_1", "test_node_2"]
         resource_ids = ["id_1", "id_2"]
@@ -2782,9 +2789,9 @@ select * from eek where val1 in {{report_period_id}} ;
             nodes = OCPNode.objects.filter(cluster=cluster).all()
             pvcs = OCPPVC.objects.filter(cluster=cluster).all()
             projects = OCPProject.objects.filter(cluster=cluster).all()
-            topology = self.accessor.get_openshift_topology_for_provider(self.aws_provider_uuid)
+            topology = self.accessor.get_openshift_topology_for_multiple_providers([self.aws_provider])
 
-            self.assertEqual(topology.get("cluster_id"), cluster_id)
+            self.assertEqual(topology.get("clusters"), [cluster_id])
             self.assertEqual(nodes.count(), len(topology.get("nodes")))
             for node in nodes:
                 self.assertIn(node.node, topology.get("nodes"))

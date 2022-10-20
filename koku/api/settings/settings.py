@@ -148,6 +148,19 @@ class Settings:
         Generate cost management form component
         """
         tag_key_text_name = f"{SETTINGS_PREFIX}.tag_management.form-text"
+
+        currency_select_name = "api.settings.currency"
+        currency_text_context = "Select the preferred currency view for your organization."
+        currency_title = create_plain_text(currency_select_name, "Currency", "h2")
+        currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
+        currency_options = {
+            "options": get_currency_options(),
+            "initialValue": get_selected_currency_or_setup(self.schema),
+            "FormGroupProps": {"style": {"width": "400px"}},
+        }
+        currency = create_select(currency_select_name, **currency_options)
+        sub_form_fields = [currency_title, currency_select_text, currency]
+
         enable_tags_title = create_plain_text(tag_key_text_name, "Enable tags and labels", "h2")
         tag_key_text_context = (
             "Enable your data source labels to be used as tag keys for report grouping and filtering."
@@ -160,7 +173,6 @@ class Settings:
         )
         tag_key_text = create_plain_text_with_doc(tag_key_text_name, tag_key_text_context, doc_link)
 
-        sub_form_fields = []
         avail_objs = []
         enabled_objs = []
         for providerName in obtainTagKeysProvidersParams:
@@ -192,26 +204,7 @@ class Settings:
         dual_list_name = f'{"api.settings.tag-management.enabled"}'
         tags_and_labels = create_dual_list_select(dual_list_name, **dual_list_options)
 
-        for field in enable_tags_title, tag_key_text, tags_and_labels:
-            sub_form_fields.append(field)
-
-        # currency settings TODO: only show in dev mode right now
-        if settings.DEVELOPMENT:
-            currency_select_name = f'{"api.settings.currency"}'
-            currency_text_context = "Select the preferred currency view for your organization."
-            currency_title = create_plain_text(currency_select_name, "Currency", "h2")
-            currency_select_text = create_plain_text(currency_select_name, currency_text_context, "p")
-            currency_options = {
-                "options": get_currency_options(),
-                "initialValue": get_selected_currency_or_setup(self.schema),
-                "FormGroupProps": {"style": {"width": "400px"}},
-            }
-            currency = create_select(currency_select_name, **currency_options)
-
-            idx = 0
-            for field in currency_title, currency_select_text, currency:
-                sub_form_fields.insert(idx, field)
-                idx += 1
+        sub_form_fields.extend([enable_tags_title, tag_key_text, tags_and_labels])
 
         customer = self.request.user.customer
         customer_specific_providers = Provider.objects.filter(customer=customer)
@@ -232,9 +225,7 @@ class Settings:
                 "FormGroupProps": {"style": {"width": "400px"}},
             }
             cost_type = create_select(cost_type_select_name, **cost_type_options)
-
-            for field in cost_type_title, cost_type_select_text, cost_type:
-                sub_form_fields.append(field)
+            sub_form_fields.extend([cost_type_title, cost_type_select_text, cost_type])
 
         sub_form_name = f"{SETTINGS_PREFIX}.settings.subform"
         sub_form_title = ""
