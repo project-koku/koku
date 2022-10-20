@@ -27,13 +27,18 @@ class GCPReportParquetProcessor(ReportParquetProcessorBase):
             "daily_credits",
         ]
         date_columns = ["usage_start_time", "usage_end_time", "export_time", "partition_time"]
+        boolean_columns = ["ocp_matched"]
         if "openshift" in s3_path:
             table_name = PRESTO_OCP_ON_GCP_DAILY_TABLE
         elif "daily" in s3_path:
             table_name = PRESTO_LINE_ITEM_DAILY_TABLE
         else:
             table_name = PRESTO_LINE_ITEM_TABLE
-        column_types = {"numeric_columns": numeric_columns, "date_columns": date_columns, "boolean_columns": []}
+        column_types = {
+            "numeric_columns": numeric_columns,
+            "date_columns": date_columns,
+            "boolean_columns": boolean_columns,
+        }
         super().__init__(
             manifest_id=manifest_id,
             account=account,
