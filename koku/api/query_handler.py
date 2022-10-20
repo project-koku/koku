@@ -143,17 +143,7 @@ class QueryHandler:
 
         """
         order_map = {"asc": "", "desc": "-"}
-        order = []
-        order_by = self.parameters.get("order_by", self.default_ordering)
-
-        for order_field, order_direction in order_by.items():
-            if order_direction not in order_map and order_field == "date":
-                # We've overloaded date to hold a specific date, not asc/desc
-                order.append(order_direction)
-            else:
-                order.append(f"{order_map[order_direction]}{order_field}")
-
-        return order
+        return [f"{order_map[self.order_direction]}{self.order_field}"]
 
     @property
     def order_field(self):

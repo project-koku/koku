@@ -13,7 +13,6 @@ from tenant_schemas.utils import tenant_context
 from api.models import Provider
 from api.report.aws.openshift.provider_map import OCPAWSProviderMap
 from api.report.aws.query_handler import AWSReportQueryHandler
-from api.report.queries import check_if_valid_date_str
 from api.report.queries import is_grouped_by_project
 
 LOG = logging.getLogger(__name__)
@@ -70,35 +69,7 @@ class OCPInfrastructureReportQueryHandlerBase(AWSReportQueryHandler):
                 if self._mapper.report_type_map.get("annotations", {}).get("count_units"):
                     count_units_value = query_data[0].get("count_units")
 
-            order_date = None
-            for i, param in enumerate(query_order_by):
-                if check_if_valid_date_str(param):
-                    # Checks to see if the date is in the query_data
-                    if any(d["date"] == param for d in query_data):
-                        # Set order_date to a valid date
-                        order_date = param
-                        break
-            # Remove the date order by as it is not actually used for ordering
-            if order_date:
-                sort_term = self._get_group_by()[0]
-                query_order_by.pop(i)
-                filtered_query_data = []
-                for index in query_data:
-                    for key, value in index.items():
-                        if (key == "date") and (value == order_date):
-                            filtered_query_data.append(index)
-                ordered_data = self.order_by(filtered_query_data, query_order_by)
-                order_of_interest = []
-                for entry in ordered_data:
-                    order_of_interest.append(entry.get(sort_term))
-                # write a special order by function that iterates through the
-                # rest of the days in query_data and puts them in the same order
-                # return_query_data = []
-                sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
-                query_data = self.order_by(sorted_data, ["-date"])
-            else:
-                # &order_by[cost]=desc&order_by[date]=2021-08-02
-                query_data = self.order_by(query_data, query_order_by)
+            query_data = self.order_by(query_data, query_order_by)
 
             if self.is_csv_output:
                 data = list(query_data)

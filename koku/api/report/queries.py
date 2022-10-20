@@ -727,7 +727,17 @@ class ReportQueryHandler(QueryHandler):
 
         return out_data
 
-    def order_by(self, data, order_fields):
+    def order_by(self, query_data, query_order_by):
+        if not (order_date := self.parameters.get("cost_explorer_order_by", {}).get("date")):
+            return self._order_by(query_data, query_order_by)
+        sort_term = self._get_group_by()[0]
+        filtered_query_data = filter(lambda x: x["date"] == order_date, query_data)
+        ordered_data = self._order_by(filtered_query_data, query_order_by)
+        order_of_interest = [entry.get(sort_term) for entry in ordered_data]
+        sorted_data = [item for x in order_of_interest for item in query_data if item.get(sort_term) == x]
+        return self._order_by(sorted_data, ["-date"])
+
+    def _order_by(self, data, order_fields):
         """Order a list of dictionaries by dictionary keys.
 
         Args:
