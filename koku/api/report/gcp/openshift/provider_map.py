@@ -204,7 +204,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -230,7 +230,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -256,7 +256,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -282,7 +282,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -461,7 +461,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -487,7 +487,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -520,7 +520,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -546,7 +546,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -726,7 +726,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -752,7 +752,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -783,7 +783,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
@@ -809,7 +809,7 @@ class OCPGCPProviderMap(ProviderMap):
                                 (
                                     Coalesce(F("pod_cost"), Value(0, output_field=DecimalField()))
                                     + Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
-                                    + Coalesce(F("credit_amount"), Value(0, output_field=DecimalField()))
+                                    + Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
                                 )
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
