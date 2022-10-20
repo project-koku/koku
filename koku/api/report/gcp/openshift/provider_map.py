@@ -246,7 +246,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                         },
                         "annotations": {
                             "infra_total": Sum(
@@ -297,7 +300,10 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "clusters": ArrayAgg(Coalesce("cluster_alias", "cluster_id"), distinct=True),
                             "source_uuid": ArrayAgg(
                                 F("source_uuid"), filter=Q(source_uuid__isnull=False), distinct=True
@@ -497,7 +503,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
@@ -555,7 +564,10 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "count": Count("resource_id", distinct=True),
                             "count_units": Value("instances", output_field=CharField()),
                             "usage": Sum("usage_amount"),
@@ -756,7 +768,10 @@ class OCPGCPProviderMap(ProviderMap):
                                 Coalesce(F("project_markup_cost"), Value(0, output_field=DecimalField()))
                                 * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
                             ),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
@@ -812,7 +827,10 @@ class OCPGCPProviderMap(ProviderMap):
                             ),
                             # the `currency_annotation` is inserted by the `annotations` property of the query-handler
                             "cost_units": Coalesce("currency_annotation", Value("USD", output_field=CharField())),
-                            "cost_credit": Sum(Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))),
+                            "cost_credit": Sum(
+                                Coalesce(F("pod_credit"), Value(0, output_field=DecimalField()))
+                                * Coalesce("exchange_rate", Value(1, output_field=DecimalField()))
+                            ),
                             "usage": Sum("usage_amount"),
                             "usage_units": Coalesce(
                                 ExpressionWrapper(Max("unit"), output_field=CharField()),
